@@ -1,14 +1,8 @@
-mod cli;
-mod config;
-mod db;
-mod error;
-mod server;
-mod telemetry;
-
 use clap::Parser;
 
-use crate::cli::{AdminCommand, Cli, Command};
-use crate::config::Config;
+use dioryga::cli::{self, AdminCommand, Cli, Command};
+use dioryga::config::Config;
+use dioryga::{db, server, telemetry};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

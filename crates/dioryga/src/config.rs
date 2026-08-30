@@ -84,11 +84,19 @@ impl Config {
 mod tests {
     use super::*;
 
+    // Jail は実際のプロセスの環境変数を書き換えるため、Jail を使わないテストが
+    // 並行実行されると他のテストが設定した値を読んでしまう。Jail 同士は
+    // figment 側のロックで直列化されるので、環境変数を触らないテストも
+    // Jail の中で実行する。
     #[test]
     fn 設定ファイルが無くても既定値で読み込める() {
-        let config = Config::load(Path::new("存在しない.toml")).unwrap();
-        assert_eq!(config.bind.port(), 8080);
-        assert_eq!(config.timezone, "Asia/Tokyo");
+        figment::Jail::expect_with(|_| {
+            let config = Config::load(Path::new("存在しない.toml")).unwrap();
+            assert_eq!(config.bind.port(), 8080);
+            assert_eq!(config.timezone, "Asia/Tokyo");
+            assert!(config.database.auto_migrate);
+            Ok(())
+        });
     }
 
     #[test]

@@ -2,7 +2,7 @@
 
 use axum::extract::{ConnectInfo, State};
 use axum::http::{header, HeaderMap, StatusCode};
-use axum::response::{Html, IntoResponse, Response};
+use axum::response::{IntoResponse, Response};
 use axum::{Extension, Form};
 use chrono::Utc;
 use entity::app_user;
@@ -14,7 +14,39 @@ use crate::auth::middleware::CurrentUser;
 use crate::auth::rate_limit::{self, Decision};
 use crate::auth::{cookie, session};
 use crate::error::{AppError, AppResult};
+use crate::server::view::{render, Locale};
 use crate::server::AppState;
+
+#[derive(askama::Template)]
+#[template(path = "login.html")]
+struct LoginPage {
+    locale: &'static str,
+    app_name: String,
+    t_title: String,
+    t_lead: String,
+    t_email: String,
+    t_password: String,
+    t_submit: String,
+    error: Option<String>,
+    email: String,
+}
+
+impl LoginPage {
+    fn new(locale: Locale, error: Option<String>, email: String) -> Self {
+        let l = locale.as_str();
+        Self {
+            locale: l,
+            app_name: rust_i18n::t!("app.name", locale = l).to_string(),
+            t_title: rust_i18n::t!("login.title", locale = l).to_string(),
+            t_lead: rust_i18n::t!("login.lead", locale = l).to_string(),
+            t_email: rust_i18n::t!("login.email", locale = l).to_string(),
+            t_password: rust_i18n::t!("login.password", locale = l).to_string(),
+            t_submit: rust_i18n::t!("login.submit", locale = l).to_string(),
+            error,
+            email,
+        }
+    }
+}
 
 /// ログイン失敗時に返す文言。
 ///
@@ -29,12 +61,9 @@ pub struct LoginForm {
     pub password: String,
 }
 
-pub async fn show() -> Html<&'static str> {
-    // 画面はP3-4で実装する。
-    Html(
-        "<!doctype html><meta charset=\"utf-8\"><title>ログイン</title>\
-         <p>ログイン。画面はP3-4で実装する。</p>",
-    )
+pub async fn show(headers: HeaderMap) -> AppResult<Response> {
+    let locale = Locale::from_headers(&headers);
+    render(&LoginPage::new(locale, None, String::new()))
 }
 
 pub async fn submit(
@@ -43,6 +72,7 @@ pub async fn submit(
     headers: HeaderMap,
     Form(form): Form<LoginForm>,
 ) -> AppResult<Response> {
+    let locale = Locale::from_headers(&headers);
     let now = Utc::now();
     let ip = peer.ip().to_string();
     let user_agent = headers
@@ -56,8 +86,10 @@ pub async fn submit(
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
         == Decision::Throttled
     {
-        return Err(AppError::Validation(
-            "試行回数が上限に達しました。しばらく待ってから再度お試しください".to_owned(),
+        return render(&LoginPage::new(
+            locale,
+            Some("試行回数が上限に達しました。しばらく待ってから再度お試しください".to_owned()),
+            form.email,
         ));
     }
 
@@ -72,14 +104,22 @@ pub async fn submit(
     let Some(user) = found else {
         let _ = state.passwords.verify_dummy(&form.password).await;
         record(&state, &form.email, &ip, false, now).await?;
-        return Err(AppError::Validation(LOGIN_FAILED.to_owned()));
+        return render(&LoginPage::new(
+            locale,
+            Some(LOGIN_FAILED.to_owned()),
+            form.email,
+        ));
     };
 
     // 無効化された利用者も、存在しない場合と同じ扱いにする
     if user.disabled_at.is_some() {
         let _ = state.passwords.verify_dummy(&form.password).await;
         record(&state, &form.email, &ip, false, now).await?;
-        return Err(AppError::Validation(LOGIN_FAILED.to_owned()));
+        return render(&LoginPage::new(
+            locale,
+            Some(LOGIN_FAILED.to_owned()),
+            form.email,
+        ));
     }
 
     let verified = state
@@ -90,7 +130,11 @@ pub async fn submit(
 
     let Some(verified) = verified else {
         record(&state, &form.email, &ip, false, now).await?;
-        return Err(AppError::Validation(LOGIN_FAILED.to_owned()));
+        return render(&LoginPage::new(
+            locale,
+            Some(LOGIN_FAILED.to_owned()),
+            form.email,
+        ));
     };
 
     // パラメータが現行より弱ければ再ハッシュする（設計書20.2）。

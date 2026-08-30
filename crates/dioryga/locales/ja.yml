@@ -1,0 +1,31 @@
+_version: 1
+
+app:
+  name: Dioryga
+
+login:
+  title: ログイン
+  lead: アカウントでサインインしてください
+  email: メールアドレス
+  password: パスワード
+  submit: ログイン
+
+setup:
+  title: 初回セットアップ
+  lead: 最初のSystem Adminを作成します
+  token: セットアップトークン
+  token_hint: サーバーの起動時に標準出力へ表示された値です
+  name: 表示名
+  email: メールアドレス
+  password: パスワード
+  submit: 作成する
+
+password_change:
+  title: パスワードの変更
+  lead: 続けるにはパスワードを変更してください
+  current: 現在のパスワード
+  new: 新しいパスワード
+  confirm: 新しいパスワード（確認）
+  submit: 変更する
+  mismatch: 新しいパスワードが一致しません
+  current_invalid: 現在のパスワードが正しくありません

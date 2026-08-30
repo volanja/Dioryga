@@ -1,0 +1,31 @@
+_version: 1
+
+app:
+  name: Dioryga
+
+login:
+  title: Sign in
+  lead: Sign in with your account
+  email: Email
+  password: Password
+  submit: Sign in
+
+setup:
+  title: Initial setup
+  lead: Create the first System Admin
+  token: Setup token
+  token_hint: The value printed to standard output when the server started
+  name: Display name
+  email: Email
+  password: Password
+  submit: Create
+
+password_change:
+  title: Change password
+  lead: You must change your password to continue
+  current: Current password
+  new: New password
+  confirm: New password (confirm)
+  submit: Change
+  mismatch: The new passwords do not match
+  current_invalid: The current password is incorrect

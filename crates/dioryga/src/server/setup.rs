@@ -3,13 +3,50 @@
 //! 画面そのもの（Askamaテンプレート）はP3-4で作る。ここでは動作と遷移を用意する。
 
 use axum::extract::State;
-use axum::response::{Html, IntoResponse, Redirect, Response};
+use axum::http::HeaderMap;
+use axum::response::{IntoResponse, Redirect, Response};
 use axum::Form;
 use serde::Deserialize;
 
 use crate::auth::setup;
 use crate::error::{AppError, AppResult};
+use crate::server::view::{render, Locale};
 use crate::server::AppState;
+
+#[derive(askama::Template)]
+#[template(path = "setup.html")]
+struct SetupPage {
+    locale: &'static str,
+    app_name: String,
+    t_title: String,
+    t_lead: String,
+    t_token: String,
+    t_token_hint: String,
+    t_name: String,
+    t_email: String,
+    t_password: String,
+    t_submit: String,
+    error: Option<String>,
+}
+
+impl SetupPage {
+    fn new(locale: Locale, error: Option<String>) -> Self {
+        let l = locale.as_str();
+        Self {
+            locale: l,
+            app_name: rust_i18n::t!("app.name", locale = l).to_string(),
+            t_title: rust_i18n::t!("setup.title", locale = l).to_string(),
+            t_lead: rust_i18n::t!("setup.lead", locale = l).to_string(),
+            t_token: rust_i18n::t!("setup.token", locale = l).to_string(),
+            t_token_hint: rust_i18n::t!("setup.token_hint", locale = l).to_string(),
+            t_name: rust_i18n::t!("setup.name", locale = l).to_string(),
+            t_email: rust_i18n::t!("setup.email", locale = l).to_string(),
+            t_password: rust_i18n::t!("setup.password", locale = l).to_string(),
+            t_submit: rust_i18n::t!("setup.submit", locale = l).to_string(),
+            error,
+        }
+    }
+}
 
 #[derive(Debug, Deserialize)]
 pub struct SetupForm {
@@ -23,24 +60,23 @@ pub struct SetupForm {
 ///
 /// セットアップが完了していれば404を返す。**以降この経路が開くことはない**
 /// （利用者が0件に戻ることがないため）。
-pub async fn show(State(state): State<AppState>) -> AppResult<Response> {
+pub async fn show(State(state): State<AppState>, headers: HeaderMap) -> AppResult<Response> {
     if !state.setup.is_pending().await {
         return Err(AppError::NotFound);
     }
 
-    Ok(Html(
-        "<!doctype html><meta charset=\"utf-8\"><title>初回セットアップ</title>\
-         <p>初回セットアップ。画面はP3-4で実装する。</p>",
-    )
-    .into_response())
+    render(&SetupPage::new(Locale::from_headers(&headers), None))
 }
 
 /// 最初のSystem Adminを作成する。
 pub async fn submit(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Form(form): Form<SetupForm>,
 ) -> AppResult<Response> {
-    setup::create_first_admin(
+    let locale = Locale::from_headers(&headers);
+
+    let 結果 = setup::create_first_admin(
         &state.db,
         &state.setup,
         &state.passwords,
@@ -49,15 +85,19 @@ pub async fn submit(
         &form.email,
         &form.password,
     )
-    .await
-    .map_err(|e| match e {
-        setup::SetupError::AlreadyCompleted => AppError::NotFound,
-        setup::SetupError::InvalidToken => AppError::Forbidden,
-        setup::SetupError::Password(e) => AppError::Validation(e.to_string()),
-        other => AppError::Internal(anyhow::anyhow!(other)),
-    })?;
+    .await;
 
-    Ok(Redirect::to("/login").into_response())
+    // 入力の誤りは画面に戻して伝える。トークンの誤りとパスワードの不備は
+    // いずれも利用者が直せるものであり、そのために画面を再表示する。
+    match 結果 {
+        Ok(_) => Ok(Redirect::to("/login").into_response()),
+        Err(setup::SetupError::AlreadyCompleted) => Err(AppError::NotFound),
+        Err(e @ setup::SetupError::InvalidToken) => {
+            render(&SetupPage::new(locale, Some(e.to_string())))
+        }
+        Err(setup::SetupError::Password(e)) => render(&SetupPage::new(locale, Some(e.to_string()))),
+        Err(other) => Err(AppError::Internal(anyhow::anyhow!(other))),
+    }
 }
 
 /// セットアップが済むまで、他のURLを `/setup` へ誘導する。
@@ -71,9 +111,10 @@ pub async fn redirect_while_pending(
 ) -> Response {
     let path = request.uri().path();
 
-    // セットアップ自身とヘルスチェックは通す。
+    // セットアップ自身・ヘルスチェック・静的アセットは通す。
     // ヘルスチェックを通すのは、CIのスモークテストが起動直後に叩くため（2章）。
-    let 通す = path == "/setup" || path == "/health";
+    // 静的アセットを通すのは、セットアップ画面自身がCSSを読むため。
+    let 通す = path == "/setup" || path == "/health" || path.starts_with("/assets/");
 
     if !通す && state.setup.is_pending().await {
         return Redirect::to("/setup").into_response();

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="{{ locale }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{% endblock %} - {{ app_name }}</title>
+<link rel="stylesheet" href="/assets/dioryga.css">
+</head>
+<body>
+<main class="auth">
+  <div class="auth-card">
+    <div class="brand">
+      {# ロゴは design-canvas の確定案（階段式水路＋自然の川）に沿う #}
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M3 7h6v3H3zM9 10h6v3H9zM15 13h6v3h-6z" fill="currentColor" opacity="0.9"/>
+        <path d="M3 19c3-2 5 2 8 0s5 2 10 0" stroke="currentColor" stroke-width="1.6"
+              stroke-linecap="round" opacity="0.45" fill="none"/>
+      </svg>
+      <span class="brand-name">{{ app_name }}</span>
+    </div>
+    {% block content %}{% endblock %}
+  </div>
+</main>
+</body>
+</html>

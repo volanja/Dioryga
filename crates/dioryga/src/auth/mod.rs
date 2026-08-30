@@ -1,7 +1,9 @@
 //! 認証（設計書20章）。
 
+pub mod authorization;
 pub mod cookie;
 pub mod csrf;
+pub mod middleware;
 pub mod password;
 pub mod rate_limit;
 pub mod session;

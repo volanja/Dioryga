@@ -1,0 +1,16 @@
+# 設定ファイルの例。dioryga.toml として配置するか、-c で明示する。
+# すべて省略可能で、省略時は既定値が使われる。
+# 環境変数 DIORYGA_* で上書きできる（ネストは DIORYGA_DATABASE__URL のように __ で区切る）。
+
+bind = "127.0.0.1:8080"
+
+# 表示に用いるタイムゾーン（IANA形式）。
+# 日時はすべてUTCで保存し、表示時にのみ変換する（設計書24.2.3）。
+timezone = "Asia/Tokyo"
+
+# RUST_LOG 形式のフィルタ。環境変数 RUST_LOG があればそちらが優先される。
+log_filter = "info"
+
+[database]
+# SQLite と PostgreSQL のどちらも受け付ける（設計書2章）。
+url = "sqlite://dioryga.db?mode=rwc"

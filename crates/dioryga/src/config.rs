@@ -34,6 +34,17 @@ pub struct Config {
 pub struct DatabaseConfig {
     /// 接続URL。SQLite と PostgreSQL のどちらも受け付ける（設計書2章）。
     pub url: String,
+
+    pub max_connections: u32,
+
+    pub connect_timeout_secs: u64,
+
+    /// 起動時に未適用のマイグレーションを自動で適用するか。
+    ///
+    /// 単一バイナリを配布してすぐ動かせることを重視し、既定で有効にする（設計書1.1）。
+    /// 複数インスタンスが同一のPostgreSQLを共有する運用では、適用の時期を制御する
+    /// ために無効化し、`dioryga migrate` を明示的に実行する。
+    pub auto_migrate: bool,
 }
 
 impl Default for Config {
@@ -44,6 +55,9 @@ impl Default for Config {
             log_filter: "info".to_owned(),
             database: DatabaseConfig {
                 url: "sqlite://dioryga.db?mode=rwc".to_owned(),
+                max_connections: 10,
+                connect_timeout_secs: 10,
+                auto_migrate: true,
             },
         }
     }

@@ -10,14 +10,16 @@ use tokio::net::TcpListener;
 use tokio::signal;
 use tower_http::trace::TraceLayer;
 
+use sea_orm::DatabaseConnection;
+
 use crate::config::Config;
 
 /// ハンドラ間で共有する状態。
 #[derive(Clone)]
 pub struct AppState {
-    /// ハンドラから参照する設定。P2でDB接続がここに加わる。
     #[allow(dead_code)]
     pub config: Arc<Config>,
+    pub db: DatabaseConnection,
 }
 
 pub fn router(state: AppState) -> Router {
@@ -30,8 +32,15 @@ pub fn router(state: AppState) -> Router {
 /// サーバを起動し、終了シグナルを受けるまで待つ。
 pub async fn serve(config: Config) -> anyhow::Result<()> {
     let bind = config.bind;
+
+    let db = crate::db::connect(&config.database).await?;
+    if config.database.auto_migrate {
+        crate::db::migrate(&db).await?;
+    }
+
     let state = AppState {
         config: Arc::new(config),
+        db,
     };
 
     let listener = TcpListener::bind(bind).await?;
@@ -81,8 +90,15 @@ mod tests {
 
     #[tokio::test]
     async fn ヘルスチェックが200を返す() {
+        // ヘルスチェックはDBへの疎通まで確認するため、接続が必要。
+        // マイグレーションは不要（ping するだけのため）。
+        let db = sea_orm::Database::connect("sqlite::memory:")
+            .await
+            .expect("SQLiteへ接続できませんでした");
+
         let state = AppState {
             config: Arc::new(Config::default()),
+            db,
         };
 
         let response = router(state)

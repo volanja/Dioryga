@@ -58,6 +58,21 @@ jobs:
           name: coverage-lcov
           path: lcov.info
 
+  postgres:
+    name: DB連携テスト（PostgreSQL）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+
+      # testcontainers-rs がコンテナを起動する。ubuntuランナーには
+      # Dockerが用意されているため追加の準備は要らない。
+      # SQLite側のテストは test ジョブが実行するため、ここでは
+      # --ignored（PostgreSQL側）のみを対象とする。
+      - name: cargo test -- --ignored
+        run: cargo test --locked -- --ignored
+
   windows-smoke:
     name: Windowsビルド＋起動スモークテスト
     runs-on: windows-latest

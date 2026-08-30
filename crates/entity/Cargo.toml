@@ -1,0 +1,16 @@
+[package]
+name = "entity"
+description = "Diorygaのsea-ormエンティティ定義"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "entity"
+path = "src/lib.rs"
+
+[dependencies]
+sea-orm.workspace = true
+serde.workspace = true

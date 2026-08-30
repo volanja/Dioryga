@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 同じブランチへ続けてpushした場合、古い実行を打ち切る。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # CIでは差分ビルドが効かないため、デバッグ情報を削ってビルド時間を短縮する。
+  CARGO_PROFILE_DEV_DEBUG: 0
+
+jobs:
+  lint:
+    name: Lint (fmt / clippy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ツールチェーンは rust-toolchain.toml から自動で解決される。
+      # ここでバージョンを書くと二重管理になるため指定しない。
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+  test:
+    name: テスト＋カバレッジ
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: cargo llvm-cov
+        run: cargo llvm-cov --workspace --locked --lcov --output-path lcov.info
+
+      # 設計書2章の通り、カバレッジ100%は目標として掲げるが閾値による
+      # 失敗判定はまだ入れない。まず計測できる状態にする。
+      - name: カバレッジ概要
+        run: cargo llvm-cov report --summary-only
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: lcov.info
+
+  windows-smoke:
+    name: Windowsビルド＋起動スモークテスト
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo build --release
+        run: cargo build --release --locked
+
+      # 設計書2章：単一バイナリがWindows上で実際にサーバプロセスとして
+      # 直接実行される形態のため、パス区切り・ファイルロック・静的アセット
+      # 展開といったWindows固有の問題はLinux/Mac上のテストでは検出できない。
+      - name: 起動してヘルスチェックに疎通する
+        shell: pwsh
+        run: |
+          $exe = "target\release\dioryga.exe"
+          $proc = Start-Process -FilePath $exe -PassThru -NoNewWindow
+          try {
+            $ok = $false
+            for ($i = 0; $i -lt 30; $i++) {
+              Start-Sleep -Seconds 1
+              if ($proc.HasExited) {
+                throw "プロセスが終了しました (exit code: $($proc.ExitCode))"
+              }
+              try {
+                $res = Invoke-WebRequest -Uri "http://127.0.0.1:8080/health" `
+                  -UseBasicParsing -TimeoutSec 2
+                if ($res.StatusCode -eq 200) {
+                  Write-Host "疎通しました: $($res.Content)"
+                  $ok = $true
+                  break
+                }
+              } catch {
+                # 起動途中は接続できないため、タイムアウトまで再試行する。
+              }
+            }
+            if (-not $ok) {
+              throw "30秒以内にヘルスチェックへ応答しませんでした"
+            }
+          } finally {
+            if (-not $proc.HasExited) {
+              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            }
+          }
+
+  macos-build:
+    name: Macビルド確認
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+
+      # 配布物としての最終ビルド確認（設計書2章）。
+      - name: cargo build --release
+        run: cargo build --release --locked

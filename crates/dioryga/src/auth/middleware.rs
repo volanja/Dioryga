@@ -36,7 +36,9 @@ pub struct CurrentUser {
 /// **許可リスト方式にしている**（設計書20.10）。新しい画面を追加したときに
 /// 保護し忘れる事故を防ぐため、ここに書いたもの以外はすべて認証必須になる。
 fn is_public(path: &str) -> bool {
-    matches!(path, "/login" | "/setup" | "/health")
+    // 静的アセットは認証の対象外。ログイン画面自体がCSSを読むため、
+    // 保護すると未認証の画面が素のHTMLになってしまう。
+    matches!(path, "/login" | "/setup" | "/health") || path.starts_with("/assets/")
 }
 
 /// パスワード変更を強制されている間でも通す経路。

@@ -1,8 +1,10 @@
 //! HTTPサーバ。
 
+pub mod account;
 mod health;
 pub mod login;
 pub mod setup;
+pub mod view;
 
 use std::sync::Arc;
 
@@ -39,9 +41,14 @@ pub fn router(state: AppState) -> Router {
         .route("/setup", get(setup::show).post(setup::submit))
         .route("/login", get(login::show).post(login::submit))
         .route("/logout", axum::routing::post(login::logout))
+        .route(
+            "/account/password",
+            get(account::show).post(account::submit),
+        )
         // プロジェクト領域。画面の中身は後続のissueで実装する。
         // System Adminガードの対象であることを確かめるために置いている。
         .route("/projects", get(projects_placeholder))
+        .route("/assets/{*path}", get(view::asset))
         .layer(axum::middleware::from_fn(
             crate::auth::middleware::system_admin_guard,
         ))

@@ -21,4 +21,5 @@
 - [`docs/spec/schema.md`](docs/spec/schema.md) — 全テーブル・全カラム
 - [`docs/spec/vocabularies.md`](docs/spec/vocabularies.md) — enum値の語彙
 - [`docs/spec/validation.md`](docs/spec/validation.md) — アプリケーション層の検証規則
-- [`docs/spec/open-questions.md`](docs/spec/open-questions.md) — 実装前に確定が必要な項目
+
+未解決項目の一覧と設計判断の経緯は、設計リポジトリ側で管理する（[`docs/design/open-questions.md`](https://github.com/volanja/Dioryga_Design/blob/main/docs/design/open-questions.md)）。

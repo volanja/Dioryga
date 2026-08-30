@@ -28,6 +28,62 @@ pub struct Config {
     pub log_filter: String,
 
     pub database: DatabaseConfig,
+
+    pub password: PasswordConfig,
+
+    pub session: SessionConfig,
+}
+
+/// パスワードハッシュ化の設定（設計書20.2、20.3）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PasswordConfig {
+    /// Argon2idのメモリコスト（KiB）。
+    pub memory_kib: u32,
+    /// 反復回数。
+    pub iterations: u32,
+    /// 並列度。
+    pub parallelism: u32,
+    /// 同時に走るArgon2idの数。1回あたり memory_kib を占有するため、
+    /// 制限しないとログインの集中がメモリ枯渇を招く（設計書24.2）。
+    pub max_concurrent_hashes: usize,
+    pub min_length: usize,
+    pub max_length: usize,
+}
+
+/// セッションの設定（設計書20.5）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionConfig {
+    /// 最後の利用からこの時間が経過すると失効する。
+    pub idle_timeout_secs: i64,
+    /// 発行からこの時間が経過すると、利用中でも失効する。
+    pub absolute_timeout_secs: i64,
+    /// CookieにSecure属性を付けるか。HTTPSで動作している場合のみ真にする。
+    /// ローカルHTTP起動という形態があるため設定で切り替える。
+    pub cookie_secure: bool,
+}
+
+impl Default for PasswordConfig {
+    fn default() -> Self {
+        Self {
+            // OWASPが示す最小構成（設計書20.2）
+            memory_kib: 19_456,
+            iterations: 2,
+            parallelism: 1,
+            max_concurrent_hashes: 4,
+            min_length: 12,
+            max_length: 256,
+        }
+    }
+}
+
+impl Default for SessionConfig {
+    fn default() -> Self {
+        Self {
+            idle_timeout_secs: 8 * 60 * 60,
+            absolute_timeout_secs: 24 * 60 * 60,
+            cookie_secure: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,6 +115,8 @@ impl Default for Config {
                 connect_timeout_secs: 10,
                 auto_migrate: true,
             },
+            password: PasswordConfig::default(),
+            session: SessionConfig::default(),
         }
     }
 }

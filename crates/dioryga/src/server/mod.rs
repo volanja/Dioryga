@@ -1,6 +1,7 @@
 //! HTTPサーバ。
 
 mod health;
+pub mod setup;
 
 use std::sync::Arc;
 
@@ -12,19 +13,27 @@ use tower_http::trace::TraceLayer;
 
 use sea_orm::DatabaseConnection;
 
+use crate::auth::password::PasswordService;
+use crate::auth::setup::SetupState;
 use crate::config::Config;
 
 /// ハンドラ間で共有する状態。
 #[derive(Clone)]
 pub struct AppState {
-    #[allow(dead_code)]
     pub config: Arc<Config>,
     pub db: DatabaseConnection,
+    pub passwords: Arc<PasswordService>,
+    pub setup: SetupState,
 }
 
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health::health))
+        .route("/setup", get(setup::show).post(setup::submit))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            setup::redirect_while_pending,
+        ))
         .layer(TraceLayer::new_for_http())
         .with_state(state)
 }
@@ -38,9 +47,17 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         crate::db::migrate(&db).await?;
     }
 
+    let passwords = Arc::new(PasswordService::new(config.password.clone())?);
+    let (setup_state, setup_token) = SetupState::initialize(&db).await?;
+    if let Some(token) = &setup_token {
+        crate::auth::setup::print_instructions(&bind, token);
+    }
+
     let state = AppState {
         config: Arc::new(config),
         db,
+        passwords,
+        setup: setup_state,
     };
 
     let listener = TcpListener::bind(bind).await?;
@@ -96,8 +113,12 @@ mod tests {
             .await
             .expect("SQLiteへ接続できませんでした");
 
+        let config = Config::default();
         let state = AppState {
-            config: Arc::new(Config::default()),
+            passwords: Arc::new(PasswordService::new(config.password.clone()).unwrap()),
+            // 利用者が存在する体にして、セットアップへの誘導を無効にする
+            setup: SetupState::default(),
+            config: Arc::new(config),
             db,
         };
 

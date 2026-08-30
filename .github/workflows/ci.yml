@@ -17,6 +17,12 @@ env:
   CARGO_TERM_COLOR: always
   # CIでは差分ビルドが効かないため、デバッグ情報を削ってビルド時間を短縮する。
   CARGO_PROFILE_DEV_DEBUG: 0
+  # キャッシュの保存はmainでのみ行う（rust-cacheの `save-if` へ渡す）。
+  #
+  # PRのpushごとに5ジョブぶん保存すると、post-stepで毎回30〜40秒かかるうえ、
+  # リポジトリのキャッシュ枠を食い潰して**LRUで退避され、かえって遅くなる**。
+  # PRの実行はmainのキャッシュを読めるため、復元側には影響しない。
+  SAVE_CACHE_ON: refs/heads/main
 
 jobs:
   lint:
@@ -28,6 +34,8 @@ jobs:
       # ツールチェーンは rust-toolchain.toml から自動で解決される。
       # ここでバージョンを書くと二重管理になるため指定しない。
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == env.SAVE_CACHE_ON }}
 
       - name: cargo fmt
         run: cargo fmt --all -- --check
@@ -42,6 +50,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == env.SAVE_CACHE_ON }}
 
       - uses: taiki-e/install-action@cargo-llvm-cov
 
@@ -65,6 +75,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == env.SAVE_CACHE_ON }}
 
       # testcontainers-rs がコンテナを起動する。ubuntuランナーには
       # Dockerが用意されているため追加の準備は要らない。
@@ -79,7 +91,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Defenderがビルド出力を1ファイルずつ走査するため、Windowsのビルドは
+      # 同じ3クレートでもmacOSの3倍の時間がかかっていた（依存はキャッシュ済み
+      # であり、キャッシュを増やしても解消しない）。
+      #
+      # 走査を止めるのではなく、対象から外すだけ。失敗しても本題ではないため
+      # ジョブは続行する（Defenderが無効な環境では例外になる）。
+      - name: Defenderの走査対象からビルド出力を外す
+        shell: pwsh
+        run: |
+          try {
+            Add-MpPreference -ExclusionPath `
+              "${{ github.workspace }}\target", `
+              "$env:USERPROFILE\.cargo"
+            Write-Host "除外しました"
+          } catch {
+            Write-Host "除外できませんでした（続行します）: $_"
+          }
+
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == env.SAVE_CACHE_ON }}
 
       - name: cargo build --release
         run: cargo build --release --locked
@@ -127,6 +159,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == env.SAVE_CACHE_ON }}
 
       # 配布物としての最終ビルド確認（設計書2章）。
       - name: cargo build --release

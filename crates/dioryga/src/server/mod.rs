@@ -1,6 +1,7 @@
 //! HTTPサーバ。
 
 pub mod account;
+pub mod admin;
 mod health;
 pub mod login;
 pub mod setup;
@@ -8,14 +9,16 @@ pub mod view;
 
 use std::sync::Arc;
 
-use axum::routing::get;
-use axum::Router;
+use axum::response::{IntoResponse, Redirect, Response};
+use axum::routing::{get, post};
+use axum::{Extension, Router};
 use tokio::net::TcpListener;
 use tokio::signal;
 use tower_http::trace::TraceLayer;
 
 use sea_orm::DatabaseConnection;
 
+use crate::auth::middleware::CurrentUser;
 use crate::auth::password::PasswordService;
 use crate::auth::setup::SetupState;
 use crate::config::Config;
@@ -38,17 +41,34 @@ pub fn router(state: AppState) -> Router {
     // 見る必要があるため。ロール判定とは独立した層にしている（設計書3章）。
     Router::new()
         .route("/health", get(health::health))
+        .route("/", get(home))
         .route("/setup", get(setup::show).post(setup::submit))
         .route("/login", get(login::show).post(login::submit))
-        .route("/logout", axum::routing::post(login::logout))
+        .route("/logout", post(login::logout))
         .route(
             "/account/password",
             get(account::show).post(account::submit),
+        )
+        // System Admin領域（設計書16.1のA領域）
+        .route("/admin/users", get(admin::list).post(admin::create))
+        .route("/admin/users/new", get(admin::new_form))
+        .route(
+            "/admin/users/{id}",
+            get(admin::edit_form).post(admin::update),
+        )
+        .route("/admin/users/{id}/disable", post(admin::disable))
+        .route("/admin/users/{id}/enable", post(admin::enable))
+        .route(
+            "/admin/users/{id}/reset-password",
+            post(admin::reset_password),
         )
         // プロジェクト領域。画面の中身は後続のissueで実装する。
         // System Adminガードの対象であることを確かめるために置いている。
         .route("/projects", get(projects_placeholder))
         .route("/assets/{*path}", get(view::asset))
+        .layer(axum::middleware::from_fn(
+            crate::auth::middleware::system_admin_only,
+        ))
         .layer(axum::middleware::from_fn(
             crate::auth::middleware::system_admin_guard,
         ))
@@ -67,9 +87,36 @@ pub fn router(state: AppState) -> Router {
         .with_state(state)
 }
 
+#[derive(askama::Template)]
+#[template(path = "placeholder.html")]
+struct PlaceholderPage {
+    chrome: view::Chrome,
+    t_title: String,
+    t_lead: String,
+}
+
+/// ログイン後の入口。
+///
+/// **利用者によって行き先が違う。**System Adminはプロジェクトデータに触れられない
+/// （設計書3章）ため、共通のダッシュボードを置くと片方には常に空になる。
+async fn home(Extension(current): Extension<CurrentUser>) -> Response {
+    if current.user.is_system_admin {
+        Redirect::to("/admin/users").into_response()
+    } else {
+        Redirect::to("/projects").into_response()
+    }
+}
+
 /// プロジェクト一覧の仮実装。中身は後続のissueで作る。
-async fn projects_placeholder() -> &'static str {
-    "プロジェクト一覧（未実装）"
+async fn projects_placeholder(
+    Extension(current): Extension<CurrentUser>,
+) -> crate::error::AppResult<Response> {
+    let l = view::Locale::parse(&current.user.locale).as_str();
+    view::render(&PlaceholderPage {
+        chrome: view::Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        t_title: rust_i18n::t!("nav.projects", locale = l).to_string(),
+        t_lead: rust_i18n::t!("common.not_implemented", locale = l).to_string(),
+    })
 }
 
 /// サーバを起動し、終了シグナルを受けるまで待つ。

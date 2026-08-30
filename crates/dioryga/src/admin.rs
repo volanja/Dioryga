@@ -6,13 +6,11 @@
 //! パスワードはコマンドライン引数では受け取らない。引数に書くとシェルの履歴や
 //! プロセス一覧に平文が残るため、対話的なプロンプトで入力させる。
 
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use base64::Engine as _;
 use chrono::Utc;
 use entity::app_user;
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
-use crate::auth::password::PasswordService;
+use crate::auth::password::{self, PasswordService};
 use crate::auth::session;
 use crate::auth::setup;
 use crate::config::Config;
@@ -60,7 +58,7 @@ pub async fn reset_password(config: &Config, email: &str) -> anyhow::Result<()> 
         anyhow::bail!("該当する利用者が見つかりません: {email}");
     };
 
-    let temporary = generate_temporary_password()?;
+    let temporary = password::generate_temporary()?;
     let hash = passwords.hash(&temporary).await?;
     let now = Utc::now();
 
@@ -99,13 +97,6 @@ async fn 既に存在する(db: &DatabaseConnection, email: &str) -> Result<bool
         .is_some())
 }
 
-/// 一時パスワードを生成する。ポリシーの最小長を満たす長さにする。
-fn generate_temporary_password() -> anyhow::Result<String> {
-    let mut bytes = [0u8; 18];
-    getrandom::fill(&mut bytes).map_err(|e| anyhow::anyhow!("乱数の生成に失敗しました: {e}"))?;
-    Ok(URL_SAFE_NO_PAD.encode(bytes))
-}
-
 fn prompt(label: &str) -> anyhow::Result<String> {
     use std::io::{stdin, stdout, Write};
 
@@ -128,22 +119,4 @@ fn prompt_password_twice() -> anyhow::Result<String> {
     Ok(first)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn 一時パスワードは十分な長さを持つ() {
-        let password = generate_temporary_password().unwrap();
-        // 既定の最小長（12文字）を満たすこと
-        assert!(password.chars().count() >= 12, "短すぎます: {password}");
-    }
-
-    #[test]
-    fn 一時パスワードは毎回異なる() {
-        assert_ne!(
-            generate_temporary_password().unwrap(),
-            generate_temporary_password().unwrap()
-        );
-    }
-}
+// 一時パスワードの生成そのものは `auth::password` 側で検証している。

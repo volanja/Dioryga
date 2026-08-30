@@ -14,6 +14,8 @@
 
 use argon2::password_hash::phc::PasswordHash;
 use argon2::{Algorithm, Argon2, Params, PasswordHasher as _, PasswordVerifier, Version};
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine as _;
 use tokio::sync::Semaphore;
 
 use crate::config::PasswordConfig;
@@ -250,6 +252,19 @@ impl PasswordService {
     }
 }
 
+/// 一時パスワードを生成する（設計書20.7）。
+///
+/// **平文はここで返す一度きりしか存在しない。**DBにはArgon2idハッシュだけを
+/// 保存し、発行者は画面またはコンソールで受け取って本人へ別経路で伝える。
+///
+/// 画面（System Adminのユーザー管理）とCLIの復旧経路の両方から使うため、
+/// どちらにも属さないここに置いている。
+pub fn generate_temporary() -> Result<String, PasswordError> {
+    let mut bytes = [0u8; 18];
+    getrandom::fill(&mut bytes).map_err(|e| PasswordError::Internal(e.to_string()))?;
+    Ok(URL_SAFE_NO_PAD.encode(bytes))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -383,5 +398,25 @@ mod tests {
             svc.check_policy(&長い, "user@example.com", "利用者"),
             Err(PasswordError::TooLong { .. })
         ));
+    }
+
+    #[test]
+    fn 一時パスワードは毎回異なる() {
+        assert_ne!(generate_temporary().unwrap(), generate_temporary().unwrap());
+    }
+
+    /// 生成した一時パスワードがポリシーを満たすこと。
+    ///
+    /// 満たさないと、発行はできるのに本人がログイン後の変更画面まで辿り着けない、
+    /// という気付きにくい不整合になる。
+    #[test]
+    fn 一時パスワードはポリシーを満たす() {
+        let svc = service();
+        let temporary = generate_temporary().unwrap();
+        assert!(
+            svc.check_policy(&temporary, "user@example.com", "利用者")
+                .is_ok(),
+            "生成した一時パスワードがポリシーに反しています: {temporary}"
+        );
     }
 }

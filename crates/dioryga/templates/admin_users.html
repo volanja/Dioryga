@@ -1,0 +1,86 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+  <a class="button" href="/admin/users/new">{{ t_new }}</a>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+{% if let Some(issued) = issued %}
+{# 一時パスワードはこの応答にしか現れない（設計書20.7）。DBには平文を持たない #}
+<div class="issued">
+  <p class="issued-head">{{ t_issued }}<strong>{{ issued.email }}</strong></p>
+  <p class="issued-value">{{ issued.password }}</p>
+  <p class="issued-hint">{{ t_issued_hint }}</p>
+</div>
+{% endif %}
+
+{# 一覧画面は必ず検索とフィルタを持つ（設計書16.1） #}
+<form class="filters" method="get" action="/admin/users">
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ t_keyword }}">
+  <select name="status">
+    <option value="active" {% if status == "active" %}selected{% endif %}>{{ t_status_active }}</option>
+    <option value="disabled" {% if status == "disabled" %}selected{% endif %}>{{ t_status_disabled }}</option>
+    <option value="all" {% if status == "all" %}selected{% endif %}>{{ t_status_all }}</option>
+  </select>
+  <button type="submit">{{ t_search }}</button>
+</form>
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_name }}</th>
+      <th>{{ t_email }}</th>
+      <th>{{ t_role }}</th>
+      <th>{{ t_last_login }}</th>
+      <th>{{ t_status }}</th>
+      <th>{{ t_actions }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr class="{% if row.disabled %}is-disabled{% endif %}">
+      <td>{{ row.name }}</td>
+      <td>{{ row.email }}</td>
+      <td>{{ row.role }}</td>
+      <td>{{ row.last_login }}</td>
+      <td>{{ row.status }}</td>
+      <td class="actions">
+        <a href="/admin/users/{{ row.id }}">{{ t_edit }}</a>
+        <form method="post" action="/admin/users/{{ row.id }}/reset-password" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <button type="submit" class="ghost">{{ t_reset_password }}</button>
+        </form>
+        {% if row.disabled %}
+        <form method="post" action="/admin/users/{{ row.id }}/enable" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <button type="submit" class="ghost">{{ t_enable }}</button>
+        </form>
+        {% else %}
+        {# 物理削除はしない。無効化のみ（設計書20.11） #}
+        <form method="post" action="/admin/users/{{ row.id }}/disable" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <button type="submit" class="ghost danger">{{ t_disable }}</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -20,6 +20,56 @@ setup:
   password: パスワード
   submit: 作成する
 
+nav:
+  users: ユーザー管理
+  projects: プロジェクト
+  account: 個人設定
+
+common:
+  logout: ログアウト
+  search: 検索
+  keyword: 表示名・メールアドレスで検索
+  back: 一覧へ戻る
+  save: 保存する
+  create: 作成する
+  not_implemented: この画面は後続のリリースで実装します
+
+users:
+  title: ユーザー管理
+  lead: 利用者の登録・編集・無効化を行います
+  new: 新規登録
+  name: 表示名
+  email: メールアドレス
+  locale: 表示言語
+  role: 権限
+  role_system_admin: System Admin
+  role_member: 一般
+  last_login: 最終ログイン
+  never: 未ログイン
+  status: 状態
+  status_all: すべて
+  status_active: 有効
+  status_disabled: 無効
+  actions: 操作
+  edit: 編集
+  enable: 有効化
+  disable: 無効化
+  reset_password: パスワードリセット
+  empty: 該当する利用者がいません
+  new_title: ユーザーの新規登録
+  new_lead: 一時パスワードを発行します。作成後に一度だけ表示されます
+  edit_title: ユーザーの編集
+  edit_lead: パスワードは編集できません。必要な場合は一覧からリセットしてください
+  is_system_admin: System Admin権限を与える
+  system_admin_hint: System Adminは利用者とプロジェクトを管理しますが、プロジェクト内のデータは閲覧できません
+  issued: 一時パスワードを発行しました：
+  issued_hint: この値はこの画面にしか表示されません。口頭等の別経路で本人へ伝えてください。本人は次回ログイン時にパスワードの変更を求められます
+  name_required: 表示名を入力してください
+  email_required: メールアドレスを入力してください
+  duplicate_email: このメールアドレスは既に使われています
+  cannot_disable_self: 自分自身は無効化できません
+  cannot_demote_self: 自分自身のSystem Admin権限は外せません
+
 password_change:
   title: パスワードの変更
   lead: 続けるにはパスワードを変更してください

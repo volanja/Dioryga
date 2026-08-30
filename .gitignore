@@ -1,0 +1,12 @@
+/target
+**/*.rs.bk
+*.pdb
+
+.DS_Store
+
+# SQLite（ローカル開発用DB）
+*.sqlite
+*.sqlite3
+*.db
+
+.env

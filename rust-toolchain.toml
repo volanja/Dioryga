@@ -1,0 +1,4 @@
+# 開発機とCIで同じツールチェーンを使うために固定する（設計書24.1）
+[toolchain]
+channel = "1.98.0"
+components = ["rustfmt", "clippy", "llvm-tools-preview"]

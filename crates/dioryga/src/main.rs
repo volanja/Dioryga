@@ -2,7 +2,7 @@ use clap::Parser;
 
 use dioryga::cli::{self, AdminCommand, Cli, Command};
 use dioryga::config::Config;
-use dioryga::{db, server, telemetry};
+use dioryga::{admin, db, server, telemetry};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -19,11 +19,9 @@ async fn main() -> anyhow::Result<()> {
             db::migrate(&conn).await
         }
 
-        Command::Admin(AdminCommand::Create { .. }) => {
-            Err(cli::not_implemented("admin create", "P3: 認証"))
-        }
-        Command::Admin(AdminCommand::ResetPassword { .. }) => {
-            Err(cli::not_implemented("admin reset-password", "P3: 認証"))
+        Command::Admin(AdminCommand::Create { email }) => admin::create(&config, &email).await,
+        Command::Admin(AdminCommand::ResetPassword { email }) => {
+            admin::reset_password(&config, &email).await
         }
 
         Command::Check => Err(cli::not_implemented("check", "設計書24.5")),

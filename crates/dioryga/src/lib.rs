@@ -3,6 +3,7 @@
 //! バイナリ（`main.rs`）はCLIの振り分けのみを行い、実装はこのライブラリ側に置く。
 //! 結合テストから参照できるようにするため。
 
+pub mod admin;
 pub mod auth;
 pub mod cli;
 pub mod config;

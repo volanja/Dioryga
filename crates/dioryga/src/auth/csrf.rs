@@ -23,21 +23,8 @@ pub fn generate() -> Result<String, CsrfError> {
 }
 
 /// 送られてきたトークンが、セッションに紐づくものと一致するか。
-///
-/// 長さの違いで早期に返らないよう、**定数時間で比較する。**
 pub fn verify(expected: &str, provided: &str) -> bool {
-    if expected.is_empty() || provided.is_empty() {
-        return false;
-    }
-    if expected.len() != provided.len() {
-        return false;
-    }
-
-    let mut diff = 0u8;
-    for (a, b) in expected.bytes().zip(provided.bytes()) {
-        diff |= a ^ b;
-    }
-    diff == 0
+    super::constant_time_eq(expected, provided)
 }
 
 #[cfg(test)]

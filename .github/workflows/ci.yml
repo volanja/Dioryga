@@ -22,7 +22,7 @@ env:
   # PRのpushごとに5ジョブぶん保存すると、post-stepで毎回30〜40秒かかるうえ、
   # リポジトリのキャッシュ枠を食い潰して**LRUで退避され、かえって遅くなる**。
   # PRの実行はmainのキャッシュを読めるため、復元側には影響しない。
-  SAVE_CACHE_ON: refs/heads/ci/23-windows-build-speed  # TODO 計測用。マージ前に refs/heads/main へ戻す
+  SAVE_CACHE_ON: refs/pull/24/merge  # TODO 計測用。マージ前に refs/heads/main へ戻す
 
 jobs:
   lint:

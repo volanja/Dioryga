@@ -1,9 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/dioryga"]
-
-# entity / migration クレートは P2（DB基盤）で追加する。
-# 使わない空クレートは作らない。
+members = ["crates/dioryga", "crates/entity", "crates/migration"]
 
 [workspace.package]
 version = "0.1.0"
@@ -14,13 +11,31 @@ repository = "https://github.com/volanja/Dioryga"
 
 [workspace.dependencies]
 anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
 axum = "0.8"
 clap = { version = "4", features = ["derive"] }
 figment = { version = "0.10", features = ["toml", "env"] }
 serde = { version = "1", features = ["derive"] }
+sea-orm = { version = "2.0", default-features = false, features = [
+    "macros",
+    "runtime-tokio-rustls",
+    "sqlx-postgres",
+    "sqlx-sqlite",
+    "with-chrono",
+] }
+sea-orm-migration = { version = "2.0", default-features = false, features = [
+    "runtime-tokio-rustls",
+    "sqlx-postgres",
+    "sqlx-sqlite",
+    "with-chrono",
+] }
 serde_json = "1"
 thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
 tower-http = { version = "0.6", features = ["trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["v4"] }
+
+entity = { path = "crates/entity" }
+migration = { path = "crates/migration" }

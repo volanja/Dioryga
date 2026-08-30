@@ -1,0 +1,16 @@
+[package]
+name = "migration"
+description = "Diorygaのマイグレーション定義。バイナリに埋め込んで dioryga migrate で適用する"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "migration"
+path = "src/lib.rs"
+
+[dependencies]
+async-trait = "0.1"
+sea-orm-migration.workspace = true

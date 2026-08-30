@@ -34,6 +34,17 @@ pub struct Config {
 pub struct DatabaseConfig {
     /// 接続URL。SQLite と PostgreSQL のどちらも受け付ける（設計書2章）。
     pub url: String,
+
+    pub max_connections: u32,
+
+    pub connect_timeout_secs: u64,
+
+    /// 起動時に未適用のマイグレーションを自動で適用するか。
+    ///
+    /// 単一バイナリを配布してすぐ動かせることを重視し、既定で有効にする（設計書1.1）。
+    /// 複数インスタンスが同一のPostgreSQLを共有する運用では、適用の時期を制御する
+    /// ために無効化し、`dioryga migrate` を明示的に実行する。
+    pub auto_migrate: bool,
 }
 
 impl Default for Config {
@@ -44,6 +55,9 @@ impl Default for Config {
             log_filter: "info".to_owned(),
             database: DatabaseConfig {
                 url: "sqlite://dioryga.db?mode=rwc".to_owned(),
+                max_connections: 10,
+                connect_timeout_secs: 10,
+                auto_migrate: true,
             },
         }
     }
@@ -70,11 +84,19 @@ impl Config {
 mod tests {
     use super::*;
 
+    // Jail は実際のプロセスの環境変数を書き換えるため、Jail を使わないテストが
+    // 並行実行されると他のテストが設定した値を読んでしまう。Jail 同士は
+    // figment 側のロックで直列化されるので、環境変数を触らないテストも
+    // Jail の中で実行する。
     #[test]
     fn 設定ファイルが無くても既定値で読み込める() {
-        let config = Config::load(Path::new("存在しない.toml")).unwrap();
-        assert_eq!(config.bind.port(), 8080);
-        assert_eq!(config.timezone, "Asia/Tokyo");
+        figment::Jail::expect_with(|_| {
+            let config = Config::load(Path::new("存在しない.toml")).unwrap();
+            assert_eq!(config.bind.port(), 8080);
+            assert_eq!(config.timezone, "Asia/Tokyo");
+            assert!(config.database.auto_migrate);
+            Ok(())
+        });
     }
 
     #[test]

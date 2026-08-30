@@ -1,5 +1,6 @@
 mod cli;
 mod config;
+mod db;
 mod error;
 mod server;
 mod telemetry;
@@ -19,7 +20,10 @@ async fn main() -> anyhow::Result<()> {
     match cli.command.unwrap_or(Command::Serve) {
         Command::Serve => server::serve(config).await,
 
-        Command::Migrate => Err(cli::not_implemented("migrate", "P2: DB基盤")),
+        Command::Migrate => {
+            let conn = db::connect(&config.database).await?;
+            db::migrate(&conn).await
+        }
 
         Command::Admin(AdminCommand::Create { .. }) => {
             Err(cli::not_implemented("admin create", "P3: 認証"))

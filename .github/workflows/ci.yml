@@ -112,6 +112,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == env.SAVE_CACHE_ON }}
+          # **キーにプロファイル名を混ぜる。**rust-cacheのキーは Cargo.lock と
+          # 各クレートの Cargo.toml から作られ、**プロファイルを定義している
+          # ルートの Cargo.toml は含まれない。**分けないと release プロファイルの
+          # 依存が入ったキャッシュに完全一致し、「Cache up-to-date」で保存が
+          # スキップされる。結果、ciプロファイルの依存が永久にキャッシュされず
+          # 毎回フルビルドになる（実測で確認した）。
+          key: profile-ci
 
       # 配布物ではなくスモークテスト用のため、最適化を切った ci プロファイルで
       # 建てる（理由と引き換えに失うものはルートの Cargo.toml に書いた）。

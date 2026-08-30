@@ -53,6 +53,48 @@ impl Locale {
     }
 }
 
+/// ログイン後の画面が共通で持つ枠（`app_layout.html`）。
+///
+/// **各ページの構造体にこれを1つ持たせる。**ヘッダーとナビに必要な値は
+/// どの画面でも同じであり、画面を足すたびに同じフィールドを並べ直したくない。
+pub struct Chrome {
+    pub locale: &'static str,
+    pub app_name: String,
+    pub user_name: String,
+    /// 現在選択中のナビ項目。`users` / `projects` / `account`。
+    pub nav: &'static str,
+    /// フォームのhidden fieldへ埋め込むCSRFトークン（設計書20.5）。
+    pub csrf_token: String,
+    pub is_system_admin: bool,
+    pub t_logout: String,
+    pub t_nav_users: String,
+    pub t_nav_projects: String,
+    pub t_nav_account: String,
+}
+
+impl Chrome {
+    pub fn new(user: &entity::app_user::Model, csrf_token: String, nav: &'static str) -> Self {
+        let locale = Locale::parse(&user.locale);
+        let l = locale.as_str();
+        Self {
+            locale: l,
+            app_name: rust_i18n::t!("app.name", locale = l).to_string(),
+            user_name: user.name.clone(),
+            nav,
+            csrf_token,
+            is_system_admin: user.is_system_admin,
+            t_logout: rust_i18n::t!("common.logout", locale = l).to_string(),
+            t_nav_users: rust_i18n::t!("nav.users", locale = l).to_string(),
+            t_nav_projects: rust_i18n::t!("nav.projects", locale = l).to_string(),
+            t_nav_account: rust_i18n::t!("nav.account", locale = l).to_string(),
+        }
+    }
+
+    pub fn locale(&self) -> Locale {
+        Locale::parse(self.locale)
+    }
+}
+
 /// バイナリへ埋め込む静的アセット。
 #[derive(rust_embed::Embed)]
 #[folder = "assets/"]

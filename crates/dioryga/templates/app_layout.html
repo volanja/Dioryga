@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="{{ chrome.locale }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{% endblock %} - {{ chrome.app_name }}</title>
+<link rel="stylesheet" href="/assets/dioryga.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    {# ロゴは auth_layout と同じ確定案（階段式水路＋自然の川） #}
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 7h6v3H3zM9 10h6v3H9zM15 13h6v3h-6z" fill="currentColor" opacity="0.9"/>
+      <path d="M3 19c3-2 5 2 8 0s5 2 10 0" stroke="currentColor" stroke-width="1.6"
+            stroke-linecap="round" opacity="0.45" fill="none"/>
+    </svg>
+    <span class="brand-name">{{ chrome.app_name }}</span>
+  </div>
+
+  <div class="topbar-right">
+    <span class="who">{{ chrome.user_name }}</span>
+    {# ログアウトは状態を変えるためGETにしない（リンクの先読みで落ちるため） #}
+    <form method="post" action="/logout" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+      <button type="submit" class="ghost">{{ chrome.t_logout }}</button>
+    </form>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="sidenav">
+    {% if chrome.is_system_admin %}
+    <a href="/admin/users" class="{% if chrome.nav == "users" %}current{% endif %}">
+      {{ chrome.t_nav_users }}
+    </a>
+    {% else %}
+    <a href="/projects" class="{% if chrome.nav == "projects" %}current{% endif %}">
+      {{ chrome.t_nav_projects }}
+    </a>
+    {% endif %}
+    <a href="/account/password" class="{% if chrome.nav == "account" %}current{% endif %}">
+      {{ chrome.t_nav_account }}
+    </a>
+  </nav>
+
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>

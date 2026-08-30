@@ -273,6 +273,39 @@ async fn パスワード変更が必要なら誘導される(db: &DatabaseConnec
     assert_eq!(res.headers().get("location").unwrap(), "/account/password");
 }
 
+/// **パスワード変更の強制中でも静的アセットは通ること。**
+///
+/// 通さないとパスワード変更画面が素のHTMLになる。画面自体は出るので、
+/// 見た目を確かめない限り気付かない。
+async fn パスワード変更の強制中でも静的アセットは通る(
+    db: &DatabaseConnection,
+) {
+    let user = 利用者(db, "mustchange-css@example.com", false).await;
+    let mut active: app_user::ActiveModel = user.clone().into();
+    active.must_change_password = Set(true);
+    let user = active.update(db).await.unwrap();
+
+    let state = 状態(db).await;
+    let token = セッション(db, user.id, &state).await;
+
+    let res = router(state)
+        .oneshot(
+            Request::builder()
+                .uri("/assets/dioryga.css")
+                .header(header::COOKIE, cookie_header(&token))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        res.status(),
+        StatusCode::OK,
+        "パスワード変更画面のCSSが誘導で弾かれています"
+    );
+}
+
 /// CSRFトークンが無い状態変更リクエストは拒否されること（設計書20.5）。
 async fn csrfトークンなしの状態変更は拒否される(db: &DatabaseConnection) {
     let user = 利用者(db, "csrf@example.com", false).await;
@@ -316,6 +349,102 @@ async fn 正しいcsrfトークンなら通る(db: &DatabaseConnection) {
 
     assert_eq!(res.status(), StatusCode::SEE_OTHER);
     assert_eq!(res.headers().get("location").unwrap(), "/login");
+}
+
+/// **素のHTMLフォームのhidden fieldでも通ること**（設計書20.5）。
+///
+/// ヘッダーだけを見ていると、JavaScriptを前提にしない画面がすべて403になる。
+async fn フォーム本文のcsrfトークンでも通る(db: &DatabaseConnection) {
+    let user = 利用者(db, "csrf-form@example.com", false).await;
+    let state = 状態(db).await;
+    let token = セッション(db, user.id, &state).await;
+    let csrf = dioryga::auth::csrf::derive(&token);
+
+    let res = router(state)
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/logout")
+                .header(header::COOKIE, cookie_header(&token))
+                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .body(Body::from(format!(
+                    "{}={csrf}",
+                    dioryga::auth::csrf::FIELD_NAME
+                )))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(res.status(), StatusCode::SEE_OTHER);
+}
+
+/// 本文のトークンが誤っていれば拒否されること。
+async fn フォーム本文の誤ったcsrfトークンは拒否される(db: &DatabaseConnection) {
+    let user = 利用者(db, "csrf-form-ng@example.com", false).await;
+    let state = 状態(db).await;
+    let token = セッション(db, user.id, &state).await;
+
+    let res = router(state)
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/logout")
+                .header(header::COOKIE, cookie_header(&token))
+                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .body(Body::from(format!(
+                    "{}=deadbeef",
+                    dioryga::auth::csrf::FIELD_NAME
+                )))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(res.status(), StatusCode::FORBIDDEN);
+}
+
+/// 本文を読んだあともハンドラが同じ本文を受け取れること。
+///
+/// 検証のために読み切った本文を差し戻さないと、フォームの項目が
+/// すべて空でハンドラに届く。**403にはならないため気付きにくい。**
+async fn csrf検証後もフォームの内容がハンドラへ届く(db: &DatabaseConnection) {
+    let user = 利用者(db, "csrf-body@example.com", false).await;
+    let mut active: app_user::ActiveModel = user.clone().into();
+    active.must_change_password = Set(true);
+    let user = active.update(db).await.unwrap();
+
+    let state = 状態(db).await;
+    let token = セッション(db, user.id, &state).await;
+    let csrf = dioryga::auth::csrf::derive(&token);
+
+    // 新旧が一致しないフォームを送る。本文が届いていれば「一致しません」が返る
+    let body = format!(
+        "{}={csrf}&current_password=x&new_password=aaaaaaaaaaaa&confirm_password=bbbbbbbbbbbb",
+        dioryga::auth::csrf::FIELD_NAME
+    );
+
+    let res = router(state)
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/account/password")
+                .header(header::COOKIE, cookie_header(&token))
+                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(res.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert!(
+        String::from_utf8_lossy(&bytes).contains("一致しません"),
+        "フォームの内容がハンドラへ届いていません"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -405,8 +534,12 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 一般利用者はprojectsへアクセスできる);
         全検証!(@one $用意, $属性, 失効したセッションは拒否される);
         全検証!(@one $用意, $属性, パスワード変更が必要なら誘導される);
+        全検証!(@one $用意, $属性, パスワード変更の強制中でも静的アセットは通る);
         全検証!(@one $用意, $属性, csrfトークンなしの状態変更は拒否される);
         全検証!(@one $用意, $属性, 正しいcsrfトークンなら通る);
+        全検証!(@one $用意, $属性, フォーム本文のcsrfトークンでも通る);
+        全検証!(@one $用意, $属性, フォーム本文の誤ったcsrfトークンは拒否される);
+        全検証!(@one $用意, $属性, csrf検証後もフォームの内容がハンドラへ届く);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

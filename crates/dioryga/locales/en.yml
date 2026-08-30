@@ -20,6 +20,56 @@ setup:
   password: Password
   submit: Create
 
+nav:
+  users: Users
+  projects: Projects
+  account: Account
+
+common:
+  logout: Sign out
+  search: Search
+  keyword: Search by name or email
+  back: Back to list
+  save: Save
+  create: Create
+  not_implemented: This screen will be implemented in a later release
+
+users:
+  title: User management
+  lead: Register, edit and disable users
+  new: New user
+  name: Display name
+  email: Email
+  locale: Language
+  role: Role
+  role_system_admin: System Admin
+  role_member: Member
+  last_login: Last sign-in
+  never: Never signed in
+  status: Status
+  status_all: All
+  status_active: Active
+  status_disabled: Disabled
+  actions: Actions
+  edit: Edit
+  enable: Enable
+  disable: Disable
+  reset_password: Reset password
+  empty: No matching users
+  new_title: Register a user
+  new_lead: A temporary password is generated and shown once after creation
+  edit_title: Edit user
+  edit_lead: Passwords cannot be edited here. Use the reset action on the list instead
+  is_system_admin: Grant System Admin
+  system_admin_hint: A System Admin manages users and projects but cannot view data inside projects
+  issued: "Temporary password issued for: "
+  issued_hint: This value is shown only here. Pass it to the person through another channel. They will be asked to change it at their next sign-in
+  name_required: Enter a display name
+  email_required: Enter an email address
+  duplicate_email: That email address is already in use
+  cannot_disable_self: You cannot disable your own account
+  cannot_demote_self: You cannot remove your own System Admin role
+
 password_change:
   title: Change password
   lead: You must change your password to continue

@@ -119,3 +119,175 @@ button:hover { filter: brightness(1.08); }
 }
 
 .hint { color: var(--muted); font-size: 12px; margin-top: -8px; margin-bottom: var(--gap); }
+
+/* ------------------------------------------------------------------ *
+ * ログイン後の画面（app_layout）
+ * ------------------------------------------------------------------ */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap);
+  padding: 10px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar .brand { margin-bottom: 0; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.who { font-size: 13px; color: var(--muted); }
+
+.shell { display: flex; align-items: flex-start; }
+
+.sidenav {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 12px;
+}
+
+.sidenav a {
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.sidenav a:hover { background: var(--hover); }
+.sidenav a.current { background: var(--hover); font-weight: 600; }
+
+.content { flex: 1 1 auto; min-width: 0; padding: 24px; }
+
+/* 画面が狭いときはナビを上へ回す */
+@media (max-width: 720px) {
+  .shell { flex-direction: column; }
+  .sidenav { flex-direction: row; flex-wrap: wrap; width: 100%; }
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gap);
+  margin-bottom: var(--gap);
+}
+
+.page-head h1 { font-size: 20px; }
+.page-head .lead { margin-bottom: 0; }
+
+/* 幅の決まらないボタン。表の操作列やヘッダーで使う */
+.inline { display: inline; }
+
+a.button,
+button.ghost,
+a.button.ghost {
+  display: inline-block;
+  width: auto;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+a.button { background: var(--accent); color: #fff; }
+
+button.ghost,
+a.button.ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+button.ghost:hover, a.button.ghost:hover { background: var(--hover); }
+button.ghost.danger { color: var(--danger); border-color: var(--danger); }
+
+/* 検索・フィルタ。すべての一覧画面が持つ（設計書16.1） */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: var(--gap);
+}
+
+.filters input[type="search"] { flex: 1 1 240px; }
+
+input[type="search"], select {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.filters button { width: auto; padding: 10px 18px; }
+
+/* 表は自身の中で横スクロールさせ、ページ全体を横に伸ばさない */
+.table-scroll { overflow-x: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+}
+
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+th { font-size: 12px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--hover); }
+
+/* 無効化された行は色を落とす。消さずに残す（設計書20.11） */
+tr.is-disabled td { color: var(--muted); }
+
+td.actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+td.actions a { color: var(--accent); font-size: 13px; text-decoration: none; }
+td.actions a:hover { text-decoration: underline; }
+td.actions button.ghost { padding: 4px 10px; font-weight: 500; }
+
+.empty { color: var(--muted); font-size: 14px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  max-width: 520px;
+}
+
+.form select { width: 100%; margin-bottom: var(--gap); }
+.form .check { display: flex; align-items: center; gap: 8px; }
+.form .check input { width: auto; margin: 0; }
+.form .check label { margin-bottom: 0; }
+.form .hint { margin-top: 6px; }
+
+/* 一時パスワードの表示。この画面にしか現れない（設計書20.7） */
+.issued {
+  padding: 16px;
+  margin-bottom: var(--gap);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.issued-head { margin: 0 0 8px; font-size: 14px; }
+.issued-hint { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+
+.issued-value {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 16px;
+  user-select: all;
+  overflow-wrap: anywhere;
+}

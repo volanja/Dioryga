@@ -42,8 +42,11 @@ fn is_public(path: &str) -> bool {
 }
 
 /// パスワード変更を強制されている間でも通す経路。
+///
+/// 静的アセットを含めるのを忘れやすい。**除くとパスワード変更画面が
+/// 素のHTMLになる**——画面は出るので気付きにくく、`is_public` と同じ穴である。
 fn is_allowed_while_password_change_required(path: &str) -> bool {
-    matches!(path, "/account/password" | "/logout" | "/health")
+    matches!(path, "/account/password" | "/logout" | "/health") || path.starts_with("/assets/")
 }
 
 /// ① 認証。
@@ -140,6 +143,32 @@ pub async fn system_admin_guard(request: Request, next: Next) -> Response {
     next.run(request).await
 }
 
+/// ② 認可：System Admin領域のガード。
+///
+/// [`system_admin_guard`] と対になる。あちらは「System Adminを入れない」、
+/// こちらは「System Admin以外を入れない」。**両者を一つの関数にまとめない**のは、
+/// 片方の条件を触ったときにもう片方を巻き添えにしないため。
+pub async fn system_admin_only(request: Request, next: Next) -> Response {
+    let path = request.uri().path();
+
+    if path == "/admin" || path.starts_with("/admin/") {
+        let 許可 = request
+            .extensions()
+            .get::<CurrentUser>()
+            .is_some_and(|current| current.user.is_system_admin);
+
+        if !許可 {
+            return (
+                StatusCode::FORBIDDEN,
+                "System Adminのみが利用できる画面です",
+            )
+                .into_response();
+        }
+    }
+
+    next.run(request).await
+}
+
 /// CSRFトークンの検証。
 ///
 /// `SameSite=Lax` だけに頼らず、**状態変更を伴うリクエストにはトークンを要求する**
@@ -175,8 +204,51 @@ pub async fn verify_csrf(request: Request, next: Next) -> Response {
         return next.run(request).await;
     }
 
-    // ヘッダーに無ければフォーム本文を見る必要があるが、本文の読み取りは
-    // ハンドラ側の抽出と競合する。フォームからの送信は htmx の hx-headers で
-    // ヘッダーに載せる方針とし（設計書20.5）、ここではヘッダーのみを見る。
+    // ヘッダーに無ければフォーム本文のhidden fieldを見る（設計書20.5）。
+    //
+    // **ヘッダーだけでは素のHTMLフォームを守れない。**`<form method="post">` は
+    // ヘッダーを付けられないため、JavaScriptを前提にしない画面がすべて403になる。
+    if is_form_urlencoded(&request) {
+        return verify_from_form_body(request, next, &current.csrf_token).await;
+    }
+
     (StatusCode::FORBIDDEN, "CSRFトークンが不正です").into_response()
+}
+
+/// 本文から読み取るCSRFトークンの上限。
+///
+/// フォームの本文はいずれも小さい。ここを無制限にすると、本文を読み切るまで
+/// メモリを確保し続けることになる。
+const MAX_FORM_BODY: usize = 64 * 1024;
+
+fn is_form_urlencoded(request: &Request) -> bool {
+    request
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.starts_with("application/x-www-form-urlencoded"))
+}
+
+/// フォーム本文の `csrf_token` を検証し、**読み取った本文を差し戻す。**
+///
+/// 本文はストリームであり一度しか読めない。読んだまま次へ渡すとハンドラ側の
+/// `Form` 抽出が空の本文を受け取ってしまうため、バイト列から組み立て直す。
+async fn verify_from_form_body(request: Request, next: Next, expected: &str) -> Response {
+    let (parts, body) = request.into_parts();
+
+    let Ok(bytes) = axum::body::to_bytes(body, MAX_FORM_BODY).await else {
+        return (StatusCode::BAD_REQUEST, "リクエスト本文を読み取れません").into_response();
+    };
+
+    let provided = form_urlencoded::parse(&bytes)
+        .find(|(key, _)| key == csrf::FIELD_NAME)
+        .map(|(_, value)| value.into_owned())
+        .unwrap_or_default();
+
+    if !csrf::verify(expected, &provided) {
+        return (StatusCode::FORBIDDEN, "CSRFトークンが不正です").into_response();
+    }
+
+    next.run(Request::from_parts(parts, axum::body::Body::from(bytes)))
+        .await
 }

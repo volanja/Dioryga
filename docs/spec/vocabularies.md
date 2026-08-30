@@ -22,12 +22,17 @@
 
 | 対象 | 値 |
 |---|---|
-| `DEVICE.device_type` | `Physical` / `Virtual` / `Container` |
+| `DEVICE.device_type` | `Physical` / `Virtual` / `Container` / `Logical` |
 | `DEVICE.status` | `running` / `broken` / `repair` / `plan` / `building` |
 | `PART_INSTANCE.status` | 同上 |
 | `CABLE_INSTANCE.status` | `in_stock` / `in_use` / `broken` / `disposed` |
+| `PROJECT.closure_reason` | `Completed` / `Cancelled`（`archived_at` がある場合のみ） |
+
+**`device_type` の使い分け**：`Virtual` はハイパーバイザ上で動くもの、`Logical` は複数の物理筐体が1台として振る舞うもの（スタック、HAペア）。`Logical` は `configuration_id` と `serial_number` がnullになる。
 
 **`in_stock`/`disposed` はDEVICE/PART_INSTANCEの`status`には含めない。**ロケーション系テーブル（DEVICE_ASSIGNMENT / PART_INSTANCE_LOCATION）から導出する（旧B-1）。
+
+**`SOFTWARE_INSTANCE` は `status` を持たない。**`retired_at`（nullable datetime）のみ。インストール状態は `SOFTWARE_INSTALLATION` から導出する（9.4.1）。
 
 ### device_category（CHASSIS_MODEL、または仮想アプライアンスのDEVICE）
 

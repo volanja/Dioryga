@@ -16,8 +16,22 @@
 
 ## 1. 基盤（ユーザー・プロジェクト・認証）
 
-### PROJECT
-**⚠️ 設計書にカラム定義が存在しない。**関連としてのみ登場する。実装前に確定が必要（`docs/spec/open-questions.md` 参照）。
+### PROJECT (5章)
+| カラム | 型 | 備考 |
+|---|---|---|
+| uid | uuid | UNIQUE、登録時に採番する不変の識別子 |
+| code | string | nullable、UNIQUE。組織のプロジェクトコード |
+| name | string | 必須。**一意制約は張らない**（年度違いで同名の案件がありうる） |
+| description | string | |
+| currency | string | このプロジェクトの集計通貨 |
+| archived_at | datetime | nullable、null=進行中。**物理削除しない** |
+| closure_reason | string | nullable、`Completed`/`Cancelled`。archived_atがある場合のみ |
+
+**日付とサービス上の状態は持たない。**サービス開始日・終了日は `MILESTONE` の `ServiceStart`/`ServiceEnd` で表現し（10.4）、進行中/完了はそこから導出する。`created_by` も持たない（`AUDIT_LOG` で追跡）。
+
+`archived_at` は**運用者が一覧から外す判断**であり、サービス上の終了とは別概念（5.2）。`closure_reason` は納期遵守率の集計で中止案件と完了案件を区別するために持つ。
+
+取込マニフェストからの解決順序は `uid` → `code` → `name`。`name` で複数該当する場合はエラー（5.3）。
 
 ### USER (5章, 20章)
 | カラム | 型 | 備考 |
@@ -151,7 +165,7 @@
 | merged_into_device_id | FK(self) | nullable、重複統合で吸収された場合の統合先 |
 | merged_at | datetime | nullable |
 | configuration_id | FK | nullable、Virtual/Containerは無し |
-| device_type | string | Physical/Virtual/Container |
+| device_type | string | Physical/Virtual/Container/**Logical** |
 | device_category | string | nullable、`configuration_id IS NULL` の仮想アプライアンス用 |
 | hostname | string | 管理名 |
 | serial_number | string | nullable、Virtual/Containerは無し |
@@ -176,7 +190,17 @@
 ### DEVICE_STACK (8.6) — 履歴
 `logical_device_id`(FK DEVICE), `member_device_id`(FK DEVICE), `member_number`, `from_date`, `to_date`
 
-スタック全体も1つのDEVICEとして登録し、ポートは論理Deviceに属させる。ラック搭載位置・保守契約・故障履歴は物理メンバー側に紐づく。
+スタック全体を `device_type="Logical"` のDEVICEとして登録し、物理筐体は `Physical` のDEVICEとして別に登録する。
+
+| 項目 | 論理Device（Logical） | 物理メンバー（Physical） |
+|---|---|---|
+| configuration_id / serial_number | null | あり |
+| device_category | DEVICE側（`configuration_id IS NULL` のため） | CHASSIS_MODEL側 |
+| hostname / 管理IP / OS_INTERFACE / SOFTWARE_INSTALLATION / SBOM | **こちら** | 持たない |
+| DEVICE_MOUNT / power_watt / 保守契約 / 固定資産 / 故障履歴 | 持たない（power_wattは0） | **こちら** |
+| DEVICE_ASSIGNMENT | **こちら**（RBAC可視性判定のため） | **こちら** |
+
+`Logical` はファイアウォールのHAペア等にも再利用できる。`Virtual` がハイパーバイザ上で動くものを指すのに対し、`Logical` は複数の物理筐体が1台として振る舞うものを指す。
 
 ---
 
@@ -254,8 +278,10 @@
 
 ## 6. ソフトウェア（9章）
 
-### SOFTWARE_INSTANCE (9.4)
-`software_catalog_id`(FK), `license_key`(nullable), `asset_number`(nullable), `status`
+### SOFTWARE_INSTANCE (9.4, 9.4.1)
+`software_catalog_id`(FK), `license_key`(nullable), `asset_number`(nullable), `retired_at`(datetime nullable、null=保有中)
+
+**`status` を持たない。**「インストールされているか」は `SOFTWARE_INSTALLATION` の現行行から導出する（旧B-1と同じ判断）。ハードウェアの `broken`/`repair` はライセンスに対応物がなく、稼働中サービスの異常は監視ツールの領域でスコープ外。導出できない「まだ保有しているか」だけを `retired_at` で持つ。
 
 ### SOFTWARE_INSTALLATION (9.4) — 履歴
 `software_instance_id`(FK), `device_id`(FK), `work_order_id`, `from_date`, `to_date`

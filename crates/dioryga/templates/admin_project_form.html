@@ -1,0 +1,42 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+  <a class="button ghost" href="/admin/projects">{{ t_back }}</a>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<form class="card form" method="post" action="{{ action }}">
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+  <label for="name">{{ t_name }}</label>
+  <input type="text" id="name" name="name" value="{{ name }}" required>
+
+  <label for="code">{{ t_code }}</label>
+  <input type="text" id="code" name="code" value="{{ code }}">
+  <p class="hint">{{ t_code_hint }}</p>
+
+  <label for="description">{{ t_description }}</label>
+  <textarea id="description" name="description" rows="3">{{ description }}</textarea>
+
+  <label for="currency">{{ t_currency }}</label>
+  <select id="currency" name="currency">
+    {% for supported in currencies %}
+    <option value="{{ supported }}"
+      {% if currency == *supported %}selected{% endif %}>{{ supported }}</option>
+    {% endfor %}
+  </select>
+  <p class="hint">{{ t_currency_hint }}</p>
+
+  <button type="submit">{{ t_submit }}</button>
+</form>
+
+{% endblock %}

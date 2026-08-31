@@ -1,0 +1,32 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+  <a class="button ghost" href="/admin/projects">{{ t_back }}</a>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<form class="card form" method="post" action="/admin/projects/{{ project_id }}/archive">
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+  <p class="target">{{ project_name }}</p>
+
+  <label for="closure_reason">{{ t_reason }}</label>
+  <select id="closure_reason" name="closure_reason" required>
+    <option value="Completed">{{ t_completed }}</option>
+    <option value="Cancelled">{{ t_cancelled }}</option>
+  </select>
+  <p class="hint">{{ t_reason_hint }}</p>
+
+  <button type="submit">{{ t_submit }}</button>
+</form>
+
+{% endblock %}

@@ -70,6 +70,50 @@ users:
   cannot_disable_self: You cannot disable your own account
   cannot_demote_self: You cannot remove your own System Admin role
 
+projects:
+  title: Project management
+  lead: Create projects and assign primary and secondary administrators
+  new: New project
+  keyword: Search by name or code
+  name: Name
+  code: Project code
+  code_hint: Your organisation's code. Optional, but must be unique if set
+  description: Description
+  currency: Reporting currency
+  currency_hint: Every amount in this project is expressed in this currency. Changing it later changes how existing amounts are read
+  primary_admin: Primary administrator
+  secondary_admin: Secondary administrator
+  unassigned: Unassigned
+  status: Status
+  status_all: All
+  status_active: Active
+  status_archived: Archived
+  reason_completed: Completed
+  reason_cancelled: Cancelled
+  actions: Actions
+  edit: Edit
+  members: Administrators
+  archive: Archive
+  unarchive: Restore
+  empty: No matching projects
+  new_title: Create a project
+  new_lead: This creates the container only. Members add the data inside it
+  edit_title: Edit project
+  edit_lead: Service start and end dates are tracked as milestones, not here
+  name_required: Enter a name
+  duplicate_code: That project code is already in use
+  archive_title: Archive project
+  archive_lead: This hides it from the list. The data remains and can be restored at any time
+  closure_reason: Reason for closing
+  closure_reason_hint: Without separating completed from cancelled, delivery statistics cannot be computed correctly
+  reason_required: Select a reason for closing
+  members_title: Assign administrators
+  members_lead: A primary and secondary pair covers absence and handover
+  secondary_hint: The secondary administrator is optional. A primary alone is fine
+  same_admin: The same person cannot be both primary and secondary administrator
+  secondary_without_primary: A secondary administrator cannot be assigned on its own. Assign a primary first
+  invalid_candidate: The selection includes a user who cannot be assigned
+
 password_change:
   title: Change password
   lead: You must change your password to continue

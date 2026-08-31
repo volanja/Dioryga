@@ -34,6 +34,10 @@
     <a href="/admin/users" class="{% if chrome.nav == "users" %}current{% endif %}">
       {{ chrome.t_nav_users }}
     </a>
+    {# System Adminが見るのはプロジェクトの器まで。中のデータは見えない（3章） #}
+    <a href="/admin/projects" class="{% if chrome.nav == "admin_projects" %}current{% endif %}">
+      {{ chrome.t_nav_projects }}
+    </a>
     {% else %}
     <a href="/projects" class="{% if chrome.nav == "projects" %}current{% endif %}">
       {{ chrome.t_nav_projects }}

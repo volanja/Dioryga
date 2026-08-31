@@ -70,6 +70,50 @@ users:
   cannot_disable_self: 自分自身は無効化できません
   cannot_demote_self: 自分自身のSystem Admin権限は外せません
 
+projects:
+  title: プロジェクト管理
+  lead: プロジェクトの作成と、正副Administratorの割り当てを行います
+  new: 新規作成
+  keyword: 名称・コードで検索
+  name: 名称
+  code: プロジェクトコード
+  code_hint: 組織が持つコード。任意ですが、設定する場合は他と重複できません
+  description: 説明
+  currency: 集計通貨
+  currency_hint: このプロジェクト内の金額はすべてこの通貨で表します。後から変えると既存の金額の解釈が変わります
+  primary_admin: 正管理者
+  secondary_admin: 副管理者
+  unassigned: 未割当
+  status: 状態
+  status_all: すべて
+  status_active: 進行中
+  status_archived: アーカイブ済み
+  reason_completed: 完了
+  reason_cancelled: 中止
+  actions: 操作
+  edit: 編集
+  members: 管理者
+  archive: アーカイブ
+  unarchive: 元に戻す
+  empty: 該当するプロジェクトがありません
+  new_title: プロジェクトの新規作成
+  new_lead: 器だけを作ります。中のデータはプロジェクトのメンバーが登録します
+  edit_title: プロジェクトの編集
+  edit_lead: サービスの開始日・終了日はマイルストーンで管理するため、ここでは扱いません
+  name_required: 名称を入力してください
+  duplicate_code: このプロジェクトコードは既に使われています
+  archive_title: プロジェクトのアーカイブ
+  archive_lead: 一覧から外します。データは残り、いつでも元に戻せます
+  closure_reason: 終了の理由
+  closure_reason_hint: 完了と中止を区別しないと、納期遵守率の集計が正しく出せません
+  reason_required: 終了の理由を選んでください
+  members_title: Administratorの割り当て
+  members_lead: 不在時と引き継ぎに備え、正副の2名体制にできます
+  secondary_hint: 副管理者は任意です。正管理者のみでも登録できます
+  same_admin: 正管理者と副管理者に同じ利用者は指定できません
+  secondary_without_primary: 副管理者だけを割り当てることはできません。先に正管理者を指定してください
+  invalid_candidate: 割り当てできない利用者が含まれています
+
 password_change:
   title: パスワードの変更
   lead: 続けるにはパスワードを変更してください

@@ -70,6 +70,92 @@ impl Audited for entity::project_member::Model {
     }
 }
 
+// --- 共有カタログ（設計書6章、8章、9章、18章） ---
+//
+// **いずれも伏せる列を持たない。**カタログは型番・仕様といった公開情報であり、
+// 監査ログでそのまま読めることに価値がある（誰がいつ何を変えたかを追うため）。
+// 機微な値を持つ列を足すときは `MASKED` の宣言を忘れないこと。
+
+impl Audited for entity::vendor::Model {
+    const TABLE: &'static str = "vendor";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::chassis_model::Model {
+    const TABLE: &'static str = "chassis_model";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::chassis_slot::Model {
+    const TABLE: &'static str = "chassis_slot";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::part_catalog::Model {
+    const TABLE: &'static str = "part_catalog";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::part_port_slot::Model {
+    const TABLE: &'static str = "part_port_slot";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::configuration::Model {
+    const TABLE: &'static str = "configuration";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::configuration_part::Model {
+    const TABLE: &'static str = "configuration_part";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::cable_catalog::Model {
+    const TABLE: &'static str = "cable_catalog";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::cable_end_slot::Model {
+    const TABLE: &'static str = "cable_end_slot";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::software_catalog::Model {
+    const TABLE: &'static str = "software_catalog";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
 impl Audited for entity::session::Model {
     const TABLE: &'static str = "session";
     /// セッショントークンのハッシュは、それ自体が認証に使える値のため残さない。

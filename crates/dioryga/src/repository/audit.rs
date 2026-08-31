@@ -156,6 +156,59 @@ impl Audited for entity::software_catalog::Model {
     }
 }
 
+// --- 機器（設計書6章、8.6、23章） ---
+//
+// **こちらも伏せる列を持たない。**シリアル番号・資産番号は組織内の管理情報で
+// あり、監査ログで追えることに価値がある。
+
+impl Audited for entity::device::Model {
+    const TABLE: &'static str = "device";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::device_assignment::Model {
+    const TABLE: &'static str = "device_assignment";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::part_instance::Model {
+    const TABLE: &'static str = "part_instance";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::part_instance_location::Model {
+    const TABLE: &'static str = "part_instance_location";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::firmware_version::Model {
+    const TABLE: &'static str = "firmware_version";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::device_stack::Model {
+    const TABLE: &'static str = "device_stack";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
 impl Audited for entity::session::Model {
     const TABLE: &'static str = "session";
     /// セッショントークンのハッシュは、それ自体が認証に使える値のため残さない。

@@ -4,6 +4,7 @@ pub mod account;
 pub mod admin;
 mod health;
 pub mod login;
+pub mod project;
 pub mod setup;
 pub mod view;
 
@@ -61,6 +62,21 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/admin/users/{id}/reset-password",
             post(admin::reset_password),
+        )
+        .route("/admin/projects", get(project::list).post(project::create))
+        .route("/admin/projects/new", get(project::new_form))
+        .route(
+            "/admin/projects/{id}",
+            get(project::edit_form).post(project::update),
+        )
+        .route(
+            "/admin/projects/{id}/archive",
+            get(project::archive_form).post(project::archive),
+        )
+        .route("/admin/projects/{id}/unarchive", post(project::unarchive))
+        .route(
+            "/admin/projects/{id}/members",
+            get(project::members_form).post(project::update_members),
         )
         // プロジェクト領域。画面の中身は後続のissueで実装する。
         // System Adminガードの対象であることを確かめるために置いている。

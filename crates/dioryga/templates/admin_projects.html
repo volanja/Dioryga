@@ -1,0 +1,73 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+  <a class="button" href="/admin/projects/new">{{ t_new }}</a>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+{# 一覧画面は必ず検索とフィルタを持つ（設計書16.1） #}
+<form class="filters" method="get" action="/admin/projects">
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ t_keyword }}">
+  <select name="status">
+    <option value="active" {% if status == "active" %}selected{% endif %}>{{ t_status_active }}</option>
+    <option value="archived" {% if status == "archived" %}selected{% endif %}>{{ t_status_archived }}</option>
+    <option value="all" {% if status == "all" %}selected{% endif %}>{{ t_status_all }}</option>
+  </select>
+  <button type="submit">{{ t_search }}</button>
+</form>
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_name }}</th>
+      <th>{{ t_code }}</th>
+      <th>{{ t_currency }}</th>
+      <th>{{ t_primary_admin }}</th>
+      <th>{{ t_secondary_admin }}</th>
+      <th>{{ t_status }}</th>
+      <th>{{ t_actions }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr class="{% if row.archived %}is-disabled{% endif %}">
+      <td>{{ row.name }}</td>
+      <td>{{ row.code }}</td>
+      <td>{{ row.currency }}</td>
+      <td>{{ row.primary_admin }}</td>
+      <td>{{ row.secondary_admin }}</td>
+      <td>{{ row.status }}</td>
+      <td class="actions">
+        <a href="/admin/projects/{{ row.id }}">{{ t_edit }}</a>
+        <a href="/admin/projects/{{ row.id }}/members">{{ t_members }}</a>
+        {% if row.archived %}
+        <form method="post" action="/admin/projects/{{ row.id }}/unarchive" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <button type="submit" class="ghost">{{ t_unarchive }}</button>
+        </form>
+        {% else %}
+        {# アーカイブは closure_reason を選ばせるため確認画面を挟む（設計書5.2） #}
+        <a href="/admin/projects/{{ row.id }}/archive">{{ t_archive }}</a>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% endblock %}

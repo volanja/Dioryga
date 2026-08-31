@@ -263,7 +263,28 @@ td.actions button.ghost { padding: 4px 10px; font-weight: 500; }
   max-width: 520px;
 }
 
-.form select { width: 100%; margin-bottom: var(--gap); }
+.form select,
+.form textarea { width: 100%; margin-bottom: var(--gap); }
+
+textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+/* 操作対象を明示する。確認画面と割り当て画面で使う */
+.target {
+  margin: 0 0 var(--gap);
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg);
+  font-weight: 600;
+}
 .form .check { display: flex; align-items: center; gap: 8px; }
 .form .check input { width: auto; margin: 0; }
 .form .check label { margin-bottom: 0; }

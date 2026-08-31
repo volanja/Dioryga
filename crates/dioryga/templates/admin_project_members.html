@@ -1,0 +1,49 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+  <a class="button ghost" href="/admin/projects">{{ t_back }}</a>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<form class="card form" method="post" action="/admin/projects/{{ project_id }}/members">
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+  <p class="target">{{ project_name }}</p>
+
+  {# 候補からSystem Adminと無効化された利用者を外している（設計書3章、20.11） #}
+  <label for="primary">{{ t_primary }}</label>
+  <select id="primary" name="primary">
+    <option value="">{{ t_unassigned }}</option>
+    {% for c in candidates %}
+    <option value="{{ c.id }}"
+      {% if let Some(selected) = primary_id %}{% if *selected == c.id %}selected{% endif %}{% endif %}>
+      {{ c.label }}
+    </option>
+    {% endfor %}
+  </select>
+
+  <label for="secondary">{{ t_secondary }}</label>
+  <select id="secondary" name="secondary">
+    <option value="">{{ t_unassigned }}</option>
+    {% for c in candidates %}
+    <option value="{{ c.id }}"
+      {% if let Some(selected) = secondary_id %}{% if *selected == c.id %}selected{% endif %}{% endif %}>
+      {{ c.label }}
+    </option>
+    {% endfor %}
+  </select>
+  <p class="hint">{{ t_secondary_hint }}</p>
+
+  <button type="submit">{{ t_submit }}</button>
+</form>
+
+{% endblock %}

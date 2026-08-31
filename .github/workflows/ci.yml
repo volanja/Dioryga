@@ -3,7 +3,15 @@ name: CI
 on:
   push:
     branches: [main]
+    # 配布物を実際に建てて確認するため、リリースタグでも動かす（macos-build）。
+    tags: ["v*"]
   pull_request:
+  # 週次。環境ドリフトの検知と、普段動かさないジョブの定期実行を兼ねる。
+  # 毎週月曜 06:00 JST（日曜 21:00 UTC）。
+  schedule:
+    - cron: "0 21 * * 0"
+  # リリース前に手で回せるようにする。
+  workflow_dispatch:
 
 # 同じブランチへ続けてpushした場合、古い実行を打ち切る。
 concurrency:
@@ -17,6 +25,12 @@ env:
   CARGO_TERM_COLOR: always
   # CIでは差分ビルドが効かないため、デバッグ情報を削ってビルド時間を短縮する。
   CARGO_PROFILE_DEV_DEBUG: 0
+  # キャッシュの保存はmainでのみ行う（rust-cacheの `save-if` へ渡す）。
+  #
+  # PRのpushごとに5ジョブぶん保存すると、post-stepで毎回30〜40秒かかるうえ、
+  # リポジトリのキャッシュ枠を食い潰して**LRUで退避され、かえって遅くなる**。
+  # PRの実行はmainのキャッシュを読めるため、復元側には影響しない。
+  SAVE_CACHE_ON: refs/heads/main
 
 jobs:
   lint:
@@ -28,6 +42,8 @@ jobs:
       # ツールチェーンは rust-toolchain.toml から自動で解決される。
       # ここでバージョンを書くと二重管理になるため指定しない。
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == env.SAVE_CACHE_ON }}
 
       - name: cargo fmt
         run: cargo fmt --all -- --check
@@ -42,6 +58,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == env.SAVE_CACHE_ON }}
 
       - uses: taiki-e/install-action@cargo-llvm-cov
 
@@ -65,6 +83,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == env.SAVE_CACHE_ON }}
 
       # testcontainers-rs がコンテナを起動する。ubuntuランナーには
       # Dockerが用意されているため追加の準備は要らない。
@@ -79,18 +99,48 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: Swatinem/rust-cache@v2
+      # Defenderがビルド出力を1ファイルずつ走査するため、Windowsのビルドは
+      # 同じ3クレートでもmacOSの3倍の時間がかかっていた（依存はキャッシュ済み
+      # であり、キャッシュを増やしても解消しない）。
+      #
+      # 走査を止めるのではなく、対象から外すだけ。失敗しても本題ではないため
+      # ジョブは続行する（Defenderが無効な環境では例外になる）。
+      - name: Defenderの走査対象からビルド出力を外す
+        shell: pwsh
+        run: |
+          try {
+            Add-MpPreference -ExclusionPath `
+              "${{ github.workspace }}\target", `
+              "$env:USERPROFILE\.cargo"
+            Write-Host "除外しました"
+          } catch {
+            Write-Host "除外できませんでした（続行します）: $_"
+          }
 
-      - name: cargo build --release
-        run: cargo build --release --locked
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == env.SAVE_CACHE_ON }}
+          # **キーにプロファイル名を混ぜる。**rust-cacheのキーは Cargo.lock と
+          # 各クレートの Cargo.toml から作られ、**プロファイルを定義している
+          # ルートの Cargo.toml は含まれない。**分けないと release プロファイルの
+          # 依存が入ったキャッシュに完全一致し、「Cache up-to-date」で保存が
+          # スキップされる。結果、ciプロファイルの依存が永久にキャッシュされず
+          # 毎回フルビルドになる（実測で確認した）。
+          key: profile-ci
+
+      # 配布物ではなくスモークテスト用のため、最適化を切った ci プロファイルで
+      # 建てる（理由と引き換えに失うものはルートの Cargo.toml に書いた）。
+      # 本物の `--release` が通ることはMacビルド確認で担保している。
+      - name: cargo build --profile ci
+        run: cargo build --profile ci --locked
 
       # 設計書2章：単一バイナリがWindows上で実際にサーバプロセスとして
       # 直接実行される形態のため、パス区切り・ファイルロック・静的アセット
       # 展開といったWindows固有の問題はLinux/Mac上のテストでは検出できない。
-      - name: 起動してヘルスチェックに疎通する
+      - name: 起動してヘルスチェックと静的アセットに疎通する
         shell: pwsh
         run: |
-          $exe = "target\release\dioryga.exe"
+          $exe = "target\ci\dioryga.exe"
           $proc = Start-Process -FilePath $exe -PassThru -NoNewWindow
           try {
             $ok = $false
@@ -114,6 +164,21 @@ jobs:
             if (-not $ok) {
               throw "30秒以内にヘルスチェックへ応答しませんでした"
             }
+
+            # 静的アセットがバイナリから配信されることを確かめる。
+            #
+            # **ヘルスチェックだけでは埋め込みを検証できない。**このジョブが
+            # 検出すべきWindows固有の問題の中心がここであり、実際に1本
+            # 取ってこないと素通りする。
+            $css = Invoke-WebRequest -Uri "http://127.0.0.1:8080/assets/dioryga.css" `
+              -UseBasicParsing -TimeoutSec 5
+            if ($css.StatusCode -ne 200) {
+              throw "静的アセットが配信されません (status: $($css.StatusCode))"
+            }
+            if ($css.Content -notmatch '--accent') {
+              throw "静的アセットの中身が期待と異なります"
+            }
+            Write-Host "静的アセットを配信しました: $($css.RawContentLength) bytes"
           } finally {
             if (-not $proc.HasExited) {
               Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
@@ -123,10 +188,27 @@ jobs:
   macos-build:
     name: Macビルド確認
     runs-on: macos-latest
+    # **毎回は走らせない。**macOSランナーはUbuntuの7.75倍の単価で、実測すると
+    # 67秒しか使っていないのにCI費用の61%を占めていた（しかも分単位の切り上げで
+    # 実質2分ぶん課金されるため、速くしても効かない）。
+    #
+    # 一方で守備範囲は狭い。依存はすべてクロスプラットフォームなpure Rustであり、
+    # **開発機がMacで日常的にビルドしている**ため、macOS固有の破損は数分で気付く。
+    # releaseプロファイル固有の問題も、windows-smokeの `[profile.ci]`
+    # （`debug-assertions = false`）が毎回検証している。
+    #
+    # よって、配布物を実際に建てるリリースタグ時と、環境ドリフトを拾う週次、
+    # および手動実行に絞る。
+    if: >-
+      startsWith(github.ref, 'refs/tags/') ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == env.SAVE_CACHE_ON }}
 
       # 配布物としての最終ビルド確認（設計書2章）。
       - name: cargo build --release

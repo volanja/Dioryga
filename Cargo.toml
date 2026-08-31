@@ -39,3 +39,22 @@ uuid = { version = "1", features = ["v4"] }
 
 entity = { path = "crates/entity" }
 migration = { path = "crates/migration" }
+
+# CIのWindows起動スモークテスト専用。**配布物のビルドには使わない。**
+#
+# このジョブが検出したいのはWindows固有の問題（パス区切り・ファイルロック・
+# 静的アセットの展開）であり、最適化されたコード生成ではない。opt-level 3 の
+# ままでは同じ3クレートのコンパイルにmacOSの3倍かかっていた。
+#
+# **`debug-assertions = false` がこのプロファイルの要。**rust-embed は
+# `debug_assertions` が有効なときファイルシステムから読むため、これを外すと
+# 静的アセットの埋め込みを検証しなくなり、ジョブの主目的が失われる。
+# `inherits = "release"` の既定でもfalseだが、載っている意味が大きいため明示する。
+#
+# 引き換えに、リリース最適化のコード生成・リンクがWindowsで通るかは検証しない
+# （macビルド確認が本物の `--release` を維持している）。
+[profile.ci]
+inherits = "release"
+opt-level = 0
+codegen-units = 256
+debug-assertions = false

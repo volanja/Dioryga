@@ -133,7 +133,7 @@
 `part_catalog_id`(FK), `port_kind`(Network/Power/Stack), `port_label`, `connector_type`, `port_speed`(Networkのみ)
 
 ### CABLE_CATALOG (8.3)
-`cable_type`, `length_m`(decimal), `color`, `vendor_id`(FK), `part_number`, `created_by`(FK User)
+`cable_type`, `length_mm`(int、**ミリメートル**), `color`, `vendor_id`(FK), `part_number`, `created_by`(FK User)
 
 ### CABLE_END_SLOT (8.3, 8.7)
 `cable_catalog_id`(FK), `end_label`(A/B または Trunk/Branch1..N), `connector_type`, `port_speed`

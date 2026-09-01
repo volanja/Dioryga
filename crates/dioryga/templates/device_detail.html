@@ -1,0 +1,105 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ hostname }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb">
+      <a href="/projects">{{ chrome.t_nav_projects }}</a> /
+      <a href="/projects/{{ project_id }}/devices">{{ project_name }}</a>
+    </p>
+    <h1>
+      {{ hostname }}
+      {% if planned %}<span class="badge plan">{{ t_planned }}</span>{% endif %}
+    </h1>
+  </div>
+  <div class="head-actions">
+    {% if can_edit %}
+    <a class="button" href="/projects/{{ project_id }}/devices/{{ device_id }}/edit">{{ t_edit }}</a>
+    {% endif %}
+    <a class="button ghost" href="/projects/{{ project_id }}/devices">{{ t_back }}</a>
+  </div>
+</div>
+
+{% if let Some(target) = merged_into %}
+{# 統合された機器は削除されない。統合先へ誘導する（設計書23.9） #}
+<p class="error">
+  {{ t_merged }}
+  <a href="/projects/{{ project_id }}/devices/{{ target }}">#{{ target }}</a>
+</p>
+{% endif %}
+
+<div class="panels">
+  <section class="card">
+    <h2>{{ t_basic }}</h2>
+    <dl>
+      {% for item in basic %}
+      <dt>{{ item.label }}</dt><dd>{{ item.value }}</dd>
+      {% endfor %}
+    </dl>
+  </section>
+
+  {# 現在地だけでなく履歴を出す。A-6が保証するのはこの履歴の閲覧である #}
+  <section class="card">
+    <h2>{{ t_location_history }}</h2>
+    <dl>
+      {% for item in locations %}
+      <dt>{{ item.label }}</dt><dd>{{ item.value }}</dd>
+      {% endfor %}
+    </dl>
+  </section>
+
+  <section class="card">
+    <h2>{{ t_mount }}</h2>
+    {% if mount.is_empty() %}
+    <p class="empty">{{ t_none }}</p>
+    {% else %}
+    <dl>
+      {% for item in mount %}
+      <dt>{{ item.label }}</dt><dd>{{ item.value }}</dd>
+      {% endfor %}
+    </dl>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>{{ t_parts }}</h2>
+    {% if parts.is_empty() %}
+    <p class="empty">{{ t_none }}</p>
+    {% else %}
+    <dl>
+      {% for item in parts %}
+      <dt>{{ item.label }}</dt><dd>{{ item.value }}</dd>
+      {% endfor %}
+    </dl>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>{{ t_firmware }}</h2>
+    {% if firmware.is_empty() %}
+    <p class="empty">{{ t_none }}</p>
+    {% else %}
+    <dl>
+      {% for item in firmware %}
+      <dt>{{ item.label }}</dt><dd>{{ item.value }}</dd>
+      {% endfor %}
+    </dl>
+    {% endif %}
+  </section>
+
+  {% if !stack.is_empty() %}
+  <section class="card">
+    <h2>{{ t_stack }}</h2>
+    <dl>
+      {% for item in stack %}
+      <dt>{{ item.label }}</dt><dd>{{ item.value }}</dd>
+      {% endfor %}
+    </dl>
+  </section>
+  {% endif %}
+</div>
+
+<p class="hint">{{ t_not_implemented }}</p>
+
+{% endblock %}

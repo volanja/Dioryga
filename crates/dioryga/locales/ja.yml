@@ -114,6 +114,58 @@ projects:
   secondary_without_primary: 副管理者だけを割り当てることはできません。先に正管理者を指定してください
   invalid_candidate: 割り当てできない利用者が含まれています
 
+workspace:
+  lead: 自分が所属しているプロジェクトです
+  roles: ロール
+  open: 開く
+  empty: 所属しているプロジェクトがありません。System Adminに割り当てを依頼してください
+
+devices:
+  title: 機器一覧
+  lead: このプロジェクトの機器を管理します
+  new: 機器を登録
+  keyword: ホスト名・シリアル番号・資産番号で検索
+  scope_current: 現在このプロジェクトにあるもの
+  scope_all: 過去に所属したものを含む
+  hostname: ホスト名
+  device_type: 種別
+  model: 型・構成
+  status: 状態
+  location: 所在
+  detail: 詳細
+  empty: 該当する機器がありません
+  departed: 移管済み
+  planned: 予約中
+  back: 一覧へ戻る
+  none: なし
+  basic: 基本情報
+  location_history: 所在の履歴
+  mount: 搭載位置
+  parts: 搭載部品
+  firmware: ファームウェア
+  stack: スタック構成
+  container: 什器
+  host_device: 搭載先の機器
+  position: 位置
+  serial_number: シリアル番号
+  asset_number: 資産番号
+  power_watt: 消費電力
+  configuration: 構成
+  configuration_hint: 共有カタログから選びます。仮想機器やスタックの論理機器では空にします
+  device_category: 種別分類
+  device_category_hint: 構成を持たない機器（仮想アプライアンス等）で指定します
+  serial_hint: 仮想機器・コンテナには存在しないため、空で構いません
+  asset_hint: 採番待ちでも登録できます。届いてから入力してください
+  new_title: 機器の登録
+  new_lead: このプロジェクトに所属する機器として登録します
+  edit_title: 機器の編集
+  edit_lead: 所在の変更はこの画面では行いません
+  hostname_required: ホスト名を入力してください
+  merged: この機器は重複として統合されました。統合先はこちらです：
+  location_disposed: 廃棄済み
+  location_unknown: 所在の記録がありません
+  section_pending: 発注明細・ソフトウェア構成は、該当するテーブルの実装後に表示します
+
 password_change:
   title: パスワードの変更
   lead: 続けるにはパスワードを変更してください

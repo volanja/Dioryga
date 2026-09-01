@@ -312,3 +312,44 @@ textarea {
   user-select: all;
   overflow-wrap: anywhere;
 }
+
+/* ------------------------------------------------------------------ *
+ * プロジェクト領域
+ * ------------------------------------------------------------------ */
+
+/* 現在地を示すパンくず。プロジェクトを跨いで作業するため常に出す */
+.crumb { margin: 0 0 4px; font-size: 12px; color: var(--muted); }
+.crumb a { color: var(--muted); text-decoration: none; }
+.crumb a:hover { text-decoration: underline; }
+
+.head-actions { display: flex; gap: 8px; align-items: flex-start; }
+
+.badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--muted);
+  vertical-align: middle;
+}
+
+/* 予約中（status=plan）は実機と区別する（設計書11.6） */
+.badge.plan { border-color: var(--accent); color: var(--accent); }
+
+/* 詳細画面。項目を種類ごとのカードに分ける */
+.panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--gap);
+  align-items: start;
+}
+
+.panels .card { max-width: none; padding: 20px; }
+.panels h2 { font-size: 14px; margin: 0 0 12px; }
+
+.panels dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; }
+.panels dt { font-size: 13px; color: var(--muted); }
+.panels dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.panels .empty { margin: 0; font-size: 13px; }

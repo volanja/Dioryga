@@ -1,0 +1,74 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb">
+      <a href="/projects">{{ chrome.t_nav_projects }}</a> /
+      <a href="/projects/{{ project_id }}/devices">{{ project_name }}</a>
+    </p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+  <a class="button ghost" href="/projects/{{ project_id }}/devices">{{ t_back }}</a>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<form class="card form" method="post" action="{{ action }}">
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+  <label for="hostname">{{ t_hostname }}</label>
+  <input type="text" id="hostname" name="hostname" value="{{ hostname }}" required>
+
+  <label for="device_type">{{ t_device_type }}</label>
+  <select id="device_type" name="device_type">
+    {% for v in device_types %}
+    <option value="{{ v }}" {% if device_type == *v %}selected{% endif %}>{{ v }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="configuration_id">{{ t_configuration }}</label>
+  <select id="configuration_id" name="configuration_id">
+    <option value=""></option>
+    {% for c in configurations %}
+    <option value="{{ c.value }}"
+      {% if configuration_id == c.value %}selected{% endif %}>{{ c.label }}</option>
+    {% endfor %}
+  </select>
+  <p class="hint">{{ t_configuration_hint }}</p>
+
+  <label for="device_category">{{ t_device_category }}</label>
+  <select id="device_category" name="device_category">
+    <option value=""></option>
+    {% for v in categories %}
+    <option value="{{ v }}" {% if device_category == *v %}selected{% endif %}>{{ v }}</option>
+    {% endfor %}
+  </select>
+  <p class="hint">{{ t_device_category_hint }}</p>
+
+  <label for="serial_number">{{ t_serial_number }}</label>
+  <input type="text" id="serial_number" name="serial_number" value="{{ serial_number }}">
+  <p class="hint">{{ t_serial_hint }}</p>
+
+  <label for="asset_number">{{ t_asset_number }}</label>
+  <input type="text" id="asset_number" name="asset_number" value="{{ asset_number }}">
+  <p class="hint">{{ t_asset_hint }}</p>
+
+  <label for="power_watt">{{ t_power_watt }}</label>
+  <input type="number" id="power_watt" name="power_watt" value="{{ power_watt }}" min="0">
+
+  <label for="status">{{ t_status }}</label>
+  <select id="status" name="status">
+    {% for v in statuses %}
+    <option value="{{ v }}" {% if status == *v %}selected{% endif %}>{{ v }}</option>
+    {% endfor %}
+  </select>
+
+  <button type="submit">{{ t_submit }}</button>
+</form>
+
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_name }}</th>
+      <th>{{ t_code }}</th>
+      <th>{{ t_roles }}</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr class="{% if row.archived %}is-disabled{% endif %}">
+      <td>
+        {{ row.name }}
+        {% if row.archived %}<span class="badge">{{ t_archived }}</span>{% endif %}
+      </td>
+      <td>{{ row.code }}</td>
+      <td>{{ row.roles }}</td>
+      <td class="actions">
+        <a href="/projects/{{ row.id }}/devices">{{ t_open }}</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% endblock %}

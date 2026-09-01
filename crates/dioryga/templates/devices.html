@@ -1,0 +1,64 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/projects">{{ chrome.t_nav_projects }}</a> / {{ project_name }}</p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+  {% if can_edit %}
+  <a class="button" href="/projects/{{ project_id }}/devices/new">{{ t_new }}</a>
+  {% endif %}
+</div>
+
+{# 既定は「現在このプロジェクトにあるもの」。過去に所属した機器もA-6により見える #}
+<form class="filters" method="get" action="/projects/{{ project_id }}/devices">
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ t_keyword }}">
+  <select name="scope">
+    <option value="current" {% if scope == "current" %}selected{% endif %}>{{ t_scope_current }}</option>
+    <option value="all" {% if scope == "all" %}selected{% endif %}>{{ t_scope_all }}</option>
+  </select>
+  <button type="submit">{{ t_search }}</button>
+</form>
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_hostname }}</th>
+      <th>{{ t_device_type }}</th>
+      <th>{{ t_model }}</th>
+      <th>{{ t_status }}</th>
+      <th>{{ t_location }}</th>
+      <th>{{ t_actions }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr class="{% if row.departed %}is-disabled{% endif %}">
+      <td>
+        {{ row.hostname }}
+        {# 予約中は区別表示する（設計書11.6） #}
+        {% if row.planned %}<span class="badge plan">{{ t_planned }}</span>{% endif %}
+        {% if row.departed %}<span class="badge">{{ t_departed }}</span>{% endif %}
+      </td>
+      <td>{{ row.device_type }}</td>
+      <td>{{ row.model }}</td>
+      <td>{{ row.status }}</td>
+      <td>{{ row.location }}</td>
+      <td class="actions">
+        <a href="/projects/{{ project_id }}/devices/{{ row.id }}">{{ t_detail }}</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% endblock %}

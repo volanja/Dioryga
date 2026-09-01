@@ -209,6 +209,32 @@ impl Audited for entity::device_stack::Model {
     }
 }
 
+// --- 物理設置（設計書12章） ---
+
+impl Audited for entity::warehouse::Model {
+    const TABLE: &'static str = "warehouse";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::mount_container::Model {
+    const TABLE: &'static str = "mount_container";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::device_mount::Model {
+    const TABLE: &'static str = "device_mount";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
 impl Audited for entity::session::Model {
     const TABLE: &'static str = "session";
     /// セッショントークンのハッシュは、それ自体が認証に使える値のため残さない。

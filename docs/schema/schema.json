@@ -1,0 +1,3106 @@
+{
+  "name": "postgres",
+  "tables": [
+    {
+      "name": "public.app_user",
+      "type": "BASE TABLE",
+      "comment": "利用者。設計書の `USER`。`user` はPostgreSQLの予約語のため物理名を変えている（24.2.4）。\n物理削除はせず `disabled_at` で無効化する（20.11）。AUDIT_LOG等から参照されるため。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "email",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "password_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "must_change_password",
+          "type": "boolean",
+          "nullable": false,
+          "default": "false",
+          "comment": "一時パスワード発行時に真。変更を終えるまで他の画面へ進めない（20.6）"
+        },
+        {
+          "name": "is_system_admin",
+          "type": "boolean",
+          "nullable": false,
+          "default": "false",
+          "comment": "プロジェクトロールとは別軸。**真の利用者はプロジェクトデータに一切アクセスできない**（3章）"
+        },
+        {
+          "name": "locale",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'ja'::character varying"
+        },
+        {
+          "name": "last_login_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "disabled_at",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null = 有効。**物理削除の代わり。**"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "app_user_pkey",
+          "def": "CREATE UNIQUE INDEX app_user_pkey ON public.app_user USING btree (id)",
+          "table": "public.app_user",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "app_user_email_key",
+          "def": "CREATE UNIQUE INDEX app_user_email_key ON public.app_user USING btree (email)",
+          "table": "public.app_user",
+          "columns": [
+            "email"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "app_user_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.app_user",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "app_user_email_key",
+          "type": "UNIQUE",
+          "def": "UNIQUE (email)",
+          "table": "public.app_user",
+          "referenced_table": "",
+          "columns": [
+            "email"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.project",
+      "type": "BASE TABLE",
+      "comment": "プロジェクト。**サービスの開始日・終了日と進行状態を持たない**（5.1）。\nそれらは MILESTONE から導出する。ここに日付を持つと「予定と実績の差」が失われる。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "uid",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "Diorygaが採番する不変の識別子。名前を変更しても参照が切れない（5.3）"
+        },
+        {
+          "name": "code",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "組織のプロジェクトコード。**未設定は空文字ではなくNULL**（UNIQUEのため、空文字だと2件目が作れない）"
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "description",
+          "type": "varchar",
+          "nullable": false,
+          "default": "''::character varying"
+        },
+        {
+          "name": "currency",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'JPY'::character varying",
+          "comment": "集計通貨。**金額の小数点以下の桁数がこの値から決まる**（24.2.1）"
+        },
+        {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "サービス上の終了ではなく、**一覧から外すという運用判断**（5.2）"
+        },
+        {
+          "name": "closure_reason",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "Completed / Cancelled。中止と完了を区別しないと納期遵守率の集計が汚れる（10.4）"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "project_pkey",
+          "def": "CREATE UNIQUE INDEX project_pkey ON public.project USING btree (id)",
+          "table": "public.project",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "project_uid_key",
+          "def": "CREATE UNIQUE INDEX project_uid_key ON public.project USING btree (uid)",
+          "table": "public.project",
+          "columns": [
+            "uid"
+          ]
+        },
+        {
+          "name": "project_code_key",
+          "def": "CREATE UNIQUE INDEX project_code_key ON public.project USING btree (code)",
+          "table": "public.project",
+          "columns": [
+            "code"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "project_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.project",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "project_uid_key",
+          "type": "UNIQUE",
+          "def": "UNIQUE (uid)",
+          "table": "public.project",
+          "referenced_table": "",
+          "columns": [
+            "uid"
+          ]
+        },
+        {
+          "name": "project_code_key",
+          "type": "UNIQUE",
+          "def": "UNIQUE (code)",
+          "table": "public.project",
+          "referenced_table": "",
+          "columns": [
+            "code"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.project_member",
+      "type": "BASE TABLE",
+      "comment": "利用者とプロジェクトの対応。粒度は `(user_id, project_id, role)`。\n**同一利用者が同一プロジェクトで複数ロールを兼務できる**（5章）。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "user_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "project_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "role",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "admin_rank",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "Primary / Secondary。role=Administrator のときのみ意味を持つ。1プロジェクトにつき各1名まで"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "project_member_pkey",
+          "def": "CREATE UNIQUE INDEX project_member_pkey ON public.project_member USING btree (id)",
+          "table": "public.project_member",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "uq_project_member_user_project_role",
+          "def": "CREATE UNIQUE INDEX uq_project_member_user_project_role ON public.project_member USING btree (user_id, project_id, role)",
+          "table": "public.project_member",
+          "columns": [
+            "user_id",
+            "project_id",
+            "role"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "project_member_user_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (user_id) REFERENCES app_user(id)",
+          "table": "public.project_member",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "user_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "project_member_project_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (project_id) REFERENCES project(id)",
+          "table": "public.project_member",
+          "referenced_table": "public.project",
+          "columns": [
+            "project_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "project_member_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.project_member",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.session",
+      "type": "BASE TABLE",
+      "comment": "セッション。生のトークンは保存せずハッシュのみを持つ（20.5）。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "user_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "token_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "last_seen_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "ip_address",
+          "type": "varchar",
+          "nullable": false,
+          "default": "''::character varying"
+        },
+        {
+          "name": "user_agent",
+          "type": "varchar",
+          "nullable": false,
+          "default": "''::character varying"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "session_pkey",
+          "def": "CREATE UNIQUE INDEX session_pkey ON public.session USING btree (id)",
+          "table": "public.session",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "session_token_hash_key",
+          "def": "CREATE UNIQUE INDEX session_token_hash_key ON public.session USING btree (token_hash)",
+          "table": "public.session",
+          "columns": [
+            "token_hash"
+          ]
+        },
+        {
+          "name": "idx_session_user_id",
+          "def": "CREATE INDEX idx_session_user_id ON public.session USING btree (user_id)",
+          "table": "public.session",
+          "columns": [
+            "user_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "session_user_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (user_id) REFERENCES app_user(id)",
+          "table": "public.session",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "user_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "session_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.session",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "session_token_hash_key",
+          "type": "UNIQUE",
+          "def": "UNIQUE (token_hash)",
+          "table": "public.session",
+          "referenced_table": "",
+          "columns": [
+            "token_hash"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.login_attempt",
+      "type": "BASE TABLE",
+      "comment": "ログイン試行。レート制限に使う。**存在しない利用者への試行も記録する**ため\napp_user への外部キーを持たない（20.4）。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "email",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "ip_address",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "succeeded",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "attempted_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "login_attempt_pkey",
+          "def": "CREATE UNIQUE INDEX login_attempt_pkey ON public.login_attempt USING btree (id)",
+          "table": "public.login_attempt",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_login_attempt_email_attempted_at",
+          "def": "CREATE INDEX idx_login_attempt_email_attempted_at ON public.login_attempt USING btree (email, attempted_at)",
+          "table": "public.login_attempt",
+          "columns": [
+            "email",
+            "attempted_at"
+          ]
+        },
+        {
+          "name": "idx_login_attempt_ip_attempted_at",
+          "def": "CREATE INDEX idx_login_attempt_ip_attempted_at ON public.login_attempt USING btree (ip_address, attempted_at)",
+          "table": "public.login_attempt",
+          "columns": [
+            "ip_address",
+            "attempted_at"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "login_attempt_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.login_attempt",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.audit_log",
+      "type": "BASE TABLE",
+      "comment": "監査ログ。全ての書き込みがリポジトリ層を通り、同一トランザクション内で記録される（15.2、24.4）。\n**認証情報の平文を含めない**（不変条件8）。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "user_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "table_name",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "record_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "action",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "before_json",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "after_json",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "import_run_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "一括取込による変更。取込では行ごとの監査ログを書かず、これで追跡する（24.4）"
+        },
+        {
+          "name": "changed_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "audit_log_pkey",
+          "def": "CREATE UNIQUE INDEX audit_log_pkey ON public.audit_log USING btree (id)",
+          "table": "public.audit_log",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_audit_log_table_record",
+          "def": "CREATE INDEX idx_audit_log_table_record ON public.audit_log USING btree (table_name, record_id)",
+          "table": "public.audit_log",
+          "columns": [
+            "table_name",
+            "record_id"
+          ]
+        },
+        {
+          "name": "idx_audit_log_changed_at",
+          "def": "CREATE INDEX idx_audit_log_changed_at ON public.audit_log USING btree (changed_at)",
+          "table": "public.audit_log",
+          "columns": [
+            "changed_at"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "audit_log_user_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (user_id) REFERENCES app_user(id)",
+          "table": "public.audit_log",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "user_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "audit_log_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.audit_log",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.vendor",
+      "type": "BASE TABLE",
+      "comment": "ベンダーのマスタ。**名称の表記ゆれを防ぐために存在する**（18.3）。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "vendor_pkey",
+          "def": "CREATE UNIQUE INDEX vendor_pkey ON public.vendor USING btree (id)",
+          "table": "public.vendor",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "vendor_name_key",
+          "def": "CREATE UNIQUE INDEX vendor_name_key ON public.vendor USING btree (name)",
+          "table": "public.vendor",
+          "columns": [
+            "name"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "vendor_created_by_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)",
+          "table": "public.vendor",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "created_by"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "vendor_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.vendor",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "vendor_name_key",
+          "type": "UNIQUE",
+          "def": "UNIQUE (name)",
+          "table": "public.vendor",
+          "referenced_table": "",
+          "columns": [
+            "name"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.chassis_model",
+      "type": "BASE TABLE",
+      "comment": "筐体モデル。自然キーは `(vendor_id, model_name)`。**別ベンダーなら同じ型番を持てる**（6.2）。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "vendor_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "model_name",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "device_category",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "height_u",
+          "type": "integer",
+          "nullable": false,
+          "default": "0",
+          "comment": "ラック搭載時の高さ。mount_form=Surface では意味を持たない"
+        },
+        {
+          "name": "mount_form",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "rack_width",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "Full / Half。mount_form=RackU のときのみ意味を持つ"
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "chassis_model_pkey",
+          "def": "CREATE UNIQUE INDEX chassis_model_pkey ON public.chassis_model USING btree (id)",
+          "table": "public.chassis_model",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "uq_chassis_model_vendor_model_name",
+          "def": "CREATE UNIQUE INDEX uq_chassis_model_vendor_model_name ON public.chassis_model USING btree (vendor_id, model_name)",
+          "table": "public.chassis_model",
+          "columns": [
+            "vendor_id",
+            "model_name"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "chassis_model_created_by_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)",
+          "table": "public.chassis_model",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "created_by"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "chassis_model_vendor_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)",
+          "table": "public.chassis_model",
+          "referenced_table": "public.vendor",
+          "columns": [
+            "vendor_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "chassis_model_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.chassis_model",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.chassis_slot",
+      "type": "BASE TABLE",
+      "comment": "筐体モデルが持つスロット。**無条件の一覧である。**「4CPU構成でなければ使えない」といった\n条件付き制約は表現しない（6.1で対応しないと決着済み）。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "chassis_model_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "slot_type",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "slot_label",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "chassis_slot_pkey",
+          "def": "CREATE UNIQUE INDEX chassis_slot_pkey ON public.chassis_slot USING btree (id)",
+          "table": "public.chassis_slot",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_chassis_slot_model",
+          "def": "CREATE INDEX idx_chassis_slot_model ON public.chassis_slot USING btree (chassis_model_id)",
+          "table": "public.chassis_slot",
+          "columns": [
+            "chassis_model_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "chassis_slot_chassis_model_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (chassis_model_id) REFERENCES chassis_model(id)",
+          "table": "public.chassis_slot",
+          "referenced_table": "public.chassis_model",
+          "columns": [
+            "chassis_model_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "chassis_slot_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.chassis_slot",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.part_catalog",
+      "type": "BASE TABLE",
+      "comment": "部品カタログ。**集計に使う値だけをカラム化する**ハイブリッド方針（6.4）。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "category",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "vendor_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "part_number",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "core_count",
+          "type": "integer",
+          "nullable": true,
+          "comment": "横断集計の対象のため実カラム。該当しない部品では null"
+        },
+        {
+          "name": "capacity_gb",
+          "type": "integer",
+          "nullable": true,
+          "comment": "同上"
+        },
+        {
+          "name": "spec_json",
+          "type": "text",
+          "nullable": false,
+          "default": "'{}'::text",
+          "comment": "集計しない仕様。**JSONは文字列で持つ**（24.2.3。jsonb固有演算子を使わないため）"
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "part_catalog_pkey",
+          "def": "CREATE UNIQUE INDEX part_catalog_pkey ON public.part_catalog USING btree (id)",
+          "table": "public.part_catalog",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "uq_part_catalog_vendor_part_number",
+          "def": "CREATE UNIQUE INDEX uq_part_catalog_vendor_part_number ON public.part_catalog USING btree (vendor_id, part_number)",
+          "table": "public.part_catalog",
+          "columns": [
+            "vendor_id",
+            "part_number"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "part_catalog_created_by_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)",
+          "table": "public.part_catalog",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "created_by"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "part_catalog_vendor_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)",
+          "table": "public.part_catalog",
+          "referenced_table": "public.vendor",
+          "columns": [
+            "vendor_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "part_catalog_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.part_catalog",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.part_port_slot",
+      "type": "BASE TABLE",
+      "comment": "部品が備えるポート（8.3、8.7）。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "part_catalog_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "port_kind",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "port_label",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "connector_type",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "port_speed",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "port_kind=Network のときのみ意味を持つ"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "part_port_slot_pkey",
+          "def": "CREATE UNIQUE INDEX part_port_slot_pkey ON public.part_port_slot USING btree (id)",
+          "table": "public.part_port_slot",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_part_port_slot_part_catalog",
+          "def": "CREATE INDEX idx_part_port_slot_part_catalog ON public.part_port_slot USING btree (part_catalog_id)",
+          "table": "public.part_port_slot",
+          "columns": [
+            "part_catalog_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "part_port_slot_part_catalog_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (part_catalog_id) REFERENCES part_catalog(id)",
+          "table": "public.part_port_slot",
+          "referenced_table": "public.part_catalog",
+          "columns": [
+            "part_catalog_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "part_port_slot_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.part_port_slot",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.configuration",
+      "type": "BASE TABLE",
+      "comment": "筐体モデルに対する構成（6.2）。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "chassis_model_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "configuration_pkey",
+          "def": "CREATE UNIQUE INDEX configuration_pkey ON public.configuration USING btree (id)",
+          "table": "public.configuration",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_configuration_chassis_model",
+          "def": "CREATE INDEX idx_configuration_chassis_model ON public.configuration USING btree (chassis_model_id)",
+          "table": "public.configuration",
+          "columns": [
+            "chassis_model_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "configuration_created_by_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)",
+          "table": "public.configuration",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "created_by"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "configuration_chassis_model_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (chassis_model_id) REFERENCES chassis_model(id)",
+          "table": "public.configuration",
+          "referenced_table": "public.chassis_model",
+          "columns": [
+            "chassis_model_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "configuration_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.configuration",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.configuration_part",
+      "type": "BASE TABLE",
+      "comment": "構成に含まれる部品。同じ部品を複数行に分けず `quantity` で表す。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "configuration_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "part_catalog_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "quantity",
+          "type": "integer",
+          "nullable": false,
+          "default": "1"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "configuration_part_pkey",
+          "def": "CREATE UNIQUE INDEX configuration_part_pkey ON public.configuration_part USING btree (id)",
+          "table": "public.configuration_part",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "uq_configuration_part",
+          "def": "CREATE UNIQUE INDEX uq_configuration_part ON public.configuration_part USING btree (configuration_id, part_catalog_id)",
+          "table": "public.configuration_part",
+          "columns": [
+            "configuration_id",
+            "part_catalog_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "configuration_part_part_catalog_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (part_catalog_id) REFERENCES part_catalog(id)",
+          "table": "public.configuration_part",
+          "referenced_table": "public.part_catalog",
+          "columns": [
+            "part_catalog_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "configuration_part_configuration_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (configuration_id) REFERENCES configuration(id)",
+          "table": "public.configuration_part",
+          "referenced_table": "public.configuration",
+          "columns": [
+            "configuration_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "configuration_part_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.configuration_part",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.cable_catalog",
+      "type": "BASE TABLE",
+      "comment": "ケーブルのカタログ（8.3）。**v1では画面・取込の対象外**だが定義は持つ。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "cable_type",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "length_mm",
+          "type": "integer",
+          "nullable": true,
+          "comment": "**ミリメートルの整数。**SQLiteに DECIMAL が無いため（24.2.1）。\n単位を列名に含めているのは1000倍の取り違えを防ぐため\n"
+        },
+        {
+          "name": "color",
+          "type": "varchar",
+          "nullable": false,
+          "default": "''::character varying"
+        },
+        {
+          "name": "vendor_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "part_number",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "cable_catalog_pkey",
+          "def": "CREATE UNIQUE INDEX cable_catalog_pkey ON public.cable_catalog USING btree (id)",
+          "table": "public.cable_catalog",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_cable_catalog_vendor",
+          "def": "CREATE INDEX idx_cable_catalog_vendor ON public.cable_catalog USING btree (vendor_id)",
+          "table": "public.cable_catalog",
+          "columns": [
+            "vendor_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "cable_catalog_created_by_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)",
+          "table": "public.cable_catalog",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "created_by"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "cable_catalog_vendor_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)",
+          "table": "public.cable_catalog",
+          "referenced_table": "public.vendor",
+          "columns": [
+            "vendor_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "cable_catalog_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.cable_catalog",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.cable_end_slot",
+      "type": "BASE TABLE",
+      "comment": "ケーブルの端。**端ごとに異なるコネクタを持てる**（8.7）。\nNEMA 5-15P と C13、LC と SC のような非対称なケーブルを表すため両端を別レコードにしている。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "cable_catalog_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "end_label",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "connector_type",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "port_speed",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "cable_end_slot_pkey",
+          "def": "CREATE UNIQUE INDEX cable_end_slot_pkey ON public.cable_end_slot USING btree (id)",
+          "table": "public.cable_end_slot",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "uq_cable_end_slot_catalog_label",
+          "def": "CREATE UNIQUE INDEX uq_cable_end_slot_catalog_label ON public.cable_end_slot USING btree (cable_catalog_id, end_label)",
+          "table": "public.cable_end_slot",
+          "columns": [
+            "cable_catalog_id",
+            "end_label"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "cable_end_slot_cable_catalog_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (cable_catalog_id) REFERENCES cable_catalog(id)",
+          "table": "public.cable_end_slot",
+          "referenced_table": "public.cable_catalog",
+          "columns": [
+            "cable_catalog_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "cable_end_slot_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.cable_end_slot",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.software_catalog",
+      "type": "BASE TABLE",
+      "comment": "ソフトウェアのカタログ。**SBOM取込はこのテーブルを自動生成しない**（9.2）。\n人が資産として登録したものだけを置く。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "vendor_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "version",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "category",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "purl",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "あればこれが一意。**NULL同士は重複と見なされない**ため、持たない行は何件でも共存する"
+        },
+        {
+          "name": "license_expression",
+          "type": "varchar",
+          "nullable": false,
+          "default": "''::character varying"
+        },
+        {
+          "name": "spec_json",
+          "type": "text",
+          "nullable": false,
+          "default": "'{}'::text"
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "software_catalog_pkey",
+          "def": "CREATE UNIQUE INDEX software_catalog_pkey ON public.software_catalog USING btree (id)",
+          "table": "public.software_catalog",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "uq_software_catalog_purl",
+          "def": "CREATE UNIQUE INDEX uq_software_catalog_purl ON public.software_catalog USING btree (purl)",
+          "table": "public.software_catalog",
+          "columns": [
+            "purl"
+          ]
+        },
+        {
+          "name": "uq_software_catalog_name_vendor_version",
+          "def": "CREATE UNIQUE INDEX uq_software_catalog_name_vendor_version ON public.software_catalog USING btree (name, vendor_id, version)",
+          "table": "public.software_catalog",
+          "columns": [
+            "name",
+            "vendor_id",
+            "version"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "software_catalog_created_by_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)",
+          "table": "public.software_catalog",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "created_by"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "software_catalog_vendor_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)",
+          "table": "public.software_catalog",
+          "referenced_table": "public.vendor",
+          "columns": [
+            "vendor_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "software_catalog_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.software_catalog",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.device",
+      "type": "BASE TABLE",
+      "comment": "機器。**`in_stock` / `disposed` は `status` に持たない**（旧B-1）。\n所在は DEVICE_ASSIGNMENT から導出する。状態を二重に持つと必ずずれる。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "uid",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "登録時に採番する不変の識別子。取込時の突合に使う（23.2）"
+        },
+        {
+          "name": "external_id",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "取込元システムでの識別子。再取込時の突合用"
+        },
+        {
+          "name": "merged_into_device_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "重複統合で吸収された場合の統合先。**削除ではなくリダイレクト**（23.9）\n"
+        },
+        {
+          "name": "merged_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "configuration_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "device_type",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "Physical / Virtual / Container / **Logical**。Logical は複数の筐体が1台として振る舞うもの"
+        },
+        {
+          "name": "device_category",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "`configuration_id` が無い機器（仮想アプライアンス等）の分類"
+        },
+        {
+          "name": "hostname",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "serial_number",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "Virtual / Container には存在しない（6.2）"
+        },
+        {
+          "name": "asset_number",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "**nullable。**組織によっては申請から採番まで時間がかかり、\n番号が届くまで登録できないのは実務上成立しない（23.2）\n"
+        },
+        {
+          "name": "power_watt",
+          "type": "integer",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "running / broken / repair / plan / building。**所在は含まない**"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "device_pkey",
+          "def": "CREATE UNIQUE INDEX device_pkey ON public.device USING btree (id)",
+          "table": "public.device",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "device_uid_key",
+          "def": "CREATE UNIQUE INDEX device_uid_key ON public.device USING btree (uid)",
+          "table": "public.device",
+          "columns": [
+            "uid"
+          ]
+        },
+        {
+          "name": "idx_device_serial_number",
+          "def": "CREATE INDEX idx_device_serial_number ON public.device USING btree (serial_number)",
+          "table": "public.device",
+          "columns": [
+            "serial_number"
+          ]
+        },
+        {
+          "name": "idx_device_hostname",
+          "def": "CREATE INDEX idx_device_hostname ON public.device USING btree (hostname)",
+          "table": "public.device",
+          "columns": [
+            "hostname"
+          ]
+        },
+        {
+          "name": "idx_device_external_id",
+          "def": "CREATE INDEX idx_device_external_id ON public.device USING btree (external_id)",
+          "table": "public.device",
+          "columns": [
+            "external_id"
+          ]
+        },
+        {
+          "name": "idx_device_merged_into",
+          "def": "CREATE INDEX idx_device_merged_into ON public.device USING btree (merged_into_device_id)",
+          "table": "public.device",
+          "columns": [
+            "merged_into_device_id"
+          ]
+        },
+        {
+          "name": "idx_device_configuration",
+          "def": "CREATE INDEX idx_device_configuration ON public.device USING btree (configuration_id)",
+          "table": "public.device",
+          "columns": [
+            "configuration_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "device_configuration_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (configuration_id) REFERENCES configuration(id)",
+          "table": "public.device",
+          "referenced_table": "public.configuration",
+          "columns": [
+            "configuration_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "device_merged_into_device_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (merged_into_device_id) REFERENCES device(id)",
+          "table": "public.device",
+          "referenced_table": "public.device",
+          "columns": [
+            "merged_into_device_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "device_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.device",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "device_uid_key",
+          "type": "UNIQUE",
+          "def": "UNIQUE (uid)",
+          "table": "public.device",
+          "referenced_table": "",
+          "columns": [
+            "uid"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.device_assignment",
+      "type": "BASE TABLE",
+      "comment": "機器の所在 — **履歴テーブル。**`to_date IS NULL` が現在有効な行であり、\n既存行を更新せず「閉じて開く」（不変条件1）。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "device_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "location_type",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "Warehouse / Project / Disposed。**多態的参照のため外部キーを持てない**（旧C-7）"
+        },
+        {
+          "name": "location_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "Disposed のときは null"
+        },
+        {
+          "name": "work_order_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "この変更を引き起こしたWORK_ORDER（11章）。**WORK_ORDER未作成のため外部キーは未設定**"
+        },
+        {
+          "name": "from_date",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "to_date",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null が現在有効な行"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "device_assignment_pkey",
+          "def": "CREATE UNIQUE INDEX device_assignment_pkey ON public.device_assignment USING btree (id)",
+          "table": "public.device_assignment",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_device_assignment_current",
+          "def": "CREATE INDEX idx_device_assignment_current ON public.device_assignment USING btree (device_id) WHERE (to_date IS NULL)",
+          "table": "public.device_assignment",
+          "columns": [
+            "device_id"
+          ]
+        },
+        {
+          "name": "idx_device_assignment_location",
+          "def": "CREATE INDEX idx_device_assignment_location ON public.device_assignment USING btree (location_type, location_id)",
+          "table": "public.device_assignment",
+          "columns": [
+            "location_type",
+            "location_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "device_assignment_device_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (device_id) REFERENCES device(id)",
+          "table": "public.device_assignment",
+          "referenced_table": "public.device",
+          "columns": [
+            "device_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "device_assignment_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.device_assignment",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.part_instance",
+      "type": "BASE TABLE",
+      "comment": "部品の実物（6.2）。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "part_catalog_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "serial_number",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "part_instance_pkey",
+          "def": "CREATE UNIQUE INDEX part_instance_pkey ON public.part_instance USING btree (id)",
+          "table": "public.part_instance",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_part_instance_catalog",
+          "def": "CREATE INDEX idx_part_instance_catalog ON public.part_instance USING btree (part_catalog_id)",
+          "table": "public.part_instance",
+          "columns": [
+            "part_catalog_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "part_instance_part_catalog_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (part_catalog_id) REFERENCES part_catalog(id)",
+          "table": "public.part_instance",
+          "referenced_table": "public.part_catalog",
+          "columns": [
+            "part_catalog_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "part_instance_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.part_instance",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.part_instance_location",
+      "type": "BASE TABLE",
+      "comment": "部品の所在 — 履歴テーブル（6.2、12.4）。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "part_instance_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "location_type",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "location_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "chassis_slot_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "**任意項目。**どのスロットに挿さっているかまでは求めない（6.2）。\n求めると取込のたびに実機を開けることになる\n"
+        },
+        {
+          "name": "work_order_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "from_date",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "to_date",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null が現在有効な行"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "part_instance_location_pkey",
+          "def": "CREATE UNIQUE INDEX part_instance_location_pkey ON public.part_instance_location USING btree (id)",
+          "table": "public.part_instance_location",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_part_instance_location_current",
+          "def": "CREATE INDEX idx_part_instance_location_current ON public.part_instance_location USING btree (part_instance_id) WHERE (to_date IS NULL)",
+          "table": "public.part_instance_location",
+          "columns": [
+            "part_instance_id"
+          ]
+        },
+        {
+          "name": "idx_part_instance_location_target",
+          "def": "CREATE INDEX idx_part_instance_location_target ON public.part_instance_location USING btree (location_type, location_id) WHERE (to_date IS NULL)",
+          "table": "public.part_instance_location",
+          "columns": [
+            "location_type",
+            "location_id"
+          ]
+        },
+        {
+          "name": "idx_part_instance_location_chassis_slot",
+          "def": "CREATE INDEX idx_part_instance_location_chassis_slot ON public.part_instance_location USING btree (chassis_slot_id)",
+          "table": "public.part_instance_location",
+          "columns": [
+            "chassis_slot_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "part_instance_location_chassis_slot_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (chassis_slot_id) REFERENCES chassis_slot(id)",
+          "table": "public.part_instance_location",
+          "referenced_table": "public.chassis_slot",
+          "columns": [
+            "chassis_slot_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "part_instance_location_part_instance_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (part_instance_id) REFERENCES part_instance(id)",
+          "table": "public.part_instance_location",
+          "referenced_table": "public.part_instance",
+          "columns": [
+            "part_instance_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "part_instance_location_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.part_instance_location",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.firmware_version",
+      "type": "BASE TABLE",
+      "comment": "ファームウェアの版 — 履歴テーブル（6.2）。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "item_type",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "Device / PartInstance。**多態的参照のため外部キーを持てない**"
+        },
+        {
+          "name": "item_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "component",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "version",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "work_order_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "changed_by",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "from_date",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "to_date",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null が現在有効な行"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "firmware_version_pkey",
+          "def": "CREATE UNIQUE INDEX firmware_version_pkey ON public.firmware_version USING btree (id)",
+          "table": "public.firmware_version",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_firmware_version_current",
+          "def": "CREATE INDEX idx_firmware_version_current ON public.firmware_version USING btree (item_type, item_id) WHERE (to_date IS NULL)",
+          "table": "public.firmware_version",
+          "columns": [
+            "item_type",
+            "item_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "firmware_version_changed_by_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (changed_by) REFERENCES app_user(id)",
+          "table": "public.firmware_version",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "changed_by"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "firmware_version_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.firmware_version",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.device_stack",
+      "type": "BASE TABLE",
+      "comment": "スタック構成 — 履歴テーブル（8.6）。スタック全体を `device_type=\"Logical\"` の DEVICE として\n登録し、物理筐体は `Physical` として別に登録する。hostname や OS_INTERFACE は論理側、\nDEVICE_MOUNT や power_watt は物理側が持つ。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "logical_device_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "member_device_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "member_number",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "from_date",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "to_date",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null が現在有効な行"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "device_stack_pkey",
+          "def": "CREATE UNIQUE INDEX device_stack_pkey ON public.device_stack USING btree (id)",
+          "table": "public.device_stack",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_device_stack_logical_current",
+          "def": "CREATE INDEX idx_device_stack_logical_current ON public.device_stack USING btree (logical_device_id) WHERE (to_date IS NULL)",
+          "table": "public.device_stack",
+          "columns": [
+            "logical_device_id"
+          ]
+        },
+        {
+          "name": "idx_device_stack_member_current",
+          "def": "CREATE INDEX idx_device_stack_member_current ON public.device_stack USING btree (member_device_id) WHERE (to_date IS NULL)",
+          "table": "public.device_stack",
+          "columns": [
+            "member_device_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "device_stack_logical_device_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (logical_device_id) REFERENCES device(id)",
+          "table": "public.device_stack",
+          "referenced_table": "public.device",
+          "columns": [
+            "logical_device_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "device_stack_member_device_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (member_device_id) REFERENCES device(id)",
+          "table": "public.device_stack",
+          "referenced_table": "public.device",
+          "columns": [
+            "member_device_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "device_stack_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.device_stack",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.warehouse",
+      "type": "BASE TABLE",
+      "comment": "倉庫。プロジェクトを横断する未割当機器の置き場（12章）。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "address",
+          "type": "varchar",
+          "nullable": false,
+          "default": "''::character varying"
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "warehouse_pkey",
+          "def": "CREATE UNIQUE INDEX warehouse_pkey ON public.warehouse USING btree (id)",
+          "table": "public.warehouse",
+          "columns": [
+            "id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "warehouse_created_by_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)",
+          "table": "public.warehouse",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "created_by"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "warehouse_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.warehouse",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.mount_container",
+      "type": "BASE TABLE",
+      "comment": "機器を載せる什器（12章）。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "container_type",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "location_type",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "Warehouse / Project。多態的参照のため外部キーを持てない"
+        },
+        {
+          "name": "location_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "capacity",
+          "type": "integer",
+          "nullable": true,
+          "comment": "ラックのU数、棚の段数。**制約ではなく目安。**超過はエラーではなく警告として扱う（不変条件6）\n"
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "mount_container_pkey",
+          "def": "CREATE UNIQUE INDEX mount_container_pkey ON public.mount_container USING btree (id)",
+          "table": "public.mount_container",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_mount_container_location",
+          "def": "CREATE INDEX idx_mount_container_location ON public.mount_container USING btree (location_type, location_id)",
+          "table": "public.mount_container",
+          "columns": [
+            "location_type",
+            "location_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "mount_container_created_by_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)",
+          "table": "public.mount_container",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "created_by"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "mount_container_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.mount_container",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.device_mount",
+      "type": "BASE TABLE",
+      "comment": "機器の搭載位置 — 履歴テーブル（12.2、13.2）。\n**1行で `container_id` と `host_device_id` のどちらか一方だけが埋まる。**\nこの排他はDB制約にせず、アプリケーション層で検証する。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "device_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "container_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "什器に直接搭載する場合。`host_device_id` とは排他"
+        },
+        {
+          "name": "position",
+          "type": "integer",
+          "nullable": true,
+          "comment": "Rack なら開始U番号、Shelving なら段番号"
+        },
+        {
+          "name": "horizontal_position",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "depth_position",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "host_device_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "他の機器の上に載る場合（棚板、VMの実行ホスト）。`container_id` とは排他"
+        },
+        {
+          "name": "work_order_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "from_date",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "to_date",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null が現在有効な行"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "device_mount_pkey",
+          "def": "CREATE UNIQUE INDEX device_mount_pkey ON public.device_mount USING btree (id)",
+          "table": "public.device_mount",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_device_mount_current",
+          "def": "CREATE INDEX idx_device_mount_current ON public.device_mount USING btree (device_id) WHERE (to_date IS NULL)",
+          "table": "public.device_mount",
+          "columns": [
+            "device_id"
+          ]
+        },
+        {
+          "name": "idx_device_mount_container_current",
+          "def": "CREATE INDEX idx_device_mount_container_current ON public.device_mount USING btree (container_id) WHERE (to_date IS NULL)",
+          "table": "public.device_mount",
+          "columns": [
+            "container_id"
+          ]
+        },
+        {
+          "name": "idx_device_mount_host_current",
+          "def": "CREATE INDEX idx_device_mount_host_current ON public.device_mount USING btree (host_device_id) WHERE (to_date IS NULL)",
+          "table": "public.device_mount",
+          "columns": [
+            "host_device_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "device_mount_device_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (device_id) REFERENCES device(id)",
+          "table": "public.device_mount",
+          "referenced_table": "public.device",
+          "columns": [
+            "device_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "device_mount_host_device_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (host_device_id) REFERENCES device(id)",
+          "table": "public.device_mount",
+          "referenced_table": "public.device",
+          "columns": [
+            "host_device_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "device_mount_container_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (container_id) REFERENCES mount_container(id)",
+          "table": "public.device_mount",
+          "referenced_table": "public.mount_container",
+          "columns": [
+            "container_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "device_mount_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.device_mount",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "table": "public.project_member",
+      "columns": [
+        "user_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (user_id) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.project_member",
+      "columns": [
+        "project_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.project",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (project_id) REFERENCES project(id)"
+    },
+    {
+      "table": "public.session",
+      "columns": [
+        "user_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (user_id) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.audit_log",
+      "columns": [
+        "user_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (user_id) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.vendor",
+      "columns": [
+        "created_by"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.chassis_model",
+      "columns": [
+        "created_by"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.chassis_model",
+      "columns": [
+        "vendor_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.vendor",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)"
+    },
+    {
+      "table": "public.chassis_slot",
+      "columns": [
+        "chassis_model_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.chassis_model",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (chassis_model_id) REFERENCES chassis_model(id)"
+    },
+    {
+      "table": "public.part_catalog",
+      "columns": [
+        "created_by"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.part_catalog",
+      "columns": [
+        "vendor_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.vendor",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)"
+    },
+    {
+      "table": "public.part_port_slot",
+      "columns": [
+        "part_catalog_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.part_catalog",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (part_catalog_id) REFERENCES part_catalog(id)"
+    },
+    {
+      "table": "public.configuration",
+      "columns": [
+        "created_by"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.configuration",
+      "columns": [
+        "chassis_model_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.chassis_model",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (chassis_model_id) REFERENCES chassis_model(id)"
+    },
+    {
+      "table": "public.configuration_part",
+      "columns": [
+        "part_catalog_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.part_catalog",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (part_catalog_id) REFERENCES part_catalog(id)"
+    },
+    {
+      "table": "public.configuration_part",
+      "columns": [
+        "configuration_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.configuration",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (configuration_id) REFERENCES configuration(id)"
+    },
+    {
+      "table": "public.cable_catalog",
+      "columns": [
+        "created_by"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.cable_catalog",
+      "columns": [
+        "vendor_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.vendor",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)"
+    },
+    {
+      "table": "public.cable_end_slot",
+      "columns": [
+        "cable_catalog_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.cable_catalog",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (cable_catalog_id) REFERENCES cable_catalog(id)"
+    },
+    {
+      "table": "public.software_catalog",
+      "columns": [
+        "created_by"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.software_catalog",
+      "columns": [
+        "vendor_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.vendor",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)"
+    },
+    {
+      "table": "public.device",
+      "columns": [
+        "configuration_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.configuration",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (configuration_id) REFERENCES configuration(id)"
+    },
+    {
+      "table": "public.device",
+      "columns": [
+        "merged_into_device_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.device",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (merged_into_device_id) REFERENCES device(id)"
+    },
+    {
+      "table": "public.device_assignment",
+      "columns": [
+        "device_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.device",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (device_id) REFERENCES device(id)"
+    },
+    {
+      "table": "public.part_instance",
+      "columns": [
+        "part_catalog_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.part_catalog",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (part_catalog_id) REFERENCES part_catalog(id)"
+    },
+    {
+      "table": "public.part_instance_location",
+      "columns": [
+        "chassis_slot_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.chassis_slot",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (chassis_slot_id) REFERENCES chassis_slot(id)"
+    },
+    {
+      "table": "public.part_instance_location",
+      "columns": [
+        "part_instance_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.part_instance",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (part_instance_id) REFERENCES part_instance(id)"
+    },
+    {
+      "table": "public.firmware_version",
+      "columns": [
+        "changed_by"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (changed_by) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.device_stack",
+      "columns": [
+        "logical_device_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.device",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (logical_device_id) REFERENCES device(id)"
+    },
+    {
+      "table": "public.device_stack",
+      "columns": [
+        "member_device_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.device",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (member_device_id) REFERENCES device(id)"
+    },
+    {
+      "table": "public.warehouse",
+      "columns": [
+        "created_by"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.mount_container",
+      "columns": [
+        "created_by"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.device_mount",
+      "columns": [
+        "device_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.device",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (device_id) REFERENCES device(id)"
+    },
+    {
+      "table": "public.device_mount",
+      "columns": [
+        "host_device_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.device",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (host_device_id) REFERENCES device(id)"
+    },
+    {
+      "table": "public.device_mount",
+      "columns": [
+        "container_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.mount_container",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (container_id) REFERENCES mount_container(id)"
+    }
+  ],
+  "driver": {
+    "name": "postgres",
+    "database_version": "PostgreSQL 17.11 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+    "meta": {
+      "current_schema": "public",
+      "search_paths": [
+        "postgres",
+        "public"
+      ],
+      "dict": {
+        "Functions": "Stored procedures and functions"
+      }
+    }
+  }
+}

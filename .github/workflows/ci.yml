@@ -93,6 +93,30 @@ jobs:
       - name: cargo test -- --ignored
         run: cargo test --locked -- --ignored
 
+  schema-docs:
+    name: スキーマドキュメントの検査
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == env.SAVE_CACHE_ON }}
+
+      # tblsの作者が公開している公式のアクション。版を固定する
+      - uses: k1LoW/setup-tbls@v1
+        with:
+          version: v1.95.0
+
+      # **ドキュメントの陳腐化とスキーマの検査を同時に行う**（設計書2章）。
+      # マイグレーションを変えたのに docs/schema/ を再生成していない場合、
+      # および外部キー索引の張り忘れ・テーブルコメントの欠落で落ちる。
+      #
+      # 直し方はスクリプトが出すメッセージの通り、ローカルで
+      # `./scripts/schema-docs.sh` を実行してコミットする。
+      - name: スキーマドキュメントが最新か
+        run: ./scripts/schema-docs.sh --check
+
   windows-smoke:
     name: Windowsビルド＋起動スモークテスト
     runs-on: windows-latest

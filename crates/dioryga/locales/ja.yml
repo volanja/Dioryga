@@ -161,6 +161,11 @@ devices:
   edit_title: 機器の編集
   edit_lead: 所在の変更はこの画面では行いません
   hostname_required: ホスト名を入力してください
+  device_type_invalid: 種別の値が不正です
+  status_invalid: 状態の値が不正です
+  device_category_invalid: 種別分類の値が不正です
+  configuration_invalid: 構成の指定が不正です
+  power_watt_invalid: 消費電力は0以上の整数で入力してください
   merged: この機器は重複として統合されました。統合先はこちらです：
   location_disposed: 廃棄済み
   location_unknown: 所在の記録がありません

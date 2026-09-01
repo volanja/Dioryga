@@ -198,35 +198,101 @@ async fn operatorは登録できる(db: &DatabaseConnection) {
     assert_eq!(割当.location_id, Some(p.id));
 }
 
-/// 語彙外の値を送っても既定へ倒すこと。
+/// **不正な入力は拒否すること**（設計書8.6、Q-21）。
 ///
-/// 語彙はDB制約にしていない（`vocabularies.md`）ため、受け側で担保する。
-async fn 語彙外の値は既定になる(db: &DatabaseConnection) {
-    let user = 利用者(db, "vocab@example.com").await;
-    let p = プロジェクト(db, "語彙検証").await;
+/// 選択肢はサーバが描画しているため、語彙外の値が届くのは改竄か
+/// クライアントの不具合しかありえない。**黙って別の値を保存すると、
+/// どちらの場合も気付けない。**
+async fn 不正な入力は拒否される(db: &DatabaseConnection) {
+    let user = 利用者(db, "invalid@example.com").await;
+    let p = プロジェクト(db, "検証").await;
+    メンバー(db, user.id, p.id, "Operator").await;
+
+    let 検証項目: &[(&str, &str, &str)] = &[
+        ("device_type", "でたらめ", "種別の値が不正です"),
+        ("status", "でたらめ", "状態の値が不正です"),
+        ("device_category", "でたらめ", "種別分類の値が不正です"),
+        // 数値として読めない
+        ("configuration_id", "abc", "構成の指定が不正です"),
+        // **存在しないID。**確かめないと外部キー違反で500になる
+        ("configuration_id", "9999", "構成の指定が不正です"),
+        ("power_watt", "abc", "消費電力は0以上"),
+        ("power_watt", "-1", "消費電力は0以上"),
+    ];
+
+    for (key, value, 期待) in 検証項目 {
+        // **同じキーを2度送らない。**重複するとフォームの解釈自体が失敗し
+        // （422）、検証を通ったのか弾かれたのかが判別できなくなる
+        let mut fields: Vec<(&str, &str)> = vec![
+            ("hostname", "invalid-01"),
+            ("device_type", "Physical"),
+            ("status", "building"),
+        ];
+        match fields.iter_mut().find(|(k, _)| k == key) {
+            Some(項目) => 項目.1 = value,
+            None => fields.push((key, value)),
+        }
+
+        let (状態, token) = 認証済み(db, &user).await;
+        let (status, body) = 送信(
+            状態,
+            &format!("/projects/{}/devices", p.id),
+            &token,
+            &fields,
+        )
+        .await;
+
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "{key}={value} が拒否されませんでした"
+        );
+        assert!(body.contains(期待), "{key}={value} のエラーが出ていません");
+    }
+
+    assert_eq!(
+        device::Entity::find().all(db).await.unwrap().len(),
+        0,
+        "不正な入力で機器が作られています"
+    );
+}
+
+/// 空欄が許される項目と、許されない項目を取り違えないこと。
+///
+/// 構成・種別分類・シリアル番号・資産番号は空でよい。仮想機器は構成も
+/// シリアル番号も持たず（設計書6.2）、資産番号は採番待ちがありうる（23.2）。
+async fn 空欄が許される項目は通ること(db: &DatabaseConnection) {
+    let user = 利用者(db, "blank@example.com").await;
+    let p = プロジェクト(db, "空欄検証").await;
     メンバー(db, user.id, p.id, "Operator").await;
 
     let (状態, token) = 認証済み(db, &user).await;
-    送信(
+    let (status, body) = 送信(
         状態,
         &format!("/projects/{}/devices", p.id),
         &token,
         &[
-            ("hostname", "vocab-01"),
-            ("device_type", "でたらめ"),
-            ("status", "でたらめ"),
+            ("hostname", "vm-blank"),
+            ("device_type", "Virtual"),
+            ("status", "running"),
+            ("configuration_id", ""),
+            ("device_category", ""),
+            ("serial_number", ""),
+            ("asset_number", ""),
+            ("power_watt", ""),
         ],
     )
     .await;
 
+    assert_eq!(status, StatusCode::SEE_OTHER, "拒否されました: {body}");
     let created = device::Entity::find()
-        .filter(device::Column::Hostname.eq("vocab-01"))
+        .filter(device::Column::Hostname.eq("vm-blank"))
         .one(db)
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(created.device_type, "Physical");
-    assert_eq!(created.status, "building");
+    assert_eq!(created.power_watt, 0);
+    assert!(created.configuration_id.is_none());
 }
 
 // ---------------------------------------------------------------------------
@@ -507,7 +573,8 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 非メンバーは入れない);
         全検証!(@one $用意, $属性, 閲覧のみのロールは登録できない);
         全検証!(@one $用意, $属性, operatorは登録できる);
-        全検証!(@one $用意, $属性, 語彙外の値は既定になる);
+        全検証!(@one $用意, $属性, 不正な入力は拒否される);
+        全検証!(@one $用意, $属性, 空欄が許される項目は通ること);
         全検証!(@one $用意, $属性, 予約中の機器は区別表示される);
         全検証!(@one $用意, $属性, 統合された機器は一覧に出ない);
         全検証!(@one $用意, $属性, 所属するプロジェクトだけ見える);

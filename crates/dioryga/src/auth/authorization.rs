@@ -67,6 +67,33 @@ pub async fn require_project_role<C: ConnectionTrait>(
     }
 }
 
+/// 閲覧できるか。ロールを問わず、メンバーであればよい。
+pub async fn require_project_member<C: ConnectionTrait>(
+    db: &C,
+    user: &app_user::Model,
+    project_id: i32,
+) -> Result<(), AuthzError> {
+    require_project_role(
+        db,
+        user,
+        project_id,
+        &[ADMINISTRATOR, OPERATOR, APPROVER, VIEWER],
+    )
+    .await
+}
+
+/// プロジェクト内のデータを編集できるか。
+///
+/// **ApproverとViewerは編集できない。**Approverは承認する立場であり、自分で
+/// 変更を入れられると承認の意味が薄れる（11章）。
+pub async fn require_project_editor<C: ConnectionTrait>(
+    db: &C,
+    user: &app_user::Model,
+    project_id: i32,
+) -> Result<(), AuthzError> {
+    require_project_role(db, user, project_id, &[ADMINISTRATOR, OPERATOR]).await
+}
+
 /// カタログマスタを編集できるか（設計書18.1）。
 ///
 /// > いずれか1つ以上のプロジェクトでOperator以上のロールを持つUserであれば、

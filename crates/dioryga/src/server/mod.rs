@@ -2,11 +2,13 @@
 
 pub mod account;
 pub mod admin;
+pub mod device;
 mod health;
 pub mod login;
 pub mod project;
 pub mod setup;
 pub mod view;
+pub mod workspace;
 
 use std::sync::Arc;
 
@@ -78,9 +80,21 @@ pub fn router(state: AppState) -> Router {
             "/admin/projects/{id}/members",
             get(project::members_form).post(project::update_members),
         )
-        // プロジェクト領域。画面の中身は後続のissueで実装する。
-        // System Adminガードの対象であることを確かめるために置いている。
-        .route("/projects", get(projects_placeholder))
+        // プロジェクト領域（設計書16.1のB領域）。ロールでアクセス制御される
+        .route("/projects", get(workspace::list))
+        .route(
+            "/projects/{id}/devices",
+            get(device::list).post(device::create),
+        )
+        .route("/projects/{id}/devices/new", get(device::new_form))
+        .route(
+            "/projects/{id}/devices/{device_id}",
+            get(device::detail).post(device::update),
+        )
+        .route(
+            "/projects/{id}/devices/{device_id}/edit",
+            get(device::edit_form),
+        )
         .route("/assets/{*path}", get(view::asset))
         .layer(axum::middleware::from_fn(
             crate::auth::middleware::system_admin_only,
@@ -103,14 +117,6 @@ pub fn router(state: AppState) -> Router {
         .with_state(state)
 }
 
-#[derive(askama::Template)]
-#[template(path = "placeholder.html")]
-struct PlaceholderPage {
-    chrome: view::Chrome,
-    t_title: String,
-    t_lead: String,
-}
-
 /// ログイン後の入口。
 ///
 /// **利用者によって行き先が違う。**System Adminはプロジェクトデータに触れられない
@@ -121,18 +127,6 @@ async fn home(Extension(current): Extension<CurrentUser>) -> Response {
     } else {
         Redirect::to("/projects").into_response()
     }
-}
-
-/// プロジェクト一覧の仮実装。中身は後続のissueで作る。
-async fn projects_placeholder(
-    Extension(current): Extension<CurrentUser>,
-) -> crate::error::AppResult<Response> {
-    let l = view::Locale::parse(&current.user.locale).as_str();
-    view::render(&PlaceholderPage {
-        chrome: view::Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
-        t_title: rust_i18n::t!("nav.projects", locale = l).to_string(),
-        t_lead: rust_i18n::t!("common.not_implemented", locale = l).to_string(),
-    })
 }
 
 /// サーバを起動し、終了シグナルを受けるまで待つ。

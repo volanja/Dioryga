@@ -114,6 +114,58 @@ projects:
   secondary_without_primary: A secondary administrator cannot be assigned on its own. Assign a primary first
   invalid_candidate: The selection includes a user who cannot be assigned
 
+workspace:
+  lead: Projects you belong to
+  roles: Roles
+  open: Open
+  empty: You do not belong to any project yet. Ask a System Admin to assign you
+
+devices:
+  title: Devices
+  lead: Manage the devices in this project
+  new: Register device
+  keyword: Search by hostname, serial or asset number
+  scope_current: Currently in this project
+  scope_all: Include ones that have left
+  hostname: Hostname
+  device_type: Type
+  model: Model / configuration
+  status: Status
+  location: Location
+  detail: Details
+  empty: No matching devices
+  departed: Transferred out
+  planned: Planned
+  back: Back to list
+  none: None
+  basic: Basic information
+  location_history: Location history
+  mount: Mounted at
+  parts: Installed parts
+  firmware: Firmware
+  stack: Stack members
+  container: Container
+  host_device: Host device
+  position: Position
+  serial_number: Serial number
+  asset_number: Asset number
+  power_watt: Power draw
+  configuration: Configuration
+  configuration_hint: Chosen from the shared catalog. Leave empty for virtual devices and logical stacks
+  device_category: Category
+  device_category_hint: Set this for devices without a configuration, such as virtual appliances
+  serial_hint: Virtual devices and containers have none, so leaving this empty is fine
+  asset_hint: You can register before the number is issued and fill it in later
+  new_title: Register a device
+  new_lead: Registers a device belonging to this project
+  edit_title: Edit device
+  edit_lead: Moving the device to another location is not done on this screen
+  hostname_required: Enter a hostname
+  merged: This device was merged as a duplicate. It now lives at
+  location_disposed: Disposed
+  location_unknown: No location on record
+  section_pending: Purchase order lines and software inventory will appear once those tables are implemented
+
 password_change:
   title: Change password
   lead: You must change your password to continue

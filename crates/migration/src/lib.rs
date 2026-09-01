@@ -9,6 +9,7 @@ pub use sea_orm_migration::prelude::*;
 mod m20260830_000001_create_base_tables;
 mod m20260901_000001_create_catalog_tables;
 mod m20260901_000002_create_device_tables;
+mod m20260901_000003_create_placement_tables;
 
 pub struct Migrator;
 
@@ -19,6 +20,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260830_000001_create_base_tables::Migration),
             Box::new(m20260901_000001_create_catalog_tables::Migration),
             Box::new(m20260901_000002_create_device_tables::Migration),
+            Box::new(m20260901_000003_create_placement_tables::Migration),
         ]
     }
 }

@@ -1,0 +1,217 @@
+# スキーマドキュメントの生成設定（設計書2章）。
+#
+# **マイグレーション適用後の実DBから生成する。**手書きの定義から作ると、
+# マイグレーションとの食い違いに気付けないため。
+#
+# 生成は `scripts/schema-docs.sh` で行い、CIが陳腐化を検出する。
+#
+# ## なぜPostgreSQLから生成するか
+#
+# スキーマはDBごとに分岐しない方針（設計書24.2）なので、どちらから生成しても
+# テーブル・カラム・外部キーの構造は同じになる。**表示される型だけが変わる**
+# （PostgreSQLは `character varying`、SQLiteは `text`）。チーム運用の想定が
+# PostgreSQLである（2章）ため、そちらの型を出す。
+#
+# ## コメントについて
+#
+# `comments:` に書いた内容が生成物へ入る。**DBにコメントを付けない**のは、
+# マイグレーションをコメントのためだけに書き換えたくないため。「なぜそうなって
+# いるか」の詳細は設計リポジトリにあり、ここには**読み違えると壊れる点**だけを置く。
+
+dsn: ${TBLS_DSN}
+docPath: docs/schema
+
+# sea-ormが管理する内部テーブル。設計の対象ではない
+exclude:
+  - seaql_migrations
+
+lint:
+  # **新しいテーブルを足したらコメントを書く**という強制。設計意図を
+  # 書かないまま増やすと、この文書が単なるカラムの羅列になる
+  requireTableComment:
+    enabled: true
+  # 全列に求めると機械的な記述で埋まり、かえって読み飛ばされる
+  requireColumnComment:
+    enabled: false
+  # **外部キー列にインデックスが無いと落とす。**両DBとも自動では張らないため
+  # （設計書24.3）、張り忘れは実際に起きる
+  requireForeignKeyIndex:
+    enabled: true
+    exclude:
+      # 作成者は検索条件にしない。索引を作っても使われない
+      - public.vendor.created_by
+      - public.chassis_model.created_by
+      - public.part_catalog.created_by
+      - public.configuration.created_by
+      - public.cable_catalog.created_by
+      - public.software_catalog.created_by
+      - public.warehouse.created_by
+      - public.mount_container.created_by
+      - public.audit_log.user_id
+      - public.firmware_version.changed_by
+
+format:
+  sort: false
+  # 生成物の差分をレビューしやすくするため、番号は振らない
+  number: false
+
+er:
+  format: svg
+  # 隣接するテーブルまでを1枚に描く。全体図はREADMEにある
+  distance: 1
+
+comments:
+  # --- 基盤 -----------------------------------------------------------------
+  - table: app_user
+    tableComment: |
+      利用者。設計書の `USER`。`user` はPostgreSQLの予約語のため物理名を変えている（24.2.4）。
+      物理削除はせず `disabled_at` で無効化する（20.11）。AUDIT_LOG等から参照されるため。
+    columnComments:
+      disabled_at: null = 有効。**物理削除の代わり。**
+      is_system_admin: プロジェクトロールとは別軸。**真の利用者はプロジェクトデータに一切アクセスできない**（3章）
+      must_change_password: 一時パスワード発行時に真。変更を終えるまで他の画面へ進めない（20.6）
+
+  - table: project
+    tableComment: |
+      プロジェクト。**サービスの開始日・終了日と進行状態を持たない**（5.1）。
+      それらは MILESTONE から導出する。ここに日付を持つと「予定と実績の差」が失われる。
+    columnComments:
+      uid: Diorygaが採番する不変の識別子。名前を変更しても参照が切れない（5.3）
+      code: 組織のプロジェクトコード。**未設定は空文字ではなくNULL**（UNIQUEのため、空文字だと2件目が作れない）
+      archived_at: サービス上の終了ではなく、**一覧から外すという運用判断**（5.2）
+      closure_reason: Completed / Cancelled。中止と完了を区別しないと納期遵守率の集計が汚れる（10.4）
+      currency: 集計通貨。**金額の小数点以下の桁数がこの値から決まる**（24.2.1）
+
+  - table: project_member
+    tableComment: |
+      利用者とプロジェクトの対応。粒度は `(user_id, project_id, role)`。
+      **同一利用者が同一プロジェクトで複数ロールを兼務できる**（5章）。
+    columnComments:
+      admin_rank: Primary / Secondary。role=Administrator のときのみ意味を持つ。1プロジェクトにつき各1名まで
+
+  - table: session
+    tableComment: セッション。生のトークンは保存せずハッシュのみを持つ（20.5）。
+  - table: login_attempt
+    tableComment: |
+      ログイン試行。レート制限に使う。**存在しない利用者への試行も記録する**ため
+      app_user への外部キーを持たない（20.4）。
+  - table: audit_log
+    tableComment: |
+      監査ログ。全ての書き込みがリポジトリ層を通り、同一トランザクション内で記録される（15.2、24.4）。
+      **認証情報の平文を含めない**（不変条件8）。
+    columnComments:
+      import_run_id: 一括取込による変更。取込では行ごとの監査ログを書かず、これで追跡する（24.4）
+
+  # --- 共有カタログ ---------------------------------------------------------
+  - table: vendor
+    tableComment: ベンダーのマスタ。**名称の表記ゆれを防ぐために存在する**（18.3）。
+  - table: chassis_model
+    tableComment: 筐体モデル。自然キーは `(vendor_id, model_name)`。**別ベンダーなら同じ型番を持てる**（6.2）。
+    columnComments:
+      height_u: ラック搭載時の高さ。mount_form=Surface では意味を持たない
+      rack_width: Full / Half。mount_form=RackU のときのみ意味を持つ
+  - table: chassis_slot
+    tableComment: |
+      筐体モデルが持つスロット。**無条件の一覧である。**「4CPU構成でなければ使えない」といった
+      条件付き制約は表現しない（6.1で対応しないと決着済み）。
+  - table: configuration
+    tableComment: 筐体モデルに対する構成（6.2）。
+  - table: configuration_part
+    tableComment: 構成に含まれる部品。同じ部品を複数行に分けず `quantity` で表す。
+  - table: part_catalog
+    tableComment: |
+      部品カタログ。**集計に使う値だけをカラム化する**ハイブリッド方針（6.4）。
+    columnComments:
+      core_count: 横断集計の対象のため実カラム。該当しない部品では null
+      capacity_gb: 同上
+      spec_json: 集計しない仕様。**JSONは文字列で持つ**（24.2.3。jsonb固有演算子を使わないため）
+  - table: part_port_slot
+    tableComment: 部品が備えるポート（8.3、8.7）。
+    columnComments:
+      port_speed: port_kind=Network のときのみ意味を持つ
+  - table: cable_catalog
+    tableComment: ケーブルのカタログ（8.3）。**v1では画面・取込の対象外**だが定義は持つ。
+    columnComments:
+      length_mm: |
+        **ミリメートルの整数。**SQLiteに DECIMAL が無いため（24.2.1）。
+        単位を列名に含めているのは1000倍の取り違えを防ぐため
+  - table: cable_end_slot
+    tableComment: |
+      ケーブルの端。**端ごとに異なるコネクタを持てる**（8.7）。
+      NEMA 5-15P と C13、LC と SC のような非対称なケーブルを表すため両端を別レコードにしている。
+  - table: software_catalog
+    tableComment: |
+      ソフトウェアのカタログ。**SBOM取込はこのテーブルを自動生成しない**（9.2）。
+      人が資産として登録したものだけを置く。
+    columnComments:
+      purl: あればこれが一意。**NULL同士は重複と見なされない**ため、持たない行は何件でも共存する
+
+  # --- 機器 -----------------------------------------------------------------
+  - table: device
+    tableComment: |
+      機器。**`in_stock` / `disposed` は `status` に持たない**（旧B-1）。
+      所在は DEVICE_ASSIGNMENT から導出する。状態を二重に持つと必ずずれる。
+    columnComments:
+      uid: 登録時に採番する不変の識別子。取込時の突合に使う（23.2）
+      external_id: 取込元システムでの識別子。再取込時の突合用
+      merged_into_device_id: |
+        重複統合で吸収された場合の統合先。**削除ではなくリダイレクト**（23.9）
+      device_type: Physical / Virtual / Container / **Logical**。Logical は複数の筐体が1台として振る舞うもの
+      device_category: "`configuration_id` が無い機器（仮想アプライアンス等）の分類"
+      serial_number: Virtual / Container には存在しない（6.2）
+      asset_number: |
+        **nullable。**組織によっては申請から採番まで時間がかかり、
+        番号が届くまで登録できないのは実務上成立しない（23.2）
+      status: running / broken / repair / plan / building。**所在は含まない**
+
+  - table: device_assignment
+    tableComment: |
+      機器の所在 — **履歴テーブル。**`to_date IS NULL` が現在有効な行であり、
+      既存行を更新せず「閉じて開く」（不変条件1）。
+    columnComments:
+      location_type: Warehouse / Project / Disposed。**多態的参照のため外部キーを持てない**（旧C-7）
+      location_id: Disposed のときは null
+      work_order_id: この変更を引き起こしたWORK_ORDER（11章）。**WORK_ORDER未作成のため外部キーは未設定**
+      to_date: null が現在有効な行
+
+  - table: part_instance
+    tableComment: 部品の実物（6.2）。
+  - table: part_instance_location
+    tableComment: 部品の所在 — 履歴テーブル（6.2、12.4）。
+    columnComments:
+      chassis_slot_id: |
+        **任意項目。**どのスロットに挿さっているかまでは求めない（6.2）。
+        求めると取込のたびに実機を開けることになる
+      to_date: null が現在有効な行
+  - table: firmware_version
+    tableComment: ファームウェアの版 — 履歴テーブル（6.2）。
+    columnComments:
+      item_type: Device / PartInstance。**多態的参照のため外部キーを持てない**
+      to_date: null が現在有効な行
+  - table: device_stack
+    tableComment: |
+      スタック構成 — 履歴テーブル（8.6）。スタック全体を `device_type="Logical"` の DEVICE として
+      登録し、物理筐体は `Physical` として別に登録する。hostname や OS_INTERFACE は論理側、
+      DEVICE_MOUNT や power_watt は物理側が持つ。
+    columnComments:
+      to_date: null が現在有効な行
+
+  # --- 物理設置 -------------------------------------------------------------
+  - table: warehouse
+    tableComment: 倉庫。プロジェクトを横断する未割当機器の置き場（12章）。
+  - table: mount_container
+    tableComment: 機器を載せる什器（12章）。
+    columnComments:
+      location_type: Warehouse / Project。多態的参照のため外部キーを持てない
+      capacity: |
+        ラックのU数、棚の段数。**制約ではなく目安。**超過はエラーではなく警告として扱う（不変条件6）
+  - table: device_mount
+    tableComment: |
+      機器の搭載位置 — 履歴テーブル（12.2、13.2）。
+      **1行で `container_id` と `host_device_id` のどちらか一方だけが埋まる。**
+      この排他はDB制約にせず、アプリケーション層で検証する。
+    columnComments:
+      container_id: 什器に直接搭載する場合。`host_device_id` とは排他
+      host_device_id: 他の機器の上に載る場合（棚板、VMの実行ホスト）。`container_id` とは排他
+      position: Rack なら開始U番号、Shelving なら段番号
+      to_date: null が現在有効な行

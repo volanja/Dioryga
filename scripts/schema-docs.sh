@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+#
+# スキーマドキュメント（docs/schema/）を生成する。
+#
+#   ./scripts/schema-docs.sh          生成して docs/schema/ を更新する
+#   ./scripts/schema-docs.sh --check  生成せず、既存の出力が最新かだけを確かめる
+#
+# **手書きの定義からではなく、マイグレーションを適用した実DBから生成する**
+# （設計書2章）。使い捨てのPostgreSQLコンテナを立て、終わったら必ず落とす。
+#
+# 必要なもの：Docker（macOSはColima。DOCKER_HOSTの設定は dev-environment.md 参照）、tbls
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+CONTAINER=dioryga-schema-docs
+PORT="${SCHEMA_DOCS_PORT:-55432}"
+export TBLS_DSN="postgres://postgres:postgres@127.0.0.1:${PORT}/postgres?sslmode=disable"
+
+for cmd in docker tbls cargo; do
+  command -v "$cmd" >/dev/null || { echo "$cmd が見つかりません" >&2; exit 1; }
+done
+
+# 途中で失敗してもコンテナを残さない
+cleanup() { docker rm -f "$CONTAINER" >/dev/null 2>&1 || true; }
+trap cleanup EXIT
+cleanup
+
+echo "PostgreSQLを起動します（使い捨て）"
+docker run -d --name "$CONTAINER" \
+  -e POSTGRES_PASSWORD=postgres \
+  -p "${PORT}:5432" \
+  postgres:17-alpine >/dev/null
+
+# 起動を待つ。固定のsleepにしないのは、遅い環境で不安定になるため
+for _ in $(seq 1 60); do
+  if docker exec "$CONTAINER" pg_isready -U postgres >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+docker exec "$CONTAINER" pg_isready -U postgres >/dev/null
+
+echo "マイグレーションを適用します"
+DIORYGA_DATABASE__URL="postgres://postgres:postgres@127.0.0.1:${PORT}/postgres" \
+  cargo run --quiet -- migrate
+
+echo "スキーマを検査します"
+# 外部キー索引の張り忘れとテーブルコメントの欠落を検出する
+tbls lint -c .tbls.yml
+
+if [ "${1:-}" = "--check" ]; then
+  echo "ドキュメントが最新かを確認します"
+  # 差分があれば非ゼロで終わる
+  tbls diff -c .tbls.yml
+  echo "docs/schema/ は最新です"
+else
+  echo "ドキュメントを生成します"
+  tbls doc -c .tbls.yml --rm-dist
+  echo "docs/schema/ を更新しました"
+fi

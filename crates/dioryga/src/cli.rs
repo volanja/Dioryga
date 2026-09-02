@@ -39,14 +39,23 @@ pub enum Command {
     /// データの整合性を検査する（読み取り専用）。
     Check,
 
-    /// 一括取込を行う。
+    /// 一括取込を行う。**既定はドライラン**（設計書23.6）。
+    ///
+    /// 18.2により参照されたカタログ行は編集できず、誤った取込は事後修正が
+    /// 困難である。**書き込むには `--apply` を明示する。**既定を反映側にすると、
+    /// 「必ず2段階」という設計が手順書の中だけの約束になってしまう。
     Import {
         /// 取込ファイル、またはマニフェストのパス。
         path: PathBuf,
 
-        /// 差分を表示するのみで、実際には反映しない。
+        /// 実際に反映する。指定しない場合は差分を表示するのみ。
         #[arg(long)]
-        dry_run: bool,
+        apply: bool,
+
+        /// 取込を行う利用者のメールアドレス。`created_by` と
+        /// `IMPORT_RUN.imported_by` に記録する。
+        #[arg(long)]
+        as_user: String,
     },
 
     /// データを取込フォーマットで書き出す。
@@ -96,12 +105,52 @@ mod tests {
         assert!(cli.command.is_none());
     }
 
+    /// **既定はドライラン**（設計書23.6）。
+    ///
+    /// 反映側を既定にすると「必ず2段階」という設計が手順書の中だけの約束に
+    /// なる。ここが逆になっていないことを固定する。
     #[test]
-    fn dry_runを指定できる() {
-        let cli = Cli::try_parse_from(["dioryga", "import", "--dry-run", "manifest.yaml"]).unwrap();
+    fn 取込の既定はドライラン() {
+        let cli = Cli::try_parse_from([
+            "dioryga",
+            "import",
+            "catalog.yaml",
+            "--as-user",
+            "you@example.com",
+        ])
+        .unwrap();
         match cli.command {
-            Some(Command::Import { dry_run, .. }) => assert!(dry_run),
+            Some(Command::Import { apply, .. }) => {
+                assert!(!apply, "--apply を指定していないのに反映されます")
+            }
             other => panic!("importとして解釈されませんでした: {other:?}"),
         }
+    }
+
+    #[test]
+    fn applyを指定すると反映になる() {
+        let cli = Cli::try_parse_from([
+            "dioryga",
+            "import",
+            "catalog.yaml",
+            "--as-user",
+            "you@example.com",
+            "--apply",
+        ])
+        .unwrap();
+        match cli.command {
+            Some(Command::Import { apply, as_user, .. }) => {
+                assert!(apply);
+                assert_eq!(as_user, "you@example.com");
+            }
+            other => panic!("importとして解釈されませんでした: {other:?}"),
+        }
+    }
+
+    /// 取込者の指定は必須。`created_by` と `IMPORT_RUN.imported_by` に
+    /// 実在する利用者が要るため（23.7）。
+    #[test]
+    fn 取込者の指定がなければ受け付けない() {
+        assert!(Cli::try_parse_from(["dioryga", "import", "catalog.yaml"]).is_err());
     }
 }

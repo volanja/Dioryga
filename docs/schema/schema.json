@@ -2643,6 +2643,134 @@
           ]
         }
       ]
+    },
+    {
+      "name": "public.import_run",
+      "type": "BASE TABLE",
+      "comment": "取込の実行記録（23.7）。**「この不正なデータはどの取込で入ったか」を辿る**ためにある。\n取込では行ごとの監査ログを書かないため（24.4）、追跡はこのテーブルが担う。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "project_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "カタログ取込はプロジェクトに属さないため null（18.1）"
+        },
+        {
+          "name": "kind",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "file_hash",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "同じファイルを二度流したかを後から判別できるようにする"
+        },
+        {
+          "name": "as_of",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "comment": "マニフェストで宣言された基準時刻。履歴行の `from_date` に使う（23.1）"
+        },
+        {
+          "name": "created_count",
+          "type": "integer",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "updated_count",
+          "type": "integer",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "warning_count",
+          "type": "integer",
+          "nullable": false,
+          "default": "0"
+        },
+        {
+          "name": "imported_by",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "imported_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "import_run_pkey",
+          "def": "CREATE UNIQUE INDEX import_run_pkey ON public.import_run USING btree (id)",
+          "table": "public.import_run",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_import_run_project_imported_at",
+          "def": "CREATE INDEX idx_import_run_project_imported_at ON public.import_run USING btree (project_id, imported_at)",
+          "table": "public.import_run",
+          "columns": [
+            "project_id",
+            "imported_at"
+          ]
+        },
+        {
+          "name": "idx_import_run_imported_by",
+          "def": "CREATE INDEX idx_import_run_imported_by ON public.import_run USING btree (imported_by)",
+          "table": "public.import_run",
+          "columns": [
+            "imported_by"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "import_run_imported_by_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (imported_by) REFERENCES app_user(id)",
+          "table": "public.import_run",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "imported_by"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "import_run_project_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (project_id) REFERENCES project(id)",
+          "table": "public.import_run",
+          "referenced_table": "public.project",
+          "columns": [
+            "project_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "import_run_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.import_run",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
     }
   ],
   "relations": [
@@ -3087,6 +3215,32 @@
       ],
       "parent_cardinality": "zero_or_one",
       "def": "FOREIGN KEY (container_id) REFERENCES mount_container(id)"
+    },
+    {
+      "table": "public.import_run",
+      "columns": [
+        "imported_by"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (imported_by) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.import_run",
+      "columns": [
+        "project_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.project",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (project_id) REFERENCES project(id)"
     }
   ],
   "driver": {

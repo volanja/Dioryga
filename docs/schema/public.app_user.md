@@ -10,7 +10,7 @@
 
 | Name | Type | Default | Nullable | Children | Parents | Comment |
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
-| id | integer |  | false | [public.project_member](public.project_member.md) [public.session](public.session.md) [public.audit_log](public.audit_log.md) [public.vendor](public.vendor.md) [public.chassis_model](public.chassis_model.md) [public.part_catalog](public.part_catalog.md) [public.configuration](public.configuration.md) [public.cable_catalog](public.cable_catalog.md) [public.software_catalog](public.software_catalog.md) [public.firmware_version](public.firmware_version.md) [public.warehouse](public.warehouse.md) [public.mount_container](public.mount_container.md) |  |  |
+| id | integer |  | false | [public.project_member](public.project_member.md) [public.session](public.session.md) [public.audit_log](public.audit_log.md) [public.vendor](public.vendor.md) [public.chassis_model](public.chassis_model.md) [public.part_catalog](public.part_catalog.md) [public.configuration](public.configuration.md) [public.cable_catalog](public.cable_catalog.md) [public.software_catalog](public.software_catalog.md) [public.firmware_version](public.firmware_version.md) [public.warehouse](public.warehouse.md) [public.mount_container](public.mount_container.md) [public.import_run](public.import_run.md) |  |  |
 | name | varchar |  | false |  |  |  |
 | email | varchar |  | false |  |  |  |
 | password_hash | varchar |  | false |  |  |  |

@@ -11,6 +11,7 @@ mod m20260901_000001_create_catalog_tables;
 mod m20260901_000002_create_device_tables;
 mod m20260901_000003_create_placement_tables;
 mod m20260902_000001_add_missing_fk_indexes;
+mod m20260903_000001_create_import_run;
 
 pub struct Migrator;
 
@@ -23,6 +24,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260901_000002_create_device_tables::Migration),
             Box::new(m20260901_000003_create_placement_tables::Migration),
             Box::new(m20260902_000001_add_missing_fk_indexes::Migration),
+            Box::new(m20260903_000001_create_import_run::Migration),
         ]
     }
 }

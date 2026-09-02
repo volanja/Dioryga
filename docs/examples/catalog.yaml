@@ -1,0 +1,42 @@
+# カタログの取込例（設計書23.4）。
+#
+#   dioryga import docs/examples/catalog.yaml --as-user you@example.com
+#   dioryga import docs/examples/catalog.yaml --as-user you@example.com --apply
+#
+# 既定はドライラン。差分を確認してから --apply を付ける。
+format_version: 1
+kind: catalog
+
+vendors:
+  - name: Fujitsu
+
+chassis_models:
+  - vendor: Fujitsu
+    model_name: PRIMERGY RX4770 M8
+    device_category: Server
+    height_u: 2
+    mount_form: RackU
+    rack_width: Full
+    # 64個のDIMMスロットを手書きしない。count と label_format で展開する
+    slots:
+      - { slot_type: CPU_SOCKET, count: 4,  label_format: "CPU{n}" }
+      - { slot_type: DIMM,       count: 64, label_format: "DIMM{n}" }
+      - { slot_type: DRIVE_BAY,  count: 24, label_format: "Bay{n}" }
+      # 連番でないものは明示列挙する
+      - { slot_type: PCIE,       labels: [Slot1, Slot2, Slot9, Slot10] }
+
+part_catalogs:
+  # & でアンカーを付けると、同じファイル内から * で参照できる
+  - &dimm64
+    vendor: Fujitsu
+    part_number: UCS-MRX64G2RE5
+    category: Memory
+    capacity_gb: 64
+    # 集計しない仕様は spec_json へ入れる
+    spec_json: { speed: "DDR5-6400", rank: 2 }
+
+configurations:
+  - chassis_model: { vendor: Fujitsu, model_name: PRIMERGY RX4770 M8 }
+    name: 標準構成
+    parts:
+      - { part: *dimm64, quantity: 16 }

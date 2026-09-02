@@ -2,7 +2,7 @@ use clap::Parser;
 
 use dioryga::cli::{self, AdminCommand, Cli, Command};
 use dioryga::config::Config;
-use dioryga::{admin, db, server, telemetry};
+use dioryga::{admin, db, import, server, telemetry};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -26,7 +26,17 @@ async fn main() -> anyhow::Result<()> {
 
         Command::Check => Err(cli::not_implemented("check", "設計書24.5")),
 
-        Command::Import { .. } => Err(cli::not_implemented("import", "設計書23章")),
+        Command::Import {
+            path,
+            apply,
+            as_user,
+        } => {
+            let conn = db::connect(&config.database).await?;
+            // 現時点で扱えるのはカタログYAMLのみ。インスタンスCSVは後続で足す
+            let executed = import::run::catalog_file(&conn, &path, &as_user, apply).await?;
+            import::run::print_report(&executed, apply);
+            Ok(())
+        }
         Command::Export { .. } => Err(cli::not_implemented("export", "設計書23章")),
     }
 }

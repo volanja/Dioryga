@@ -711,6 +711,18 @@ pub struct DeviceForm {
     pub status: String,
 }
 
+/// 検証を通った入力。**保存してよいのはここに入った値だけ。**
+struct 検証済み {
+    hostname: String,
+    device_type: String,
+    configuration_id: Option<i32>,
+    device_category: Option<String>,
+    serial_number: Option<String>,
+    asset_number: Option<String>,
+    power_watt: i32,
+    status: String,
+}
+
 impl DeviceForm {
     fn 空ならnone(value: &str) -> Option<String> {
         match value.trim() {
@@ -719,13 +731,89 @@ impl DeviceForm {
         }
     }
 
-    fn 語彙(value: &str, allowed: &[&'static str], default: &'static str) -> String {
+    /// 語彙に含まれていれば返す。**含まれていなければ `None`。**
+    ///
+    /// **既定値へ倒さない。**選択肢はサーバが描画しているため、語彙外の値が
+    /// 届くのは改竄かクライアントの不具合しかありえない。黙って別の値を保存
+    /// すると、どちらの場合も気付けない（設計書8.6、Q-21）。
+    fn 語彙(value: &str, allowed: &[&'static str]) -> Option<String> {
         allowed
             .iter()
-            .find(|v| **v == value)
+            .find(|v| **v == value.trim())
             .map(|v| (*v).to_owned())
-            .unwrap_or_else(|| default.to_owned())
     }
+}
+
+/// 入力を検証する。誤りがあれば表示用のi18nキーを返す。
+///
+/// **型・語彙の整合性は緩めない。**不変条件6の「検証は原則ハードな禁止ではなく
+/// 警告」は「実機が仕様の想定外でありうる」ことへの配慮（スロット本数の超過等）
+/// であって、送られてきた値が解釈できない場合の話ではない。
+async fn 検証(
+    state: &AppState,
+    form: &DeviceForm,
+) -> AppResult<Result<検証済み, &'static str>> {
+    let hostname = form.hostname.trim().to_owned();
+    if hostname.is_empty() {
+        return Ok(Err("devices.hostname_required"));
+    }
+
+    let Some(device_type) = DeviceForm::語彙(&form.device_type, DEVICE_TYPES) else {
+        return Ok(Err("devices.device_type_invalid"));
+    };
+    let Some(status) = DeviceForm::語彙(&form.status, STATUSES) else {
+        return Ok(Err("devices.status_invalid"));
+    };
+
+    // 構成を持たない機器（仮想アプライアンス等）があるため空欄は許す
+    let device_category = match DeviceForm::空ならnone(&form.device_category) {
+        None => None,
+        Some(value) => match DeviceForm::語彙(&value, CATEGORIES) {
+            Some(v) => Some(v),
+            None => return Ok(Err("devices.device_category_invalid")),
+        },
+    };
+
+    // Virtual / Container / Logical は構成を持たない（設計書6.2）
+    let configuration_id = match DeviceForm::空ならnone(&form.configuration_id) {
+        None => None,
+        Some(value) => {
+            let Ok(id) = value.parse::<i32>() else {
+                return Ok(Err("devices.configuration_invalid"));
+            };
+            // **存在も確かめる。**確かめないと外部キー違反で500になり、
+            // 利用者には何が悪いのか分からない
+            let 実在 = configuration::Entity::find_by_id(id)
+                .one(&state.db)
+                .await
+                .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+                .is_some();
+            if !実在 {
+                return Ok(Err("devices.configuration_invalid"));
+            }
+            Some(id)
+        }
+    };
+
+    let power_watt = match form.power_watt.trim() {
+        "" => 0,
+        value => match value.parse::<i32>() {
+            Ok(v) if v >= 0 => v,
+            _ => return Ok(Err("devices.power_watt_invalid")),
+        },
+    };
+
+    Ok(Ok(検証済み {
+        hostname,
+        device_type,
+        configuration_id,
+        device_category,
+        serial_number: DeviceForm::空ならnone(&form.serial_number),
+        // 採番待ちでも登録できる（設計書23.2）
+        asset_number: DeviceForm::空ならnone(&form.asset_number),
+        power_watt,
+        status,
+    }))
 }
 
 pub async fn new_form(
@@ -841,19 +929,21 @@ pub async fn create(
     let project = 編集入場(&state, &current, project_id).await?;
     let l = Locale::parse(&current.user.locale).as_str();
 
-    let hostname = form.hostname.trim().to_owned();
-    if hostname.is_empty() {
-        let page = フォーム(
-            &state,
-            &current,
-            &project,
-            None,
-            &form,
-            Some(rust_i18n::t!("devices.hostname_required", locale = l).to_string()),
-        )
-        .await?;
-        return render(&page);
-    }
+    let 入力 = match 検証(&state, &form).await? {
+        Ok(値) => 値,
+        Err(key) => {
+            let page = フォーム(
+                &state,
+                &current,
+                &project,
+                None,
+                &form,
+                Some(rust_i18n::t!(key, locale = l).to_string()),
+            )
+            .await?;
+            return render(&page);
+        }
+    };
 
     let now = Utc::now();
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
@@ -867,21 +957,14 @@ pub async fn create(
             external_id: Set(None),
             merged_into_device_id: Set(None),
             merged_at: Set(None),
-            configuration_id: Set(
-                DeviceForm::空ならnone(&form.configuration_id).and_then(|v| v.parse().ok())
-            ),
-            device_type: Set(DeviceForm::語彙(
-                &form.device_type,
-                DEVICE_TYPES,
-                "Physical",
-            )),
-            device_category: Set(DeviceForm::空ならnone(&form.device_category)),
-            hostname: Set(hostname),
-            serial_number: Set(DeviceForm::空ならnone(&form.serial_number)),
-            // 採番待ちでも登録できる（設計書23.2）
-            asset_number: Set(DeviceForm::空ならnone(&form.asset_number)),
-            power_watt: Set(form.power_watt.trim().parse().unwrap_or(0)),
-            status: Set(DeviceForm::語彙(&form.status, STATUSES, "building")),
+            configuration_id: Set(入力.configuration_id),
+            device_type: Set(入力.device_type),
+            device_category: Set(入力.device_category),
+            hostname: Set(入力.hostname),
+            serial_number: Set(入力.serial_number),
+            asset_number: Set(入力.asset_number),
+            power_watt: Set(入力.power_watt),
+            status: Set(入力.status),
             created_at: Set(now),
             updated_at: Set(now),
             ..Default::default()
@@ -947,37 +1030,34 @@ pub async fn update(
     let l = Locale::parse(&current.user.locale).as_str();
     let target = 対象(&state, project_id, device_id).await?;
 
-    let hostname = form.hostname.trim().to_owned();
-    if hostname.is_empty() {
-        let page = フォーム(
-            &state,
-            &current,
-            &project,
-            Some(target.id),
-            &form,
-            Some(rust_i18n::t!("devices.hostname_required", locale = l).to_string()),
-        )
-        .await?;
-        return render(&page);
-    }
+    let 入力 = match 検証(&state, &form).await? {
+        Ok(値) => 値,
+        Err(key) => {
+            let page = フォーム(
+                &state,
+                &current,
+                &project,
+                Some(target.id),
+                &form,
+                Some(rust_i18n::t!(key, locale = l).to_string()),
+            )
+            .await?;
+            return render(&page);
+        }
+    };
 
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     let mut active: device::ActiveModel = target.clone().into();
-    active.hostname = Set(hostname);
-    active.device_type = Set(DeviceForm::語彙(
-        &form.device_type,
-        DEVICE_TYPES,
-        "Physical",
-    ));
-    active.configuration_id =
-        Set(DeviceForm::空ならnone(&form.configuration_id).and_then(|v| v.parse().ok()));
-    active.device_category = Set(DeviceForm::空ならnone(&form.device_category));
-    active.serial_number = Set(DeviceForm::空ならnone(&form.serial_number));
-    active.asset_number = Set(DeviceForm::空ならnone(&form.asset_number));
-    active.power_watt = Set(form.power_watt.trim().parse().unwrap_or(0));
-    active.status = Set(DeviceForm::語彙(&form.status, STATUSES, "building"));
+    active.hostname = Set(入力.hostname);
+    active.device_type = Set(入力.device_type);
+    active.configuration_id = Set(入力.configuration_id);
+    active.device_category = Set(入力.device_category);
+    active.serial_number = Set(入力.serial_number);
+    active.asset_number = Set(入力.asset_number);
+    active.power_watt = Set(入力.power_watt);
+    active.status = Set(入力.status);
     active.updated_at = Set(Utc::now());
     tx.update(&target, active)
         .await
@@ -1064,17 +1144,15 @@ mod tests {
         assert_eq!(Scope::parse(Some("all")), Scope::All);
     }
 
+    /// **語彙外は `None`。既定値へ倒さない。**倒すと改竄も不具合も気付けない。
     #[test]
-    fn 語彙外の値は既定へ倒す() {
+    fn 語彙外の値は受け付けない() {
         assert_eq!(
-            DeviceForm::語彙("Virtual", DEVICE_TYPES, "Physical"),
-            "Virtual"
+            DeviceForm::語彙("Virtual", DEVICE_TYPES),
+            Some("Virtual".to_owned())
         );
-        assert_eq!(
-            DeviceForm::語彙("なりすまし", DEVICE_TYPES, "Physical"),
-            "Physical"
-        );
-        assert_eq!(DeviceForm::語彙("", STATUSES, "building"), "building");
+        assert_eq!(DeviceForm::語彙("なりすまし", DEVICE_TYPES), None);
+        assert_eq!(DeviceForm::語彙("", STATUSES), None);
     }
 
     #[test]

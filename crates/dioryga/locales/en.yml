@@ -161,6 +161,11 @@ devices:
   edit_title: Edit device
   edit_lead: Moving the device to another location is not done on this screen
   hostname_required: Enter a hostname
+  device_type_invalid: The device type is not valid
+  status_invalid: The status is not valid
+  device_category_invalid: The category is not valid
+  configuration_invalid: The configuration selection is not valid
+  power_watt_invalid: Enter the power draw as a whole number of zero or more
   merged: This device was merged as a duplicate. It now lives at
   location_disposed: Disposed
   location_unknown: No location on record

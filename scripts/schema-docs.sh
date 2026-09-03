@@ -32,12 +32,29 @@ docker run -d --name "$CONTAINER" \
   -p "${PORT}:5432" \
   postgres:17-alpine >/dev/null
 
-# 起動を待つ。固定のsleepにしないのは、遅い環境で不安定になるため
-for _ in $(seq 1 60); do
-  if docker exec "$CONTAINER" pg_isready -U postgres >/dev/null 2>&1; then break; fi
+# 起動を待つ。固定のsleepにしないのは、遅い環境で不安定になるため。
+#
+# **待ち切れなかった理由を必ず出す。**出さないと、CIでは「exit 2」しか
+# 残らず、コンテナが落ちたのかポートが埋まっていたのか判別できない。
+ready=false
+for _ in $(seq 1 120); do
+  if docker exec "$CONTAINER" pg_isready -U postgres >/dev/null 2>&1; then
+    ready=true
+    break
+  fi
+  # コンテナ自体が落ちているなら、待っても無駄
+  if [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null)" != "true" ]; then
+    break
+  fi
   sleep 1
 done
-docker exec "$CONTAINER" pg_isready -U postgres >/dev/null
+
+if [ "$ready" != "true" ]; then
+  echo "PostgreSQLが起動しませんでした。コンテナの状態とログを出します。" >&2
+  docker ps -a --filter "name=$CONTAINER" >&2 || true
+  docker logs "$CONTAINER" >&2 2>&1 || true
+  exit 1
+fi
 
 echo "マイグレーションを適用します"
 DIORYGA_DATABASE__URL="postgres://postgres:postgres@127.0.0.1:${PORT}/postgres" \

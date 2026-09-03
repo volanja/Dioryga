@@ -10,7 +10,7 @@ NEMA 5-15P と C13、LC と SC のような非対称なケーブルを表すた�
 
 | Name | Type | Default | Nullable | Children | Parents | Comment |
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
-| id | integer |  | false |  |  |  |
+| id | integer |  | false | [public.cable_connection](public.cable_connection.md) |  |  |
 | cable_catalog_id | integer |  | false |  | [public.cable_catalog](public.cable_catalog.md) |  |
 | end_label | varchar |  | false |  |  |  |
 | connector_type | varchar |  | false |  |  |  |

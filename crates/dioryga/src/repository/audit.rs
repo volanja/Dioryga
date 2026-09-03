@@ -235,6 +235,83 @@ impl Audited for entity::device_mount::Model {
     }
 }
 
+// --- ネットワーク（設計書8章、14章） ---
+//
+// **伏せる列を持たない。**IPアドレスやVLANは組織内の構成情報であり、
+// 監査ログで追えることに価値がある。
+
+impl Audited for entity::vlan::Model {
+    const TABLE: &'static str = "vlan";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::subnet::Model {
+    const TABLE: &'static str = "subnet";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::os_interface::Model {
+    const TABLE: &'static str = "os_interface";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::interface_stack::Model {
+    const TABLE: &'static str = "interface_stack";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::interface_vlan::Model {
+    const TABLE: &'static str = "interface_vlan";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::interface_role::Model {
+    const TABLE: &'static str = "interface_role";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::ip_address::Model {
+    const TABLE: &'static str = "ip_address";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::cable_instance::Model {
+    const TABLE: &'static str = "cable_instance";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::cable_connection::Model {
+    const TABLE: &'static str = "cable_connection";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
 impl Audited for entity::session::Model {
     const TABLE: &'static str = "session";
     /// セッショントークンのハッシュは、それ自体が認証に使える値のため残さない。

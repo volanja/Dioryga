@@ -2771,6 +2771,1029 @@
           ]
         }
       ]
+    },
+    {
+      "name": "public.vlan",
+      "type": "BASE TABLE",
+      "comment": "VLAN（8.3）。**一意制約を張っていない。**VLANタグはL2ドメインごとに独立しており、\n拠点が違えば同じタグを使える。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "vlan_tag",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "nullable": false,
+          "default": "''::character varying"
+        },
+        {
+          "name": "zone",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "DMZ / WAN / LAN / Management / Isolated。セキュリティ境界（8.5）。SUBNET側にも持つ"
+        },
+        {
+          "name": "description",
+          "type": "varchar",
+          "nullable": false,
+          "default": "''::character varying"
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "vlan_pkey",
+          "def": "CREATE UNIQUE INDEX vlan_pkey ON public.vlan USING btree (id)",
+          "table": "public.vlan",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_vlan_tag",
+          "def": "CREATE INDEX idx_vlan_tag ON public.vlan USING btree (vlan_tag)",
+          "table": "public.vlan",
+          "columns": [
+            "vlan_tag"
+          ]
+        },
+        {
+          "name": "idx_vlan_created_by",
+          "def": "CREATE INDEX idx_vlan_created_by ON public.vlan USING btree (created_by)",
+          "table": "public.vlan",
+          "columns": [
+            "created_by"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "vlan_created_by_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)",
+          "table": "public.vlan",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "created_by"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "vlan_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.vlan",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.subnet",
+      "type": "BASE TABLE",
+      "comment": "サブネット（14.1）。**プロジェクト単位に分ける**ことで、異なるプロジェクトが\n同じプライベートアドレス帯を独立に使っていても衝突しない（14.2）。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "project_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "共有バックボーン等は null"
+        },
+        {
+          "name": "vlan_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "cidr",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "zone",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "VLAN側にも持つ。**両方あるときはこちらを優先する**（14.2）"
+        },
+        {
+          "name": "description",
+          "type": "varchar",
+          "nullable": false,
+          "default": "''::character varying"
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "subnet_pkey",
+          "def": "CREATE UNIQUE INDEX subnet_pkey ON public.subnet USING btree (id)",
+          "table": "public.subnet",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_subnet_project",
+          "def": "CREATE INDEX idx_subnet_project ON public.subnet USING btree (project_id)",
+          "table": "public.subnet",
+          "columns": [
+            "project_id"
+          ]
+        },
+        {
+          "name": "idx_subnet_vlan",
+          "def": "CREATE INDEX idx_subnet_vlan ON public.subnet USING btree (vlan_id)",
+          "table": "public.subnet",
+          "columns": [
+            "vlan_id"
+          ]
+        },
+        {
+          "name": "idx_subnet_created_by",
+          "def": "CREATE INDEX idx_subnet_created_by ON public.subnet USING btree (created_by)",
+          "table": "public.subnet",
+          "columns": [
+            "created_by"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "subnet_created_by_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)",
+          "table": "public.subnet",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "created_by"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "subnet_project_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (project_id) REFERENCES project(id)",
+          "table": "public.subnet",
+          "referenced_table": "public.project",
+          "columns": [
+            "project_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "subnet_vlan_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (vlan_id) REFERENCES vlan(id)",
+          "table": "public.subnet",
+          "referenced_table": "public.vlan",
+          "columns": [
+            "vlan_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "subnet_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.subnet",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.os_interface",
+      "type": "BASE TABLE",
+      "comment": "OSから見えるインターフェース — 履歴テーブル（8.3、8.5）。\n**物理ポートではなくこちらを中心に置く。**ボンド・VLANサブインターフェース・SVI・\nVMの仮想NICは物理ポートに1対1で対応しない。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "device_id",
+          "type": "integer",
+          "nullable": false,
+          "comment": "**必須。**物理ポートを持たないインターフェースがあり、ポートから機器を導出できない（8.3）\n"
+        },
+        {
+          "name": "interface_type",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "part_instance_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "interface_type=Physical のときのみ意味を持つ"
+        },
+        {
+          "name": "port_slot_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "同上"
+        },
+        {
+          "name": "os_interface_name",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "aggregation_mode",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "LACP / Static / ActiveBackup。interface_type=Bond のみ"
+        },
+        {
+          "name": "work_order_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "from_date",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "to_date",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null が現在有効な行"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "os_interface_pkey",
+          "def": "CREATE UNIQUE INDEX os_interface_pkey ON public.os_interface USING btree (id)",
+          "table": "public.os_interface",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_os_interface_device_current",
+          "def": "CREATE INDEX idx_os_interface_device_current ON public.os_interface USING btree (device_id) WHERE (to_date IS NULL)",
+          "table": "public.os_interface",
+          "columns": [
+            "device_id"
+          ]
+        },
+        {
+          "name": "idx_os_interface_port_slot_current",
+          "def": "CREATE INDEX idx_os_interface_port_slot_current ON public.os_interface USING btree (port_slot_id) WHERE (to_date IS NULL)",
+          "table": "public.os_interface",
+          "columns": [
+            "port_slot_id"
+          ]
+        },
+        {
+          "name": "idx_os_interface_part_instance",
+          "def": "CREATE INDEX idx_os_interface_part_instance ON public.os_interface USING btree (part_instance_id)",
+          "table": "public.os_interface",
+          "columns": [
+            "part_instance_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "os_interface_port_slot_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (port_slot_id) REFERENCES part_port_slot(id)",
+          "table": "public.os_interface",
+          "referenced_table": "public.part_port_slot",
+          "columns": [
+            "port_slot_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "os_interface_device_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (device_id) REFERENCES device(id)",
+          "table": "public.os_interface",
+          "referenced_table": "public.device",
+          "columns": [
+            "device_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "os_interface_part_instance_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (part_instance_id) REFERENCES part_instance(id)",
+          "table": "public.os_interface",
+          "referenced_table": "public.part_instance",
+          "columns": [
+            "part_instance_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "os_interface_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.os_interface",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.interface_stack",
+      "type": "BASE TABLE",
+      "comment": "インターフェースの積み重ね — 履歴テーブル（8.5）。\n**ボンド（1 upper : N lower）とVLANサブインターフェース（1 lower : N upper）の双方を\n扱うため中間テーブルにしている。**向きが逆なので片方向の外部キーでは表せない。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "upper_interface_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "lower_interface_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "from_date",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "to_date",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null が現在有効な行"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "interface_stack_pkey",
+          "def": "CREATE UNIQUE INDEX interface_stack_pkey ON public.interface_stack USING btree (id)",
+          "table": "public.interface_stack",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_interface_stack_upper_current",
+          "def": "CREATE INDEX idx_interface_stack_upper_current ON public.interface_stack USING btree (upper_interface_id) WHERE (to_date IS NULL)",
+          "table": "public.interface_stack",
+          "columns": [
+            "upper_interface_id"
+          ]
+        },
+        {
+          "name": "idx_interface_stack_lower_current",
+          "def": "CREATE INDEX idx_interface_stack_lower_current ON public.interface_stack USING btree (lower_interface_id) WHERE (to_date IS NULL)",
+          "table": "public.interface_stack",
+          "columns": [
+            "lower_interface_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "interface_stack_lower_interface_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (lower_interface_id) REFERENCES os_interface(id)",
+          "table": "public.interface_stack",
+          "referenced_table": "public.os_interface",
+          "columns": [
+            "lower_interface_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "interface_stack_upper_interface_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (upper_interface_id) REFERENCES os_interface(id)",
+          "table": "public.interface_stack",
+          "referenced_table": "public.os_interface",
+          "columns": [
+            "upper_interface_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "interface_stack_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.interface_stack",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.interface_vlan",
+      "type": "BASE TABLE",
+      "comment": "インターフェースに載るVLAN — 履歴テーブル（8.3、8.6）。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "os_interface_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "vlan_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "tagging_mode",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "Untagged（ポートVLAN）/ Tagged（タグVLAN）"
+        },
+        {
+          "name": "work_order_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "from_date",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "to_date",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null が現在有効な行"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "interface_vlan_pkey",
+          "def": "CREATE UNIQUE INDEX interface_vlan_pkey ON public.interface_vlan USING btree (id)",
+          "table": "public.interface_vlan",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_interface_vlan_interface_current",
+          "def": "CREATE INDEX idx_interface_vlan_interface_current ON public.interface_vlan USING btree (os_interface_id) WHERE (to_date IS NULL)",
+          "table": "public.interface_vlan",
+          "columns": [
+            "os_interface_id"
+          ]
+        },
+        {
+          "name": "idx_interface_vlan_vlan_current",
+          "def": "CREATE INDEX idx_interface_vlan_vlan_current ON public.interface_vlan USING btree (vlan_id) WHERE (to_date IS NULL)",
+          "table": "public.interface_vlan",
+          "columns": [
+            "vlan_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "interface_vlan_vlan_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (vlan_id) REFERENCES vlan(id)",
+          "table": "public.interface_vlan",
+          "referenced_table": "public.vlan",
+          "columns": [
+            "vlan_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "interface_vlan_os_interface_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (os_interface_id) REFERENCES os_interface(id)",
+          "table": "public.interface_vlan",
+          "referenced_table": "public.os_interface",
+          "columns": [
+            "os_interface_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "interface_vlan_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.interface_vlan",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.interface_role",
+      "type": "BASE TABLE",
+      "comment": "インターフェースの役割 — 履歴テーブル（8.5）。バックアップ用・vMotion用など目的別の区別で、\nセキュリティ境界を表す `zone` とは**別軸**である。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "os_interface_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "role",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "from_date",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "to_date",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null が現在有効な行"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "interface_role_pkey",
+          "def": "CREATE UNIQUE INDEX interface_role_pkey ON public.interface_role USING btree (id)",
+          "table": "public.interface_role",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_interface_role_interface_current",
+          "def": "CREATE INDEX idx_interface_role_interface_current ON public.interface_role USING btree (os_interface_id) WHERE (to_date IS NULL)",
+          "table": "public.interface_role",
+          "columns": [
+            "os_interface_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "interface_role_os_interface_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (os_interface_id) REFERENCES os_interface(id)",
+          "table": "public.interface_role",
+          "referenced_table": "public.os_interface",
+          "columns": [
+            "os_interface_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "interface_role_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.interface_role",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.ip_address",
+      "type": "BASE TABLE",
+      "comment": "IPアドレス — 履歴テーブル（8.3、8.6、14章）。**`vlan_id` を持たない**（インターフェース\n側から辿る。8.6で廃止）。同一サブネット内の重複は部分インデックスで禁じている（14.2）。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "os_interface_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "ip_address",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "prefix_length",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "subnet_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "null の行は重複禁止の対象外になる（NULL同士は重複と見なされない）\n"
+        },
+        {
+          "name": "work_order_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "from_date",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "to_date",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null が現在有効な行"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ip_address_pkey",
+          "def": "CREATE UNIQUE INDEX ip_address_pkey ON public.ip_address USING btree (id)",
+          "table": "public.ip_address",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_ip_address_interface_current",
+          "def": "CREATE INDEX idx_ip_address_interface_current ON public.ip_address USING btree (os_interface_id) WHERE (to_date IS NULL)",
+          "table": "public.ip_address",
+          "columns": [
+            "os_interface_id"
+          ]
+        },
+        {
+          "name": "uq_ip_address_subnet_current",
+          "def": "CREATE UNIQUE INDEX uq_ip_address_subnet_current ON public.ip_address USING btree (subnet_id, ip_address) WHERE (to_date IS NULL)",
+          "table": "public.ip_address",
+          "columns": [
+            "subnet_id",
+            "ip_address"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "ip_address_subnet_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (subnet_id) REFERENCES subnet(id)",
+          "table": "public.ip_address",
+          "referenced_table": "public.subnet",
+          "columns": [
+            "subnet_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "ip_address_os_interface_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (os_interface_id) REFERENCES os_interface(id)",
+          "table": "public.ip_address",
+          "referenced_table": "public.os_interface",
+          "columns": [
+            "os_interface_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "ip_address_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.ip_address",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.cable_instance",
+      "type": "BASE TABLE",
+      "comment": "ケーブルの実物（8.3）。**機器と違い所在の履歴を持たない**ため、\nin_stock / disposed も status に含む。v1では画面・取込の対象外。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "cable_catalog_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "serial_number",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "asset_number",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "cable_instance_pkey",
+          "def": "CREATE UNIQUE INDEX cable_instance_pkey ON public.cable_instance USING btree (id)",
+          "table": "public.cable_instance",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_cable_instance_catalog",
+          "def": "CREATE INDEX idx_cable_instance_catalog ON public.cable_instance USING btree (cable_catalog_id)",
+          "table": "public.cable_instance",
+          "columns": [
+            "cable_catalog_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "cable_instance_cable_catalog_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (cable_catalog_id) REFERENCES cable_catalog(id)",
+          "table": "public.cable_instance",
+          "referenced_table": "public.cable_catalog",
+          "columns": [
+            "cable_catalog_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "cable_instance_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.cable_instance",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.cable_connection",
+      "type": "BASE TABLE",
+      "comment": "ケーブルの接続 — 履歴テーブル（8.3）。**`device_id` を持たない**\n（PART_INSTANCE_LOCATION 経由で導出する。持つと部品の移設時に二重管理になる）。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "cable_instance_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "cable_end_slot_id",
+          "type": "integer",
+          "nullable": false,
+          "comment": "どちらの端か。両端が非対称なケーブルがあるため端ごとに持つ（8.7）"
+        },
+        {
+          "name": "part_instance_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "port_slot_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "work_order_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "from_date",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "to_date",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null が現在有効な行"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "cable_connection_pkey",
+          "def": "CREATE UNIQUE INDEX cable_connection_pkey ON public.cable_connection USING btree (id)",
+          "table": "public.cable_connection",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_cable_connection_cable_current",
+          "def": "CREATE INDEX idx_cable_connection_cable_current ON public.cable_connection USING btree (cable_instance_id) WHERE (to_date IS NULL)",
+          "table": "public.cable_connection",
+          "columns": [
+            "cable_instance_id"
+          ]
+        },
+        {
+          "name": "idx_cable_connection_port_current",
+          "def": "CREATE INDEX idx_cable_connection_port_current ON public.cable_connection USING btree (port_slot_id) WHERE (to_date IS NULL)",
+          "table": "public.cable_connection",
+          "columns": [
+            "port_slot_id"
+          ]
+        },
+        {
+          "name": "idx_cable_connection_end_slot",
+          "def": "CREATE INDEX idx_cable_connection_end_slot ON public.cable_connection USING btree (cable_end_slot_id)",
+          "table": "public.cable_connection",
+          "columns": [
+            "cable_end_slot_id"
+          ]
+        },
+        {
+          "name": "idx_cable_connection_part_instance",
+          "def": "CREATE INDEX idx_cable_connection_part_instance ON public.cable_connection USING btree (part_instance_id)",
+          "table": "public.cable_connection",
+          "columns": [
+            "part_instance_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "cable_connection_port_slot_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (port_slot_id) REFERENCES part_port_slot(id)",
+          "table": "public.cable_connection",
+          "referenced_table": "public.part_port_slot",
+          "columns": [
+            "port_slot_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "cable_connection_cable_end_slot_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (cable_end_slot_id) REFERENCES cable_end_slot(id)",
+          "table": "public.cable_connection",
+          "referenced_table": "public.cable_end_slot",
+          "columns": [
+            "cable_end_slot_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "cable_connection_part_instance_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (part_instance_id) REFERENCES part_instance(id)",
+          "table": "public.cable_connection",
+          "referenced_table": "public.part_instance",
+          "columns": [
+            "part_instance_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "cable_connection_cable_instance_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (cable_instance_id) REFERENCES cable_instance(id)",
+          "table": "public.cable_connection",
+          "referenced_table": "public.cable_instance",
+          "columns": [
+            "cable_instance_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "cable_connection_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.cable_connection",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
     }
   ],
   "relations": [
@@ -3241,6 +4264,253 @@
       ],
       "parent_cardinality": "zero_or_one",
       "def": "FOREIGN KEY (project_id) REFERENCES project(id)"
+    },
+    {
+      "table": "public.vlan",
+      "columns": [
+        "created_by"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.subnet",
+      "columns": [
+        "created_by"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.subnet",
+      "columns": [
+        "project_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.project",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (project_id) REFERENCES project(id)"
+    },
+    {
+      "table": "public.subnet",
+      "columns": [
+        "vlan_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.vlan",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (vlan_id) REFERENCES vlan(id)"
+    },
+    {
+      "table": "public.os_interface",
+      "columns": [
+        "port_slot_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.part_port_slot",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (port_slot_id) REFERENCES part_port_slot(id)"
+    },
+    {
+      "table": "public.os_interface",
+      "columns": [
+        "device_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.device",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (device_id) REFERENCES device(id)"
+    },
+    {
+      "table": "public.os_interface",
+      "columns": [
+        "part_instance_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.part_instance",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (part_instance_id) REFERENCES part_instance(id)"
+    },
+    {
+      "table": "public.interface_stack",
+      "columns": [
+        "lower_interface_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.os_interface",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (lower_interface_id) REFERENCES os_interface(id)"
+    },
+    {
+      "table": "public.interface_stack",
+      "columns": [
+        "upper_interface_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.os_interface",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (upper_interface_id) REFERENCES os_interface(id)"
+    },
+    {
+      "table": "public.interface_vlan",
+      "columns": [
+        "vlan_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.vlan",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (vlan_id) REFERENCES vlan(id)"
+    },
+    {
+      "table": "public.interface_vlan",
+      "columns": [
+        "os_interface_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.os_interface",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (os_interface_id) REFERENCES os_interface(id)"
+    },
+    {
+      "table": "public.interface_role",
+      "columns": [
+        "os_interface_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.os_interface",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (os_interface_id) REFERENCES os_interface(id)"
+    },
+    {
+      "table": "public.ip_address",
+      "columns": [
+        "subnet_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.subnet",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (subnet_id) REFERENCES subnet(id)"
+    },
+    {
+      "table": "public.ip_address",
+      "columns": [
+        "os_interface_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.os_interface",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (os_interface_id) REFERENCES os_interface(id)"
+    },
+    {
+      "table": "public.cable_instance",
+      "columns": [
+        "cable_catalog_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.cable_catalog",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (cable_catalog_id) REFERENCES cable_catalog(id)"
+    },
+    {
+      "table": "public.cable_connection",
+      "columns": [
+        "port_slot_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.part_port_slot",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (port_slot_id) REFERENCES part_port_slot(id)"
+    },
+    {
+      "table": "public.cable_connection",
+      "columns": [
+        "cable_end_slot_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.cable_end_slot",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (cable_end_slot_id) REFERENCES cable_end_slot(id)"
+    },
+    {
+      "table": "public.cable_connection",
+      "columns": [
+        "part_instance_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.part_instance",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (part_instance_id) REFERENCES part_instance(id)"
+    },
+    {
+      "table": "public.cable_connection",
+      "columns": [
+        "cable_instance_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.cable_instance",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (cable_instance_id) REFERENCES cable_instance(id)"
     }
   ],
   "driver": {

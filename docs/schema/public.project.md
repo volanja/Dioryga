@@ -10,7 +10,7 @@
 
 | Name | Type | Default | Nullable | Children | Parents | Comment |
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
-| id | integer |  | false | [public.project_member](public.project_member.md) [public.import_run](public.import_run.md) |  |  |
+| id | integer |  | false | [public.project_member](public.project_member.md) [public.import_run](public.import_run.md) [public.subnet](public.subnet.md) |  |  |
 | uid | varchar |  | false |  |  | Diorygaが採番する不変の識別子。名前を変更しても参照が切れない（5.3） |
 | code | varchar |  | true |  |  | 組織のプロジェクトコード。**未設定は空文字ではなくNULL**（UNIQUEのため、空文字だと2件目が作れない） |
 | name | varchar |  | false |  |  |  |

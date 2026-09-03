@@ -8,7 +8,7 @@
 
 | Name | Type | Default | Nullable | Children | Parents | Comment |
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
-| id | integer |  | false |  |  |  |
+| id | integer |  | false | [public.os_interface](public.os_interface.md) [public.cable_connection](public.cable_connection.md) |  |  |
 | part_catalog_id | integer |  | false |  | [public.part_catalog](public.part_catalog.md) |  |
 | port_kind | varchar |  | false |  |  |  |
 | port_label | varchar |  | false |  |  |  |

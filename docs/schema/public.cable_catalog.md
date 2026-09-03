@@ -8,7 +8,7 @@
 
 | Name | Type | Default | Nullable | Children | Parents | Comment |
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
-| id | integer |  | false | [public.cable_end_slot](public.cable_end_slot.md) |  |  |
+| id | integer |  | false | [public.cable_end_slot](public.cable_end_slot.md) [public.cable_instance](public.cable_instance.md) |  |  |
 | cable_type | varchar |  | false |  |  |  |
 | length_mm | integer |  | true |  |  | **ミリメートルの整数。**SQLiteに DECIMAL が無いため（24.2.1）。<br />単位を列名に含めているのは1000倍の取り違えを防ぐため<br /> |
 | color | varchar | ''::character varying | false |  |  |  |

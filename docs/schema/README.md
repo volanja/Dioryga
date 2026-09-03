@@ -30,6 +30,15 @@
 | [public.mount_container](public.mount_container.md) | 9 | 機器を載せる什器（12章）。 | BASE TABLE |
 | [public.device_mount](public.device_mount.md) | 10 | 機器の搭載位置 — 履歴テーブル（12.2、13.2）。<br />**1行で `container_id` と `host_device_id` のどちらか一方だけが埋まる。**<br />この排他はDB制約にせず、アプリケーション層で検証する。<br /> | BASE TABLE |
 | [public.import_run](public.import_run.md) | 10 | 取込の実行記録（23.7）。**「この不正なデータはどの取込で入ったか」を辿る**ためにある。<br />取込では行ごとの監査ログを書かないため（24.4）、追跡はこのテーブルが担う。<br /> | BASE TABLE |
+| [public.vlan](public.vlan.md) | 8 | VLAN（8.3）。**一意制約を張っていない。**VLANタグはL2ドメインごとに独立しており、<br />拠点が違えば同じタグを使える。<br /> | BASE TABLE |
+| [public.subnet](public.subnet.md) | 9 | サブネット（14.1）。**プロジェクト単位に分ける**ことで、異なるプロジェクトが<br />同じプライベートアドレス帯を独立に使っていても衝突しない（14.2）。<br /> | BASE TABLE |
+| [public.os_interface](public.os_interface.md) | 10 | OSから見えるインターフェース — 履歴テーブル（8.3、8.5）。<br />**物理ポートではなくこちらを中心に置く。**ボンド・VLANサブインターフェース・SVI・<br />VMの仮想NICは物理ポートに1対1で対応しない。<br /> | BASE TABLE |
+| [public.interface_stack](public.interface_stack.md) | 5 | インターフェースの積み重ね — 履歴テーブル（8.5）。<br />**ボンド（1 upper : N lower）とVLANサブインターフェース（1 lower : N upper）の双方を<br />扱うため中間テーブルにしている。**向きが逆なので片方向の外部キーでは表せない。<br /> | BASE TABLE |
+| [public.interface_vlan](public.interface_vlan.md) | 7 | インターフェースに載るVLAN — 履歴テーブル（8.3、8.6）。 | BASE TABLE |
+| [public.interface_role](public.interface_role.md) | 5 | インターフェースの役割 — 履歴テーブル（8.5）。バックアップ用・vMotion用など目的別の区別で、<br />セキュリティ境界を表す `zone` とは**別軸**である。<br /> | BASE TABLE |
+| [public.ip_address](public.ip_address.md) | 8 | IPアドレス — 履歴テーブル（8.3、8.6、14章）。**`vlan_id` を持たない**（インターフェース<br />側から辿る。8.6で廃止）。同一サブネット内の重複は部分インデックスで禁じている（14.2）。<br /> | BASE TABLE |
+| [public.cable_instance](public.cable_instance.md) | 7 | ケーブルの実物（8.3）。**機器と違い所在の履歴を持たない**ため、<br />in_stock / disposed も status に含む。v1では画面・取込の対象外。<br /> | BASE TABLE |
+| [public.cable_connection](public.cable_connection.md) | 8 | ケーブルの接続 — 履歴テーブル（8.3）。**`device_id` を持たない**<br />（PART_INSTANCE_LOCATION 経由で導出する。持つと部品の移設時に二重管理になる）。<br /> | BASE TABLE |
 
 ## Relations
 

@@ -205,6 +205,70 @@ comments:
     columnComments:
       to_date: null が現在有効な行
 
+  # --- ネットワーク ---------------------------------------------------------
+  - table: vlan
+    tableComment: |
+      VLAN（8.3）。**一意制約を張っていない。**VLANタグはL2ドメインごとに独立しており、
+      拠点が違えば同じタグを使える。
+    columnComments:
+      zone: DMZ / WAN / LAN / Management / Isolated。セキュリティ境界（8.5）。SUBNET側にも持つ
+  - table: subnet
+    tableComment: |
+      サブネット（14.1）。**プロジェクト単位に分ける**ことで、異なるプロジェクトが
+      同じプライベートアドレス帯を独立に使っていても衝突しない（14.2）。
+    columnComments:
+      project_id: 共有バックボーン等は null
+      zone: VLAN側にも持つ。**両方あるときはこちらを優先する**（14.2）
+  - table: os_interface
+    tableComment: |
+      OSから見えるインターフェース — 履歴テーブル（8.3、8.5）。
+      **物理ポートではなくこちらを中心に置く。**ボンド・VLANサブインターフェース・SVI・
+      VMの仮想NICは物理ポートに1対1で対応しない。
+    columnComments:
+      device_id: |
+        **必須。**物理ポートを持たないインターフェースがあり、ポートから機器を導出できない（8.3）
+      part_instance_id: interface_type=Physical のときのみ意味を持つ
+      port_slot_id: 同上
+      aggregation_mode: LACP / Static / ActiveBackup。interface_type=Bond のみ
+      to_date: null が現在有効な行
+  - table: interface_stack
+    tableComment: |
+      インターフェースの積み重ね — 履歴テーブル（8.5）。
+      **ボンド（1 upper : N lower）とVLANサブインターフェース（1 lower : N upper）の双方を
+      扱うため中間テーブルにしている。**向きが逆なので片方向の外部キーでは表せない。
+    columnComments:
+      to_date: null が現在有効な行
+  - table: interface_vlan
+    tableComment: インターフェースに載るVLAN — 履歴テーブル（8.3、8.6）。
+    columnComments:
+      tagging_mode: Untagged（ポートVLAN）/ Tagged（タグVLAN）
+      to_date: null が現在有効な行
+  - table: interface_role
+    tableComment: |
+      インターフェースの役割 — 履歴テーブル（8.5）。バックアップ用・vMotion用など目的別の区別で、
+      セキュリティ境界を表す `zone` とは**別軸**である。
+    columnComments:
+      to_date: null が現在有効な行
+  - table: ip_address
+    tableComment: |
+      IPアドレス — 履歴テーブル（8.3、8.6、14章）。**`vlan_id` を持たない**（インターフェース
+      側から辿る。8.6で廃止）。同一サブネット内の重複は部分インデックスで禁じている（14.2）。
+    columnComments:
+      subnet_id: |
+        null の行は重複禁止の対象外になる（NULL同士は重複と見なされない）
+      to_date: null が現在有効な行
+  - table: cable_instance
+    tableComment: |
+      ケーブルの実物（8.3）。**機器と違い所在の履歴を持たない**ため、
+      in_stock / disposed も status に含む。v1では画面・取込の対象外。
+  - table: cable_connection
+    tableComment: |
+      ケーブルの接続 — 履歴テーブル（8.3）。**`device_id` を持たない**
+      （PART_INSTANCE_LOCATION 経由で導出する。持つと部品の移設時に二重管理になる）。
+    columnComments:
+      cable_end_slot_id: どちらの端か。両端が非対称なケーブルがあるため端ごとに持つ（8.7）
+      to_date: null が現在有効な行
+
   # --- 物理設置 -------------------------------------------------------------
   - table: warehouse
     tableComment: 倉庫。プロジェクトを横断する未割当機器の置き場（12章）。

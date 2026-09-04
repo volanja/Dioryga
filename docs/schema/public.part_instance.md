@@ -8,7 +8,7 @@
 
 | Name | Type | Default | Nullable | Children | Parents | Comment |
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
-| id | integer |  | false | [public.part_instance_location](public.part_instance_location.md) [public.os_interface](public.os_interface.md) [public.cable_connection](public.cable_connection.md) |  |  |
+| id | integer |  | false | [public.part_instance_location](public.part_instance_location.md) [public.os_interface](public.os_interface.md) [public.cable_connection](public.cable_connection.md) [public.work_order](public.work_order.md) |  |  |
 | part_catalog_id | integer |  | false |  | [public.part_catalog](public.part_catalog.md) |  |
 | serial_number | varchar |  | true |  |  |  |
 | status | varchar |  | false |  |  |  |

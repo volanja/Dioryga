@@ -47,6 +47,8 @@
 | [public.recurring_cost](public.recurring_cost.md) | 12 | 定期費用（10章）。ラック料金・回線費用など。 | BASE TABLE |
 | [public.milestone](public.milestone.md) | 9 | マイルストーン（10.4）。**予定と実績を別の列で持つ。**片方に上書きすると<br />「当初いつの予定だったか」が失われ、QCDの「D」を定量的に見られなくなる（5.1）。<br /> | BASE TABLE |
 | [public.milestone_device](public.milestone_device.md) | 7 | マイルストーンと機器の対応（10.4）。 | BASE TABLE |
+| [public.work_order](public.work_order.md) | 19 | 変更管理チケット（11章）。**`work_order_id` を持つ履歴テーブルからの外部キーは存在しない**（24.3）。<br />SQLiteが後から制約を足せないため。参照整合はアプリケーション層と `dioryga check` で担保する。<br /> | BASE TABLE |
+| [public.work_order_approval](public.work_order_approval.md) | 8 | 変更の承認（11章）。**影響を受けるプロジェクトごとに1行を起こす。**<br />他プロジェクトの機器を巻き込む変更（移設・移譲）では複数必要になる。<br /> | BASE TABLE |
 
 ## Relations
 

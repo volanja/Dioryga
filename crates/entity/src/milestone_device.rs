@@ -12,7 +12,7 @@ pub struct Model {
     pub device_id: i32,
     /// addition / relocation / removal
     pub change_type: String,
-    /// **WORK_ORDER未作成のため外部キーは未設定。**
+    /// **WORK_ORDERへの外部キーは張らない**（24.3）。
     pub work_order_id: Option<i32>,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,

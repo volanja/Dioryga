@@ -171,6 +171,36 @@ devices:
   location_unknown: No location on record
   section_pending: Purchase order lines and software inventory will appear once those tables are implemented
 
+import:
+  title: Bulk import
+  lead: Import a file. Review the differences first, then apply
+  file: File
+  file_hint: A device CSV (.csv) or a catalog YAML (.yaml). Up to 8 MB
+  match_on: Matching keys
+  match_on_hint: Columns used to match rows without uid or external_id against existing devices. Rows that do not match are registered as new
+  as_of: Effective date
+  as_of_hint: Recorded as the start of the history. Set it when back-filling past data. Defaults to the time of execution
+  submit: Review differences
+  cli_hint: For initial loads beyond a few tens of thousands of rows, use the dioryga import command. This screen runs synchronously and is not suited to large files
+  history: Import history
+  kind: Kind
+  imported_at: Imported at
+  imported_by: Imported by
+  summary: Result
+  history_empty: No imports recorded yet
+  report_title: Review differences
+  report_lead: This is what would be applied. Nothing has been written yet
+  back: Back to import
+  outcome: Outcome
+  target: Target
+  detail: Detail
+  apply: Apply these changes
+  blocked: There are errors, so this cannot be applied. Fix the file and upload it again
+  no_file: No file was selected
+  too_large: The file is too large (8 MB limit). Use the dioryga import command instead
+  bad_as_of: The effective date is not in a valid format
+  expired: The staged upload has expired or was already applied. Please upload again
+
 password_change:
   title: Change password
   lead: You must change your password to continue

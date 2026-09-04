@@ -1,0 +1,78 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb">
+      <a href="/projects">{{ chrome.t_nav_projects }}</a> /
+      <a href="/projects/{{ project_id }}/devices">{{ project_name }}</a>
+    </p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+{# 取込は必ずドライランを挟む（設計書23.6）。この送信では反映されない #}
+<form class="card form" method="post" action="/projects/{{ project_id }}/import"
+      enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+  <label for="file">{{ t_file }}</label>
+  <input type="file" id="file" name="file" accept=".csv,.yaml,.yml" required>
+  <p class="hint">{{ t_file_hint }}</p>
+
+  <label>{{ t_match_on }}</label>
+  <div class="checks">
+    {% for key in match_on_options %}
+    <label class="check">
+      <input type="checkbox" name="match_on" value="{{ key }}"
+        {% if *key == "serial_number" %}checked{% endif %}>
+      {{ key }}
+    </label>
+    {% endfor %}
+  </div>
+  <p class="hint">{{ t_match_on_hint }}</p>
+
+  <label for="as_of">{{ t_as_of }}</label>
+  <input type="date" id="as_of" name="as_of">
+  <p class="hint">{{ t_as_of_hint }}</p>
+
+  <button type="submit">{{ t_submit }}</button>
+</form>
+
+<p class="hint">{{ t_cli_hint }}</p>
+
+<h2 class="section">{{ t_history }}</h2>
+{% if history.is_empty() %}
+<p class="empty">{{ t_history_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_imported_at }}</th>
+      <th>{{ t_kind }}</th>
+      <th>{{ t_imported_by }}</th>
+      <th>{{ t_summary }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in history %}
+    <tr>
+      <td>{{ row.imported_at }}</td>
+      <td>{{ row.kind }}</td>
+      <td>{{ row.imported_by }}</td>
+      <td>{{ row.summary }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% endblock %}

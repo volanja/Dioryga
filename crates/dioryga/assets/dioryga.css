@@ -353,3 +353,34 @@ textarea {
 .panels dt { font-size: 13px; color: var(--muted); }
 .panels dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
 .panels .empty { margin: 0; font-size: 13px; }
+
+/* ------------------------------------------------------------------ *
+ * 一括取込
+ * ------------------------------------------------------------------ */
+
+h2.section { font-size: 15px; margin: 32px 0 12px; }
+
+.checks { display: flex; flex-wrap: wrap; gap: 12px 20px; margin-bottom: 6px; }
+.checks .check { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.checks .check input { width: auto; margin: 0; }
+
+input[type="file"], input[type="date"] {
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: var(--gap);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.summary-card { max-width: none; margin-bottom: var(--gap); }
+.summary-card .summary { margin: 0; font-size: 15px; font-weight: 600; }
+
+/* 反映を止めた行を目立たせる。見落とすと原因を探せない */
+tr.is-error td { color: var(--danger); }
+
+.apply { margin-top: var(--gap); }
+.apply button { width: auto; padding: 11px 24px; }

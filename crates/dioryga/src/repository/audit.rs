@@ -312,6 +312,75 @@ impl Audited for entity::cable_connection::Model {
     }
 }
 
+// --- QCD（設計書10章） ---
+//
+// **金額は伏せない。**プロジェクト内の費用は、誰がいつ変えたかを追える
+// ことに価値がある。機微なのは認証情報であって金額ではない（不変条件8）。
+
+impl Audited for entity::purchase_order::Model {
+    const TABLE: &'static str = "purchase_order";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::purchase_order_item::Model {
+    const TABLE: &'static str = "purchase_order_item";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::fixed_asset::Model {
+    const TABLE: &'static str = "fixed_asset";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::maintenance_contract::Model {
+    const TABLE: &'static str = "maintenance_contract";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::maintenance_contract_item::Model {
+    const TABLE: &'static str = "maintenance_contract_item";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::recurring_cost::Model {
+    const TABLE: &'static str = "recurring_cost";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::milestone::Model {
+    const TABLE: &'static str = "milestone";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::milestone_device::Model {
+    const TABLE: &'static str = "milestone_device";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
 impl Audited for entity::session::Model {
     const TABLE: &'static str = "session";
     /// セッショントークンのハッシュは、それ自体が認証に使える値のため残さない。

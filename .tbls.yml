@@ -337,3 +337,24 @@ comments:
       host_device_id: 他の機器の上に載る場合（棚板、VMの実行ホスト）。`container_id` とは排他
       position: Rack なら開始U番号、Shelving なら段番号
       to_date: null が現在有効な行
+
+  # --- 変更管理 -------------------------------------------------------------
+  - table: work_order
+    tableComment: |
+      変更管理チケット（11章）。**`work_order_id` を持つ履歴テーブルからの外部キーは存在しない**（24.3）。
+      SQLiteが後から制約を足せないため。参照整合はアプリケーション層と `dioryga check` で担保する。
+    columnComments:
+      target_project_id: work_type=Transfer の移譲先。それ以外では null
+      status: |
+        planned / approved / executing / completed / aborted。
+        **`approved` は WORK_ORDER_APPROVAL の全行が approved になった結果**であり、単独では動かさない
+      due_date: 期日。**実績の `completed_at` とは別に持つ**（5.1。上書きすると予定と実績の差が失われる）
+      primary_assignee_id: 主担当。**この人物は自分のチケットを承認できない**（旧C-9、DB制約にできないためアプリケーション層で検証）
+  - table: work_order_approval
+    tableComment: |
+      変更の承認（11章）。**影響を受けるプロジェクトごとに1行を起こす。**
+      他プロジェクトの機器を巻き込む変更（移設・移譲）では複数必要になる。
+    columnComments:
+      required_project_id: どのプロジェクトの承認か
+      approver_id: 承認前は null。誰が承認したかは押した時点で決まる
+      status: pending / approved / rejected

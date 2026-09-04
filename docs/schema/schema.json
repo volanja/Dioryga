@@ -4663,6 +4663,414 @@
           ]
         }
       ]
+    },
+    {
+      "name": "public.work_order",
+      "type": "BASE TABLE",
+      "comment": "変更管理チケット（11章）。**`work_order_id` を持つ履歴テーブルからの外部キーは存在しない**（24.3）。\nSQLiteが後から制約を足せないため。参照整合はアプリケーション層と `dioryga check` で担保する。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "project_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "target_project_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "work_type=Transfer の移譲先。それ以外では null"
+        },
+        {
+          "name": "device_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "part_instance_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "work_type",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "primary_assignee_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "主担当。**この人物は自分のチケットを承認できない**（旧C-9、DB制約にできないためアプリケーション層で検証）"
+        },
+        {
+          "name": "secondary_assignee_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "due_date",
+          "type": "date",
+          "nullable": true,
+          "comment": "期日。**実績の `completed_at` とは別に持つ**（5.1。上書きすると予定と実績の差が失われる）"
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "planned / approved / executing / completed / aborted。\n**`approved` は WORK_ORDER_APPROVAL の全行が approved になった結果**であり、単独では動かさない\n"
+        },
+        {
+          "name": "planned_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "executed_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "aborted_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "aborted_reason",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "work_order_pkey",
+          "def": "CREATE UNIQUE INDEX work_order_pkey ON public.work_order USING btree (id)",
+          "table": "public.work_order",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_work_order_project",
+          "def": "CREATE INDEX idx_work_order_project ON public.work_order USING btree (project_id)",
+          "table": "public.work_order",
+          "columns": [
+            "project_id"
+          ]
+        },
+        {
+          "name": "idx_work_order_target_project",
+          "def": "CREATE INDEX idx_work_order_target_project ON public.work_order USING btree (target_project_id)",
+          "table": "public.work_order",
+          "columns": [
+            "target_project_id"
+          ]
+        },
+        {
+          "name": "idx_work_order_device",
+          "def": "CREATE INDEX idx_work_order_device ON public.work_order USING btree (device_id)",
+          "table": "public.work_order",
+          "columns": [
+            "device_id"
+          ]
+        },
+        {
+          "name": "idx_work_order_part_instance",
+          "def": "CREATE INDEX idx_work_order_part_instance ON public.work_order USING btree (part_instance_id)",
+          "table": "public.work_order",
+          "columns": [
+            "part_instance_id"
+          ]
+        },
+        {
+          "name": "idx_work_order_primary_assignee",
+          "def": "CREATE INDEX idx_work_order_primary_assignee ON public.work_order USING btree (primary_assignee_id)",
+          "table": "public.work_order",
+          "columns": [
+            "primary_assignee_id"
+          ]
+        },
+        {
+          "name": "idx_work_order_secondary_assignee",
+          "def": "CREATE INDEX idx_work_order_secondary_assignee ON public.work_order USING btree (secondary_assignee_id)",
+          "table": "public.work_order",
+          "columns": [
+            "secondary_assignee_id"
+          ]
+        },
+        {
+          "name": "idx_work_order_status_due",
+          "def": "CREATE INDEX idx_work_order_status_due ON public.work_order USING btree (status, due_date)",
+          "table": "public.work_order",
+          "columns": [
+            "status",
+            "due_date"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "work_order_primary_assignee_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (primary_assignee_id) REFERENCES app_user(id)",
+          "table": "public.work_order",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "primary_assignee_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "work_order_secondary_assignee_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (secondary_assignee_id) REFERENCES app_user(id)",
+          "table": "public.work_order",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "secondary_assignee_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "work_order_project_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (project_id) REFERENCES project(id)",
+          "table": "public.work_order",
+          "referenced_table": "public.project",
+          "columns": [
+            "project_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "work_order_target_project_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (target_project_id) REFERENCES project(id)",
+          "table": "public.work_order",
+          "referenced_table": "public.project",
+          "columns": [
+            "target_project_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "work_order_device_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (device_id) REFERENCES device(id)",
+          "table": "public.work_order",
+          "referenced_table": "public.device",
+          "columns": [
+            "device_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "work_order_part_instance_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (part_instance_id) REFERENCES part_instance(id)",
+          "table": "public.work_order",
+          "referenced_table": "public.part_instance",
+          "columns": [
+            "part_instance_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "work_order_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.work_order",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.work_order_approval",
+      "type": "BASE TABLE",
+      "comment": "変更の承認（11章）。**影響を受けるプロジェクトごとに1行を起こす。**\n他プロジェクトの機器を巻き込む変更（移設・移譲）では複数必要になる。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "work_order_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "required_project_id",
+          "type": "integer",
+          "nullable": false,
+          "comment": "どのプロジェクトの承認か"
+        },
+        {
+          "name": "approver_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "承認前は null。誰が承認したかは押した時点で決まる"
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "pending / approved / rejected"
+        },
+        {
+          "name": "approved_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "work_order_approval_pkey",
+          "def": "CREATE UNIQUE INDEX work_order_approval_pkey ON public.work_order_approval USING btree (id)",
+          "table": "public.work_order_approval",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_work_order_approval_work_order",
+          "def": "CREATE INDEX idx_work_order_approval_work_order ON public.work_order_approval USING btree (work_order_id)",
+          "table": "public.work_order_approval",
+          "columns": [
+            "work_order_id"
+          ]
+        },
+        {
+          "name": "idx_work_order_approval_approver",
+          "def": "CREATE INDEX idx_work_order_approval_approver ON public.work_order_approval USING btree (approver_id)",
+          "table": "public.work_order_approval",
+          "columns": [
+            "approver_id"
+          ]
+        },
+        {
+          "name": "idx_work_order_approval_required_project_status",
+          "def": "CREATE INDEX idx_work_order_approval_required_project_status ON public.work_order_approval USING btree (required_project_id, status)",
+          "table": "public.work_order_approval",
+          "columns": [
+            "required_project_id",
+            "status"
+          ]
+        },
+        {
+          "name": "uq_work_order_approval_project",
+          "def": "CREATE UNIQUE INDEX uq_work_order_approval_project ON public.work_order_approval USING btree (work_order_id, required_project_id)",
+          "table": "public.work_order_approval",
+          "columns": [
+            "work_order_id",
+            "required_project_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "work_order_approval_approver_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (approver_id) REFERENCES app_user(id)",
+          "table": "public.work_order_approval",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "approver_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "work_order_approval_required_project_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (required_project_id) REFERENCES project(id)",
+          "table": "public.work_order_approval",
+          "referenced_table": "public.project",
+          "columns": [
+            "required_project_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "work_order_approval_work_order_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (work_order_id) REFERENCES work_order(id)",
+          "table": "public.work_order_approval",
+          "referenced_table": "public.work_order",
+          "columns": [
+            "work_order_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "work_order_approval_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.work_order_approval",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
     }
   ],
   "relations": [
@@ -5510,6 +5918,123 @@
       ],
       "parent_cardinality": "exactly_one",
       "def": "FOREIGN KEY (milestone_id) REFERENCES milestone(id)"
+    },
+    {
+      "table": "public.work_order",
+      "columns": [
+        "primary_assignee_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (primary_assignee_id) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.work_order",
+      "columns": [
+        "secondary_assignee_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (secondary_assignee_id) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.work_order",
+      "columns": [
+        "project_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.project",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (project_id) REFERENCES project(id)"
+    },
+    {
+      "table": "public.work_order",
+      "columns": [
+        "target_project_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.project",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (target_project_id) REFERENCES project(id)"
+    },
+    {
+      "table": "public.work_order",
+      "columns": [
+        "device_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.device",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (device_id) REFERENCES device(id)"
+    },
+    {
+      "table": "public.work_order",
+      "columns": [
+        "part_instance_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.part_instance",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (part_instance_id) REFERENCES part_instance(id)"
+    },
+    {
+      "table": "public.work_order_approval",
+      "columns": [
+        "approver_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (approver_id) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.work_order_approval",
+      "columns": [
+        "required_project_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.project",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (required_project_id) REFERENCES project(id)"
+    },
+    {
+      "table": "public.work_order_approval",
+      "columns": [
+        "work_order_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.work_order",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (work_order_id) REFERENCES work_order(id)"
     }
   ],
   "driver": {

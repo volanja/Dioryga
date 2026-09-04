@@ -10,7 +10,7 @@
 
 | Name | Type | Default | Nullable | Children | Parents | Comment |
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
-| id | integer |  | false | [public.device](public.device.md) [public.device_assignment](public.device_assignment.md) [public.device_stack](public.device_stack.md) [public.device_mount](public.device_mount.md) [public.os_interface](public.os_interface.md) [public.milestone_device](public.milestone_device.md) |  |  |
+| id | integer |  | false | [public.device](public.device.md) [public.device_assignment](public.device_assignment.md) [public.device_stack](public.device_stack.md) [public.device_mount](public.device_mount.md) [public.os_interface](public.os_interface.md) [public.milestone_device](public.milestone_device.md) [public.work_order](public.work_order.md) |  |  |
 | uid | varchar |  | false |  |  | 登録時に採番する不変の識別子。取込時の突合に使う（23.2） |
 | external_id | varchar |  | true |  |  | 取込元システムでの識別子。再取込時の突合用 |
 | merged_into_device_id | integer |  | true |  | [public.device](public.device.md) | 重複統合で吸収された場合の統合先。**削除ではなくリダイレクト**（23.9）<br /> |

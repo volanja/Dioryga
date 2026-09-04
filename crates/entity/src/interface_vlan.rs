@@ -12,7 +12,7 @@ pub struct Model {
     pub vlan_id: i32,
     /// Untagged（ポートVLAN）/ Tagged（タグVLAN）
     pub tagging_mode: String,
-    /// この変更を引き起こしたWORK_ORDER（11章）。**未作成のため外部キーは未設定。**
+    /// この変更を引き起こしたWORK_ORDER（11章）。**外部キーは張らない**（24.3）。
     pub work_order_id: Option<i32>,
     pub from_date: DateTimeUtc,
     /// **null が現在有効な行。**既存行を更新せず、閉じて新しい行を開く。

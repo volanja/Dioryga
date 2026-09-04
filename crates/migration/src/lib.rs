@@ -14,6 +14,7 @@ mod m20260902_000001_add_missing_fk_indexes;
 mod m20260903_000001_create_import_run;
 mod m20260903_000002_create_network_tables;
 mod m20260903_000003_create_qcd_tables;
+mod m20260905_000001_create_work_order_tables;
 
 pub struct Migrator;
 
@@ -29,6 +30,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260903_000001_create_import_run::Migration),
             Box::new(m20260903_000002_create_network_tables::Migration),
             Box::new(m20260903_000003_create_qcd_tables::Migration),
+            Box::new(m20260905_000001_create_work_order_tables::Migration),
         ]
     }
 }

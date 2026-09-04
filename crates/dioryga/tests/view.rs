@@ -29,6 +29,7 @@ async fn 状態(db: &DatabaseConnection) -> AppState {
         setup,
         config: Arc::new(config),
         db: db.clone(),
+        staged: Default::default(),
     }
 }
 

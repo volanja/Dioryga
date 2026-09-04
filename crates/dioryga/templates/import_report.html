@@ -1,0 +1,57 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb">
+      <a href="/projects">{{ chrome.t_nav_projects }}</a> /
+      <a href="/projects/{{ project_id }}/devices">{{ project_name }}</a> /
+      <a href="/projects/{{ project_id }}/import">{{ t_back }}</a>
+    </p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+<div class="card summary-card">
+  <p class="target">{{ filename }}</p>
+  <p class="summary">{{ summary }}</p>
+</div>
+
+{% if !rows.is_empty() %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_outcome }}</th>
+      <th>{{ t_target }}</th>
+      <th>{{ t_detail }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr class="{% if row.is_error %}is-error{% endif %}">
+      <td>{{ row.outcome }}</td>
+      <td>{{ row.target }}</td>
+      <td>{{ row.detail }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_apply %}
+{# 差分を見た上で反映する。ここまでがドライラン（設計書23.6） #}
+<form method="post" action="/projects/{{ project_id }}/import/apply" class="apply">
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+  <input type="hidden" name="token" value="{{ token }}">
+  <button type="submit">{{ t_apply }}</button>
+</form>
+{% else %}
+{# **エラーがあれば反映のボタンを出さない**（設計書23.6） #}
+<p class="error">{{ t_blocked }}</p>
+{% endif %}
+
+{% endblock %}

@@ -171,6 +171,36 @@ devices:
   location_unknown: 所在の記録がありません
   section_pending: 発注明細・ソフトウェア構成は、該当するテーブルの実装後に表示します
 
+import:
+  title: 一括取込
+  lead: ファイルを取り込みます。まず差分を確認し、それから反映します
+  file: ファイル
+  file_hint: 機器のCSV（.csv）か、カタログのYAML（.yaml）。上限は8MBです
+  match_on: 突合キー
+  match_on_hint: uid と external_id が空の行を、既存の機器と突き合わせる列です。突き合わない場合は新規登録になります
+  as_of: 基準日
+  as_of_hint: 履歴の開始日として記録します。過去に遡って登録する場合に指定してください。空なら実行時刻になります
+  submit: 差分を確認する
+  cli_hint: 数万行を超える初期投入は、コマンドラインの dioryga import をお使いください。画面は同期処理のため大きなファイルには向きません
+  history: 取込の履歴
+  kind: 種別
+  imported_at: 取込日時
+  imported_by: 実行者
+  summary: 結果
+  history_empty: まだ取込の記録がありません
+  report_title: 差分の確認
+  report_lead: この内容で反映します。まだ何も書き込んでいません
+  back: 取込の画面へ戻る
+  outcome: 判定
+  target: 対象
+  detail: 内容
+  apply: この内容で反映する
+  blocked: エラーがあるため反映できません。ファイルを直してから、もう一度アップロードしてください
+  no_file: ファイルが選ばれていません
+  too_large: ファイルが大きすぎます（上限8MB）。コマンドラインの dioryga import をお使いください
+  bad_as_of: 基準日の形式が正しくありません
+  expired: 預かった内容の期限が切れたか、既に反映済みです。もう一度アップロードしてください
+
 password_change:
   title: パスワードの変更
   lead: 続けるにはパスワードを変更してください

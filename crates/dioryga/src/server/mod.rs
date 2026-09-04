@@ -4,6 +4,7 @@ pub mod account;
 pub mod admin;
 pub mod device;
 mod health;
+pub mod import;
 pub mod login;
 pub mod project;
 pub mod setup;
@@ -33,6 +34,8 @@ pub struct AppState {
     pub db: DatabaseConnection,
     pub passwords: Arc<PasswordService>,
     pub setup: SetupState,
+    /// 取込のドライランと反映のあいだ、アップロード内容を預かる（23.6）。
+    pub staged: import::StagedUploads,
 }
 
 pub fn router(state: AppState) -> Router {
@@ -95,6 +98,11 @@ pub fn router(state: AppState) -> Router {
             "/projects/{id}/devices/{device_id}/edit",
             get(device::edit_form),
         )
+        .route(
+            "/projects/{id}/import",
+            get(import::show).post(import::upload),
+        )
+        .route("/projects/{id}/import/apply", post(import::apply))
         .route("/assets/{*path}", get(view::asset))
         .layer(axum::middleware::from_fn(
             crate::auth::middleware::system_admin_only,
@@ -149,6 +157,7 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         db,
         passwords,
         setup: setup_state,
+        staged: import::StagedUploads::default(),
     };
 
     let listener = TcpListener::bind(bind).await?;
@@ -215,6 +224,7 @@ mod tests {
             setup: SetupState::default(),
             config: Arc::new(config),
             db,
+            staged: import::StagedUploads::default(),
         };
 
         let response = router(state)

@@ -12,7 +12,8 @@ repository = "https://github.com/volanja/Dioryga"
 [workspace.dependencies]
 anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
-axum = "0.8"
+# multipart は取込UIのファイルアップロードで使う（既定では入らない）
+axum = { version = "0.8", features = ["multipart"] }
 clap = { version = "4", features = ["derive"] }
 figment = { version = "0.10", features = ["toml", "env"] }
 serde = { version = "1", features = ["derive"] }

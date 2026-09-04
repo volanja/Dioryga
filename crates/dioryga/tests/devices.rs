@@ -397,6 +397,7 @@ async fn 認証済み(db: &DatabaseConnection, user: &app_user::Model) -> (AppSt
         setup,
         config: Arc::new(config),
         db: db.clone(),
+        staged: Default::default(),
     };
     let (_, token) = session::create(
         db,

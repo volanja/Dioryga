@@ -9,7 +9,10 @@
     <p class="lead">{{ t_lead }}</p>
   </div>
   {% if can_edit %}
-  <a class="button" href="/projects/{{ project_id }}/devices/new">{{ t_new }}</a>
+  <div class="head-actions">
+    <a class="button ghost" href="/projects/{{ project_id }}/import">{{ t_import }}</a>
+    <a class="button" href="/projects/{{ project_id }}/devices/new">{{ t_new }}</a>
+  </div>
   {% endif %}
 </div>
 

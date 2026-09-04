@@ -329,15 +329,15 @@
 **`amount` を持たない**（明細合計から計算。旧B-5）。
 
 ### PURCHASE_ORDER_ITEM
-`purchase_order_id`(FK), `item_type`(Device/PartInstance/SoftwareInstance), `item_id`, `quantity`, `unit_price`(decimal)
+`purchase_order_id`(FK), `item_type`(Device/PartInstance/SoftwareInstance), `item_id`, `quantity`, `unit_price`(**整数、最小通貨単位**。24.2.1)
 
 ### FIXED_ASSET
-`item_type`, `item_id`, `acquisition_cost`(decimal), `depreciation_method`(straight_line/declining_balance), `useful_life_years`, `acquisition_date`(date)
+`item_type`, `item_id`, `acquisition_cost`(**整数、最小通貨単位**), `depreciation_method`(straight_line/declining_balance), `useful_life_years`, `acquisition_date`(date)
 
 **`disposal_date` を持たない**（DEVICE_ASSIGNMENT等の`Disposed`行から求める。旧B-1）。簿価も保存しない。
 
 ### MAINTENANCE_CONTRACT
-`contract_number`, `vendor_id`(FK), `start_date`, `end_date`, `amount`(decimal), `quote_contact`, `failure_contact`, `purchase_order_id`(FK nullable)
+`contract_number`, `vendor_id`(FK), `start_date`, `end_date`, `amount`(**整数、最小通貨単位**), `quote_contact`, `failure_contact`, `purchase_order_id`(FK nullable)
 
 **保守期限はこの `end_date` のみが正**（旧B-2）。
 
@@ -345,7 +345,7 @@
 `maintenance_contract_id`(FK), `item_type`, `item_id`
 
 ### RECURRING_COST
-`item_type`(MountContainer/Project), `item_id`, `cost_type`, `vendor_id`(FK nullable), `amount`(decimal), `billing_cycle`(Monthly/Annual), `start_date`, `end_date`(nullable), `created_by`(FK User)
+`item_type`(MountContainer/Project), `item_id`, `cost_type`, `vendor_id`(FK nullable), `amount`(**整数、最小通貨単位**), `billing_cycle`(Monthly/Annual), `start_date`, `end_date`(nullable), `created_by`(FK User)
 
 ### MILESTONE (10.4)
 `project_id`(FK), `milestone_type`, `planned_date`(**date**), `actual_date`(date nullable), `status`(planned/completed/cancelled), `description`

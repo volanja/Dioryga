@@ -3794,6 +3794,875 @@
           ]
         }
       ]
+    },
+    {
+      "name": "public.purchase_order",
+      "type": "BASE TABLE",
+      "comment": "発注（10章）。**`amount` を持たない**——明細の合計から計算する（旧B-5）。\n持つと明細と合計がずれ、どちらが正か分からなくなる。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "order_number",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "order_date",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "vendor_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "currency",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "purchase_order_pkey",
+          "def": "CREATE UNIQUE INDEX purchase_order_pkey ON public.purchase_order USING btree (id)",
+          "table": "public.purchase_order",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_purchase_order_vendor",
+          "def": "CREATE INDEX idx_purchase_order_vendor ON public.purchase_order USING btree (vendor_id)",
+          "table": "public.purchase_order",
+          "columns": [
+            "vendor_id"
+          ]
+        },
+        {
+          "name": "idx_purchase_order_number",
+          "def": "CREATE INDEX idx_purchase_order_number ON public.purchase_order USING btree (order_number)",
+          "table": "public.purchase_order",
+          "columns": [
+            "order_number"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "purchase_order_vendor_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)",
+          "table": "public.purchase_order",
+          "referenced_table": "public.vendor",
+          "columns": [
+            "vendor_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "purchase_order_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.purchase_order",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.purchase_order_item",
+      "type": "BASE TABLE",
+      "comment": "発注明細（10章）。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "purchase_order_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "item_type",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "Device / PartInstance / SoftwareInstance。**多態的参照のため外部キーを持てない**"
+        },
+        {
+          "name": "item_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "quantity",
+          "type": "integer",
+          "nullable": false,
+          "default": "1"
+        },
+        {
+          "name": "unit_price",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0",
+          "comment": "**最小通貨単位の整数**（24.2.1）。DECIMALにしない\n"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "purchase_order_item_pkey",
+          "def": "CREATE UNIQUE INDEX purchase_order_item_pkey ON public.purchase_order_item USING btree (id)",
+          "table": "public.purchase_order_item",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_purchase_order_item_order",
+          "def": "CREATE INDEX idx_purchase_order_item_order ON public.purchase_order_item USING btree (purchase_order_id)",
+          "table": "public.purchase_order_item",
+          "columns": [
+            "purchase_order_id"
+          ]
+        },
+        {
+          "name": "idx_purchase_order_item_target",
+          "def": "CREATE INDEX idx_purchase_order_item_target ON public.purchase_order_item USING btree (item_type, item_id)",
+          "table": "public.purchase_order_item",
+          "columns": [
+            "item_type",
+            "item_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "purchase_order_item_purchase_order_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (purchase_order_id) REFERENCES purchase_order(id)",
+          "table": "public.purchase_order_item",
+          "referenced_table": "public.purchase_order",
+          "columns": [
+            "purchase_order_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "purchase_order_item_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.purchase_order_item",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.fixed_asset",
+      "type": "BASE TABLE",
+      "comment": "固定資産（10章）。**`disposal_date` と簿価を持たない**——廃棄は\nDEVICE_ASSIGNMENT の Disposed 行から、簿価は取得価額と経過期間から計算する\n（旧B-1）。持つと二重管理になり必ずずれる。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "item_type",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "item_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "acquisition_cost",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0",
+          "comment": "**最小通貨単位の整数**（24.2.1）"
+        },
+        {
+          "name": "depreciation_method",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "straight_line / declining_balance"
+        },
+        {
+          "name": "useful_life_years",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "acquisition_date",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "fixed_asset_pkey",
+          "def": "CREATE UNIQUE INDEX fixed_asset_pkey ON public.fixed_asset USING btree (id)",
+          "table": "public.fixed_asset",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_fixed_asset_target",
+          "def": "CREATE INDEX idx_fixed_asset_target ON public.fixed_asset USING btree (item_type, item_id)",
+          "table": "public.fixed_asset",
+          "columns": [
+            "item_type",
+            "item_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "fixed_asset_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.fixed_asset",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.maintenance_contract",
+      "type": "BASE TABLE",
+      "comment": "保守契約（10章）。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "contract_number",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "vendor_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "start_date",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "end_date",
+          "type": "date",
+          "nullable": false,
+          "comment": "**保守期限はこの列のみが正**（旧B-2）。機器側に保守期限を持たない"
+        },
+        {
+          "name": "amount",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0",
+          "comment": "**最小通貨単位の整数**（24.2.1）"
+        },
+        {
+          "name": "quote_contact",
+          "type": "varchar",
+          "nullable": false,
+          "default": "''::character varying"
+        },
+        {
+          "name": "failure_contact",
+          "type": "varchar",
+          "nullable": false,
+          "default": "''::character varying"
+        },
+        {
+          "name": "purchase_order_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "maintenance_contract_pkey",
+          "def": "CREATE UNIQUE INDEX maintenance_contract_pkey ON public.maintenance_contract USING btree (id)",
+          "table": "public.maintenance_contract",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_maintenance_contract_vendor",
+          "def": "CREATE INDEX idx_maintenance_contract_vendor ON public.maintenance_contract USING btree (vendor_id)",
+          "table": "public.maintenance_contract",
+          "columns": [
+            "vendor_id"
+          ]
+        },
+        {
+          "name": "idx_maintenance_contract_purchase_order",
+          "def": "CREATE INDEX idx_maintenance_contract_purchase_order ON public.maintenance_contract USING btree (purchase_order_id)",
+          "table": "public.maintenance_contract",
+          "columns": [
+            "purchase_order_id"
+          ]
+        },
+        {
+          "name": "idx_maintenance_contract_end_date",
+          "def": "CREATE INDEX idx_maintenance_contract_end_date ON public.maintenance_contract USING btree (end_date)",
+          "table": "public.maintenance_contract",
+          "columns": [
+            "end_date"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "maintenance_contract_vendor_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)",
+          "table": "public.maintenance_contract",
+          "referenced_table": "public.vendor",
+          "columns": [
+            "vendor_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "maintenance_contract_purchase_order_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (purchase_order_id) REFERENCES purchase_order(id)",
+          "table": "public.maintenance_contract",
+          "referenced_table": "public.purchase_order",
+          "columns": [
+            "purchase_order_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "maintenance_contract_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.maintenance_contract",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.maintenance_contract_item",
+      "type": "BASE TABLE",
+      "comment": "保守契約の対象（10章）。多態的参照のため外部キーを持てない。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "maintenance_contract_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "item_type",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "item_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "maintenance_contract_item_pkey",
+          "def": "CREATE UNIQUE INDEX maintenance_contract_item_pkey ON public.maintenance_contract_item USING btree (id)",
+          "table": "public.maintenance_contract_item",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_maintenance_contract_item_contract",
+          "def": "CREATE INDEX idx_maintenance_contract_item_contract ON public.maintenance_contract_item USING btree (maintenance_contract_id)",
+          "table": "public.maintenance_contract_item",
+          "columns": [
+            "maintenance_contract_id"
+          ]
+        },
+        {
+          "name": "idx_maintenance_contract_item_target",
+          "def": "CREATE INDEX idx_maintenance_contract_item_target ON public.maintenance_contract_item USING btree (item_type, item_id)",
+          "table": "public.maintenance_contract_item",
+          "columns": [
+            "item_type",
+            "item_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "maintenance_contract_item_maintenance_contract_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (maintenance_contract_id) REFERENCES maintenance_contract(id)",
+          "table": "public.maintenance_contract_item",
+          "referenced_table": "public.maintenance_contract",
+          "columns": [
+            "maintenance_contract_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "maintenance_contract_item_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.maintenance_contract_item",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.recurring_cost",
+      "type": "BASE TABLE",
+      "comment": "定期費用（10章）。ラック料金・回線費用など。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "item_type",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "MountContainer / Project"
+        },
+        {
+          "name": "item_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "cost_type",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "vendor_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "amount",
+          "type": "bigint",
+          "nullable": false,
+          "default": "0",
+          "comment": "**最小通貨単位の整数**（24.2.1）"
+        },
+        {
+          "name": "billing_cycle",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "Monthly / Annual"
+        },
+        {
+          "name": "start_date",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "end_date",
+          "type": "date",
+          "nullable": true,
+          "comment": "null = 継続中"
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "recurring_cost_pkey",
+          "def": "CREATE UNIQUE INDEX recurring_cost_pkey ON public.recurring_cost USING btree (id)",
+          "table": "public.recurring_cost",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_recurring_cost_target",
+          "def": "CREATE INDEX idx_recurring_cost_target ON public.recurring_cost USING btree (item_type, item_id)",
+          "table": "public.recurring_cost",
+          "columns": [
+            "item_type",
+            "item_id"
+          ]
+        },
+        {
+          "name": "idx_recurring_cost_vendor",
+          "def": "CREATE INDEX idx_recurring_cost_vendor ON public.recurring_cost USING btree (vendor_id)",
+          "table": "public.recurring_cost",
+          "columns": [
+            "vendor_id"
+          ]
+        },
+        {
+          "name": "idx_recurring_cost_created_by",
+          "def": "CREATE INDEX idx_recurring_cost_created_by ON public.recurring_cost USING btree (created_by)",
+          "table": "public.recurring_cost",
+          "columns": [
+            "created_by"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "recurring_cost_created_by_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)",
+          "table": "public.recurring_cost",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "created_by"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "recurring_cost_vendor_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)",
+          "table": "public.recurring_cost",
+          "referenced_table": "public.vendor",
+          "columns": [
+            "vendor_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "recurring_cost_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.recurring_cost",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.milestone",
+      "type": "BASE TABLE",
+      "comment": "マイルストーン（10.4）。**予定と実績を別の列で持つ。**片方に上書きすると\n「当初いつの予定だったか」が失われ、QCDの「D」を定量的に見られなくなる（5.1）。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "project_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "milestone_type",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "ServiceStart / ServiceUpdate / ServiceMaintenance / ServiceEnd"
+        },
+        {
+          "name": "planned_date",
+          "type": "date",
+          "nullable": false,
+          "comment": "**`date` のまま。**同日内の順序を問わないため（C-5）"
+        },
+        {
+          "name": "actual_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "description",
+          "type": "varchar",
+          "nullable": false,
+          "default": "''::character varying"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "milestone_pkey",
+          "def": "CREATE UNIQUE INDEX milestone_pkey ON public.milestone USING btree (id)",
+          "table": "public.milestone",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_milestone_project",
+          "def": "CREATE INDEX idx_milestone_project ON public.milestone USING btree (project_id)",
+          "table": "public.milestone",
+          "columns": [
+            "project_id"
+          ]
+        },
+        {
+          "name": "idx_milestone_planned_date",
+          "def": "CREATE INDEX idx_milestone_planned_date ON public.milestone USING btree (planned_date)",
+          "table": "public.milestone",
+          "columns": [
+            "planned_date"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "milestone_project_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (project_id) REFERENCES project(id)",
+          "table": "public.milestone",
+          "referenced_table": "public.project",
+          "columns": [
+            "project_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "milestone_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.milestone",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.milestone_device",
+      "type": "BASE TABLE",
+      "comment": "マイルストーンと機器の対応（10.4）。",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "milestone_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "device_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "change_type",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "addition / relocation / removal"
+        },
+        {
+          "name": "work_order_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "**WORK_ORDER未作成のため外部キーは未設定**"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "milestone_device_pkey",
+          "def": "CREATE UNIQUE INDEX milestone_device_pkey ON public.milestone_device USING btree (id)",
+          "table": "public.milestone_device",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_milestone_device_milestone",
+          "def": "CREATE INDEX idx_milestone_device_milestone ON public.milestone_device USING btree (milestone_id)",
+          "table": "public.milestone_device",
+          "columns": [
+            "milestone_id"
+          ]
+        },
+        {
+          "name": "idx_milestone_device_device",
+          "def": "CREATE INDEX idx_milestone_device_device ON public.milestone_device USING btree (device_id)",
+          "table": "public.milestone_device",
+          "columns": [
+            "device_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "milestone_device_device_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (device_id) REFERENCES device(id)",
+          "table": "public.milestone_device",
+          "referenced_table": "public.device",
+          "columns": [
+            "device_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "milestone_device_milestone_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (milestone_id) REFERENCES milestone(id)",
+          "table": "public.milestone_device",
+          "referenced_table": "public.milestone",
+          "columns": [
+            "milestone_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "milestone_device_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.milestone_device",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
     }
   ],
   "relations": [
@@ -4511,6 +5380,136 @@
       ],
       "parent_cardinality": "exactly_one",
       "def": "FOREIGN KEY (cable_instance_id) REFERENCES cable_instance(id)"
+    },
+    {
+      "table": "public.purchase_order",
+      "columns": [
+        "vendor_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.vendor",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)"
+    },
+    {
+      "table": "public.purchase_order_item",
+      "columns": [
+        "purchase_order_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.purchase_order",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (purchase_order_id) REFERENCES purchase_order(id)"
+    },
+    {
+      "table": "public.maintenance_contract",
+      "columns": [
+        "vendor_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.vendor",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)"
+    },
+    {
+      "table": "public.maintenance_contract",
+      "columns": [
+        "purchase_order_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.purchase_order",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (purchase_order_id) REFERENCES purchase_order(id)"
+    },
+    {
+      "table": "public.maintenance_contract_item",
+      "columns": [
+        "maintenance_contract_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.maintenance_contract",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (maintenance_contract_id) REFERENCES maintenance_contract(id)"
+    },
+    {
+      "table": "public.recurring_cost",
+      "columns": [
+        "created_by"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.recurring_cost",
+      "columns": [
+        "vendor_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.vendor",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)"
+    },
+    {
+      "table": "public.milestone",
+      "columns": [
+        "project_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.project",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (project_id) REFERENCES project(id)"
+    },
+    {
+      "table": "public.milestone_device",
+      "columns": [
+        "device_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.device",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (device_id) REFERENCES device(id)"
+    },
+    {
+      "table": "public.milestone_device",
+      "columns": [
+        "milestone_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.milestone",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (milestone_id) REFERENCES milestone(id)"
     }
   ],
   "driver": {

@@ -269,6 +269,55 @@ comments:
       cable_end_slot_id: どちらの端か。両端が非対称なケーブルがあるため端ごとに持つ（8.7）
       to_date: null が現在有効な行
 
+  # --- QCD（費用・マイルストーン） -------------------------------------------
+  #
+  # **金額はすべて最小通貨単位の整数**（24.2.1）。SQLiteにDECIMALが無く、
+  # REALでは丸め誤差が累積するため。桁数は PROJECT.currency から決まる。
+  - table: purchase_order
+    tableComment: |
+      発注（10章）。**`amount` を持たない**——明細の合計から計算する（旧B-5）。
+      持つと明細と合計がずれ、どちらが正か分からなくなる。
+  - table: purchase_order_item
+    tableComment: 発注明細（10章）。
+    columnComments:
+      item_type: Device / PartInstance / SoftwareInstance。**多態的参照のため外部キーを持てない**
+      unit_price: |
+        **最小通貨単位の整数**（24.2.1）。DECIMALにしない
+  - table: fixed_asset
+    tableComment: |
+      固定資産（10章）。**`disposal_date` と簿価を持たない**——廃棄は
+      DEVICE_ASSIGNMENT の Disposed 行から、簿価は取得価額と経過期間から計算する
+      （旧B-1）。持つと二重管理になり必ずずれる。
+    columnComments:
+      acquisition_cost: "**最小通貨単位の整数**（24.2.1）"
+      depreciation_method: straight_line / declining_balance
+  - table: maintenance_contract
+    tableComment: 保守契約（10章）。
+    columnComments:
+      end_date: "**保守期限はこの列のみが正**（旧B-2）。機器側に保守期限を持たない"
+      amount: "**最小通貨単位の整数**（24.2.1）"
+  - table: maintenance_contract_item
+    tableComment: 保守契約の対象（10章）。多態的参照のため外部キーを持てない。
+  - table: recurring_cost
+    tableComment: 定期費用（10章）。ラック料金・回線費用など。
+    columnComments:
+      item_type: MountContainer / Project
+      amount: "**最小通貨単位の整数**（24.2.1）"
+      billing_cycle: Monthly / Annual
+      end_date: null = 継続中
+  - table: milestone
+    tableComment: |
+      マイルストーン（10.4）。**予定と実績を別の列で持つ。**片方に上書きすると
+      「当初いつの予定だったか」が失われ、QCDの「D」を定量的に見られなくなる（5.1）。
+    columnComments:
+      planned_date: "**`date` のまま。**同日内の順序を問わないため（C-5）"
+      milestone_type: ServiceStart / ServiceUpdate / ServiceMaintenance / ServiceEnd
+  - table: milestone_device
+    tableComment: マイルストーンと機器の対応（10.4）。
+    columnComments:
+      change_type: addition / relocation / removal
+      work_order_id: "**WORK_ORDER未作成のため外部キーは未設定**"
+
   # --- 物理設置 -------------------------------------------------------------
   - table: warehouse
     tableComment: 倉庫。プロジェクトを横断する未割当機器の置き場（12章）。

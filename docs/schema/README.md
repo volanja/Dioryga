@@ -39,6 +39,14 @@
 | [public.ip_address](public.ip_address.md) | 8 | IPアドレス — 履歴テーブル（8.3、8.6、14章）。**`vlan_id` を持たない**（インターフェース<br />側から辿る。8.6で廃止）。同一サブネット内の重複は部分インデックスで禁じている（14.2）。<br /> | BASE TABLE |
 | [public.cable_instance](public.cable_instance.md) | 7 | ケーブルの実物（8.3）。**機器と違い所在の履歴を持たない**ため、<br />in_stock / disposed も status に含む。v1では画面・取込の対象外。<br /> | BASE TABLE |
 | [public.cable_connection](public.cable_connection.md) | 8 | ケーブルの接続 — 履歴テーブル（8.3）。**`device_id` を持たない**<br />（PART_INSTANCE_LOCATION 経由で導出する。持つと部品の移設時に二重管理になる）。<br /> | BASE TABLE |
+| [public.purchase_order](public.purchase_order.md) | 7 | 発注（10章）。**`amount` を持たない**——明細の合計から計算する（旧B-5）。<br />持つと明細と合計がずれ、どちらが正か分からなくなる。<br /> | BASE TABLE |
+| [public.purchase_order_item](public.purchase_order_item.md) | 8 | 発注明細（10章）。 | BASE TABLE |
+| [public.fixed_asset](public.fixed_asset.md) | 9 | 固定資産（10章）。**`disposal_date` と簿価を持たない**——廃棄は<br />DEVICE_ASSIGNMENT の Disposed 行から、簿価は取得価額と経過期間から計算する<br />（旧B-1）。持つと二重管理になり必ずずれる。<br /> | BASE TABLE |
+| [public.maintenance_contract](public.maintenance_contract.md) | 11 | 保守契約（10章）。 | BASE TABLE |
+| [public.maintenance_contract_item](public.maintenance_contract_item.md) | 6 | 保守契約の対象（10章）。多態的参照のため外部キーを持てない。 | BASE TABLE |
+| [public.recurring_cost](public.recurring_cost.md) | 12 | 定期費用（10章）。ラック料金・回線費用など。 | BASE TABLE |
+| [public.milestone](public.milestone.md) | 9 | マイルストーン（10.4）。**予定と実績を別の列で持つ。**片方に上書きすると<br />「当初いつの予定だったか」が失われ、QCDの「D」を定量的に見られなくなる（5.1）。<br /> | BASE TABLE |
+| [public.milestone_device](public.milestone_device.md) | 7 | マイルストーンと機器の対応（10.4）。 | BASE TABLE |
 
 ## Relations
 

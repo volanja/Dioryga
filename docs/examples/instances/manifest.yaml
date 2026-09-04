@@ -1,0 +1,21 @@
+# インスタンス取込のマニフェスト（設計書23.5）。
+#
+#   dioryga import docs/examples/instances/manifest.yaml --as-user you@example.com
+#   dioryga import docs/examples/instances/manifest.yaml --as-user you@example.com --apply
+#
+# 既定はドライラン。差分を確認してから --apply を付ける。
+format_version: 1
+kind: instances
+
+# uid → code → name の順で解決する（5.3）。name で複数該当すればエラー
+project: "2026年度 基盤更改"
+
+# 履歴行の from_date に使う基準時刻。過去に遡って登録する場合に指定する
+as_of: 2026-04-01T00:00:00+09:00
+
+# uid / external_id が無い行の突合キー（23.2 の③）
+match_on:
+  device: [serial_number]
+
+files:
+  - { entity: device, path: devices.csv }

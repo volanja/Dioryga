@@ -16,7 +16,7 @@ use chrono::Utc;
 use entity::{app_user, import_run};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
-use super::{catalog, file_hash, ImportError, Outcome, Report};
+use super::{catalog, file_hash, instances, ImportError, Outcome, Report};
 use crate::auth::authorization;
 
 /// 取込の対象と結果。
@@ -34,6 +34,15 @@ pub enum RunError {
     #[error("この利用者は取込を行えません（いずれかのプロジェクトでOperator以上が要ります）")]
     NotPermitted,
 
+    #[error("この利用者はこのプロジェクトへ取り込めません（Operator以上が要ります）")]
+    NotProjectEditor,
+
+    #[error("{0}")]
+    Unresolved(String),
+
+    #[error("エンティティ「{0}」の取込はまだ実装されていません")]
+    UnsupportedEntity(String),
+
     #[error(transparent)]
     Import(#[from] ImportError),
 
@@ -41,18 +50,116 @@ pub enum RunError {
     Db(#[from] sea_orm::DbErr),
 }
 
-/// カタログYAMLを取り込む。
-pub async fn catalog_file(
+/// ファイルの `kind` を見て、どちらの取込かを決める。
+///
+/// **利用者に種別を指定させない。**ファイル自身が名乗っているものを、こちらが
+/// 読み違えないようにするだけでよい。
+pub async fn run(
     db: &DatabaseConnection,
     path: &Path,
     as_user: &str,
     apply: bool,
 ) -> Result<Executed, RunError> {
-    let actor = 取込者(db, as_user).await?;
-
     let bytes = std::fs::read(path).map_err(ImportError::Io)?;
-    let source = String::from_utf8_lossy(&bytes);
-    let file = catalog::parse(&source)?;
+    let source = String::from_utf8_lossy(&bytes).into_owned();
+
+    #[derive(serde::Deserialize)]
+    struct Kind {
+        kind: String,
+    }
+    let kind: Kind = serde_yaml_ng::from_str(&source).map_err(ImportError::Yaml)?;
+
+    match kind.kind.as_str() {
+        "catalog" => catalog_file(db, &bytes, &source, as_user, apply).await,
+        "instances" => instances_manifest(db, path, &bytes, &source, as_user, apply).await,
+        other => Err(ImportError::UnexpectedKind {
+            found: other.to_owned(),
+            expected: "catalog または instances".to_owned(),
+        }
+        .into()),
+    }
+}
+
+/// インスタンスCSVを取り込む（設計書23.5）。
+async fn instances_manifest(
+    db: &DatabaseConnection,
+    path: &Path,
+    bytes: &[u8],
+    source: &str,
+    as_user: &str,
+    apply: bool,
+) -> Result<Executed, RunError> {
+    let manifest = instances::parse_manifest(source)?;
+
+    // **1ファイルは1プロジェクトに閉じる**（23.5）
+    let project = instances::解決するプロジェクト(db, &manifest.project)
+        .await
+        .map_err(ImportError::Db)?
+        .map_err(RunError::Unresolved)?;
+
+    // **そのプロジェクトのOperator以上を要する**（23.5）。System Adminは入れない
+    let actor = プロジェクトの取込者(db, as_user, project.id).await?;
+
+    let mut rows = Vec::new();
+    for file in &manifest.files {
+        if file.entity != "device" {
+            return Err(RunError::UnsupportedEntity(file.entity.clone()));
+        }
+        let csv_path = instances::resolve(path, &file.path);
+        let csv = std::fs::read_to_string(&csv_path).map_err(ImportError::Io)?;
+        rows.extend(instances::parse_devices(&csv)?);
+    }
+
+    let match_on = manifest.match_on.device.clone();
+    let report = instances::dry_run(db, project.id, &rows, &match_on).await?;
+
+    if !apply {
+        return Ok(Executed {
+            report,
+            import_run_id: None,
+        });
+    }
+    if report.has_error() {
+        return Err(ImportError::HasErrors(report.count(Outcome::Error)).into());
+    }
+
+    let now = Utc::now();
+    // **履歴行の from_date は as_of を使う**（23.1）
+    let as_of = manifest.as_of.unwrap_or(now);
+
+    let run = import_run::ActiveModel {
+        project_id: Set(Some(project.id)),
+        kind: Set("instances".to_owned()),
+        file_hash: Set(file_hash(bytes)),
+        as_of: Set(as_of),
+        created_count: Set(report.count(Outcome::Created) as i32),
+        updated_count: Set(report.count(Outcome::Updated) as i32),
+        warning_count: Set(report.count(Outcome::Warning) as i32),
+        imported_by: Set(actor.id),
+        imported_at: Set(now),
+        ..Default::default()
+    }
+    .insert(db)
+    .await?;
+
+    let report = instances::apply(db, project.id, &rows, &match_on, as_of, run.id).await?;
+
+    Ok(Executed {
+        report,
+        import_run_id: Some(run.id),
+    })
+}
+
+/// カタログYAMLを取り込む。
+async fn catalog_file(
+    db: &DatabaseConnection,
+    bytes: &[u8],
+    source: &str,
+    as_user: &str,
+    apply: bool,
+) -> Result<Executed, RunError> {
+    let actor = 取込者(db, as_user).await?;
+    let file = catalog::parse(source)?;
 
     let report = catalog::dry_run(db, &file).await?;
 
@@ -75,7 +182,7 @@ pub async fn catalog_file(
         // カタログ取込はプロジェクトに属さない（18.1）
         project_id: Set(None),
         kind: Set("catalog".to_owned()),
-        file_hash: Set(file_hash(&bytes)),
+        file_hash: Set(file_hash(bytes)),
         // カタログYAMLには as_of が無い。実行時刻を基準とする（23.1）
         as_of: Set(now),
         created_count: Set(report.count(Outcome::Created) as i32),
@@ -109,6 +216,28 @@ async fn 取込者(db: &DatabaseConnection, email: &str) -> Result<app_user::Mod
     authorization::require_catalog_editor(db, &user)
         .await
         .map_err(|_| RunError::NotPermitted)?;
+
+    Ok(user)
+}
+
+/// プロジェクトへ取り込む利用者を解決し、権限を確かめる（設計書23.5）。
+///
+/// **System Adminは弾かれる**（3章）。`require_project_editor` が
+/// `deny_system_admin` を通しているため、ここで特別扱いする必要はない。
+async fn プロジェクトの取込者(
+    db: &DatabaseConnection,
+    email: &str,
+    project_id: i32,
+) -> Result<app_user::Model, RunError> {
+    let user = app_user::Entity::find()
+        .filter(app_user::Column::Email.eq(email))
+        .one(db)
+        .await?
+        .ok_or_else(|| RunError::UnknownUser(email.to_owned()))?;
+
+    authorization::require_project_editor(db, &user, project_id)
+        .await
+        .map_err(|_| RunError::NotProjectEditor)?;
 
     Ok(user)
 }

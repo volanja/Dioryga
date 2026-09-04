@@ -21,6 +21,7 @@
 //! 持つため情報が増えない。追跡は `IMPORT_RUN` が担う。
 
 pub mod catalog;
+pub mod instances;
 pub mod run;
 
 use std::fmt;
@@ -142,6 +143,9 @@ pub enum ImportError {
 
     #[error("YAMLの形式が正しくありません: {0}")]
     Yaml(#[from] serde_yaml_ng::Error),
+
+    #[error("CSVの形式が正しくありません: {0}")]
+    Csv(String),
 
     #[error("format_version が {found} です。対応しているのは {expected} です")]
     UnsupportedVersion { found: u32, expected: u32 },

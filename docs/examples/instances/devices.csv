@@ -1,0 +1,4 @@
+uid,external_id,hostname,serial_number,asset_number,device_type,configuration_vendor,configuration_model,configuration_name,power_watt,status
+,SV-0001,web01,JP1234567,,Physical,Fujitsu,PRIMERGY RX4770 M8,標準構成,450,running
+,SV-0002,web02,JP1234568,,Physical,Fujitsu,PRIMERGY RX4770 M8,標準構成,450,running
+,SV-0003,vm-app01,,,Virtual,,,,0,running

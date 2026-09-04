@@ -32,8 +32,8 @@ async fn main() -> anyhow::Result<()> {
             as_user,
         } => {
             let conn = db::connect(&config.database).await?;
-            // 現時点で扱えるのはカタログYAMLのみ。インスタンスCSVは後続で足す
-            let executed = import::run::catalog_file(&conn, &path, &as_user, apply).await?;
+            // ファイルの kind で、カタログとインスタンスを振り分ける
+            let executed = import::run::run(&conn, &path, &as_user, apply).await?;
             import::run::print_report(&executed, apply);
             Ok(())
         }

@@ -70,6 +70,9 @@ pub struct Chrome {
     pub t_nav_users: String,
     pub t_nav_projects: String,
     pub t_nav_catalog: String,
+    pub t_nav_chassis_models: String,
+    pub t_nav_parts: String,
+    pub t_nav_configurations: String,
     pub t_nav_account: String,
 }
 
@@ -88,6 +91,9 @@ impl Chrome {
             t_nav_users: rust_i18n::t!("nav.users", locale = l).to_string(),
             t_nav_projects: rust_i18n::t!("nav.projects", locale = l).to_string(),
             t_nav_catalog: rust_i18n::t!("catalog.nav", locale = l).to_string(),
+            t_nav_chassis_models: rust_i18n::t!("catalog.chassis_models", locale = l).to_string(),
+            t_nav_parts: rust_i18n::t!("parts.title", locale = l).to_string(),
+            t_nav_configurations: rust_i18n::t!("catalog.configurations", locale = l).to_string(),
             t_nav_account: rust_i18n::t!("nav.account", locale = l).to_string(),
         }
     }

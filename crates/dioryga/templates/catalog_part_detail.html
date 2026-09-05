@@ -1,0 +1,107 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/catalog/parts">{{ t_back }}</a></p>
+    <h1>{{ title }}</h1>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<div class="panels">
+  <div class="card">
+    <h2>{{ t_basic }}</h2>
+    <dl>
+      {% for item in basic %}
+      <dt>{{ item.label }}</dt>
+      <dd>{{ item.value }}</dd>
+      {% endfor %}
+    </dl>
+  </div>
+</div>
+
+<h2 class="section">{{ t_ports }}</h2>
+<p class="hint">{{ t_ports_hint }}</p>
+
+{% if ports.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_port_kind }}</th>
+      <th>{{ t_port_label }}</th>
+      <th>{{ t_connector_type }}</th>
+      <th>{{ t_port_speed }}</th>
+      <th>{{ t_voltage }}</th>
+      {% if can_edit %}<th>{{ t_actions }}</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in ports %}
+    <tr>
+      <td>{{ p.port_kind }}</td>
+      <td>{{ p.port_label }}</td>
+      <td>{{ p.connector_type }}</td>
+      {# 意味を持つ列だけを見せる（設計書8.3、12.7） #}
+      <td>{{ p.port_speed }}</td>
+      <td>{{ p.voltage }}</td>
+      {% if can_edit %}
+      <td class="actions">
+        <form method="post" action="/catalog/parts/{{ part_id }}/ports/remove" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <input type="hidden" name="port_id" value="{{ p.id }}">
+          <button type="submit" class="ghost">{{ t_remove }}</button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_add_port }}</h2>
+<div class="card">
+  <form method="post" action="/catalog/parts/{{ part_id }}/ports" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="port_kind">{{ t_port_kind }}</label>
+    <select id="port_kind" name="port_kind">
+      {% for k in port_kinds %}
+      <option value="{{ k }}">{{ k }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="port_label">{{ t_port_label }}</label>
+    <input type="text" id="port_label" name="port_label" required>
+
+    <label for="connector_type">{{ t_connector_type }}</label>
+    <input type="text" id="connector_type" name="connector_type" required>
+    <p class="hint">{{ t_connector_hint }}</p>
+
+    <label for="port_speed">{{ t_port_speed }}</label>
+    <input type="text" id="port_speed" name="port_speed">
+    <p class="hint">{{ t_port_speed_hint }}</p>
+
+    <label for="voltage_min">{{ t_voltage_min }}</label>
+    <input type="text" id="voltage_min" name="voltage_min" inputmode="numeric">
+
+    <label for="voltage_max">{{ t_voltage_max }}</label>
+    <input type="text" id="voltage_max" name="voltage_max" inputmode="numeric">
+    <p class="hint">{{ t_voltage_hint }}</p>
+
+    <button type="submit">{{ t_add_port }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

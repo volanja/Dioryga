@@ -1,0 +1,85 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/catalog/chassis-models">{{ t_back }}</a></p>
+    <h1>{{ title }}</h1>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<div class="panels">
+  <div class="card">
+    <h2>{{ t_basic }}</h2>
+    <dl>
+      {% for item in basic %}
+      <dt>{{ item.label }}</dt>
+      <dd>{{ item.value }}</dd>
+      {% endfor %}
+    </dl>
+  </div>
+</div>
+
+<h2 class="section">{{ t_slots }}</h2>
+<p class="hint">{{ t_slots_hint }}</p>
+
+{% if slots.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_slot_type }}</th>
+      <th>{{ t_slot_label }}</th>
+      {% if can_edit %}<th>{{ t_actions }}</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in slots %}
+    <tr>
+      <td>{{ s.slot_type }}</td>
+      <td>{{ s.slot_label }}</td>
+      {% if can_edit %}
+      <td class="actions">
+        <form method="post" action="/catalog/chassis-models/{{ chassis_model_id }}/slots/remove" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <input type="hidden" name="child_id" value="{{ s.id }}">
+          <button type="submit" class="ghost">{{ t_remove }}</button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_add_slot }}</h2>
+<div class="card">
+  <form method="post" action="/catalog/chassis-models/{{ chassis_model_id }}/slots" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="slot_type">{{ t_slot_type }}</label>
+    <select id="slot_type" name="slot_type">
+      {% for t in slot_types %}
+      <option value="{{ t }}">{{ t }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="slot_label">{{ t_slot_label }}</label>
+    <input type="text" id="slot_label" name="slot_label" required>
+
+    <button type="submit">{{ t_add_slot }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

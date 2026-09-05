@@ -390,3 +390,65 @@ catalog:
   error_rack_width_unused: 幅を指定できるのは RackU の筐体モデルだけです
   error_vendor_duplicate: 同じ名前のベンダーが既にあります
   error_model_duplicate: そのベンダーに同じ製品名の筐体モデルが既にあります
+  back_models: 筐体モデル一覧へ戻る
+  back_configurations: 構成一覧へ戻る
+  slots: スロット
+  slots_hint: 搭載できる部品の物理的な制約です。構成に部品を足すときの本数チェックに使います。登録しなくても構いません（本数が分からない場合は警告を出しません）
+  slot_type: 種別
+  slot_label: ラベル
+  add_slot: スロットを追加
+  no_slot: スロットが登録されていません
+  remove: 取り消す
+  parts: 部品
+  parts_hint: 同じ部品は行を分けず、数量で表します
+  part: 部品
+  quantity: 数量
+  quantity_hint: 1以上の整数
+  add_part: 部品を追加
+  no_part: 部品が登録されていません
+  no_part_catalog: 先に部品カタログを登録してください
+  error_slot_type: スロット種別の値が不正です
+  error_slot_label: ラベルを入力してください
+  error_quantity: 数量は1以上の整数で入力してください
+  error_part_duplicate: この部品は既に追加されています。数量で表してください
+  warn_slot_over: "%{category} が %{used} 個で、スロット %{slots} 本を超えています。登録は行いましたが確認してください。"
+
+parts:
+  title: 部品カタログ
+  lead: CPU・メモリ・ストレージ等の型番です。構成はこれを組み合わせて作ります
+  hybrid_hint: 集計に使う値だけを列として持ち、残りはJSONに入れます（設計書6.4）
+  spec_column_hint: コア数と容量は横断集計に使うため列で持ちます。該当しない部品では空のままにしてください
+  category: 種別
+  part_number: 型番
+  core_count: コア数
+  capacity_gb: 容量（GB）
+  spec_json: その他のスペック
+  spec_hint: 周波数・ECC有無・RPM等。JSONで書きます。集計には使いません
+  ports: ポート
+  ports_hint: この部品が備えるポートです。速度は Network、電圧は Power のときだけ意味を持ちます
+  port_kind: 種別
+  port_label: ラベル
+  connector_type: コネクタ
+  connector_hint: RJ-45 / LC / QSFP28 / IEC C13 / NEMA 5-15P など
+  port_speed: 速度
+  port_speed_hint: Network のときだけ指定できます（10GBASE-T、25G など）
+  voltage: 電圧
+  voltage_min: 電圧の下限（V）
+  voltage_max: 電圧の上限（V）
+  voltage_hint: Power のときだけ指定できます。両方を入れてください。100-240V対応なら 100 と 240、200V専用なら 200 と 200 です
+  add_port: ポートを追加
+  remove_port: 取り消す
+  no_port: ポートが登録されていません
+  back: 部品カタログへ戻る
+  new: 部品を登録
+  error_part_number: 型番を入力してください
+  error_category: 種別の値が不正です
+  error_number: 数値で入力してください
+  error_spec_json: スペックがJSONとして読めません
+  error_duplicate: そのベンダーに同じ型番の部品が既にあります
+  error_port_kind: ポート種別の値が不正です
+  error_port_required: ラベルとコネクタを入力してください
+  error_speed_unused: 速度を指定できるのは Network のポートだけです
+  error_voltage_unused: 電圧を指定できるのは Power のポートだけです
+  error_voltage_pair: 電圧は下限と上限の両方を入れてください
+  error_voltage_order: 電圧の下限が上限を超えています

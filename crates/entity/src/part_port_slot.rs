@@ -15,6 +15,13 @@ pub struct Model {
     pub connector_type: String,
     /// port_kind=Network のときのみ意味を持つ。
     pub port_speed: Option<String>,
+    /// 定格電圧の下限（V）。**`port_kind=Power` のときのみ意味を持つ**（12.7）。
+    ///
+    /// **範囲で持つのは「100-240V対応」と「200V専用」を区別するため**であり、
+    /// 単一値では表せない。
+    pub voltage_min: Option<i32>,
+    /// 定格電圧の上限（V）。同上。
+    pub voltage_max: Option<i32>,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,
 }

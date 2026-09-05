@@ -632,11 +632,86 @@ pub async fn mount(
         .map_err(|_| AppError::Forbidden)?;
 
     let l = Locale::parse(&current.user.locale).as_str();
-    什器(&state, project_id, container_id).await?;
+    let 訳 = |key: &str| rust_i18n::t!(key, locale = l).to_string();
 
-    let 中止 = |key: &str| Some(rust_i18n::t!(key, locale = l).to_string());
+    let 結果 = 搭載を試みる(
+        &state,
+        current.user.id,
+        搭載要求 {
+            project_id,
+            container_id,
+            device_id: form.device_id,
+            position: &form.position,
+            horizontal: &form.horizontal_position,
+            depth: &form.depth_position,
+            host_device_id: &form.host_device_id,
+            // 直接の登録。変更管理チケット経由の予約は [`crate::server::work_order`]
+            work_order_id: None,
+        },
+    )
+    .await?;
 
-    let 対象 = device::Entity::find_by_id(form.device_id)
+    match 結果 {
+        Err(key) => {
+            図を描く(
+                &state,
+                &current,
+                project_id,
+                container_id,
+                Some(訳(key)),
+                None,
+            )
+            .await
+        }
+        Ok(warnings) if !warnings.is_empty() => {
+            // **警告はリダイレクトで消さない。**見落とすと誤配置が残る
+            let notice = warnings.iter().map(|k| 訳(k)).collect::<Vec<_>>().join(" ");
+            図を描く(
+                &state,
+                &current,
+                project_id,
+                container_id,
+                None,
+                Some(notice),
+            )
+            .await
+        }
+        Ok(_) => Ok(
+            Redirect::to(&format!("/projects/{project_id}/containers/{container_id}"))
+                .into_response(),
+        ),
+    }
+}
+
+/// 搭載の依頼。**直接の登録と、変更管理チケットからの予約で同じ経路を通す**
+/// （設計書11.6）。検証を二重に持つと、片方だけ直したときに規則が食い違う。
+pub(crate) struct 搭載要求<'a> {
+    pub project_id: i32,
+    pub container_id: i32,
+    pub device_id: i32,
+    pub position: &'a str,
+    pub horizontal: &'a str,
+    pub depth: &'a str,
+    pub host_device_id: &'a str,
+    /// 予約として作る場合のWORK_ORDER（11.6）。直接の登録では `None`。
+    pub work_order_id: Option<i32>,
+}
+
+/// 12.3の業務ルールを検証し、通れば `DEVICE_MOUNT` を開く。
+///
+/// **返すのは i18n のキー**であり、文言の組み立ては呼び出し側が行う。予約と
+/// 直接登録で画面が違うため、ここでレスポンスまで作らない。
+///
+/// `Err` は登録を行わなかった場合、`Ok` は行った場合で、中身は警告のキー。
+/// **警告があっても登録は通す**（不変条件6、12.3）。
+pub(crate) async fn 搭載を試みる(
+    state: &AppState,
+    actor_id: i32,
+    req: 搭載要求<'_>,
+) -> AppResult<Result<Vec<&'static str>, &'static str>> {
+    let container = 什器(state, req.project_id, req.container_id).await?;
+
+    let 対象 = device::Entity::find_by_id(req.device_id)
         .one(&state.db)
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
@@ -644,148 +719,84 @@ pub async fn mount(
 
     // **このプロジェクトの機器だけを搭載できる。**画面は候補を絞るが、
     // POSTは直接叩ける
-    if !このプロジェクトにいる(&state.db, project_id, 対象.id).await? {
-        return 図を描く(
-            &state,
-            &current,
-            project_id,
-            container_id,
-            中止("rack.error_not_in_project"),
-            None,
-        )
-        .await;
+    if !このプロジェクトにいる(&state.db, req.project_id, 対象.id).await? {
+        return Ok(Err("rack.error_not_in_project"));
     }
 
     // 既に現行の搭載行があるなら二重に開かない。移設は閉じてから
     if 現在の搭載(&state.db, 対象.id).await?.is_some() {
-        return 図を描く(
-            &state,
-            &current,
-            project_id,
-            container_id,
-            中止("rack.error_already_mounted"),
-            None,
-        )
-        .await;
+        return Ok(Err("rack.error_already_mounted"));
     }
 
     let (height_u, mount_form, rack_width) = 型情報(&state.db, &対象).await?;
-    let host_device_id = form.host_device_id.trim().parse::<i32>().ok();
+    let host_device_id = req.host_device_id.trim().parse::<i32>().ok();
 
-    let position = match form.position.trim() {
+    let position = match req.position.trim() {
         "" => None,
         v => match v.parse::<i32>() {
             Ok(n) if n > 0 => Some(n),
             // **黙って未設定に落とさない**（Q-21）
-            _ => {
-                return 図を描く(
-                    &state,
-                    &current,
-                    project_id,
-                    container_id,
-                    中止("rack.error_position"),
-                    None,
-                )
-                .await;
-            }
+            _ => return Ok(Err("rack.error_position")),
         },
     };
 
-    let horizontal = 語彙(&form.horizontal_position, &[LEFT, RIGHT, "Full"]);
-    let depth = 語彙(&form.depth_position, &[FRONT, REAR, "Full"]);
+    let horizontal = 語彙(req.horizontal, &[LEFT, RIGHT, "Full"]);
+    let depth = 語彙(req.depth, &[FRONT, REAR, "Full"]);
 
     // **0Uサイドマウントは位置を持たない**（12.3）
     if mount_form == RACK_SIDE && (position.is_some() || horizontal.is_some() || depth.is_some()) {
-        return 図を描く(
-            &state,
-            &current,
-            project_id,
-            container_id,
-            中止("rack.error_rack_side"),
-            None,
-        )
-        .await;
+        return Ok(Err("rack.error_rack_side"));
     }
 
     // **棚板の上に載る機器は container_id / position を使わない**（12.3）
     if host_device_id.is_some() && position.is_some() {
-        return 図を描く(
-            &state,
-            &current,
-            project_id,
-            container_id,
-            中止("rack.error_host_and_position"),
-            None,
-        )
-        .await;
+        return Ok(Err("rack.error_host_and_position"));
     }
 
     // **半width同居は rack_width="Half" のときだけ**（12.3）
     if matches!(horizontal.as_deref(), Some(LEFT) | Some(RIGHT))
         && rack_width.as_deref() != Some(HALF)
     {
-        return 図を描く(
-            &state,
-            &current,
-            project_id,
-            container_id,
-            中止("rack.error_half_width"),
-            None,
-        )
-        .await;
+        return Ok(Err("rack.error_half_width"));
     }
 
-    let mut warnings: Vec<String> = Vec::new();
+    let mut warnings: Vec<&'static str> = Vec::new();
 
     if let Some(p) = position {
-        let 同居 = 重複を調べる(
+        match 重複を調べる(
             &state.db,
-            container_id,
+            req.container_id,
             p,
             height_u,
             horizontal.as_deref(),
             depth.as_deref(),
         )
-        .await?;
-        match 同居 {
-            重複::衝突 => {
-                return 図を描く(
-                    &state,
-                    &current,
-                    project_id,
-                    container_id,
-                    中止("rack.error_occupied"),
-                    None,
-                )
-                .await;
-            }
+        .await?
+        {
+            重複::衝突 => return Ok(Err("rack.error_occupied")),
             // **排熱上は推奨しないが実在する。**許可したうえで注意喚起（12.3）
-            重複::前後同居 => {
-                warnings.push(rust_i18n::t!("rack.warn_front_rear", locale = l).to_string());
-            }
+            重複::前後同居 => warnings.push("rack.warn_front_rear"),
             重複::なし => {}
         }
 
         // **超過はエラーではなく警告**（不変条件6、12.3）
-        let container = 什器(&state, project_id, container_id).await?;
         if container.capacity.is_some_and(|cap| p + height_u - 1 > cap) {
-            warnings.push(rust_i18n::t!("rack.warn_capacity", locale = l).to_string());
+            warnings.push("rack.warn_capacity");
         }
     }
 
-    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+    let tx = AuditedTx::begin(&state.db, Actor::User(actor_id))
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     tx.insert(device_mount::ActiveModel {
         device_id: Set(対象.id),
         // 棚板の上に載る場合は什器に直接紐づけない（12.3）
-        container_id: Set(host_device_id.is_none().then_some(container_id)),
+        container_id: Set(host_device_id.is_none().then_some(req.container_id)),
         position: Set(position),
         horizontal_position: Set(horizontal),
         depth_position: Set(depth),
         host_device_id: Set(host_device_id),
-        // 直接の登録であり、変更管理チケット経由の予約は #51 で扱う
-        work_order_id: Set(None),
+        work_order_id: Set(req.work_order_id),
         from_date: Set(Utc::now()),
         to_date: Set(None),
         ..Default::default()
@@ -796,13 +807,7 @@ pub async fn mount(
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
-    let notice = (!warnings.is_empty()).then(|| warnings.join(" "));
-    if notice.is_some() {
-        // **警告はリダイレクトで消さない。**見落とすと誤配置が残る
-        return 図を描く(&state, &current, project_id, container_id, None, notice).await;
-    }
-
-    Ok(Redirect::to(&format!("/projects/{project_id}/containers/{container_id}")).into_response())
+    Ok(Ok(warnings))
 }
 
 #[derive(Debug, Deserialize)]

@@ -18,7 +18,10 @@ use dioryga::auth::session;
 use dioryga::auth::setup::SetupState;
 use dioryga::config::Config;
 use dioryga::server::{router, AppState};
-use entity::{app_user, audit_log, project, project_member, work_order, work_order_approval};
+use entity::{
+    app_user, audit_log, device, device_assignment, device_mount, mount_container, project,
+    project_member, work_order, work_order_approval,
+};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
 };
@@ -401,6 +404,44 @@ async fn 計画中からも中止できる(db: &DatabaseConnection) {
     assert_eq!(再取得(db, w.id).await.status, "aborted");
 }
 
+/// 中止済みのチケットに承認ボタンを出さないこと。
+///
+/// 押しても弾かれるので、**出ていること自体が誤解を招く。**
+async fn 中止済みには承認ボタンを出さない(db: &DatabaseConnection) {
+    let (操作者, p) = 準備(db, "no-button@example.com", "Operator").await;
+    let 承認者 = 利用者(db, "no-button-approver@example.com").await;
+    メンバー(db, 承認者.id, p.id, "Approver").await;
+
+    let w = 起票(db, p.id, None, "Repair", None).await;
+    承認行を作る(db, w.id, &[p.id]).await;
+
+    // 計画中なら出る
+    let (状態, token) = 認証済み(db, &承認者).await;
+    let (_, 計画中) = 取得(
+        状態,
+        &format!("/projects/{}/work-orders/{}", p.id, w.id),
+        &token,
+    )
+    .await;
+    // 見出しの「承認するプロジェクト」にも当たるため、ボタンそのものを見る
+    assert!(計画中.contains(r#"name="decision" value="approve""#));
+
+    let (状態, token) = 認証済み(db, &操作者).await;
+    遷移(状態, &token, p.id, w.id, "abort", "不要になった").await;
+
+    let (状態, token) = 認証済み(db, &承認者).await;
+    let (_, 中止後) = 取得(
+        状態,
+        &format!("/projects/{}/work-orders/{}", p.id, w.id),
+        &token,
+    )
+    .await;
+    assert!(
+        !中止後.contains(r#"name="decision""#),
+        "中止済みなのにボタンが出ている"
+    );
+}
+
 /// 中止済みのチケットを後から承認できないこと。
 async fn 中止済みは承認できない(db: &DatabaseConnection) {
     let (操作者, p) = 準備(db, "abort-approve@example.com", "Operator").await;
@@ -419,6 +460,222 @@ async fn 中止済みは承認できない(db: &DatabaseConnection) {
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("計画中のチケットだけ"));
     assert_eq!(再取得(db, w.id).await.status, "aborted");
+}
+
+// ---------------------------------------------------------------------------
+// 予約（設計書11.6）
+// ---------------------------------------------------------------------------
+
+/// **計画の時点でラック位置を確保できること**（設計書11.6）。
+///
+/// Executeまで待たない。こうするとラック図がそのまま予約状況の図になる。
+async fn 計画時点でラック位置を予約できる(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "reserve@example.com").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 予約(状態, &token, &場, &[("position", "10")]).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let 行 = 現行の搭載(db, 場.device_id).await.unwrap();
+    assert_eq!(行.position, Some(10));
+    // **予約であることが行に残る。**誰の計画で確保されたかを辿れる
+    assert_eq!(行.work_order_id, Some(場.work_order_id));
+}
+
+/// **予約は12.3の重複配置検証にそのまま引っかかること**（設計書11.6）。
+///
+/// 二重予約の防止に新しい仕組みを足していない。
+async fn 二重予約は既存の検証で止まる(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "double@example.com").await;
+
+    // 先に別の機器が同じ場所を使っている
+    let 先客 = 予約対象の機器(db, &場, "existing-01", "running").await;
+    device_mount::ActiveModel {
+        device_id: Set(先客),
+        container_id: Set(Some(場.container_id)),
+        position: Set(Some(10)),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 予約(状態, &token, &場, &[("position", "10")]).await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("既に機器があります"));
+    assert!(現行の搭載(db, 場.device_id).await.is_none());
+}
+
+/// **中断すると予約が解放されること**（設計書11.6）。
+///
+/// 閉じ忘れるとラックが埋まったまま残り、予約という仕組みが信用されなくなる。
+async fn 中断すると予約が解放される(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "release@example.com").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    予約(状態, &token, &場, &[("position", "10")]).await;
+    assert!(現行の搭載(db, 場.device_id).await.is_some());
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 遷移(
+        状態,
+        &token,
+        場.project_id,
+        場.work_order_id,
+        "abort",
+        "調達が間に合わず繰越",
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    assert!(
+        現行の搭載(db, 場.device_id).await.is_none(),
+        "予約が解放されていない"
+    );
+    // **行は消さず閉じる**（不変条件1）
+    let 全部 = device_mount::Entity::find()
+        .filter(device_mount::Column::DeviceId.eq(場.device_id))
+        .all(db)
+        .await
+        .unwrap();
+    assert_eq!(全部.len(), 1, "行が消えている");
+    assert!(全部[0].to_date.is_some());
+}
+
+/// **実行を開始すると予約が実機になること**（設計書16.2のフロー）。
+async fn 実行すると予約が実機になる(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "execute@example.com").await;
+    let 承認者 = 利用者(db, "exec-approver@example.com").await;
+    メンバー(db, 承認者.id, 場.project_id, "Approver").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    予約(状態, &token, &場, &[("position", "10")]).await;
+
+    let 承認 = 承認行(db, 場.work_order_id).await;
+    let (状態, token) = 認証済み(db, &承認者).await;
+    承認する(
+        状態,
+        &token,
+        場.project_id,
+        場.work_order_id,
+        承認[0].id,
+        "approve",
+    )
+    .await;
+
+    assert_eq!(
+        機器の状態(db, 場.device_id).await,
+        "plan",
+        "まだ予約中のはず"
+    );
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 遷移(状態, &token, 場.project_id, 場.work_order_id, "execute", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    assert_eq!(機器の状態(db, 場.device_id).await, "running");
+    // 搭載はそのまま残る。実機になっただけ
+    assert!(現行の搭載(db, 場.device_id).await.is_some());
+}
+
+/// **稼働中の機器の状態を勝手に書き換えないこと**。
+///
+/// 修理（Repair）の実行で `broken` が `running` に変わってはいけない。
+async fn 予約でない機器の状態は変えない(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "keepstatus@example.com").await;
+    let 承認者 = 利用者(db, "keep-approver@example.com").await;
+    メンバー(db, 承認者.id, 場.project_id, "Approver").await;
+
+    // 対象機器を故障中にしておく
+    device::ActiveModel {
+        id: Set(場.device_id),
+        status: Set("broken".to_owned()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .update(db)
+    .await
+    .unwrap();
+
+    let 承認 = 承認行(db, 場.work_order_id).await;
+    let (状態, token) = 認証済み(db, &承認者).await;
+    承認する(
+        状態,
+        &token,
+        場.project_id,
+        場.work_order_id,
+        承認[0].id,
+        "approve",
+    )
+    .await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    遷移(状態, &token, 場.project_id, 場.work_order_id, "execute", "").await;
+
+    assert_eq!(機器の状態(db, 場.device_id).await, "broken");
+}
+
+/// **承認後は予約を作れないこと**（設計書11.6）。
+///
+/// 承認した内容と実施する内容がずれる。
+async fn 承認後は予約を作れない(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "afterapprove@example.com").await;
+    work_order::ActiveModel {
+        id: Set(場.work_order_id),
+        status: Set("approved".to_owned()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .update(db)
+    .await
+    .unwrap();
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 予約(状態, &token, &場, &[("position", "10")]).await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("計画中のチケットだけ"));
+    assert!(現行の搭載(db, 場.device_id).await.is_none());
+}
+
+/// **移設では予約を作れないこと**（設計書11.6の末尾、17章の課題）。
+///
+/// 稼働中の機器は移設元で動いたままである必要があり、同じ方式を当てられない。
+async fn 移設では予約を作れない(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "relocation@example.com").await;
+    work_order::ActiveModel {
+        id: Set(場.work_order_id),
+        work_type: Set("Relocation".to_owned()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .update(db)
+    .await
+    .unwrap();
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 予約(状態, &token, &場, &[("position", "10")]).await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("増設（Addition）のチケットだけ"));
+    assert!(現行の搭載(db, 場.device_id).await.is_none());
+
+    // 画面にも理由が出ること
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, 画面) = 取得(
+        状態,
+        &format!(
+            "/projects/{}/work-orders/{}",
+            場.project_id, 場.work_order_id
+        ),
+        &token,
+    )
+    .await;
+    assert!(画面.contains("移設での予約は未対応"));
 }
 
 // ---------------------------------------------------------------------------
@@ -503,12 +760,150 @@ async fn 移譲先からもチケットが見える(db: &DatabaseConnection) {
     .await;
     assert_eq!(status, StatusCode::OK);
     // 移譲先の承認者として、承認ボタンが出ること
-    assert!(body.contains("承認する"), "移譲先から承認できない");
+    // 見出しの「承認するプロジェクト」にも当たるため、ボタンそのものを見る
+    assert!(
+        body.contains(r#"name="decision" value="approve""#),
+        "移譲先から承認できない"
+    );
 }
 
 // ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
+
+/// 増設のチケットと、予約先のラック・予約中の機器が揃った状態。
+struct 増設の舞台 {
+    user: app_user::Model,
+    project_id: i32,
+    work_order_id: i32,
+    container_id: i32,
+    device_id: i32,
+}
+
+async fn 増設の舞台(db: &DatabaseConnection, email: &str) -> 増設の舞台 {
+    let (user, p) = 準備(db, email, "Operator").await;
+
+    let container = mount_container::ActiveModel {
+        name: Set("Rack-01".to_owned()),
+        container_type: Set("Rack".to_owned()),
+        location_type: Set("Project".to_owned()),
+        location_id: Set(p.id),
+        capacity: Set(Some(42)),
+        created_by: Set(user.id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    let mut 場 = 増設の舞台 {
+        user,
+        project_id: p.id,
+        work_order_id: 0,
+        container_id: container.id,
+        device_id: 0,
+    };
+
+    // **①機器の登録は承認不要**（11.6）。status=plan で登録されている
+    場.device_id = 予約対象の機器(db, &場, "new-srv", "plan").await;
+
+    let w = work_order::ActiveModel {
+        project_id: Set(p.id),
+        device_id: Set(Some(場.device_id)),
+        work_type: Set("Addition".to_owned()),
+        title: Set("ラックへの追加".to_owned()),
+        description: Set(String::new()),
+        status: Set("planned".to_owned()),
+        planned_at: Set(Some(Utc::now())),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    承認行を作る(db, w.id, &[p.id]).await;
+    場.work_order_id = w.id;
+    場
+}
+
+async fn 予約対象の機器(
+    db: &DatabaseConnection,
+    場: &増設の舞台,
+    hostname: &str,
+    status: &str,
+) -> i32 {
+    let d = device::ActiveModel {
+        uid: Set(uuid::Uuid::new_v4().to_string()),
+        hostname: Set(hostname.to_owned()),
+        device_type: Set("Physical".to_owned()),
+        power_watt: Set(350),
+        status: Set(status.to_owned()),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    device_assignment::ActiveModel {
+        device_id: Set(d.id),
+        location_type: Set("Project".to_owned()),
+        location_id: Set(Some(場.project_id)),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    d.id
+}
+
+async fn 予約(
+    state: AppState,
+    token: &str,
+    場: &増設の舞台,
+    extra: &[(&str, &str)],
+) -> (StatusCode, String) {
+    let mut fields: Vec<(&str, String)> = vec![("container_id", 場.container_id.to_string())];
+    for (k, v) in extra {
+        fields.push((k, (*v).to_owned()));
+    }
+    let borrowed: Vec<(&str, &str)> = fields.iter().map(|(k, v)| (*k, v.as_str())).collect();
+    送信(
+        state,
+        &format!(
+            "/projects/{}/work-orders/{}/reserve",
+            場.project_id, 場.work_order_id
+        ),
+        token,
+        &borrowed,
+    )
+    .await
+}
+
+async fn 現行の搭載(db: &DatabaseConnection, device_id: i32) -> Option<device_mount::Model> {
+    device_mount::Entity::find()
+        .filter(device_mount::Column::DeviceId.eq(device_id))
+        .filter(device_mount::Column::ToDate.is_null())
+        .one(db)
+        .await
+        .unwrap()
+}
+
+async fn 機器の状態(db: &DatabaseConnection, device_id: i32) -> String {
+    device::Entity::find_by_id(device_id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap()
+        .status
+}
 
 async fn 承認する(
     state: AppState,
@@ -783,6 +1178,14 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 中止には理由が要る);
         全検証!(@one $用意, $属性, 計画中からも中止できる);
         全検証!(@one $用意, $属性, 中止済みは承認できない);
+        全検証!(@one $用意, $属性, 中止済みには承認ボタンを出さない);
+        全検証!(@one $用意, $属性, 計画時点でラック位置を予約できる);
+        全検証!(@one $用意, $属性, 二重予約は既存の検証で止まる);
+        全検証!(@one $用意, $属性, 中断すると予約が解放される);
+        全検証!(@one $用意, $属性, 実行すると予約が実機になる);
+        全検証!(@one $用意, $属性, 予約でない機器の状態は変えない);
+        全検証!(@one $用意, $属性, 承認後は予約を作れない);
+        全検証!(@one $用意, $属性, 移設では予約を作れない);
         全検証!(@one $用意, $属性, 既定では終わったものを隠す);
         全検証!(@one $用意, $属性, 他プロジェクトのチケットは見えない);
         全検証!(@one $用意, $属性, 移譲先からもチケットが見える);

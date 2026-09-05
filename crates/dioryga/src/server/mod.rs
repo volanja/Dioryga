@@ -140,6 +140,10 @@ pub fn router(state: AppState) -> Router {
             post(work_order::approve),
         )
         .route(
+            "/projects/{id}/work-orders/{work_order_id}/reserve",
+            post(work_order::reserve),
+        )
+        .route(
             "/projects/{id}/work-orders/{work_order_id}/transition",
             post(work_order::transition),
         )

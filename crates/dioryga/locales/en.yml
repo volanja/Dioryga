@@ -269,6 +269,15 @@ work_orders:
   error_transition: Invalid transition
   error_transition_from: This operation is not allowed from the current state
   error_abort_reason: Enter a reason for aborting
+  reservations: Reserved placement
+  reservations_hint: Hold a rack position while the work is still planned. It appears in the rack diagram as reserved so nobody else takes the spot, and it is released if the work order is aborted
+  reserve: Reserve a rack position
+  container: Container
+  released: Released
+  relocation_hint: Reservations are not supported for relocations. A running device must stay running at its origin, so the addition scheme does not apply
+  error_reserve_not_planned: Only a planned work order can hold a reservation
+  error_reserve_work_type: Only an Addition work order can hold a reservation
+  error_reserve_no_device: No target device is set
 
 members:
   title: Members

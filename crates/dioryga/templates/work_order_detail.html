@@ -16,6 +16,10 @@
 {% if let Some(message) = error %}
 <p class="error">{{ message }}</p>
 {% endif %}
+{# 警告はリダイレクトで消さない。見落とすと誤配置が残る（設計書12.3） #}
+{% if let Some(message) = notice %}
+<p class="warn">{{ message }}</p>
+{% endif %}
 
 <div class="panels">
   <div class="card">
@@ -82,6 +86,76 @@
     <p class="hint">{{ t_self_approved_hint }}</p>
   </div>
 </div>
+
+{# 計画を予約として実データに載せる（設計書11.6） #}
+<h2 class="section">{{ t_reservations }}</h2>
+<p class="hint">{{ t_reservations_hint }}</p>
+
+{% if !reservations.is_empty() %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_container }}</th>
+      <th>{{ t_position }}</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in reservations %}
+    {# 解放済みも残す。中断で何が起きたかを追えるようにする #}
+    <tr class="{% if r.released %}is-disabled{% endif %}">
+      <td>{{ r.container }}</td>
+      <td>{{ r.place }}</td>
+      <td>{% if r.released %}<span class="badge">{{ t_released }}</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if relocation_unsupported %}
+{# 移設への適用は未検討（設計書11.6の末尾、17章の課題） #}
+<p class="hint">{{ t_relocation_hint }}</p>
+{% endif %}
+
+{% if can_reserve && !containers.is_empty() %}
+<div class="card">
+  <form method="post" action="/projects/{{ project_id }}/work-orders/{{ work_order_id }}/reserve" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="container_id">{{ t_container }}</label>
+    <select id="container_id" name="container_id">
+      {% for c in containers %}
+      <option value="{{ c.value }}">{{ c.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="position">{{ t_position }}</label>
+    <input type="text" id="position" name="position" inputmode="numeric">
+    <p class="hint">{{ t_position_hint }}</p>
+
+    <label for="horizontal_position">{{ t_horizontal }}</label>
+    <select id="horizontal_position" name="horizontal_position">
+      <option value="">{{ t_none }}</option>
+      {% for h in horizontals %}
+      <option value="{{ h }}">{{ h }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="depth_position">{{ t_depth }}</label>
+    <select id="depth_position" name="depth_position">
+      <option value="">{{ t_none }}</option>
+      {% for d in depths %}
+      <option value="{{ d }}">{{ d }}</option>
+      {% endfor %}
+    </select>
+
+    <button type="submit">{{ t_reserve }}</button>
+  </form>
+</div>
+{% endif %}
 
 {% if can_execute || can_complete || can_abort %}
 <h2 class="section">{{ t_transitions }}</h2>

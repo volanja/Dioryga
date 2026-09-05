@@ -358,6 +358,9 @@ comments:
       required_project_id: どのプロジェクトの承認か
       approver_id: 承認前は null。誰が承認したかは押した時点で決まる
       status: pending / approved / rejected
+      self_approved: |
+        **承認者が自分自身だった**（11.4-9、22章R-2）。他に承認できる人がいない場合に限り許される。
+        導出可能に見えるが、承認当時に他の承認者がいなかったという事実は後から人が増えると再現できない
 
   # --- ソフトウェア・SBOM ---------------------------------------------------
   - table: software_instance

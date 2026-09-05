@@ -301,42 +301,45 @@
 <!-- public.work_order_approval -->
 <g id="node7" class="node">
 <title>public.work_order_approval</title>
-<polygon fill="#efefef" stroke="none" points="1923.2,-931 1923.2,-966.6 2267.13,-966.6 2267.13,-931 1923.2,-931"/>
-<polygon fill="none" stroke="black" points="1923.2,-931 1923.2,-966.6 2267.13,-966.6 2267.13,-931 1923.2,-931"/>
-<text text-anchor="start" x="1930.2" y="-944.4" font-family="Arial Bold" font-size="18.00">public.work_order_approval</text>
-<text text-anchor="start" x="2135.64" y="-944.4" font-family="Arial" font-size="14.00">    </text>
-<text text-anchor="start" x="2166.76" y="-944.4" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
-<polygon fill="none" stroke="black" points="1923.2,-900.2 1923.2,-931 2267.13,-931 2267.13,-900.2 1923.2,-900.2"/>
-<text text-anchor="start" x="1930.2" y="-912.4" font-family="Arial" font-size="14.00">id </text>
-<text text-anchor="start" x="1944.99" y="-912.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="1923.2,-869.4 1923.2,-900.2 2267.13,-900.2 2267.13,-869.4 1923.2,-869.4"/>
-<text text-anchor="start" x="1930.2" y="-881.6" font-family="Arial" font-size="14.00">work_order_id </text>
-<text text-anchor="start" x="2022.8" y="-881.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="1923.2,-838.6 1923.2,-869.4 2267.13,-869.4 2267.13,-838.6 1923.2,-838.6"/>
-<text text-anchor="start" x="1930.2" y="-850.8" font-family="Arial" font-size="14.00">required_project_id </text>
-<text text-anchor="start" x="2053.95" y="-850.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="1923.2,-807.8 1923.2,-838.6 2267.13,-838.6 2267.13,-807.8 1923.2,-807.8"/>
-<text text-anchor="start" x="1930.2" y="-820" font-family="Arial" font-size="14.00">approver_id </text>
-<text text-anchor="start" x="2008.03" y="-820" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="1923.2,-777 1923.2,-807.8 2267.13,-807.8 2267.13,-777 1923.2,-777"/>
-<text text-anchor="start" x="1930.2" y="-789.2" font-family="Arial" font-size="14.00">status </text>
-<text text-anchor="start" x="1971.44" y="-789.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="1923.2,-746.2 1923.2,-777 2267.13,-777 2267.13,-746.2 1923.2,-746.2"/>
-<text text-anchor="start" x="1930.2" y="-758.4" font-family="Arial" font-size="14.00">approved_at </text>
-<text text-anchor="start" x="2011.93" y="-758.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="1923.2,-715.4 1923.2,-746.2 2267.13,-746.2 2267.13,-715.4 1923.2,-715.4"/>
-<text text-anchor="start" x="1930.2" y="-727.6" font-family="Arial" font-size="14.00">created_at </text>
-<text text-anchor="start" x="2000.25" y="-727.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="1923.2,-684.6 1923.2,-715.4 2267.13,-715.4 2267.13,-684.6 1923.2,-684.6"/>
-<text text-anchor="start" x="1930.2" y="-696.8" font-family="Arial" font-size="14.00">updated_at </text>
-<text text-anchor="start" x="2004.16" y="-696.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="#efefef" stroke="none" points="1923.2,-946.4 1923.2,-982 2267.13,-982 2267.13,-946.4 1923.2,-946.4"/>
+<polygon fill="none" stroke="black" points="1923.2,-946.4 1923.2,-982 2267.13,-982 2267.13,-946.4 1923.2,-946.4"/>
+<text text-anchor="start" x="1930.2" y="-959.8" font-family="Arial Bold" font-size="18.00">public.work_order_approval</text>
+<text text-anchor="start" x="2135.64" y="-959.8" font-family="Arial" font-size="14.00">    </text>
+<text text-anchor="start" x="2166.76" y="-959.8" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
+<polygon fill="none" stroke="black" points="1923.2,-915.6 1923.2,-946.4 2267.13,-946.4 2267.13,-915.6 1923.2,-915.6"/>
+<text text-anchor="start" x="1930.2" y="-927.8" font-family="Arial" font-size="14.00">id </text>
+<text text-anchor="start" x="1944.99" y="-927.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="1923.2,-884.8 1923.2,-915.6 2267.13,-915.6 2267.13,-884.8 1923.2,-884.8"/>
+<text text-anchor="start" x="1930.2" y="-897" font-family="Arial" font-size="14.00">work_order_id </text>
+<text text-anchor="start" x="2022.8" y="-897" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="1923.2,-854 1923.2,-884.8 2267.13,-884.8 2267.13,-854 1923.2,-854"/>
+<text text-anchor="start" x="1930.2" y="-866.2" font-family="Arial" font-size="14.00">required_project_id </text>
+<text text-anchor="start" x="2053.95" y="-866.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="1923.2,-823.2 1923.2,-854 2267.13,-854 2267.13,-823.2 1923.2,-823.2"/>
+<text text-anchor="start" x="1930.2" y="-835.4" font-family="Arial" font-size="14.00">approver_id </text>
+<text text-anchor="start" x="2008.03" y="-835.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="1923.2,-792.4 1923.2,-823.2 2267.13,-823.2 2267.13,-792.4 1923.2,-792.4"/>
+<text text-anchor="start" x="1930.2" y="-804.6" font-family="Arial" font-size="14.00">status </text>
+<text text-anchor="start" x="1971.44" y="-804.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="1923.2,-761.6 1923.2,-792.4 2267.13,-792.4 2267.13,-761.6 1923.2,-761.6"/>
+<text text-anchor="start" x="1930.2" y="-773.8" font-family="Arial" font-size="14.00">approved_at </text>
+<text text-anchor="start" x="2011.93" y="-773.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="1923.2,-730.8 1923.2,-761.6 2267.13,-761.6 2267.13,-730.8 1923.2,-730.8"/>
+<text text-anchor="start" x="1930.2" y="-743" font-family="Arial" font-size="14.00">created_at </text>
+<text text-anchor="start" x="2000.25" y="-743" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="1923.2,-700 1923.2,-730.8 2267.13,-730.8 2267.13,-700 1923.2,-700"/>
+<text text-anchor="start" x="1930.2" y="-712.2" font-family="Arial" font-size="14.00">updated_at </text>
+<text text-anchor="start" x="2004.16" y="-712.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="1923.2,-669.2 1923.2,-700 2267.13,-700 2267.13,-669.2 1923.2,-669.2"/>
+<text text-anchor="start" x="1930.2" y="-681.4" font-family="Arial" font-size="14.00">self_approved </text>
+<text text-anchor="start" x="2022.04" y="-681.4" font-family="Arial" font-size="14.00" fill="#666666">[boolean]</text>
 </g>
 <!-- public.work_order_approval&#45;&gt;public.project -->
 <g id="edge7" class="edge">
 <title>public.work_order_approval:required_project_id&#45;&gt;public.project:id</title>
-<path fill="none" stroke="black" d="M1912.11,-852.29C1844.01,-827.26 1924.03,-534.64 1871.16,-472 1806.92,-395.87 1542.77,-338.8 1443.16,-338.8"/>
-<polygon fill="black" stroke="black" points="1912.01,-852.28 1921.12,-858.38 1917.27,-853.17 1921.54,-853.89 1921.54,-853.89 1921.54,-853.89 1917.27,-853.17 1922.62,-849.51 1912.01,-852.28"/>
-<text text-anchor="start" x="1929.2" y="-864" font-family="Arial" font-size="10.00">FOREIGN KEY (required_project_id) REFERENCES project(id)</text>
+<path fill="none" stroke="black" d="M1912.15,-867.78C1840.72,-842.83 1926.07,-537.39 1871.16,-472 1807.11,-395.71 1542.77,-338.8 1443.16,-338.8"/>
+<polygon fill="black" stroke="black" points="1912,-867.75 1921.16,-873.79 1917.27,-868.6 1921.54,-869.29 1921.54,-869.29 1921.54,-869.29 1917.27,-868.6 1922.59,-864.9 1912,-867.75"/>
+<text text-anchor="start" x="1929.2" y="-879.4" font-family="Arial" font-size="10.00">FOREIGN KEY (required_project_id) REFERENCES project(id)</text>
 </g>
 </g>
 </svg>

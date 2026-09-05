@@ -384,3 +384,17 @@ tr.is-error td { color: var(--danger); }
 
 .apply { margin-top: var(--gap); }
 .apply button { width: auto; padding: 11px 24px; }
+
+/* ------------------------------------------------------------------ *
+ * 変更管理チケット
+ * ------------------------------------------------------------------ */
+
+/* 期限超過。見落とすと納期遵守率が落ちてから気付くことになる（設計書11.4-6） */
+.badge.danger { border-color: var(--danger); color: var(--danger); }
+td.is-overdue { color: var(--danger); }
+
+/* 承認・遷移のボタンは横並びにする。1操作1フォームで送るため */
+.card > form.inline { display: inline-block; margin-right: 8px; }
+.card > form.inline button { width: auto; }
+.card > form.form { margin-top: var(--gap); }
+.card > form.form button { width: auto; }

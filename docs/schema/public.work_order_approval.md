@@ -18,6 +18,7 @@
 | approved_at | timestamp with time zone |  | true |  |  |  |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
+| self_approved | boolean | false | false |  |  | **承認者が自分自身だった**（11.4-9、22章R-2）。他に承認できる人がいない場合に限り許される。<br />導出可能に見えるが、承認当時に他の承認者がいなかったという事実は後から人が増えると再現できない<br /> |
 
 ## Constraints
 

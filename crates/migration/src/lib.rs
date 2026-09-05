@@ -16,6 +16,7 @@ mod m20260903_000002_create_network_tables;
 mod m20260903_000003_create_qcd_tables;
 mod m20260905_000001_create_work_order_tables;
 mod m20260905_000002_create_software_tables;
+mod m20260905_000003_add_self_approved;
 
 pub struct Migrator;
 
@@ -33,6 +34,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260903_000003_create_qcd_tables::Migration),
             Box::new(m20260905_000001_create_work_order_tables::Migration),
             Box::new(m20260905_000002_create_software_tables::Migration),
+            Box::new(m20260905_000003_add_self_approved::Migration),
         ]
     }
 }

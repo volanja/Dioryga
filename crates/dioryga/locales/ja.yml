@@ -477,3 +477,32 @@ merge:
   error_cycle: 統合の関係が循環します
   error_spec: スペックが一致しないため統合できません。違うものを1つにまとめると集計が狂います
   error_conflict: "統合先に同じ %{kind}（%{name}）が既にあります。先にそちらを片付けてください"
+
+sbom:
+  title: SBOM取込
+  lead: この機器で観測されたソフトウェア構成を取り込み、前回からの差分を記録します
+  no_auto_hint: 取込は観測の記録です。資産として管理するソフトウェアやベンダーを自動では作りません
+  upload: SBOMを取り込む
+  file_hint: CycloneDX または SPDX のJSON。上限は8MBです。XMLには対応していません
+  submit: 取り込む
+  history: 取込の履歴
+  imported_at: 取込日時
+  source_format: 形式
+  imported_by: 取込者
+  components: コンポーネント数
+  changes: 差分
+  current: 最新
+  no_history: まだ取り込まれていません
+  latest_changes: 前回からの差分
+  no_change: 差分はありません
+  change_type: 種別
+  name: 名前
+  version_from: 変更前
+  version_to: 変更後
+  reused: 既存のスナップショットを再利用しました
+  stored: 新しいスナップショットを保存しました
+  done: "%{count} 件のコンポーネントを取り込みました（差分 %{changes} 件）。%{reused}"
+  done_unchanged: "%{count} 件のコンポーネントを取り込みました。前回から構成に変化はありません"
+  error_not_json: JSONとして読めません
+  error_unknown_format: CycloneDX でも SPDX でもありません。XMLには対応していません
+  error_empty: コンポーネントが1件もありません

@@ -161,6 +161,44 @@ impl Audited for entity::software_catalog::Model {
 // **こちらも伏せる列を持たない。**シリアル番号・資産番号は組織内の管理情報で
 // あり、監査ログで追えることに価値がある。
 
+/// SBOMのスナップショット（9.7）。
+///
+/// **`content` を監査ログに残さない。**圧縮したblobであり、JSONへ入れても
+/// 読めないうえ、1件で数十KBになる。内容は `content_hash` で辿れる。
+impl Audited for entity::sbom_snapshot::Model {
+    const TABLE: &'static str = "sbom_snapshot";
+    const MASKED: &'static [&'static str] = &["content"];
+
+    fn audit_id(&self) -> i32 {
+        // **代理キーを持たない唯一のテーブル**（9.7）。行を一意に指す整数が無い
+        0
+    }
+}
+
+impl Audited for entity::sbom_import::Model {
+    const TABLE: &'static str = "sbom_import";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::sbom_component_change::Model {
+    const TABLE: &'static str = "sbom_component_change";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+impl Audited for entity::sbom_component_index::Model {
+    const TABLE: &'static str = "sbom_component_index";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
 impl Audited for entity::work_order::Model {
     const TABLE: &'static str = "work_order";
 

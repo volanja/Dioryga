@@ -114,6 +114,7 @@ struct DeviceDetailPage {
     t_none: String,
     t_planned: String,
     t_not_implemented: String,
+    t_sbom: String,
     hostname: String,
     planned: bool,
     /// 統合先。**統合された機器は削除されず、ここへ誘導する**（設計書23.9）
@@ -550,6 +551,7 @@ pub async fn detail(
         t_none: 未設定,
         t_planned: rust_i18n::t!("devices.planned", locale = l).to_string(),
         t_not_implemented: rust_i18n::t!("devices.section_pending", locale = l).to_string(),
+        t_sbom: rust_i18n::t!("sbom.title", locale = l).to_string(),
         t_merged: rust_i18n::t!("devices.merged", locale = l).to_string(),
         hostname: d.hostname.clone(),
         planned: d.status == PLAN,

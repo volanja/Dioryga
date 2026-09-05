@@ -23,3 +23,11 @@
 - [`docs/spec/validation.md`](docs/spec/validation.md) — アプリケーション層の検証規則
 
 未解決項目の一覧と設計判断の経緯は、設計リポジトリ側で管理する（[`docs/design/open-questions.md`](https://github.com/volanja/Dioryga_Design/blob/main/docs/design/open-questions.md)）。
+
+## ライセンス
+
+Copyright (c) 2026 volanja
+
+**[MIT](LICENSE-MIT) と [Apache-2.0](LICENSE-APACHE) のデュアルライセンス。**利用者はいずれかを選択できる。Rustエコシステムの慣行に沿った形であり、Apache-2.0が明示的な特許許諾を与える一方、Apache-2.0と非互換なGPLv2のプロジェクトへはMITを選んで取り込める。
+
+明示的に別段の記載がない限り、本リポジトリへの貢献は上記デュアルライセンスの下でライセンスされるものとする（Apache-2.0 §5）。

@@ -1,0 +1,74 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/projects">{{ chrome.t_nav_projects }}</a> / {{ project_name }}</p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+  {% if can_edit %}
+  <div class="head-actions">
+    <a class="button" href="/projects/{{ project_id }}/work-orders/new">{{ t_new }}</a>
+  </div>
+  {% endif %}
+</div>
+
+{# 既定は「まだ終わっていないもの」。16.1の「完了済みを隠せるフィルタは必須」 #}
+<form class="filters" method="get" action="/projects/{{ project_id }}/work-orders">
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ t_keyword }}">
+  <select name="status">
+    <option value="open" {% if status == "open" %}selected{% endif %}>{{ t_status_open }}</option>
+    <option value="all" {% if status == "all" %}selected{% endif %}>{{ t_status_all }}</option>
+  </select>
+  <label class="check">
+    <input type="checkbox" name="mine" value="1" {% if mine %}checked{% endif %}>
+    {{ t_mine }}
+  </label>
+  <button type="submit">{{ t_search }}</button>
+</form>
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_ticket }}</th>
+      <th>{{ t_work_type }}</th>
+      <th>{{ t_status }}</th>
+      <th>{{ t_assignee }}</th>
+      <th>{{ t_due_date }}</th>
+      <th>{{ t_approvals }}</th>
+      <th>{{ t_actions }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>
+        {{ row.title }}
+        {# 自己承認は一覧でも分かるようにする（設計書11.4-9） #}
+        {% if row.self_approved %}<span class="badge">{{ t_self_approved }}</span>{% endif %}
+      </td>
+      <td>{{ row.work_type }}</td>
+      <td>{{ row.status }}</td>
+      <td>{{ row.assignee }}</td>
+      <td class="{% if row.overdue %}is-overdue{% endif %}">
+        {{ row.due_date }}
+        {% if row.overdue %}<span class="badge danger">{{ t_overdue }}</span>{% endif %}
+      </td>
+      <td>{{ row.approvals }}</td>
+      <td class="actions">
+        <a href="/projects/{{ project_id }}/work-orders/{{ row.id }}">{{ t_detail }}</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% endblock %}

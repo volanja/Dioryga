@@ -210,3 +210,62 @@ password_change:
   submit: 変更する
   mismatch: 新しいパスワードが一致しません
   current_invalid: 現在のパスワードが正しくありません
+
+work_orders:
+  title: 変更管理チケット
+  lead: 機器の修理・増設・移設・廃棄・移譲を、計画から完了まで管理します
+  new: チケットを起票
+  new_lead: 起票すると、承認待ちの状態で登録されます
+  keyword: 件名で検索
+  status: 状態
+  status_open: 進行中のもの
+  status_all: 完了・中止を含む
+  mine: 自分が担当のもの
+  ticket: 件名
+  work_type: 種別
+  work_type_hint: Transfer（移譲）を選んだ場合のみ、移譲先プロジェクトの指定が必要です
+  ticket_title: 件名
+  description: 内容
+  target_project: 移譲先プロジェクト
+  target_project_hint: Transfer 以外では指定できません。移譲先の承認も必要になります
+  device: 対象機器
+  device_hint: 任意。機器が未確定のまま計画だけ先行させる場合は空のままにします
+  assignee: 主担当
+  primary_assignee: 主担当
+  secondary_assignee: 副担当
+  secondary_hint: 任意。不在時や引き継ぎに備えて指定します
+  due_date: 期日
+  unset: 未設定
+  submit: 起票する
+  back: 一覧へ戻る
+  empty: 該当するチケットがありません
+  overdue: 期限超過
+  approvals: 承認
+  required_project: 承認するプロジェクト
+  approver: 承認者
+  approved_at: 承認日時
+  approve: 承認する
+  reject: 却下する
+  all_approved_hint: すべての承認が揃った時点で、チケットが承認済みへ進みます
+  self_approved: 自己承認
+  self_approved_hint: 承認できる他のメンバーがいない場合に限り、自分で承認できます。その場合は自己承認として記録されます
+  transitions: 状態を進める
+  execute: 実行を開始する
+  complete: 完了にする
+  abort: 中止する
+  abort_reason: 中止の理由
+  executed_at: 実行開始
+  completed_at: 完了
+  aborted_at: 中止
+  error_title: 件名を入力してください
+  error_work_type: 種別の値が不正です
+  error_target_project: Transfer では移譲先プロジェクトを指定してください
+  error_target_project_unused: 移譲先プロジェクトは Transfer でのみ指定できます
+  error_target_project_same: 移譲先には別のプロジェクトを指定してください
+  error_due_date: 期日は YYYY-MM-DD の形式で入力してください
+  error_already_decided: この承認は既に処理済みです
+  error_not_planned: 承認できるのは計画中のチケットだけです
+  error_self_approval: 自分が担当のチケットは承認できません。他の承認者に依頼してください
+  error_transition: 遷移先が不正です
+  error_transition_from: 現在の状態からは行えない操作です
+  error_abort_reason: 中止の理由を入力してください

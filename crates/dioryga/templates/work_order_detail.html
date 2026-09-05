@@ -1,0 +1,117 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb">
+      <a href="/projects">{{ chrome.t_nav_projects }}</a> / {{ project_name }} /
+      <a href="/projects/{{ project_id }}/work-orders">{{ t_back }}</a>
+    </p>
+    <h1>{{ title }}</h1>
+    <p class="lead">{{ status }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<div class="panels">
+  <div class="card">
+    <h2>{{ t_basic }}</h2>
+    <dl>
+      {% for item in basic %}
+      <dt>{{ item.label }}</dt>
+      <dd>{{ item.value }}</dd>
+      {% endfor %}
+    </dl>
+  </div>
+
+  <div class="card">
+    <h2>{{ t_approvals }}</h2>
+    {# 承認は「全部揃って初めてチケットが進む」（設計書11.4-7） #}
+    <p class="hint">{{ t_all_approved_hint }}</p>
+    {% if approvals.is_empty() %}
+    <p class="empty">{{ t_none }}</p>
+    {% else %}
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ t_project }}</th>
+          <th>{{ t_status }}</th>
+          <th>{{ t_approver }}</th>
+          <th>{{ t_approved_at }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in approvals %}
+        <tr>
+          <td>{{ a.project_name }}</td>
+          <td>
+            {{ a.status }}
+            {% if a.self_approved %}<span class="badge">{{ t_self_approved }}</span>{% endif %}
+          </td>
+          <td>{{ a.approver }}</td>
+          <td>{{ a.approved_at }}</td>
+        </tr>
+        {% if a.actionable %}
+        <tr>
+          <td colspan="4" class="actions">
+            <form method="post" action="/projects/{{ project_id }}/work-orders/{{ work_order_id }}/approve" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+              <input type="hidden" name="approval_id" value="{{ a.id }}">
+              <input type="hidden" name="decision" value="approve">
+              <button type="submit" class="ghost">{{ t_approve }}</button>
+            </form>
+            <form method="post" action="/projects/{{ project_id }}/work-orders/{{ work_order_id }}/approve" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+              <input type="hidden" name="approval_id" value="{{ a.id }}">
+              <input type="hidden" name="decision" value="reject">
+              <button type="submit" class="ghost danger">{{ t_reject }}</button>
+            </form>
+          </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% endif %}
+    <p class="hint">{{ t_self_approved_hint }}</p>
+  </div>
+</div>
+
+{% if can_execute || can_complete || can_abort %}
+<h2 class="section">{{ t_transitions }}</h2>
+<div class="card">
+  {% if can_execute %}
+  <form method="post" action="/projects/{{ project_id }}/work-orders/{{ work_order_id }}/transition" class="inline">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+    <input type="hidden" name="to" value="execute">
+    <button type="submit" class="ghost">{{ t_execute }}</button>
+  </form>
+  {% endif %}
+  {% if can_complete %}
+  <form method="post" action="/projects/{{ project_id }}/work-orders/{{ work_order_id }}/transition" class="inline">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+    <input type="hidden" name="to" value="complete">
+    <button type="submit" class="ghost">{{ t_complete }}</button>
+  </form>
+  {% endif %}
+
+  {% if can_abort %}
+  {# 中止は理由が必須。「結果はどうだったのか」に答えられなくなるため（旧C-2） #}
+  <form method="post" action="/projects/{{ project_id }}/work-orders/{{ work_order_id }}/transition" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+    <input type="hidden" name="to" value="abort">
+    <label for="aborted_reason">{{ t_abort_reason }}</label>
+    <textarea id="aborted_reason" name="aborted_reason" rows="2" required></textarea>
+    <button type="submit" class="ghost danger">{{ t_abort }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb">
+      <a href="/projects">{{ chrome.t_nav_projects }}</a> / {{ project_name }} /
+      <a href="/projects/{{ project_id }}/work-orders">{{ t_back }}</a>
+    </p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+<div class="card">
+  {% if let Some(message) = error %}
+  <p class="error">{{ message }}</p>
+  {% endif %}
+
+  <form method="post" action="/projects/{{ project_id }}/work-orders" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="work_type">{{ t_work_type }}</label>
+    <select id="work_type" name="work_type">
+      {% for w in work_types %}
+      <option value="{{ w }}" {% if work_type == *w %}selected{% endif %}>{{ w }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_work_type_hint }}</p>
+
+    <label for="title">{{ t_ticket_title }}</label>
+    <input type="text" id="title" name="title" value="{{ title }}" required>
+
+    <label for="description">{{ t_description }}</label>
+    <textarea id="description" name="description" rows="4">{{ description }}</textarea>
+
+    <label for="target_project_id">{{ t_target_project }}</label>
+    <select id="target_project_id" name="target_project_id">
+      <option value="">{{ t_unset }}</option>
+      {% for p in projects %}
+      <option value="{{ p.value }}" {% if target_project_id == p.value %}selected{% endif %}>{{ p.label }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_target_project_hint }}</p>
+
+    <label for="device_id">{{ t_device }}</label>
+    <select id="device_id" name="device_id">
+      <option value="">{{ t_unset }}</option>
+      {% for d in devices %}
+      <option value="{{ d.value }}" {% if device_id == d.value %}selected{% endif %}>{{ d.label }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_device_hint }}</p>
+
+    <label for="primary_assignee_id">{{ t_primary }}</label>
+    <select id="primary_assignee_id" name="primary_assignee_id">
+      <option value="">{{ t_unset }}</option>
+      {% for m in members %}
+      <option value="{{ m.value }}" {% if primary_assignee_id == m.value %}selected{% endif %}>{{ m.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="secondary_assignee_id">{{ t_secondary }}</label>
+    <select id="secondary_assignee_id" name="secondary_assignee_id">
+      <option value="">{{ t_unset }}</option>
+      {% for m in members %}
+      <option value="{{ m.value }}" {% if secondary_assignee_id == m.value %}selected{% endif %}>{{ m.label }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_secondary_hint }}</p>
+
+    <label for="due_date">{{ t_due_date }}</label>
+    <input type="date" id="due_date" name="due_date" value="{{ due_date }}">
+
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+</div>
+
+{% endblock %}

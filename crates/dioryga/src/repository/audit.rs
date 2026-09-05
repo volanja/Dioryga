@@ -161,6 +161,26 @@ impl Audited for entity::software_catalog::Model {
 // **こちらも伏せる列を持たない。**シリアル番号・資産番号は組織内の管理情報で
 // あり、監査ログで追えることに価値がある。
 
+impl Audited for entity::work_order::Model {
+    const TABLE: &'static str = "work_order";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
+/// 承認は監査の主対象である（設計書11.4-9、22章）。
+///
+/// **`self_approved` を伏せない。**自己承認だったことは、まさに監査ログから
+/// 読み取れなければならない情報である。
+impl Audited for entity::work_order_approval::Model {
+    const TABLE: &'static str = "work_order_approval";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
 impl Audited for entity::device::Model {
     const TABLE: &'static str = "device";
 

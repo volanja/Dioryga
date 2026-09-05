@@ -24,6 +24,10 @@ pub struct Model {
     /// pending / approved / rejected
     pub status: String,
     pub approved_at: Option<DateTimeUtc>,
+    /// **承認者が自分自身だった**（11.4-9、22章R-2）。他に承認できる人が
+    /// いない場合に限り許される。**保存するのは、後からメンバーが増えた際に
+    /// 経緯を追えるようにするため**であり、その場の再計算では復元できない。
+    pub self_approved: bool,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,
 }

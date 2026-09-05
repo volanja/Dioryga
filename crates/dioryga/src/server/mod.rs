@@ -9,6 +9,7 @@ pub mod login;
 pub mod project;
 pub mod setup;
 pub mod view;
+pub mod work_order;
 pub mod workspace;
 
 use std::sync::Arc;
@@ -103,6 +104,23 @@ pub fn router(state: AppState) -> Router {
             get(import::show).post(import::upload),
         )
         .route("/projects/{id}/import/apply", post(import::apply))
+        .route(
+            "/projects/{id}/work-orders",
+            get(work_order::list).post(work_order::create),
+        )
+        .route("/projects/{id}/work-orders/new", get(work_order::new_form))
+        .route(
+            "/projects/{id}/work-orders/{work_order_id}",
+            get(work_order::detail),
+        )
+        .route(
+            "/projects/{id}/work-orders/{work_order_id}/approve",
+            post(work_order::approve),
+        )
+        .route(
+            "/projects/{id}/work-orders/{work_order_id}/transition",
+            post(work_order::transition),
+        )
         .route("/assets/{*path}", get(view::asset))
         .layer(axum::middleware::from_fn(
             crate::auth::middleware::system_admin_only,

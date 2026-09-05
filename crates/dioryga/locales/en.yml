@@ -210,3 +210,62 @@ password_change:
   submit: Change
   mismatch: The new passwords do not match
   current_invalid: The current password is incorrect
+
+work_orders:
+  title: Work Orders
+  lead: Manage repairs, additions, relocations, disposals and transfers from plan to completion
+  new: New Work Order
+  new_lead: A new work order starts in the planned state, awaiting approval
+  keyword: Search by title
+  status: Status
+  status_open: In progress
+  status_all: Include completed and aborted
+  mine: Assigned to me
+  ticket: Title
+  work_type: Type
+  work_type_hint: A target project is required only when the type is Transfer
+  ticket_title: Title
+  description: Description
+  target_project: Target project
+  target_project_hint: Only for Transfer. The target project must approve as well
+  device: Target device
+  device_hint: Optional. Leave empty to plan ahead before the device is decided
+  assignee: Primary assignee
+  primary_assignee: Primary assignee
+  secondary_assignee: Secondary assignee
+  secondary_hint: Optional. Covers absence and handover
+  due_date: Due date
+  unset: Not set
+  submit: Create
+  back: Back to list
+  empty: No matching work orders
+  overdue: Overdue
+  approvals: Approvals
+  required_project: Approving project
+  approver: Approver
+  approved_at: Approved at
+  approve: Approve
+  reject: Reject
+  all_approved_hint: The work order advances to approved once every approval is granted
+  self_approved: Self-approved
+  self_approved_hint: You may approve your own work order only when no other approver exists. It is recorded as a self-approval
+  transitions: Advance
+  execute: Start execution
+  complete: Complete
+  abort: Abort
+  abort_reason: Reason for aborting
+  executed_at: Execution started
+  completed_at: Completed
+  aborted_at: Aborted
+  error_title: Enter a title
+  error_work_type: Invalid work type
+  error_target_project: Transfer requires a target project
+  error_target_project_unused: A target project can only be set for Transfer
+  error_target_project_same: Choose a different project as the target
+  error_due_date: Enter the due date as YYYY-MM-DD
+  error_already_decided: This approval has already been decided
+  error_not_planned: Only planned work orders can be approved
+  error_self_approval: You cannot approve a work order you are assigned to. Ask another approver
+  error_transition: Invalid transition
+  error_transition_from: This operation is not allowed from the current state
+  error_abort_reason: Enter a reason for aborting

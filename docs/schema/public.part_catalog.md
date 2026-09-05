@@ -20,6 +20,8 @@
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
 | retired_at | timestamp with time zone |  | true |  |  |  |
+| merged_into_part_catalog_id | integer |  | true |  |  |  |
+| merged_at | timestamp with time zone |  | true |  |  |  |
 
 ## Constraints
 
@@ -36,6 +38,7 @@
 | part_catalog_pkey | CREATE UNIQUE INDEX part_catalog_pkey ON public.part_catalog USING btree (id) |
 | uq_part_catalog_vendor_part_number | CREATE UNIQUE INDEX uq_part_catalog_vendor_part_number ON public.part_catalog USING btree (vendor_id, part_number) |
 | idx_part_catalog_retired_at | CREATE INDEX idx_part_catalog_retired_at ON public.part_catalog USING btree (retired_at) |
+| idx_part_catalog_merged_into | CREATE INDEX idx_part_catalog_merged_into ON public.part_catalog USING btree (merged_into_part_catalog_id) |
 
 ## Relations
 

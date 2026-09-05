@@ -8,6 +8,7 @@ mod health;
 pub mod import;
 pub mod login;
 pub mod member;
+pub mod merge;
 pub mod part;
 pub mod project;
 pub mod rack;
@@ -186,6 +187,9 @@ pub fn router(state: AppState) -> Router {
             "/catalog/configurations/{id}/parts/remove",
             post(catalog::remove_part),
         )
+        .route("/catalog/merge", get(merge::show))
+        .route("/catalog/merge/vendors", post(merge::merge_vendor))
+        .route("/catalog/merge/parts", post(merge::merge_part))
         .route("/catalog/parts", get(part::list).post(part::create))
         .route("/catalog/parts/retire", post(part::retire))
         .route("/catalog/parts/{id}", get(part::detail))

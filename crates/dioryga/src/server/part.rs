@@ -142,9 +142,12 @@ struct PartDetailPage {
     t_remove: String,
     t_empty: String,
     t_actions: String,
+    t_merged_into: String,
     title: String,
     basic: Vec<Labeled>,
     ports: Vec<PortRow>,
+    /// 統合で吸収された場合の統合先（23.9.4）。**削除ではないので詳細は開ける。**
+    merged_into: Option<i32>,
     port_kinds: Vec<&'static str>,
     can_edit: bool,
     error: Option<String>,
@@ -178,6 +181,8 @@ async fn 一覧を描く(
     let can_edit = 編集権(state, current).await.is_ok();
 
     let parts = part_catalog::Entity::find()
+        // **統合で吸収された行は一覧に出さない**（23.9.4）
+        .filter(part_catalog::Column::MergedIntoPartCatalogId.is_null())
         .order_by_asc(part_catalog::Column::PartNumber)
         .all(&state.db)
         .await
@@ -384,6 +389,10 @@ async fn 詳細を描く(
         });
     }
 
+    // **詳細は開けるようにし、統合先へ誘導する**（23.9.4）。ブックマークや
+    // 過去の記録に残ったURLから辿り着いた人が「消えた」と誤解しないため
+    let merged_into = p.merged_into_part_catalog_id;
+
     let ports = part_port_slot::Entity::find()
         .filter(part_port_slot::Column::PartCatalogId.eq(part_id))
         .order_by_asc(part_port_slot::Column::Id)
@@ -437,6 +446,8 @@ async fn 詳細を描く(
         ),
         basic,
         ports,
+        merged_into,
+        t_merged_into: rust_i18n::t!("parts.merged_into", locale = l).to_string(),
         port_kinds: PORT_KINDS.to_vec(),
         can_edit,
         error,

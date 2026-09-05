@@ -439,6 +439,7 @@ parts:
   add_port: ポートを追加
   remove_port: 取り消す
   no_port: ポートが登録されていません
+  merged_into: "この部品は統合されました。統合先はこちらです:"
   back: 部品カタログへ戻る
   new: 部品を登録
   error_part_number: 型番を入力してください
@@ -452,3 +453,27 @@ parts:
   error_voltage_unused: 電圧を指定できるのは Power のポートだけです
   error_voltage_pair: 電圧は下限と上限の両方を入れてください
   error_voltage_order: 電圧の下限が上限を超えています
+
+merge:
+  title: カタログの統合
+  lead: 表記ゆれで二重に登録してしまったベンダー・部品を1つにまとめます
+  admin_hint: 統合はプロジェクト横断に影響するため、いずれかのプロジェクトで管理者のロールを持つ利用者だけが行えます
+  order_hint: 下流から順に片付けてください。部品や筐体モデルが重複したままだと、ベンダーの統合は一意制約に引っかかって失敗します
+  vendors: ベンダーの統合
+  vendors_hint: 参照している型番・契約などをすべて統合先へ付け替えます
+  parts: 部品の統合
+  parts_hint: 種別・コア数・容量・その他スペックがすべて一致する場合だけ統合できます
+  source: 吸収される側
+  target: 残る側
+  submit: 統合する
+  no_candidate: 統合できるものがありません
+  merged: 統合の記録
+  merged_none: 統合はまだ行われていません
+  from: 吸収された
+  to: 統合先
+  done_vendor: "%{from} を %{to} に統合しました（%{count} 件を付け替え）"
+  done_part: "%{from} を %{to} に統合しました（%{count} 件を付け替え）"
+  error_same: 吸収される側と残る側に同じものは選べません
+  error_cycle: 統合の関係が循環します
+  error_spec: スペックが一致しないため統合できません。違うものを1つにまとめると集計が狂います
+  error_conflict: "統合先に同じ %{kind}（%{name}）が既にあります。先にそちらを片付けてください"

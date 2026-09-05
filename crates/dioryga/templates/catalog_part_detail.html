@@ -13,6 +13,13 @@
 <p class="error">{{ message }}</p>
 {% endif %}
 
+{# 統合されていても詳細は開ける。統合先へ誘導する（設計書23.9.4） #}
+{% if let Some(target) = merged_into %}
+<p class="warn">
+  {{ t_merged_into }} <a href="/catalog/parts/{{ target }}">#{{ target }}</a>
+</p>
+{% endif %}
+
 <div class="panels">
   <div class="card">
     <h2>{{ t_basic }}</h2>

@@ -506,3 +506,19 @@ sbom:
   error_not_json: JSONとして読めません
   error_unknown_format: CycloneDX でも SPDX でもありません。XMLには対応していません
   error_empty: コンポーネントが1件もありません
+
+components:
+  title: コンポーネント検索
+  lead: 特定のバージョンのライブラリが入っている機器を洗い出します。脆弱性への対応に使います
+  keyword: PURL または名前で検索
+  keyword_hint: PURLは前方一致です（例：pkg:maven/org.apache.logging.log4j/log4j-core）。名前は部分一致で、PURLを持たないコンポーネントも引けます
+  scope_current: 現在の構成
+  scope_all: 過去の観測を含む
+  device: 機器
+  version: バージョン
+  purl: PURL
+  observed_at: 観測日時
+  past: 過去
+  empty: 該当するコンポーネントがありません
+  prompt: 検索語を入力してください
+  truncated: "%{limit} 件を超えたため、以降は表示していません。検索語を絞ってください"

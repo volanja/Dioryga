@@ -1,0 +1,66 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/projects">{{ chrome.t_nav_projects }}</a> / {{ project_name }}</p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+<form class="filters" method="get" action="/projects/{{ project_id }}/software/components">
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ t_keyword }}">
+  {# superseded_at の条件を変えるだけで過去時点も引ける（設計書9.8） #}
+  <select name="scope">
+    <option value="current" {% if scope == "current" %}selected{% endif %}>{{ t_scope_current }}</option>
+    <option value="all" {% if scope == "all" %}selected{% endif %}>{{ t_scope_all }}</option>
+  </select>
+  <button type="submit">{{ t_search }}</button>
+</form>
+<p class="hint">{{ t_keyword_hint }}</p>
+
+{% if !searched %}
+{# 検索していない状態と0件を区別する #}
+<p class="empty">{{ t_prompt }}</p>
+{% else if hits.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+{% if truncated %}
+<p class="warn">{{ t_truncated }}</p>
+{% endif %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_device }}</th>
+      <th>{{ t_name }}</th>
+      <th>{{ t_version }}</th>
+      <th>{{ t_purl }}</th>
+      <th>{{ t_observed_at }}</th>
+      <th>{{ t_actions }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for h in hits %}
+    <tr class="{% if h.past %}is-disabled{% endif %}">
+      <td>{{ h.hostname }}</td>
+      <td>{{ h.name }}</td>
+      <td>{{ h.version }}</td>
+      <td>{{ h.purl }}</td>
+      <td>
+        {{ h.observed_at }}
+        {% if h.past %}<span class="badge">{{ t_past }}</span>{% endif %}
+      </td>
+      <td class="actions">
+        <a href="/projects/{{ project_id }}/devices/{{ h.device_id }}">{{ t_detail }}</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% endblock %}

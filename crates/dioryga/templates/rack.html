@@ -1,0 +1,179 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ container_name }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb">
+      <a href="/projects">{{ chrome.t_nav_projects }}</a> / {{ project_name }} /
+      <a href="/projects/{{ project_id }}/containers">{{ t_back }}</a>
+    </p>
+    <h1>{{ container_name }}</h1>
+    <p class="lead">{{ container_type }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+{# 警告はリダイレクトで消さない。見落とすと誤配置が残る（設計書12.3） #}
+{% if let Some(message) = notice %}
+<p class="warn">{{ message }}</p>
+{% endif %}
+
+<h2 class="section">{{ t_diagram }}</h2>
+
+{% if has_grid %}
+<div class="rack">
+  {# サーバー側でSVGを生成する（設計書2章）。座標はRust側で決まっている #}
+  <svg viewBox="0 0 {{ svg_width }} {{ svg_height }}" width="{{ svg_width }}"
+       height="{{ svg_height }}" role="img" aria-label="{{ t_diagram }}">
+    {% for panel in panels %}
+    <text x="{{ panel.x }}" y="14" class="rack-title">{{ panel.title }}</text>
+
+    {# U番号。下が1U（設計書12.8） #}
+    {% for tick in ticks %}
+    <text x="{{ panel.x }}" y="{{ tick.y }}" class="rack-tick"
+          dominant-baseline="hanging">{{ tick.label }}</text>
+    <line x1="{{ panel.x }}" y1="{{ tick.y }}" x2="{{ panel.right_x }}"
+          y2="{{ tick.y }}" class="rack-line"/>
+    {% endfor %}
+
+    <rect x="{{ panel.frame_x }}" y="{{ grid_top }}" width="{{ panel.frame_w }}"
+          height="{{ grid_height }}" class="rack-frame"/>
+
+    {% for cell in panel.cells %}
+    <g class="{% if cell.planned %}is-planned{% endif %}">
+      <rect x="{{ panel.x + cell.x }}" y="{{ cell.y }}" width="{{ cell.w }}"
+            height="{{ cell.h }}" class="rack-device"/>
+      <text x="{{ panel.x + cell.x + 6 }}" y="{{ cell.y + 14 }}" class="rack-label">{{ cell.label }}</text>
+      {# 棚板の上の機器は帯の中に描く（設計書12.8）。帯からはみ出させない #}
+      {% if !cell.shelf_label.is_empty() %}
+      <text x="{{ panel.x + cell.x + cell.w - 6 }}" y="{{ cell.y + 15 }}" text-anchor="end"
+            class="rack-shelf-item">{{ cell.shelf_label }}</text>
+      {% endif %}
+    </g>
+    {% endfor %}
+    {% endfor %}
+  </svg>
+</div>
+
+<p class="legend">
+  <span class="legend-item"><span class="swatch is-planned"></span>{{ t_legend_planned }}</span>
+  <span class="legend-item">▸ {{ t_legend_shelf }}</span>
+</p>
+{% else %}
+{# 格子を持たない什器に格子を描かない（設計書12.8） #}
+<p class="empty">{{ t_no_grid }}</p>
+{% endif %}
+
+{% if !loose.is_empty() %}
+<ul class="chips">
+  {% for item in loose %}
+  <li class="{% if item.planned %}is-planned{% endif %}">{{ item.label }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if !side_items.is_empty() %}
+<h2 class="section">{{ t_side }}</h2>
+<p class="hint">{{ t_side_hint }}</p>
+<ul class="chips">
+  {% for item in side_items %}
+  <li class="{% if item.planned %}is-planned{% endif %}">{{ item.label }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if !out_of_range.is_empty() %}
+{# 隠すと誤登録に気付けない（不変条件6、設計書12.8） #}
+<h2 class="section">{{ t_out_of_range }}</h2>
+<ul class="chips is-error">
+  {% for item in out_of_range %}
+  <li>{{ item.label }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<h2 class="section">{{ t_mounted }}</h2>
+{% if mounted.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_device }}</th>
+      <th>{{ t_position }}</th>
+      {% if can_edit %}<th></th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in mounted %}
+    <tr>
+      <td>{{ row.device }}</td>
+      <td>{{ row.place }}</td>
+      {% if can_edit %}
+      <td class="actions">
+        <form method="post" action="/projects/{{ project_id }}/containers/{{ container_id }}/unmount" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <input type="hidden" name="mount_id" value="{{ row.mount_id }}">
+          <button type="submit" class="ghost">{{ t_unmount }}</button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit && !devices.is_empty() %}
+<h2 class="section">{{ t_mount }}</h2>
+<div class="card">
+  <form method="post" action="/projects/{{ project_id }}/containers/{{ container_id }}/mounts" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="device_id">{{ t_device }}</label>
+    <select id="device_id" name="device_id">
+      {% for d in devices %}
+      <option value="{{ d.value }}">{{ d.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="position">{{ t_position }}</label>
+    <input type="text" id="position" name="position" inputmode="numeric">
+    <p class="hint">{{ t_position_hint }}</p>
+
+    <label for="horizontal_position">{{ t_horizontal }}</label>
+    <select id="horizontal_position" name="horizontal_position">
+      <option value="">{{ t_unset }}</option>
+      {% for h in horizontals %}
+      <option value="{{ h }}">{{ h }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="depth_position">{{ t_depth }}</label>
+    <select id="depth_position" name="depth_position">
+      <option value="">{{ t_unset }}</option>
+      {% for d in depths %}
+      <option value="{{ d }}">{{ d }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="host_device_id">{{ t_host }}</label>
+    <select id="host_device_id" name="host_device_id">
+      <option value="">{{ t_unset }}</option>
+      {% for h in hosts %}
+      <option value="{{ h.value }}">{{ h.label }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_host_hint }}</p>
+
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

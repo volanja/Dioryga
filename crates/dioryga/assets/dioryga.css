@@ -398,3 +398,80 @@ td.is-overdue { color: var(--danger); }
 .card > form.inline button { width: auto; }
 .card > form.form { margin-top: var(--gap); }
 .card > form.form button { width: auto; }
+
+/* ------------------------------------------------------------------ *
+ * ラック図（設計書12.8）
+ * ------------------------------------------------------------------ */
+
+.rack {
+  overflow-x: auto;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.rack-frame { fill: none; stroke: var(--border); stroke-width: 1; }
+.rack-line { stroke: var(--border); stroke-width: 0.5; }
+.rack-title { fill: var(--text); font-size: 12px; font-weight: 600; }
+.rack-tick { fill: var(--muted); font-size: 9px; }
+
+.rack-device {
+  fill: var(--hover);
+  stroke: var(--accent);
+  stroke-width: 1;
+  rx: 3;
+}
+
+.rack-label { fill: var(--text); font-size: 11px; }
+.rack-shelf-item { fill: var(--muted); font-size: 10px; }
+
+/*
+ * 予約中は破線と淡色の両方で示す（設計書11.6、12.8）。
+ * 破線だけでは縮小・印刷で潰れ、色だけでは色覚特性によっては区別できない。
+ * 凡例には文字のラベルも置いてある。
+ */
+.is-planned .rack-device {
+  fill: none;
+  stroke-dasharray: 4 3;
+  opacity: 0.75;
+}
+.is-planned .rack-label { opacity: 0.75; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+
+.swatch {
+  display: inline-block;
+  width: 18px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--hover);
+  border: 1px solid var(--accent);
+}
+.swatch.is-planned { background: none; border-style: dashed; }
+
+/* 格子の外に置くもの（0Uサイドマウント、机の上、範囲外） */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 0 0 var(--gap); }
+
+.chips li {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 13px;
+}
+
+.chips li.is-planned { border-style: dashed; color: var(--muted); }
+.chips.is-error li { border-color: var(--danger); color: var(--danger); }
+
+/* 警告はエラーと区別する。止めていないことが分かる必要がある（不変条件6） */
+.warn {
+  padding: 10px 12px;
+  margin-bottom: var(--gap);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--hover);
+  font-size: 13px;
+}

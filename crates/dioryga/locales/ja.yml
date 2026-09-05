@@ -289,3 +289,52 @@ members:
   no_candidate: 追加できる利用者がいません
   error_system_admin: System Admin はプロジェクトのメンバーにできません
   error_disabled: 無効化された利用者は追加できません
+
+containers:
+  title: 什器
+  lead: ラック・机・棚を登録します。ラック図はここから開きます
+  name: 名前
+  container_type: 種別
+  capacity: 収容能力
+  capacity_hint: ラックなら総U数、棚なら段数。机は空のままにします
+  mounted: 搭載数
+  open: ラック図
+  empty: 什器がありません
+  new: 什器を登録
+  submit: 登録する
+  back: 什器一覧へ戻る
+  error_name: 名前を入力してください
+  error_type: 種別の値が不正です
+  error_capacity: 収容能力は1以上の整数で入力してください
+
+rack:
+  diagram: ラック図
+  front: 前面
+  rear: 背面
+  legend_planned: 予約中（変更管理チケットで確保済み）
+  legend_shelf: 棚板の上の機器
+  side: 0Uサイドマウント
+  side_hint: ラックの側面に取り付けるPDU等。U数を消費しません
+  out_of_range: 収容能力の範囲外
+  mount: 機器を搭載する
+  device: 機器
+  position: 位置
+  position_hint: ラックなら開始U番号、棚なら段番号。下が1です。0Uサイドマウントと棚板の上の機器は空にします
+  horizontal: 左右
+  depth: 前後
+  host: 載せる先の機器
+  host_hint: 棚板の上に置く場合に指定します。この場合は位置を空にします
+  submit: 搭載する
+  mounted: 搭載中の機器
+  unmount: 降ろす
+  empty: 搭載されている機器がありません
+  no_grid: この什器は格子を持ちません
+  error_not_in_project: このプロジェクトにない機器は搭載できません
+  error_already_mounted: この機器は既にどこかに搭載されています。先に降ろしてください
+  error_position: 位置は1以上の整数で入力してください
+  error_rack_side: 0Uサイドマウントの機器に位置は指定できません
+  error_host_and_position: 載せる先の機器を指定する場合、位置は空にしてください
+  error_half_width: 左右を指定できるのは半幅（Half）の型だけです
+  error_occupied: その位置には既に機器があります
+  warn_front_rear: 同じ位置に前面と背面の機器が同居しています。排熱上は推奨されません。
+  warn_capacity: 収容能力を超えています。登録は行いましたが確認してください。

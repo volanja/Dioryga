@@ -15,6 +15,7 @@ pub mod currency;
 pub mod db;
 pub mod error;
 pub mod import;
+pub mod licenses;
 pub mod repository;
 pub mod server;
 pub mod telemetry;

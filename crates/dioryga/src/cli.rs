@@ -63,6 +63,11 @@ pub enum Command {
         /// 出力先ディレクトリ。
         path: PathBuf,
     },
+
+    /// 本体と依存のライセンス表示を出力する。
+    ///
+    /// **単一バイナリで配布するため、これが全文を見る唯一の経路になる。**
+    Licenses,
 }
 
 #[derive(Debug, Subcommand)]

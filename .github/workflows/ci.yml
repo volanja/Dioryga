@@ -117,6 +117,32 @@ jobs:
       - name: スキーマドキュメントが最新か
         run: ./scripts/schema-docs.sh --check
 
+  licenses:
+    name: 依存ライセンス表示の検査
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == env.SAVE_CACHE_ON }}
+
+      # 版を固定する。生成物の書式が版で変わると、依存を変えていないのに
+      # 差分が出て落ちるため。
+      - name: cargo-about
+        run: cargo install cargo-about --version 0.9.2 --locked --features cli
+
+      # **表示の陳腐化と、新しいライセンスの混入を同時に検査する。**
+      #
+      # 依存を足したのに THIRD-PARTY-NOTICES.txt を再生成していない場合に落ちる。
+      # about.toml の accepted に無いライセンスが入った場合も、生成自体が
+      # 失敗して落ちる——GPL等が紛れ込んだことに気付ける。
+      #
+      # 直し方はスクリプトが出すメッセージの通り、ローカルで
+      # `./scripts/licenses.sh` を実行してコミットする。
+      - name: 依存ライセンスの表示が最新か
+        run: ./scripts/licenses.sh --check
+
   windows-smoke:
     name: Windowsビルド＋起動スモークテスト
     runs-on: windows-latest

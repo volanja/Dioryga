@@ -1,0 +1,23 @@
+Dioryga は以下のオープンソースソフトウェアを利用しています。
+各ライセンスの全文と著作権表示を以下に掲載します。
+
+This software includes the following third-party open source software.
+The full text of each license and the applicable copyright notices follow.
+
+{{#each licenses}}
+================================================================================
+{{{name}}}
+================================================================================
+
+適用されるパッケージ / Applies to:
+{{#each used_by}}
+  - {{{crate.name}}} {{{crate.version}}}
+{{/each}}
+
+{{#each notices}}
+{{{this}}}
+
+{{/each}}
+{{{text}}}
+
+{{/each}}

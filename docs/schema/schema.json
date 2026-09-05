@@ -88,6 +88,96 @@
       ],
       "constraints": [
         {
+          "name": "app_user_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.app_user",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "app_user_email_not_null",
+          "type": "n",
+          "def": "NOT NULL email",
+          "table": "public.app_user",
+          "referenced_table": "",
+          "columns": [
+            "email"
+          ]
+        },
+        {
+          "name": "app_user_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.app_user",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "app_user_is_system_admin_not_null",
+          "type": "n",
+          "def": "NOT NULL is_system_admin",
+          "table": "public.app_user",
+          "referenced_table": "",
+          "columns": [
+            "is_system_admin"
+          ]
+        },
+        {
+          "name": "app_user_locale_not_null",
+          "type": "n",
+          "def": "NOT NULL locale",
+          "table": "public.app_user",
+          "referenced_table": "",
+          "columns": [
+            "locale"
+          ]
+        },
+        {
+          "name": "app_user_must_change_password_not_null",
+          "type": "n",
+          "def": "NOT NULL must_change_password",
+          "table": "public.app_user",
+          "referenced_table": "",
+          "columns": [
+            "must_change_password"
+          ]
+        },
+        {
+          "name": "app_user_name_not_null",
+          "type": "n",
+          "def": "NOT NULL name",
+          "table": "public.app_user",
+          "referenced_table": "",
+          "columns": [
+            "name"
+          ]
+        },
+        {
+          "name": "app_user_password_hash_not_null",
+          "type": "n",
+          "def": "NOT NULL password_hash",
+          "table": "public.app_user",
+          "referenced_table": "",
+          "columns": [
+            "password_hash"
+          ]
+        },
+        {
+          "name": "app_user_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.app_user",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
           "name": "app_user_pkey",
           "type": "PRIMARY KEY",
           "def": "PRIMARY KEY (id)",
@@ -200,6 +290,76 @@
       ],
       "constraints": [
         {
+          "name": "project_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.project",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "project_currency_not_null",
+          "type": "n",
+          "def": "NOT NULL currency",
+          "table": "public.project",
+          "referenced_table": "",
+          "columns": [
+            "currency"
+          ]
+        },
+        {
+          "name": "project_description_not_null",
+          "type": "n",
+          "def": "NOT NULL description",
+          "table": "public.project",
+          "referenced_table": "",
+          "columns": [
+            "description"
+          ]
+        },
+        {
+          "name": "project_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.project",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "project_name_not_null",
+          "type": "n",
+          "def": "NOT NULL name",
+          "table": "public.project",
+          "referenced_table": "",
+          "columns": [
+            "name"
+          ]
+        },
+        {
+          "name": "project_uid_not_null",
+          "type": "n",
+          "def": "NOT NULL uid",
+          "table": "public.project",
+          "referenced_table": "",
+          "columns": [
+            "uid"
+          ]
+        },
+        {
+          "name": "project_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.project",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
           "name": "project_pkey",
           "type": "PRIMARY KEY",
           "def": "PRIMARY KEY (id)",
@@ -294,6 +454,66 @@
         }
       ],
       "constraints": [
+        {
+          "name": "project_member_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.project_member",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "project_member_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.project_member",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "project_member_project_id_not_null",
+          "type": "n",
+          "def": "NOT NULL project_id",
+          "table": "public.project_member",
+          "referenced_table": "",
+          "columns": [
+            "project_id"
+          ]
+        },
+        {
+          "name": "project_member_role_not_null",
+          "type": "n",
+          "def": "NOT NULL role",
+          "table": "public.project_member",
+          "referenced_table": "",
+          "columns": [
+            "role"
+          ]
+        },
+        {
+          "name": "project_member_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.project_member",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
+          "name": "project_member_user_id_not_null",
+          "type": "n",
+          "def": "NOT NULL user_id",
+          "table": "public.project_member",
+          "referenced_table": "",
+          "columns": [
+            "user_id"
+          ]
+        },
         {
           "name": "project_member_user_id_fkey",
           "type": "FOREIGN KEY",
@@ -413,6 +633,86 @@
       ],
       "constraints": [
         {
+          "name": "session_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.session",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "session_expires_at_not_null",
+          "type": "n",
+          "def": "NOT NULL expires_at",
+          "table": "public.session",
+          "referenced_table": "",
+          "columns": [
+            "expires_at"
+          ]
+        },
+        {
+          "name": "session_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.session",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "session_ip_address_not_null",
+          "type": "n",
+          "def": "NOT NULL ip_address",
+          "table": "public.session",
+          "referenced_table": "",
+          "columns": [
+            "ip_address"
+          ]
+        },
+        {
+          "name": "session_last_seen_at_not_null",
+          "type": "n",
+          "def": "NOT NULL last_seen_at",
+          "table": "public.session",
+          "referenced_table": "",
+          "columns": [
+            "last_seen_at"
+          ]
+        },
+        {
+          "name": "session_token_hash_not_null",
+          "type": "n",
+          "def": "NOT NULL token_hash",
+          "table": "public.session",
+          "referenced_table": "",
+          "columns": [
+            "token_hash"
+          ]
+        },
+        {
+          "name": "session_user_agent_not_null",
+          "type": "n",
+          "def": "NOT NULL user_agent",
+          "table": "public.session",
+          "referenced_table": "",
+          "columns": [
+            "user_agent"
+          ]
+        },
+        {
+          "name": "session_user_id_not_null",
+          "type": "n",
+          "def": "NOT NULL user_id",
+          "table": "public.session",
+          "referenced_table": "",
+          "columns": [
+            "user_id"
+          ]
+        },
+        {
           "name": "session_user_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (user_id) REFERENCES app_user(id)",
@@ -508,6 +808,56 @@
       ],
       "constraints": [
         {
+          "name": "login_attempt_attempted_at_not_null",
+          "type": "n",
+          "def": "NOT NULL attempted_at",
+          "table": "public.login_attempt",
+          "referenced_table": "",
+          "columns": [
+            "attempted_at"
+          ]
+        },
+        {
+          "name": "login_attempt_email_not_null",
+          "type": "n",
+          "def": "NOT NULL email",
+          "table": "public.login_attempt",
+          "referenced_table": "",
+          "columns": [
+            "email"
+          ]
+        },
+        {
+          "name": "login_attempt_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.login_attempt",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "login_attempt_ip_address_not_null",
+          "type": "n",
+          "def": "NOT NULL ip_address",
+          "table": "public.login_attempt",
+          "referenced_table": "",
+          "columns": [
+            "ip_address"
+          ]
+        },
+        {
+          "name": "login_attempt_succeeded_not_null",
+          "type": "n",
+          "def": "NOT NULL succeeded",
+          "table": "public.login_attempt",
+          "referenced_table": "",
+          "columns": [
+            "succeeded"
+          ]
+        },
+        {
           "name": "login_attempt_pkey",
           "type": "PRIMARY KEY",
           "def": "PRIMARY KEY (id)",
@@ -599,6 +949,66 @@
         }
       ],
       "constraints": [
+        {
+          "name": "audit_log_action_not_null",
+          "type": "n",
+          "def": "NOT NULL action",
+          "table": "public.audit_log",
+          "referenced_table": "",
+          "columns": [
+            "action"
+          ]
+        },
+        {
+          "name": "audit_log_changed_at_not_null",
+          "type": "n",
+          "def": "NOT NULL changed_at",
+          "table": "public.audit_log",
+          "referenced_table": "",
+          "columns": [
+            "changed_at"
+          ]
+        },
+        {
+          "name": "audit_log_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.audit_log",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "audit_log_record_id_not_null",
+          "type": "n",
+          "def": "NOT NULL record_id",
+          "table": "public.audit_log",
+          "referenced_table": "",
+          "columns": [
+            "record_id"
+          ]
+        },
+        {
+          "name": "audit_log_table_name_not_null",
+          "type": "n",
+          "def": "NOT NULL table_name",
+          "table": "public.audit_log",
+          "referenced_table": "",
+          "columns": [
+            "table_name"
+          ]
+        },
+        {
+          "name": "audit_log_user_id_not_null",
+          "type": "n",
+          "def": "NOT NULL user_id",
+          "table": "public.audit_log",
+          "referenced_table": "",
+          "columns": [
+            "user_id"
+          ]
+        },
         {
           "name": "audit_log_user_id_fkey",
           "type": "FOREIGN KEY",
@@ -706,6 +1116,56 @@
         }
       ],
       "constraints": [
+        {
+          "name": "vendor_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.vendor",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "vendor_created_by_not_null",
+          "type": "n",
+          "def": "NOT NULL created_by",
+          "table": "public.vendor",
+          "referenced_table": "",
+          "columns": [
+            "created_by"
+          ]
+        },
+        {
+          "name": "vendor_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.vendor",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "vendor_name_not_null",
+          "type": "n",
+          "def": "NOT NULL name",
+          "table": "public.vendor",
+          "referenced_table": "",
+          "columns": [
+            "name"
+          ]
+        },
+        {
+          "name": "vendor_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.vendor",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
         {
           "name": "vendor_created_by_fkey",
           "type": "FOREIGN KEY",
@@ -834,6 +1294,96 @@
       ],
       "constraints": [
         {
+          "name": "chassis_model_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.chassis_model",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "chassis_model_created_by_not_null",
+          "type": "n",
+          "def": "NOT NULL created_by",
+          "table": "public.chassis_model",
+          "referenced_table": "",
+          "columns": [
+            "created_by"
+          ]
+        },
+        {
+          "name": "chassis_model_device_category_not_null",
+          "type": "n",
+          "def": "NOT NULL device_category",
+          "table": "public.chassis_model",
+          "referenced_table": "",
+          "columns": [
+            "device_category"
+          ]
+        },
+        {
+          "name": "chassis_model_height_u_not_null",
+          "type": "n",
+          "def": "NOT NULL height_u",
+          "table": "public.chassis_model",
+          "referenced_table": "",
+          "columns": [
+            "height_u"
+          ]
+        },
+        {
+          "name": "chassis_model_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.chassis_model",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "chassis_model_model_name_not_null",
+          "type": "n",
+          "def": "NOT NULL model_name",
+          "table": "public.chassis_model",
+          "referenced_table": "",
+          "columns": [
+            "model_name"
+          ]
+        },
+        {
+          "name": "chassis_model_mount_form_not_null",
+          "type": "n",
+          "def": "NOT NULL mount_form",
+          "table": "public.chassis_model",
+          "referenced_table": "",
+          "columns": [
+            "mount_form"
+          ]
+        },
+        {
+          "name": "chassis_model_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.chassis_model",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
+          "name": "chassis_model_vendor_id_not_null",
+          "type": "n",
+          "def": "NOT NULL vendor_id",
+          "table": "public.chassis_model",
+          "referenced_table": "",
+          "columns": [
+            "vendor_id"
+          ]
+        },
+        {
           "name": "chassis_model_created_by_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)",
@@ -926,6 +1476,66 @@
         }
       ],
       "constraints": [
+        {
+          "name": "chassis_slot_chassis_model_id_not_null",
+          "type": "n",
+          "def": "NOT NULL chassis_model_id",
+          "table": "public.chassis_slot",
+          "referenced_table": "",
+          "columns": [
+            "chassis_model_id"
+          ]
+        },
+        {
+          "name": "chassis_slot_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.chassis_slot",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "chassis_slot_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.chassis_slot",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "chassis_slot_slot_label_not_null",
+          "type": "n",
+          "def": "NOT NULL slot_label",
+          "table": "public.chassis_slot",
+          "referenced_table": "",
+          "columns": [
+            "slot_label"
+          ]
+        },
+        {
+          "name": "chassis_slot_slot_type_not_null",
+          "type": "n",
+          "def": "NOT NULL slot_type",
+          "table": "public.chassis_slot",
+          "referenced_table": "",
+          "columns": [
+            "slot_type"
+          ]
+        },
+        {
+          "name": "chassis_slot_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.chassis_slot",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
         {
           "name": "chassis_slot_chassis_model_id_fkey",
           "type": "FOREIGN KEY",
@@ -1063,6 +1673,86 @@
       ],
       "constraints": [
         {
+          "name": "part_catalog_category_not_null",
+          "type": "n",
+          "def": "NOT NULL category",
+          "table": "public.part_catalog",
+          "referenced_table": "",
+          "columns": [
+            "category"
+          ]
+        },
+        {
+          "name": "part_catalog_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.part_catalog",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "part_catalog_created_by_not_null",
+          "type": "n",
+          "def": "NOT NULL created_by",
+          "table": "public.part_catalog",
+          "referenced_table": "",
+          "columns": [
+            "created_by"
+          ]
+        },
+        {
+          "name": "part_catalog_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.part_catalog",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "part_catalog_part_number_not_null",
+          "type": "n",
+          "def": "NOT NULL part_number",
+          "table": "public.part_catalog",
+          "referenced_table": "",
+          "columns": [
+            "part_number"
+          ]
+        },
+        {
+          "name": "part_catalog_spec_json_not_null",
+          "type": "n",
+          "def": "NOT NULL spec_json",
+          "table": "public.part_catalog",
+          "referenced_table": "",
+          "columns": [
+            "spec_json"
+          ]
+        },
+        {
+          "name": "part_catalog_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.part_catalog",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
+          "name": "part_catalog_vendor_id_not_null",
+          "type": "n",
+          "def": "NOT NULL vendor_id",
+          "table": "public.part_catalog",
+          "referenced_table": "",
+          "columns": [
+            "vendor_id"
+          ]
+        },
+        {
           "name": "part_catalog_created_by_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)",
@@ -1177,6 +1867,76 @@
       ],
       "constraints": [
         {
+          "name": "part_port_slot_connector_type_not_null",
+          "type": "n",
+          "def": "NOT NULL connector_type",
+          "table": "public.part_port_slot",
+          "referenced_table": "",
+          "columns": [
+            "connector_type"
+          ]
+        },
+        {
+          "name": "part_port_slot_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.part_port_slot",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "part_port_slot_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.part_port_slot",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "part_port_slot_part_catalog_id_not_null",
+          "type": "n",
+          "def": "NOT NULL part_catalog_id",
+          "table": "public.part_port_slot",
+          "referenced_table": "",
+          "columns": [
+            "part_catalog_id"
+          ]
+        },
+        {
+          "name": "part_port_slot_port_kind_not_null",
+          "type": "n",
+          "def": "NOT NULL port_kind",
+          "table": "public.part_port_slot",
+          "referenced_table": "",
+          "columns": [
+            "port_kind"
+          ]
+        },
+        {
+          "name": "part_port_slot_port_label_not_null",
+          "type": "n",
+          "def": "NOT NULL port_label",
+          "table": "public.part_port_slot",
+          "referenced_table": "",
+          "columns": [
+            "port_label"
+          ]
+        },
+        {
+          "name": "part_port_slot_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.part_port_slot",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
           "name": "part_port_slot_part_catalog_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (part_catalog_id) REFERENCES part_catalog(id)",
@@ -1269,6 +2029,66 @@
         }
       ],
       "constraints": [
+        {
+          "name": "configuration_chassis_model_id_not_null",
+          "type": "n",
+          "def": "NOT NULL chassis_model_id",
+          "table": "public.configuration",
+          "referenced_table": "",
+          "columns": [
+            "chassis_model_id"
+          ]
+        },
+        {
+          "name": "configuration_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.configuration",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "configuration_created_by_not_null",
+          "type": "n",
+          "def": "NOT NULL created_by",
+          "table": "public.configuration",
+          "referenced_table": "",
+          "columns": [
+            "created_by"
+          ]
+        },
+        {
+          "name": "configuration_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.configuration",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "configuration_name_not_null",
+          "type": "n",
+          "def": "NOT NULL name",
+          "table": "public.configuration",
+          "referenced_table": "",
+          "columns": [
+            "name"
+          ]
+        },
+        {
+          "name": "configuration_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.configuration",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
         {
           "name": "configuration_created_by_fkey",
           "type": "FOREIGN KEY",
@@ -1364,6 +2184,66 @@
         }
       ],
       "constraints": [
+        {
+          "name": "configuration_part_configuration_id_not_null",
+          "type": "n",
+          "def": "NOT NULL configuration_id",
+          "table": "public.configuration_part",
+          "referenced_table": "",
+          "columns": [
+            "configuration_id"
+          ]
+        },
+        {
+          "name": "configuration_part_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.configuration_part",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "configuration_part_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.configuration_part",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "configuration_part_part_catalog_id_not_null",
+          "type": "n",
+          "def": "NOT NULL part_catalog_id",
+          "table": "public.configuration_part",
+          "referenced_table": "",
+          "columns": [
+            "part_catalog_id"
+          ]
+        },
+        {
+          "name": "configuration_part_quantity_not_null",
+          "type": "n",
+          "def": "NOT NULL quantity",
+          "table": "public.configuration_part",
+          "referenced_table": "",
+          "columns": [
+            "quantity"
+          ]
+        },
+        {
+          "name": "configuration_part_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.configuration_part",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
         {
           "name": "configuration_part_part_catalog_id_fkey",
           "type": "FOREIGN KEY",
@@ -1488,6 +2368,66 @@
       ],
       "constraints": [
         {
+          "name": "cable_catalog_cable_type_not_null",
+          "type": "n",
+          "def": "NOT NULL cable_type",
+          "table": "public.cable_catalog",
+          "referenced_table": "",
+          "columns": [
+            "cable_type"
+          ]
+        },
+        {
+          "name": "cable_catalog_color_not_null",
+          "type": "n",
+          "def": "NOT NULL color",
+          "table": "public.cable_catalog",
+          "referenced_table": "",
+          "columns": [
+            "color"
+          ]
+        },
+        {
+          "name": "cable_catalog_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.cable_catalog",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "cable_catalog_created_by_not_null",
+          "type": "n",
+          "def": "NOT NULL created_by",
+          "table": "public.cable_catalog",
+          "referenced_table": "",
+          "columns": [
+            "created_by"
+          ]
+        },
+        {
+          "name": "cable_catalog_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.cable_catalog",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "cable_catalog_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.cable_catalog",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
           "name": "cable_catalog_created_by_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)",
@@ -1586,6 +2526,66 @@
         }
       ],
       "constraints": [
+        {
+          "name": "cable_end_slot_cable_catalog_id_not_null",
+          "type": "n",
+          "def": "NOT NULL cable_catalog_id",
+          "table": "public.cable_end_slot",
+          "referenced_table": "",
+          "columns": [
+            "cable_catalog_id"
+          ]
+        },
+        {
+          "name": "cable_end_slot_connector_type_not_null",
+          "type": "n",
+          "def": "NOT NULL connector_type",
+          "table": "public.cable_end_slot",
+          "referenced_table": "",
+          "columns": [
+            "connector_type"
+          ]
+        },
+        {
+          "name": "cable_end_slot_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.cable_end_slot",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "cable_end_slot_end_label_not_null",
+          "type": "n",
+          "def": "NOT NULL end_label",
+          "table": "public.cable_end_slot",
+          "referenced_table": "",
+          "columns": [
+            "end_label"
+          ]
+        },
+        {
+          "name": "cable_end_slot_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.cable_end_slot",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "cable_end_slot_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.cable_end_slot",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
         {
           "name": "cable_end_slot_cable_catalog_id_fkey",
           "type": "FOREIGN KEY",
@@ -1717,6 +2717,96 @@
         }
       ],
       "constraints": [
+        {
+          "name": "software_catalog_category_not_null",
+          "type": "n",
+          "def": "NOT NULL category",
+          "table": "public.software_catalog",
+          "referenced_table": "",
+          "columns": [
+            "category"
+          ]
+        },
+        {
+          "name": "software_catalog_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.software_catalog",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "software_catalog_created_by_not_null",
+          "type": "n",
+          "def": "NOT NULL created_by",
+          "table": "public.software_catalog",
+          "referenced_table": "",
+          "columns": [
+            "created_by"
+          ]
+        },
+        {
+          "name": "software_catalog_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.software_catalog",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "software_catalog_license_expression_not_null",
+          "type": "n",
+          "def": "NOT NULL license_expression",
+          "table": "public.software_catalog",
+          "referenced_table": "",
+          "columns": [
+            "license_expression"
+          ]
+        },
+        {
+          "name": "software_catalog_name_not_null",
+          "type": "n",
+          "def": "NOT NULL name",
+          "table": "public.software_catalog",
+          "referenced_table": "",
+          "columns": [
+            "name"
+          ]
+        },
+        {
+          "name": "software_catalog_spec_json_not_null",
+          "type": "n",
+          "def": "NOT NULL spec_json",
+          "table": "public.software_catalog",
+          "referenced_table": "",
+          "columns": [
+            "spec_json"
+          ]
+        },
+        {
+          "name": "software_catalog_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.software_catalog",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
+          "name": "software_catalog_version_not_null",
+          "type": "n",
+          "def": "NOT NULL version",
+          "table": "public.software_catalog",
+          "referenced_table": "",
+          "columns": [
+            "version"
+          ]
+        },
         {
           "name": "software_catalog_created_by_fkey",
           "type": "FOREIGN KEY",
@@ -1905,6 +2995,86 @@
       ],
       "constraints": [
         {
+          "name": "device_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.device",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "device_device_type_not_null",
+          "type": "n",
+          "def": "NOT NULL device_type",
+          "table": "public.device",
+          "referenced_table": "",
+          "columns": [
+            "device_type"
+          ]
+        },
+        {
+          "name": "device_hostname_not_null",
+          "type": "n",
+          "def": "NOT NULL hostname",
+          "table": "public.device",
+          "referenced_table": "",
+          "columns": [
+            "hostname"
+          ]
+        },
+        {
+          "name": "device_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.device",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "device_power_watt_not_null",
+          "type": "n",
+          "def": "NOT NULL power_watt",
+          "table": "public.device",
+          "referenced_table": "",
+          "columns": [
+            "power_watt"
+          ]
+        },
+        {
+          "name": "device_status_not_null",
+          "type": "n",
+          "def": "NOT NULL status",
+          "table": "public.device",
+          "referenced_table": "",
+          "columns": [
+            "status"
+          ]
+        },
+        {
+          "name": "device_uid_not_null",
+          "type": "n",
+          "def": "NOT NULL uid",
+          "table": "public.device",
+          "referenced_table": "",
+          "columns": [
+            "uid"
+          ]
+        },
+        {
+          "name": "device_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.device",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
           "name": "device_configuration_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (configuration_id) REFERENCES configuration(id)",
@@ -2026,6 +3196,46 @@
       ],
       "constraints": [
         {
+          "name": "device_assignment_device_id_not_null",
+          "type": "n",
+          "def": "NOT NULL device_id",
+          "table": "public.device_assignment",
+          "referenced_table": "",
+          "columns": [
+            "device_id"
+          ]
+        },
+        {
+          "name": "device_assignment_from_date_not_null",
+          "type": "n",
+          "def": "NOT NULL from_date",
+          "table": "public.device_assignment",
+          "referenced_table": "",
+          "columns": [
+            "from_date"
+          ]
+        },
+        {
+          "name": "device_assignment_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.device_assignment",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "device_assignment_location_type_not_null",
+          "type": "n",
+          "def": "NOT NULL location_type",
+          "table": "public.device_assignment",
+          "referenced_table": "",
+          "columns": [
+            "location_type"
+          ]
+        },
+        {
           "name": "device_assignment_device_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (device_id) REFERENCES device(id)",
@@ -2105,6 +3315,56 @@
         }
       ],
       "constraints": [
+        {
+          "name": "part_instance_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.part_instance",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "part_instance_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.part_instance",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "part_instance_part_catalog_id_not_null",
+          "type": "n",
+          "def": "NOT NULL part_catalog_id",
+          "table": "public.part_instance",
+          "referenced_table": "",
+          "columns": [
+            "part_catalog_id"
+          ]
+        },
+        {
+          "name": "part_instance_status_not_null",
+          "type": "n",
+          "def": "NOT NULL status",
+          "table": "public.part_instance",
+          "referenced_table": "",
+          "columns": [
+            "status"
+          ]
+        },
+        {
+          "name": "part_instance_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.part_instance",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
         {
           "name": "part_instance_part_catalog_id_fkey",
           "type": "FOREIGN KEY",
@@ -2214,6 +3474,46 @@
         }
       ],
       "constraints": [
+        {
+          "name": "part_instance_location_from_date_not_null",
+          "type": "n",
+          "def": "NOT NULL from_date",
+          "table": "public.part_instance_location",
+          "referenced_table": "",
+          "columns": [
+            "from_date"
+          ]
+        },
+        {
+          "name": "part_instance_location_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.part_instance_location",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "part_instance_location_location_type_not_null",
+          "type": "n",
+          "def": "NOT NULL location_type",
+          "table": "public.part_instance_location",
+          "referenced_table": "",
+          "columns": [
+            "location_type"
+          ]
+        },
+        {
+          "name": "part_instance_location_part_instance_id_not_null",
+          "type": "n",
+          "def": "NOT NULL part_instance_id",
+          "table": "public.part_instance_location",
+          "referenced_table": "",
+          "columns": [
+            "part_instance_id"
+          ]
+        },
         {
           "name": "part_instance_location_chassis_slot_id_fkey",
           "type": "FOREIGN KEY",
@@ -2326,6 +3626,76 @@
       ],
       "constraints": [
         {
+          "name": "firmware_version_changed_by_not_null",
+          "type": "n",
+          "def": "NOT NULL changed_by",
+          "table": "public.firmware_version",
+          "referenced_table": "",
+          "columns": [
+            "changed_by"
+          ]
+        },
+        {
+          "name": "firmware_version_component_not_null",
+          "type": "n",
+          "def": "NOT NULL component",
+          "table": "public.firmware_version",
+          "referenced_table": "",
+          "columns": [
+            "component"
+          ]
+        },
+        {
+          "name": "firmware_version_from_date_not_null",
+          "type": "n",
+          "def": "NOT NULL from_date",
+          "table": "public.firmware_version",
+          "referenced_table": "",
+          "columns": [
+            "from_date"
+          ]
+        },
+        {
+          "name": "firmware_version_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.firmware_version",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "firmware_version_item_id_not_null",
+          "type": "n",
+          "def": "NOT NULL item_id",
+          "table": "public.firmware_version",
+          "referenced_table": "",
+          "columns": [
+            "item_id"
+          ]
+        },
+        {
+          "name": "firmware_version_item_type_not_null",
+          "type": "n",
+          "def": "NOT NULL item_type",
+          "table": "public.firmware_version",
+          "referenced_table": "",
+          "columns": [
+            "item_type"
+          ]
+        },
+        {
+          "name": "firmware_version_version_not_null",
+          "type": "n",
+          "def": "NOT NULL version",
+          "table": "public.firmware_version",
+          "referenced_table": "",
+          "columns": [
+            "version"
+          ]
+        },
+        {
           "name": "firmware_version_changed_by_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (changed_by) REFERENCES app_user(id)",
@@ -2415,6 +3785,56 @@
       ],
       "constraints": [
         {
+          "name": "device_stack_from_date_not_null",
+          "type": "n",
+          "def": "NOT NULL from_date",
+          "table": "public.device_stack",
+          "referenced_table": "",
+          "columns": [
+            "from_date"
+          ]
+        },
+        {
+          "name": "device_stack_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.device_stack",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "device_stack_logical_device_id_not_null",
+          "type": "n",
+          "def": "NOT NULL logical_device_id",
+          "table": "public.device_stack",
+          "referenced_table": "",
+          "columns": [
+            "logical_device_id"
+          ]
+        },
+        {
+          "name": "device_stack_member_device_id_not_null",
+          "type": "n",
+          "def": "NOT NULL member_device_id",
+          "table": "public.device_stack",
+          "referenced_table": "",
+          "columns": [
+            "member_device_id"
+          ]
+        },
+        {
+          "name": "device_stack_member_number_not_null",
+          "type": "n",
+          "def": "NOT NULL member_number",
+          "table": "public.device_stack",
+          "referenced_table": "",
+          "columns": [
+            "member_number"
+          ]
+        },
+        {
           "name": "device_stack_logical_device_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (logical_device_id) REFERENCES device(id)",
@@ -2500,6 +3920,66 @@
         }
       ],
       "constraints": [
+        {
+          "name": "warehouse_address_not_null",
+          "type": "n",
+          "def": "NOT NULL address",
+          "table": "public.warehouse",
+          "referenced_table": "",
+          "columns": [
+            "address"
+          ]
+        },
+        {
+          "name": "warehouse_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.warehouse",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "warehouse_created_by_not_null",
+          "type": "n",
+          "def": "NOT NULL created_by",
+          "table": "public.warehouse",
+          "referenced_table": "",
+          "columns": [
+            "created_by"
+          ]
+        },
+        {
+          "name": "warehouse_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.warehouse",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "warehouse_name_not_null",
+          "type": "n",
+          "def": "NOT NULL name",
+          "table": "public.warehouse",
+          "referenced_table": "",
+          "columns": [
+            "name"
+          ]
+        },
+        {
+          "name": "warehouse_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.warehouse",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
         {
           "name": "warehouse_created_by_fkey",
           "type": "FOREIGN KEY",
@@ -2598,6 +4078,86 @@
         }
       ],
       "constraints": [
+        {
+          "name": "mount_container_container_type_not_null",
+          "type": "n",
+          "def": "NOT NULL container_type",
+          "table": "public.mount_container",
+          "referenced_table": "",
+          "columns": [
+            "container_type"
+          ]
+        },
+        {
+          "name": "mount_container_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.mount_container",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "mount_container_created_by_not_null",
+          "type": "n",
+          "def": "NOT NULL created_by",
+          "table": "public.mount_container",
+          "referenced_table": "",
+          "columns": [
+            "created_by"
+          ]
+        },
+        {
+          "name": "mount_container_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.mount_container",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "mount_container_location_id_not_null",
+          "type": "n",
+          "def": "NOT NULL location_id",
+          "table": "public.mount_container",
+          "referenced_table": "",
+          "columns": [
+            "location_id"
+          ]
+        },
+        {
+          "name": "mount_container_location_type_not_null",
+          "type": "n",
+          "def": "NOT NULL location_type",
+          "table": "public.mount_container",
+          "referenced_table": "",
+          "columns": [
+            "location_type"
+          ]
+        },
+        {
+          "name": "mount_container_name_not_null",
+          "type": "n",
+          "def": "NOT NULL name",
+          "table": "public.mount_container",
+          "referenced_table": "",
+          "columns": [
+            "name"
+          ]
+        },
+        {
+          "name": "mount_container_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.mount_container",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
         {
           "name": "mount_container_created_by_fkey",
           "type": "FOREIGN KEY",
@@ -2718,6 +4278,36 @@
         }
       ],
       "constraints": [
+        {
+          "name": "device_mount_device_id_not_null",
+          "type": "n",
+          "def": "NOT NULL device_id",
+          "table": "public.device_mount",
+          "referenced_table": "",
+          "columns": [
+            "device_id"
+          ]
+        },
+        {
+          "name": "device_mount_from_date_not_null",
+          "type": "n",
+          "def": "NOT NULL from_date",
+          "table": "public.device_mount",
+          "referenced_table": "",
+          "columns": [
+            "from_date"
+          ]
+        },
+        {
+          "name": "device_mount_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.device_mount",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
         {
           "name": "device_mount_device_id_fkey",
           "type": "FOREIGN KEY",
@@ -2860,6 +4450,96 @@
       ],
       "constraints": [
         {
+          "name": "import_run_as_of_not_null",
+          "type": "n",
+          "def": "NOT NULL as_of",
+          "table": "public.import_run",
+          "referenced_table": "",
+          "columns": [
+            "as_of"
+          ]
+        },
+        {
+          "name": "import_run_created_count_not_null",
+          "type": "n",
+          "def": "NOT NULL created_count",
+          "table": "public.import_run",
+          "referenced_table": "",
+          "columns": [
+            "created_count"
+          ]
+        },
+        {
+          "name": "import_run_file_hash_not_null",
+          "type": "n",
+          "def": "NOT NULL file_hash",
+          "table": "public.import_run",
+          "referenced_table": "",
+          "columns": [
+            "file_hash"
+          ]
+        },
+        {
+          "name": "import_run_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.import_run",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "import_run_imported_at_not_null",
+          "type": "n",
+          "def": "NOT NULL imported_at",
+          "table": "public.import_run",
+          "referenced_table": "",
+          "columns": [
+            "imported_at"
+          ]
+        },
+        {
+          "name": "import_run_imported_by_not_null",
+          "type": "n",
+          "def": "NOT NULL imported_by",
+          "table": "public.import_run",
+          "referenced_table": "",
+          "columns": [
+            "imported_by"
+          ]
+        },
+        {
+          "name": "import_run_kind_not_null",
+          "type": "n",
+          "def": "NOT NULL kind",
+          "table": "public.import_run",
+          "referenced_table": "",
+          "columns": [
+            "kind"
+          ]
+        },
+        {
+          "name": "import_run_updated_count_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_count",
+          "table": "public.import_run",
+          "referenced_table": "",
+          "columns": [
+            "updated_count"
+          ]
+        },
+        {
+          "name": "import_run_warning_count_not_null",
+          "type": "n",
+          "def": "NOT NULL warning_count",
+          "table": "public.import_run",
+          "referenced_table": "",
+          "columns": [
+            "warning_count"
+          ]
+        },
+        {
           "name": "import_run_imported_by_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (imported_by) REFERENCES app_user(id)",
@@ -2987,6 +4667,76 @@
       ],
       "constraints": [
         {
+          "name": "vlan_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.vlan",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "vlan_created_by_not_null",
+          "type": "n",
+          "def": "NOT NULL created_by",
+          "table": "public.vlan",
+          "referenced_table": "",
+          "columns": [
+            "created_by"
+          ]
+        },
+        {
+          "name": "vlan_description_not_null",
+          "type": "n",
+          "def": "NOT NULL description",
+          "table": "public.vlan",
+          "referenced_table": "",
+          "columns": [
+            "description"
+          ]
+        },
+        {
+          "name": "vlan_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.vlan",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "vlan_name_not_null",
+          "type": "n",
+          "def": "NOT NULL name",
+          "table": "public.vlan",
+          "referenced_table": "",
+          "columns": [
+            "name"
+          ]
+        },
+        {
+          "name": "vlan_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.vlan",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
+          "name": "vlan_vlan_tag_not_null",
+          "type": "n",
+          "def": "NOT NULL vlan_tag",
+          "table": "public.vlan",
+          "referenced_table": "",
+          "columns": [
+            "vlan_tag"
+          ]
+        },
+        {
           "name": "vlan_created_by_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)",
@@ -3100,6 +4850,66 @@
         }
       ],
       "constraints": [
+        {
+          "name": "subnet_cidr_not_null",
+          "type": "n",
+          "def": "NOT NULL cidr",
+          "table": "public.subnet",
+          "referenced_table": "",
+          "columns": [
+            "cidr"
+          ]
+        },
+        {
+          "name": "subnet_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.subnet",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "subnet_created_by_not_null",
+          "type": "n",
+          "def": "NOT NULL created_by",
+          "table": "public.subnet",
+          "referenced_table": "",
+          "columns": [
+            "created_by"
+          ]
+        },
+        {
+          "name": "subnet_description_not_null",
+          "type": "n",
+          "def": "NOT NULL description",
+          "table": "public.subnet",
+          "referenced_table": "",
+          "columns": [
+            "description"
+          ]
+        },
+        {
+          "name": "subnet_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.subnet",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "subnet_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.subnet",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
         {
           "name": "subnet_created_by_fkey",
           "type": "FOREIGN KEY",
@@ -3248,6 +5058,56 @@
       ],
       "constraints": [
         {
+          "name": "os_interface_device_id_not_null",
+          "type": "n",
+          "def": "NOT NULL device_id",
+          "table": "public.os_interface",
+          "referenced_table": "",
+          "columns": [
+            "device_id"
+          ]
+        },
+        {
+          "name": "os_interface_from_date_not_null",
+          "type": "n",
+          "def": "NOT NULL from_date",
+          "table": "public.os_interface",
+          "referenced_table": "",
+          "columns": [
+            "from_date"
+          ]
+        },
+        {
+          "name": "os_interface_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.os_interface",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "os_interface_interface_type_not_null",
+          "type": "n",
+          "def": "NOT NULL interface_type",
+          "table": "public.os_interface",
+          "referenced_table": "",
+          "columns": [
+            "interface_type"
+          ]
+        },
+        {
+          "name": "os_interface_os_interface_name_not_null",
+          "type": "n",
+          "def": "NOT NULL os_interface_name",
+          "table": "public.os_interface",
+          "referenced_table": "",
+          "columns": [
+            "os_interface_name"
+          ]
+        },
+        {
           "name": "os_interface_port_slot_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (port_slot_id) REFERENCES part_port_slot(id)",
@@ -3358,6 +5218,46 @@
       ],
       "constraints": [
         {
+          "name": "interface_stack_from_date_not_null",
+          "type": "n",
+          "def": "NOT NULL from_date",
+          "table": "public.interface_stack",
+          "referenced_table": "",
+          "columns": [
+            "from_date"
+          ]
+        },
+        {
+          "name": "interface_stack_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.interface_stack",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "interface_stack_lower_interface_id_not_null",
+          "type": "n",
+          "def": "NOT NULL lower_interface_id",
+          "table": "public.interface_stack",
+          "referenced_table": "",
+          "columns": [
+            "lower_interface_id"
+          ]
+        },
+        {
+          "name": "interface_stack_upper_interface_id_not_null",
+          "type": "n",
+          "def": "NOT NULL upper_interface_id",
+          "table": "public.interface_stack",
+          "referenced_table": "",
+          "columns": [
+            "upper_interface_id"
+          ]
+        },
+        {
           "name": "interface_stack_lower_interface_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (lower_interface_id) REFERENCES os_interface(id)",
@@ -3466,6 +5366,56 @@
       ],
       "constraints": [
         {
+          "name": "interface_vlan_from_date_not_null",
+          "type": "n",
+          "def": "NOT NULL from_date",
+          "table": "public.interface_vlan",
+          "referenced_table": "",
+          "columns": [
+            "from_date"
+          ]
+        },
+        {
+          "name": "interface_vlan_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.interface_vlan",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "interface_vlan_os_interface_id_not_null",
+          "type": "n",
+          "def": "NOT NULL os_interface_id",
+          "table": "public.interface_vlan",
+          "referenced_table": "",
+          "columns": [
+            "os_interface_id"
+          ]
+        },
+        {
+          "name": "interface_vlan_tagging_mode_not_null",
+          "type": "n",
+          "def": "NOT NULL tagging_mode",
+          "table": "public.interface_vlan",
+          "referenced_table": "",
+          "columns": [
+            "tagging_mode"
+          ]
+        },
+        {
+          "name": "interface_vlan_vlan_id_not_null",
+          "type": "n",
+          "def": "NOT NULL vlan_id",
+          "table": "public.interface_vlan",
+          "referenced_table": "",
+          "columns": [
+            "vlan_id"
+          ]
+        },
+        {
           "name": "interface_vlan_vlan_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (vlan_id) REFERENCES vlan(id)",
@@ -3554,6 +5504,46 @@
         }
       ],
       "constraints": [
+        {
+          "name": "interface_role_from_date_not_null",
+          "type": "n",
+          "def": "NOT NULL from_date",
+          "table": "public.interface_role",
+          "referenced_table": "",
+          "columns": [
+            "from_date"
+          ]
+        },
+        {
+          "name": "interface_role_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.interface_role",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "interface_role_os_interface_id_not_null",
+          "type": "n",
+          "def": "NOT NULL os_interface_id",
+          "table": "public.interface_role",
+          "referenced_table": "",
+          "columns": [
+            "os_interface_id"
+          ]
+        },
+        {
+          "name": "interface_role_role_not_null",
+          "type": "n",
+          "def": "NOT NULL role",
+          "table": "public.interface_role",
+          "referenced_table": "",
+          "columns": [
+            "role"
+          ]
+        },
         {
           "name": "interface_role_os_interface_id_fkey",
           "type": "FOREIGN KEY",
@@ -3656,6 +5646,56 @@
       ],
       "constraints": [
         {
+          "name": "ip_address_from_date_not_null",
+          "type": "n",
+          "def": "NOT NULL from_date",
+          "table": "public.ip_address",
+          "referenced_table": "",
+          "columns": [
+            "from_date"
+          ]
+        },
+        {
+          "name": "ip_address_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.ip_address",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "ip_address_ip_address_not_null",
+          "type": "n",
+          "def": "NOT NULL ip_address",
+          "table": "public.ip_address",
+          "referenced_table": "",
+          "columns": [
+            "ip_address"
+          ]
+        },
+        {
+          "name": "ip_address_os_interface_id_not_null",
+          "type": "n",
+          "def": "NOT NULL os_interface_id",
+          "table": "public.ip_address",
+          "referenced_table": "",
+          "columns": [
+            "os_interface_id"
+          ]
+        },
+        {
+          "name": "ip_address_prefix_length_not_null",
+          "type": "n",
+          "def": "NOT NULL prefix_length",
+          "table": "public.ip_address",
+          "referenced_table": "",
+          "columns": [
+            "prefix_length"
+          ]
+        },
+        {
           "name": "ip_address_subnet_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (subnet_id) REFERENCES subnet(id)",
@@ -3753,6 +5793,56 @@
         }
       ],
       "constraints": [
+        {
+          "name": "cable_instance_cable_catalog_id_not_null",
+          "type": "n",
+          "def": "NOT NULL cable_catalog_id",
+          "table": "public.cable_instance",
+          "referenced_table": "",
+          "columns": [
+            "cable_catalog_id"
+          ]
+        },
+        {
+          "name": "cable_instance_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.cable_instance",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "cable_instance_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.cable_instance",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "cable_instance_status_not_null",
+          "type": "n",
+          "def": "NOT NULL status",
+          "table": "public.cable_instance",
+          "referenced_table": "",
+          "columns": [
+            "status"
+          ]
+        },
+        {
+          "name": "cable_instance_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.cable_instance",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
         {
           "name": "cable_instance_cable_catalog_id_fkey",
           "type": "FOREIGN KEY",
@@ -3869,6 +5959,66 @@
         }
       ],
       "constraints": [
+        {
+          "name": "cable_connection_cable_end_slot_id_not_null",
+          "type": "n",
+          "def": "NOT NULL cable_end_slot_id",
+          "table": "public.cable_connection",
+          "referenced_table": "",
+          "columns": [
+            "cable_end_slot_id"
+          ]
+        },
+        {
+          "name": "cable_connection_cable_instance_id_not_null",
+          "type": "n",
+          "def": "NOT NULL cable_instance_id",
+          "table": "public.cable_connection",
+          "referenced_table": "",
+          "columns": [
+            "cable_instance_id"
+          ]
+        },
+        {
+          "name": "cable_connection_from_date_not_null",
+          "type": "n",
+          "def": "NOT NULL from_date",
+          "table": "public.cable_connection",
+          "referenced_table": "",
+          "columns": [
+            "from_date"
+          ]
+        },
+        {
+          "name": "cable_connection_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.cable_connection",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "cable_connection_part_instance_id_not_null",
+          "type": "n",
+          "def": "NOT NULL part_instance_id",
+          "table": "public.cable_connection",
+          "referenced_table": "",
+          "columns": [
+            "part_instance_id"
+          ]
+        },
+        {
+          "name": "cable_connection_port_slot_id_not_null",
+          "type": "n",
+          "def": "NOT NULL port_slot_id",
+          "table": "public.cable_connection",
+          "referenced_table": "",
+          "columns": [
+            "port_slot_id"
+          ]
+        },
         {
           "name": "cable_connection_port_slot_id_fkey",
           "type": "FOREIGN KEY",
@@ -4002,6 +6152,76 @@
       ],
       "constraints": [
         {
+          "name": "purchase_order_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.purchase_order",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "purchase_order_currency_not_null",
+          "type": "n",
+          "def": "NOT NULL currency",
+          "table": "public.purchase_order",
+          "referenced_table": "",
+          "columns": [
+            "currency"
+          ]
+        },
+        {
+          "name": "purchase_order_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.purchase_order",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "purchase_order_order_date_not_null",
+          "type": "n",
+          "def": "NOT NULL order_date",
+          "table": "public.purchase_order",
+          "referenced_table": "",
+          "columns": [
+            "order_date"
+          ]
+        },
+        {
+          "name": "purchase_order_order_number_not_null",
+          "type": "n",
+          "def": "NOT NULL order_number",
+          "table": "public.purchase_order",
+          "referenced_table": "",
+          "columns": [
+            "order_number"
+          ]
+        },
+        {
+          "name": "purchase_order_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.purchase_order",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
+          "name": "purchase_order_vendor_id_not_null",
+          "type": "n",
+          "def": "NOT NULL vendor_id",
+          "table": "public.purchase_order",
+          "referenced_table": "",
+          "columns": [
+            "vendor_id"
+          ]
+        },
+        {
           "name": "purchase_order_vendor_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)",
@@ -4105,6 +6325,86 @@
       ],
       "constraints": [
         {
+          "name": "purchase_order_item_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.purchase_order_item",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "purchase_order_item_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.purchase_order_item",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "purchase_order_item_item_id_not_null",
+          "type": "n",
+          "def": "NOT NULL item_id",
+          "table": "public.purchase_order_item",
+          "referenced_table": "",
+          "columns": [
+            "item_id"
+          ]
+        },
+        {
+          "name": "purchase_order_item_item_type_not_null",
+          "type": "n",
+          "def": "NOT NULL item_type",
+          "table": "public.purchase_order_item",
+          "referenced_table": "",
+          "columns": [
+            "item_type"
+          ]
+        },
+        {
+          "name": "purchase_order_item_purchase_order_id_not_null",
+          "type": "n",
+          "def": "NOT NULL purchase_order_id",
+          "table": "public.purchase_order_item",
+          "referenced_table": "",
+          "columns": [
+            "purchase_order_id"
+          ]
+        },
+        {
+          "name": "purchase_order_item_quantity_not_null",
+          "type": "n",
+          "def": "NOT NULL quantity",
+          "table": "public.purchase_order_item",
+          "referenced_table": "",
+          "columns": [
+            "quantity"
+          ]
+        },
+        {
+          "name": "purchase_order_item_unit_price_not_null",
+          "type": "n",
+          "def": "NOT NULL unit_price",
+          "table": "public.purchase_order_item",
+          "referenced_table": "",
+          "columns": [
+            "unit_price"
+          ]
+        },
+        {
+          "name": "purchase_order_item_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.purchase_order_item",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
           "name": "purchase_order_item_purchase_order_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (purchase_order_id) REFERENCES purchase_order(id)",
@@ -4203,6 +6503,96 @@
         }
       ],
       "constraints": [
+        {
+          "name": "fixed_asset_acquisition_cost_not_null",
+          "type": "n",
+          "def": "NOT NULL acquisition_cost",
+          "table": "public.fixed_asset",
+          "referenced_table": "",
+          "columns": [
+            "acquisition_cost"
+          ]
+        },
+        {
+          "name": "fixed_asset_acquisition_date_not_null",
+          "type": "n",
+          "def": "NOT NULL acquisition_date",
+          "table": "public.fixed_asset",
+          "referenced_table": "",
+          "columns": [
+            "acquisition_date"
+          ]
+        },
+        {
+          "name": "fixed_asset_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.fixed_asset",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "fixed_asset_depreciation_method_not_null",
+          "type": "n",
+          "def": "NOT NULL depreciation_method",
+          "table": "public.fixed_asset",
+          "referenced_table": "",
+          "columns": [
+            "depreciation_method"
+          ]
+        },
+        {
+          "name": "fixed_asset_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.fixed_asset",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "fixed_asset_item_id_not_null",
+          "type": "n",
+          "def": "NOT NULL item_id",
+          "table": "public.fixed_asset",
+          "referenced_table": "",
+          "columns": [
+            "item_id"
+          ]
+        },
+        {
+          "name": "fixed_asset_item_type_not_null",
+          "type": "n",
+          "def": "NOT NULL item_type",
+          "table": "public.fixed_asset",
+          "referenced_table": "",
+          "columns": [
+            "item_type"
+          ]
+        },
+        {
+          "name": "fixed_asset_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.fixed_asset",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
+          "name": "fixed_asset_useful_life_years_not_null",
+          "type": "n",
+          "def": "NOT NULL useful_life_years",
+          "table": "public.fixed_asset",
+          "referenced_table": "",
+          "columns": [
+            "useful_life_years"
+          ]
+        },
         {
           "name": "fixed_asset_pkey",
           "type": "PRIMARY KEY",
@@ -4317,6 +6707,106 @@
       ],
       "constraints": [
         {
+          "name": "maintenance_contract_amount_not_null",
+          "type": "n",
+          "def": "NOT NULL amount",
+          "table": "public.maintenance_contract",
+          "referenced_table": "",
+          "columns": [
+            "amount"
+          ]
+        },
+        {
+          "name": "maintenance_contract_contract_number_not_null",
+          "type": "n",
+          "def": "NOT NULL contract_number",
+          "table": "public.maintenance_contract",
+          "referenced_table": "",
+          "columns": [
+            "contract_number"
+          ]
+        },
+        {
+          "name": "maintenance_contract_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.maintenance_contract",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "maintenance_contract_end_date_not_null",
+          "type": "n",
+          "def": "NOT NULL end_date",
+          "table": "public.maintenance_contract",
+          "referenced_table": "",
+          "columns": [
+            "end_date"
+          ]
+        },
+        {
+          "name": "maintenance_contract_failure_contact_not_null",
+          "type": "n",
+          "def": "NOT NULL failure_contact",
+          "table": "public.maintenance_contract",
+          "referenced_table": "",
+          "columns": [
+            "failure_contact"
+          ]
+        },
+        {
+          "name": "maintenance_contract_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.maintenance_contract",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "maintenance_contract_quote_contact_not_null",
+          "type": "n",
+          "def": "NOT NULL quote_contact",
+          "table": "public.maintenance_contract",
+          "referenced_table": "",
+          "columns": [
+            "quote_contact"
+          ]
+        },
+        {
+          "name": "maintenance_contract_start_date_not_null",
+          "type": "n",
+          "def": "NOT NULL start_date",
+          "table": "public.maintenance_contract",
+          "referenced_table": "",
+          "columns": [
+            "start_date"
+          ]
+        },
+        {
+          "name": "maintenance_contract_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.maintenance_contract",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
+          "name": "maintenance_contract_vendor_id_not_null",
+          "type": "n",
+          "def": "NOT NULL vendor_id",
+          "table": "public.maintenance_contract",
+          "referenced_table": "",
+          "columns": [
+            "vendor_id"
+          ]
+        },
+        {
           "name": "maintenance_contract_vendor_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)",
@@ -4418,6 +6908,66 @@
         }
       ],
       "constraints": [
+        {
+          "name": "maintenance_contract_item_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.maintenance_contract_item",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "maintenance_contract_item_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.maintenance_contract_item",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "maintenance_contract_item_item_id_not_null",
+          "type": "n",
+          "def": "NOT NULL item_id",
+          "table": "public.maintenance_contract_item",
+          "referenced_table": "",
+          "columns": [
+            "item_id"
+          ]
+        },
+        {
+          "name": "maintenance_contract_item_item_type_not_null",
+          "type": "n",
+          "def": "NOT NULL item_type",
+          "table": "public.maintenance_contract_item",
+          "referenced_table": "",
+          "columns": [
+            "item_type"
+          ]
+        },
+        {
+          "name": "maintenance_contract_item_maintenance_contract_id_not_null",
+          "type": "n",
+          "def": "NOT NULL maintenance_contract_id",
+          "table": "public.maintenance_contract_item",
+          "referenced_table": "",
+          "columns": [
+            "maintenance_contract_id"
+          ]
+        },
+        {
+          "name": "maintenance_contract_item_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.maintenance_contract_item",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
         {
           "name": "maintenance_contract_item_maintenance_contract_id_fkey",
           "type": "FOREIGN KEY",
@@ -4551,6 +7101,106 @@
       ],
       "constraints": [
         {
+          "name": "recurring_cost_amount_not_null",
+          "type": "n",
+          "def": "NOT NULL amount",
+          "table": "public.recurring_cost",
+          "referenced_table": "",
+          "columns": [
+            "amount"
+          ]
+        },
+        {
+          "name": "recurring_cost_billing_cycle_not_null",
+          "type": "n",
+          "def": "NOT NULL billing_cycle",
+          "table": "public.recurring_cost",
+          "referenced_table": "",
+          "columns": [
+            "billing_cycle"
+          ]
+        },
+        {
+          "name": "recurring_cost_cost_type_not_null",
+          "type": "n",
+          "def": "NOT NULL cost_type",
+          "table": "public.recurring_cost",
+          "referenced_table": "",
+          "columns": [
+            "cost_type"
+          ]
+        },
+        {
+          "name": "recurring_cost_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.recurring_cost",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "recurring_cost_created_by_not_null",
+          "type": "n",
+          "def": "NOT NULL created_by",
+          "table": "public.recurring_cost",
+          "referenced_table": "",
+          "columns": [
+            "created_by"
+          ]
+        },
+        {
+          "name": "recurring_cost_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.recurring_cost",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "recurring_cost_item_id_not_null",
+          "type": "n",
+          "def": "NOT NULL item_id",
+          "table": "public.recurring_cost",
+          "referenced_table": "",
+          "columns": [
+            "item_id"
+          ]
+        },
+        {
+          "name": "recurring_cost_item_type_not_null",
+          "type": "n",
+          "def": "NOT NULL item_type",
+          "table": "public.recurring_cost",
+          "referenced_table": "",
+          "columns": [
+            "item_type"
+          ]
+        },
+        {
+          "name": "recurring_cost_start_date_not_null",
+          "type": "n",
+          "def": "NOT NULL start_date",
+          "table": "public.recurring_cost",
+          "referenced_table": "",
+          "columns": [
+            "start_date"
+          ]
+        },
+        {
+          "name": "recurring_cost_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.recurring_cost",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
           "name": "recurring_cost_created_by_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)",
@@ -4670,6 +7320,86 @@
       ],
       "constraints": [
         {
+          "name": "milestone_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.milestone",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "milestone_description_not_null",
+          "type": "n",
+          "def": "NOT NULL description",
+          "table": "public.milestone",
+          "referenced_table": "",
+          "columns": [
+            "description"
+          ]
+        },
+        {
+          "name": "milestone_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.milestone",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "milestone_milestone_type_not_null",
+          "type": "n",
+          "def": "NOT NULL milestone_type",
+          "table": "public.milestone",
+          "referenced_table": "",
+          "columns": [
+            "milestone_type"
+          ]
+        },
+        {
+          "name": "milestone_planned_date_not_null",
+          "type": "n",
+          "def": "NOT NULL planned_date",
+          "table": "public.milestone",
+          "referenced_table": "",
+          "columns": [
+            "planned_date"
+          ]
+        },
+        {
+          "name": "milestone_project_id_not_null",
+          "type": "n",
+          "def": "NOT NULL project_id",
+          "table": "public.milestone",
+          "referenced_table": "",
+          "columns": [
+            "project_id"
+          ]
+        },
+        {
+          "name": "milestone_status_not_null",
+          "type": "n",
+          "def": "NOT NULL status",
+          "table": "public.milestone",
+          "referenced_table": "",
+          "columns": [
+            "status"
+          ]
+        },
+        {
+          "name": "milestone_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.milestone",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
           "name": "milestone_project_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (project_id) REFERENCES project(id)",
@@ -4764,6 +7494,66 @@
         }
       ],
       "constraints": [
+        {
+          "name": "milestone_device_change_type_not_null",
+          "type": "n",
+          "def": "NOT NULL change_type",
+          "table": "public.milestone_device",
+          "referenced_table": "",
+          "columns": [
+            "change_type"
+          ]
+        },
+        {
+          "name": "milestone_device_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.milestone_device",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "milestone_device_device_id_not_null",
+          "type": "n",
+          "def": "NOT NULL device_id",
+          "table": "public.milestone_device",
+          "referenced_table": "",
+          "columns": [
+            "device_id"
+          ]
+        },
+        {
+          "name": "milestone_device_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.milestone_device",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "milestone_device_milestone_id_not_null",
+          "type": "n",
+          "def": "NOT NULL milestone_id",
+          "table": "public.milestone_device",
+          "referenced_table": "",
+          "columns": [
+            "milestone_id"
+          ]
+        },
+        {
+          "name": "milestone_device_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.milestone_device",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
         {
           "name": "milestone_device_device_id_fkey",
           "type": "FOREIGN KEY",
@@ -4976,6 +7766,86 @@
       ],
       "constraints": [
         {
+          "name": "work_order_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.work_order",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "work_order_description_not_null",
+          "type": "n",
+          "def": "NOT NULL description",
+          "table": "public.work_order",
+          "referenced_table": "",
+          "columns": [
+            "description"
+          ]
+        },
+        {
+          "name": "work_order_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.work_order",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "work_order_project_id_not_null",
+          "type": "n",
+          "def": "NOT NULL project_id",
+          "table": "public.work_order",
+          "referenced_table": "",
+          "columns": [
+            "project_id"
+          ]
+        },
+        {
+          "name": "work_order_status_not_null",
+          "type": "n",
+          "def": "NOT NULL status",
+          "table": "public.work_order",
+          "referenced_table": "",
+          "columns": [
+            "status"
+          ]
+        },
+        {
+          "name": "work_order_title_not_null",
+          "type": "n",
+          "def": "NOT NULL title",
+          "table": "public.work_order",
+          "referenced_table": "",
+          "columns": [
+            "title"
+          ]
+        },
+        {
+          "name": "work_order_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.work_order",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
+          "name": "work_order_work_type_not_null",
+          "type": "n",
+          "def": "NOT NULL work_type",
+          "table": "public.work_order",
+          "referenced_table": "",
+          "columns": [
+            "work_type"
+          ]
+        },
+        {
           "name": "work_order_primary_assignee_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (primary_assignee_id) REFERENCES app_user(id)",
@@ -5167,6 +8037,76 @@
       ],
       "constraints": [
         {
+          "name": "work_order_approval_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.work_order_approval",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "work_order_approval_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.work_order_approval",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "work_order_approval_required_project_id_not_null",
+          "type": "n",
+          "def": "NOT NULL required_project_id",
+          "table": "public.work_order_approval",
+          "referenced_table": "",
+          "columns": [
+            "required_project_id"
+          ]
+        },
+        {
+          "name": "work_order_approval_self_approved_not_null",
+          "type": "n",
+          "def": "NOT NULL self_approved",
+          "table": "public.work_order_approval",
+          "referenced_table": "",
+          "columns": [
+            "self_approved"
+          ]
+        },
+        {
+          "name": "work_order_approval_status_not_null",
+          "type": "n",
+          "def": "NOT NULL status",
+          "table": "public.work_order_approval",
+          "referenced_table": "",
+          "columns": [
+            "status"
+          ]
+        },
+        {
+          "name": "work_order_approval_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.work_order_approval",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
+          "name": "work_order_approval_work_order_id_not_null",
+          "type": "n",
+          "def": "NOT NULL work_order_id",
+          "table": "public.work_order_approval",
+          "referenced_table": "",
+          "columns": [
+            "work_order_id"
+          ]
+        },
+        {
           "name": "work_order_approval_approver_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (approver_id) REFERENCES app_user(id)",
@@ -5279,6 +8219,46 @@
       ],
       "constraints": [
         {
+          "name": "software_instance_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.software_instance",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "software_instance_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.software_instance",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "software_instance_software_catalog_id_not_null",
+          "type": "n",
+          "def": "NOT NULL software_catalog_id",
+          "table": "public.software_instance",
+          "referenced_table": "",
+          "columns": [
+            "software_catalog_id"
+          ]
+        },
+        {
+          "name": "software_instance_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.software_instance",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
           "name": "software_instance_software_catalog_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (software_catalog_id) REFERENCES software_catalog(id)",
@@ -5384,6 +8364,46 @@
         }
       ],
       "constraints": [
+        {
+          "name": "software_installation_device_id_not_null",
+          "type": "n",
+          "def": "NOT NULL device_id",
+          "table": "public.software_installation",
+          "referenced_table": "",
+          "columns": [
+            "device_id"
+          ]
+        },
+        {
+          "name": "software_installation_from_date_not_null",
+          "type": "n",
+          "def": "NOT NULL from_date",
+          "table": "public.software_installation",
+          "referenced_table": "",
+          "columns": [
+            "from_date"
+          ]
+        },
+        {
+          "name": "software_installation_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.software_installation",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "software_installation_software_instance_id_not_null",
+          "type": "n",
+          "def": "NOT NULL software_instance_id",
+          "table": "public.software_installation",
+          "referenced_table": "",
+          "columns": [
+            "software_instance_id"
+          ]
+        },
         {
           "name": "software_installation_device_id_fkey",
           "type": "FOREIGN KEY",
@@ -5496,6 +8516,46 @@
       ],
       "constraints": [
         {
+          "name": "software_role_assignment_from_date_not_null",
+          "type": "n",
+          "def": "NOT NULL from_date",
+          "table": "public.software_role_assignment",
+          "referenced_table": "",
+          "columns": [
+            "from_date"
+          ]
+        },
+        {
+          "name": "software_role_assignment_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.software_role_assignment",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "software_role_assignment_role_not_null",
+          "type": "n",
+          "def": "NOT NULL role",
+          "table": "public.software_role_assignment",
+          "referenced_table": "",
+          "columns": [
+            "role"
+          ]
+        },
+        {
+          "name": "software_role_assignment_software_installation_id_not_null",
+          "type": "n",
+          "def": "NOT NULL software_installation_id",
+          "table": "public.software_role_assignment",
+          "referenced_table": "",
+          "columns": [
+            "software_installation_id"
+          ]
+        },
+        {
           "name": "software_role_assignment_software_installation_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (software_installation_id) REFERENCES software_installation(id)",
@@ -5558,6 +8618,46 @@
         }
       ],
       "constraints": [
+        {
+          "name": "sbom_snapshot_component_count_not_null",
+          "type": "n",
+          "def": "NOT NULL component_count",
+          "table": "public.sbom_snapshot",
+          "referenced_table": "",
+          "columns": [
+            "component_count"
+          ]
+        },
+        {
+          "name": "sbom_snapshot_content_hash_not_null",
+          "type": "n",
+          "def": "NOT NULL content_hash",
+          "table": "public.sbom_snapshot",
+          "referenced_table": "",
+          "columns": [
+            "content_hash"
+          ]
+        },
+        {
+          "name": "sbom_snapshot_content_not_null",
+          "type": "n",
+          "def": "NOT NULL content",
+          "table": "public.sbom_snapshot",
+          "referenced_table": "",
+          "columns": [
+            "content"
+          ]
+        },
+        {
+          "name": "sbom_snapshot_first_seen_at_not_null",
+          "type": "n",
+          "def": "NOT NULL first_seen_at",
+          "table": "public.sbom_snapshot",
+          "referenced_table": "",
+          "columns": [
+            "first_seen_at"
+          ]
+        },
         {
           "name": "sbom_snapshot_pkey",
           "type": "PRIMARY KEY",
@@ -5668,6 +8768,66 @@
         }
       ],
       "constraints": [
+        {
+          "name": "sbom_import_content_hash_not_null",
+          "type": "n",
+          "def": "NOT NULL content_hash",
+          "table": "public.sbom_import",
+          "referenced_table": "",
+          "columns": [
+            "content_hash"
+          ]
+        },
+        {
+          "name": "sbom_import_device_id_not_null",
+          "type": "n",
+          "def": "NOT NULL device_id",
+          "table": "public.sbom_import",
+          "referenced_table": "",
+          "columns": [
+            "device_id"
+          ]
+        },
+        {
+          "name": "sbom_import_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.sbom_import",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "sbom_import_imported_at_not_null",
+          "type": "n",
+          "def": "NOT NULL imported_at",
+          "table": "public.sbom_import",
+          "referenced_table": "",
+          "columns": [
+            "imported_at"
+          ]
+        },
+        {
+          "name": "sbom_import_imported_by_not_null",
+          "type": "n",
+          "def": "NOT NULL imported_by",
+          "table": "public.sbom_import",
+          "referenced_table": "",
+          "columns": [
+            "imported_by"
+          ]
+        },
+        {
+          "name": "sbom_import_source_format_not_null",
+          "type": "n",
+          "def": "NOT NULL source_format",
+          "table": "public.sbom_import",
+          "referenced_table": "",
+          "columns": [
+            "source_format"
+          ]
+        },
         {
           "name": "sbom_import_imported_by_fkey",
           "type": "FOREIGN KEY",
@@ -5794,6 +8954,46 @@
       ],
       "constraints": [
         {
+          "name": "sbom_component_change_change_type_not_null",
+          "type": "n",
+          "def": "NOT NULL change_type",
+          "table": "public.sbom_component_change",
+          "referenced_table": "",
+          "columns": [
+            "change_type"
+          ]
+        },
+        {
+          "name": "sbom_component_change_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.sbom_component_change",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "sbom_component_change_name_not_null",
+          "type": "n",
+          "def": "NOT NULL name",
+          "table": "public.sbom_component_change",
+          "referenced_table": "",
+          "columns": [
+            "name"
+          ]
+        },
+        {
+          "name": "sbom_component_change_sbom_import_id_not_null",
+          "type": "n",
+          "def": "NOT NULL sbom_import_id",
+          "table": "public.sbom_component_change",
+          "referenced_table": "",
+          "columns": [
+            "sbom_import_id"
+          ]
+        },
+        {
           "name": "sbom_component_change_sbom_import_id_fkey",
           "type": "FOREIGN KEY",
           "def": "FOREIGN KEY (sbom_import_id) REFERENCES sbom_import(id)",
@@ -5884,6 +9084,46 @@
         }
       ],
       "constraints": [
+        {
+          "name": "sbom_component_index_content_hash_not_null",
+          "type": "n",
+          "def": "NOT NULL content_hash",
+          "table": "public.sbom_component_index",
+          "referenced_table": "",
+          "columns": [
+            "content_hash"
+          ]
+        },
+        {
+          "name": "sbom_component_index_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.sbom_component_index",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "sbom_component_index_name_not_null",
+          "type": "n",
+          "def": "NOT NULL name",
+          "table": "public.sbom_component_index",
+          "referenced_table": "",
+          "columns": [
+            "name"
+          ]
+        },
+        {
+          "name": "sbom_component_index_version_not_null",
+          "type": "n",
+          "def": "NOT NULL version",
+          "table": "public.sbom_component_index",
+          "referenced_table": "",
+          "columns": [
+            "version"
+          ]
+        },
         {
           "name": "sbom_component_index_content_hash_fkey",
           "type": "FOREIGN KEY",
@@ -7019,7 +10259,7 @@
   ],
   "driver": {
     "name": "postgres",
-    "database_version": "PostgreSQL 17.11 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+    "database_version": "PostgreSQL 18.6 on aarch64-unknown-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
     "meta": {
       "current_schema": "public",
       "search_paths": [

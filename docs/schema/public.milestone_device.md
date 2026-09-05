@@ -20,6 +20,12 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| milestone_device_change_type_not_null | n | NOT NULL change_type |
+| milestone_device_created_at_not_null | n | NOT NULL created_at |
+| milestone_device_device_id_not_null | n | NOT NULL device_id |
+| milestone_device_id_not_null | n | NOT NULL id |
+| milestone_device_milestone_id_not_null | n | NOT NULL milestone_id |
+| milestone_device_updated_at_not_null | n | NOT NULL updated_at |
 | milestone_device_device_id_fkey | FOREIGN KEY | FOREIGN KEY (device_id) REFERENCES device(id) |
 | milestone_device_milestone_id_fkey | FOREIGN KEY | FOREIGN KEY (milestone_id) REFERENCES milestone(id) |
 | milestone_device_pkey | PRIMARY KEY | PRIMARY KEY (id) |

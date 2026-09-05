@@ -23,6 +23,11 @@ IPアドレス — 履歴テーブル（8.3、8.6、14章）。**`vlan_id` を�
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| ip_address_from_date_not_null | n | NOT NULL from_date |
+| ip_address_id_not_null | n | NOT NULL id |
+| ip_address_ip_address_not_null | n | NOT NULL ip_address |
+| ip_address_os_interface_id_not_null | n | NOT NULL os_interface_id |
+| ip_address_prefix_length_not_null | n | NOT NULL prefix_length |
 | ip_address_subnet_id_fkey | FOREIGN KEY | FOREIGN KEY (subnet_id) REFERENCES subnet(id) |
 | ip_address_os_interface_id_fkey | FOREIGN KEY | FOREIGN KEY (os_interface_id) REFERENCES os_interface(id) |
 | ip_address_pkey | PRIMARY KEY | PRIMARY KEY (id) |

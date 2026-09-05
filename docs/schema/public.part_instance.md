@@ -19,6 +19,11 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| part_instance_created_at_not_null | n | NOT NULL created_at |
+| part_instance_id_not_null | n | NOT NULL id |
+| part_instance_part_catalog_id_not_null | n | NOT NULL part_catalog_id |
+| part_instance_status_not_null | n | NOT NULL status |
+| part_instance_updated_at_not_null | n | NOT NULL updated_at |
 | part_instance_part_catalog_id_fkey | FOREIGN KEY | FOREIGN KEY (part_catalog_id) REFERENCES part_catalog(id) |
 | part_instance_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

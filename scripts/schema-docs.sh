@@ -15,6 +15,10 @@ cd "$(dirname "$0")/.."
 
 CONTAINER=dioryga-schema-docs
 PORT="${SCHEMA_DOCS_PORT:-55432}"
+# **版の出所は .postgres-version ひとつ。**テスト（crates/dioryga/tests/support/mod.rs）
+# も同じファイルを読む。同じ版を2箇所に書くと必ず食い違い、スキーマの検査と
+# 動作の検証が別のPostgreSQLに対して行われることになる（#76）。
+PG_IMAGE="postgres:$(tr -d '[:space:]' < .postgres-version)"
 export TBLS_DSN="postgres://postgres:postgres@127.0.0.1:${PORT}/postgres?sslmode=disable"
 
 for cmd in docker tbls cargo; do
@@ -26,11 +30,11 @@ cleanup() { docker rm -f "$CONTAINER" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 cleanup
 
-echo "PostgreSQLを起動します（使い捨て）"
+echo "PostgreSQLを起動します（使い捨て、$PG_IMAGE）"
 docker run -d --name "$CONTAINER" \
   -e POSTGRES_PASSWORD=postgres \
   -p "${PORT}:5432" \
-  postgres:17-alpine >/dev/null
+  "$PG_IMAGE" >/dev/null
 
 # 起動を待つ。固定のsleepにしないのは、遅い環境で不安定になるため。
 #

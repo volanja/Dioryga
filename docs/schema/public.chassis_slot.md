@@ -21,6 +21,12 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| chassis_slot_chassis_model_id_not_null | n | NOT NULL chassis_model_id |
+| chassis_slot_created_at_not_null | n | NOT NULL created_at |
+| chassis_slot_id_not_null | n | NOT NULL id |
+| chassis_slot_slot_label_not_null | n | NOT NULL slot_label |
+| chassis_slot_slot_type_not_null | n | NOT NULL slot_type |
+| chassis_slot_updated_at_not_null | n | NOT NULL updated_at |
 | chassis_slot_chassis_model_id_fkey | FOREIGN KEY | FOREIGN KEY (chassis_model_id) REFERENCES chassis_model(id) |
 | chassis_slot_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

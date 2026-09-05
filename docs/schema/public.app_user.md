@@ -26,6 +26,15 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| app_user_created_at_not_null | n | NOT NULL created_at |
+| app_user_email_not_null | n | NOT NULL email |
+| app_user_id_not_null | n | NOT NULL id |
+| app_user_is_system_admin_not_null | n | NOT NULL is_system_admin |
+| app_user_locale_not_null | n | NOT NULL locale |
+| app_user_must_change_password_not_null | n | NOT NULL must_change_password |
+| app_user_name_not_null | n | NOT NULL name |
+| app_user_password_hash_not_null | n | NOT NULL password_hash |
+| app_user_updated_at_not_null | n | NOT NULL updated_at |
 | app_user_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 | app_user_email_key | UNIQUE | UNIQUE (email) |
 

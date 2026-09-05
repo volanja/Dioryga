@@ -20,6 +20,10 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| interface_role_from_date_not_null | n | NOT NULL from_date |
+| interface_role_id_not_null | n | NOT NULL id |
+| interface_role_os_interface_id_not_null | n | NOT NULL os_interface_id |
+| interface_role_role_not_null | n | NOT NULL role |
 | interface_role_os_interface_id_fkey | FOREIGN KEY | FOREIGN KEY (os_interface_id) REFERENCES os_interface(id) |
 | interface_role_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

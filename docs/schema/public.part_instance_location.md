@@ -21,6 +21,10 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| part_instance_location_from_date_not_null | n | NOT NULL from_date |
+| part_instance_location_id_not_null | n | NOT NULL id |
+| part_instance_location_location_type_not_null | n | NOT NULL location_type |
+| part_instance_location_part_instance_id_not_null | n | NOT NULL part_instance_id |
 | part_instance_location_chassis_slot_id_fkey | FOREIGN KEY | FOREIGN KEY (chassis_slot_id) REFERENCES chassis_slot(id) |
 | part_instance_location_part_instance_id_fkey | FOREIGN KEY | FOREIGN KEY (part_instance_id) REFERENCES part_instance(id) |
 | part_instance_location_pkey | PRIMARY KEY | PRIMARY KEY (id) |

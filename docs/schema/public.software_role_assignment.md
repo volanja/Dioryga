@@ -20,6 +20,10 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| software_role_assignment_from_date_not_null | n | NOT NULL from_date |
+| software_role_assignment_id_not_null | n | NOT NULL id |
+| software_role_assignment_role_not_null | n | NOT NULL role |
+| software_role_assignment_software_installation_id_not_null | n | NOT NULL software_installation_id |
 | software_role_assignment_software_installation_id_fkey | FOREIGN KEY | FOREIGN KEY (software_installation_id) REFERENCES software_installation(id) |
 | software_role_assignment_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

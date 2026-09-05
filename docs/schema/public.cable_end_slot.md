@@ -22,6 +22,12 @@ NEMA 5-15P と C13、LC と SC のような非対称なケーブルを表すた�
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| cable_end_slot_cable_catalog_id_not_null | n | NOT NULL cable_catalog_id |
+| cable_end_slot_connector_type_not_null | n | NOT NULL connector_type |
+| cable_end_slot_created_at_not_null | n | NOT NULL created_at |
+| cable_end_slot_end_label_not_null | n | NOT NULL end_label |
+| cable_end_slot_id_not_null | n | NOT NULL id |
+| cable_end_slot_updated_at_not_null | n | NOT NULL updated_at |
 | cable_end_slot_cable_catalog_id_fkey | FOREIGN KEY | FOREIGN KEY (cable_catalog_id) REFERENCES cable_catalog(id) |
 | cable_end_slot_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

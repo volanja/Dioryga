@@ -21,6 +21,10 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| software_installation_device_id_not_null | n | NOT NULL device_id |
+| software_installation_from_date_not_null | n | NOT NULL from_date |
+| software_installation_id_not_null | n | NOT NULL id |
+| software_installation_software_instance_id_not_null | n | NOT NULL software_instance_id |
 | software_installation_device_id_fkey | FOREIGN KEY | FOREIGN KEY (device_id) REFERENCES device(id) |
 | software_installation_work_order_id_fkey | FOREIGN KEY | FOREIGN KEY (work_order_id) REFERENCES work_order(id) |
 | software_installation_software_instance_id_fkey | FOREIGN KEY | FOREIGN KEY (software_instance_id) REFERENCES software_instance(id) |

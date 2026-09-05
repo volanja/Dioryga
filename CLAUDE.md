@@ -31,7 +31,7 @@
 | 言語 | Rust |
 | Webフレームワーク | Axum（towerミドルウェアでRBAC等の横断的関心事を扱う） |
 | DBアクセス | sea-orm |
-| DB | PostgreSQL / SQLite 両対応（v1から） |
+| DB | PostgreSQL / SQLite 両対応（v1から）。**PostgreSQLの版は `.postgres-version` を唯一の出所とする**——テストとスキーマドキュメント生成の双方がこのファイルを読む |
 | フロントエンド | SSR（Askamaテンプレート）。**現時点でJavaScriptは使っていない。**htmxは画面単位の上乗せとして必要になった時点で導入する（設計リポジトリ `docs/design/frontend-htmx.md`） |
 | 配布形態 | 単一バイナリ（rust-embedで静的アセット埋め込み） |
 | i18n | rust-i18n（英語ベース＋日本語） |

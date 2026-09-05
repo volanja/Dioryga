@@ -19,6 +19,12 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| maintenance_contract_item_created_at_not_null | n | NOT NULL created_at |
+| maintenance_contract_item_id_not_null | n | NOT NULL id |
+| maintenance_contract_item_item_id_not_null | n | NOT NULL item_id |
+| maintenance_contract_item_item_type_not_null | n | NOT NULL item_type |
+| maintenance_contract_item_maintenance_contract_id_not_null | n | NOT NULL maintenance_contract_id |
+| maintenance_contract_item_updated_at_not_null | n | NOT NULL updated_at |
 | maintenance_contract_item_maintenance_contract_id_fkey | FOREIGN KEY | FOREIGN KEY (maintenance_contract_id) REFERENCES maintenance_contract(id) |
 | maintenance_contract_item_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

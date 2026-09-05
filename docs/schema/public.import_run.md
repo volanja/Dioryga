@@ -25,6 +25,15 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| import_run_as_of_not_null | n | NOT NULL as_of |
+| import_run_created_count_not_null | n | NOT NULL created_count |
+| import_run_file_hash_not_null | n | NOT NULL file_hash |
+| import_run_id_not_null | n | NOT NULL id |
+| import_run_imported_at_not_null | n | NOT NULL imported_at |
+| import_run_imported_by_not_null | n | NOT NULL imported_by |
+| import_run_kind_not_null | n | NOT NULL kind |
+| import_run_updated_count_not_null | n | NOT NULL updated_count |
+| import_run_warning_count_not_null | n | NOT NULL warning_count |
 | import_run_imported_by_fkey | FOREIGN KEY | FOREIGN KEY (imported_by) REFERENCES app_user(id) |
 | import_run_project_id_fkey | FOREIGN KEY | FOREIGN KEY (project_id) REFERENCES project(id) |
 | import_run_pkey | PRIMARY KEY | PRIMARY KEY (id) |

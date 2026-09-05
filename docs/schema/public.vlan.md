@@ -24,6 +24,13 @@ VLAN（8.3）。**一意制約を張っていない。**VLANタグはL2ドメイ
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| vlan_created_at_not_null | n | NOT NULL created_at |
+| vlan_created_by_not_null | n | NOT NULL created_by |
+| vlan_description_not_null | n | NOT NULL description |
+| vlan_id_not_null | n | NOT NULL id |
+| vlan_name_not_null | n | NOT NULL name |
+| vlan_updated_at_not_null | n | NOT NULL updated_at |
+| vlan_vlan_tag_not_null | n | NOT NULL vlan_tag |
 | vlan_created_by_fkey | FOREIGN KEY | FOREIGN KEY (created_by) REFERENCES app_user(id) |
 | vlan_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

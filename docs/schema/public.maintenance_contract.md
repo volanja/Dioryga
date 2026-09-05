@@ -24,6 +24,16 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| maintenance_contract_amount_not_null | n | NOT NULL amount |
+| maintenance_contract_contract_number_not_null | n | NOT NULL contract_number |
+| maintenance_contract_created_at_not_null | n | NOT NULL created_at |
+| maintenance_contract_end_date_not_null | n | NOT NULL end_date |
+| maintenance_contract_failure_contact_not_null | n | NOT NULL failure_contact |
+| maintenance_contract_id_not_null | n | NOT NULL id |
+| maintenance_contract_quote_contact_not_null | n | NOT NULL quote_contact |
+| maintenance_contract_start_date_not_null | n | NOT NULL start_date |
+| maintenance_contract_updated_at_not_null | n | NOT NULL updated_at |
+| maintenance_contract_vendor_id_not_null | n | NOT NULL vendor_id |
 | maintenance_contract_vendor_id_fkey | FOREIGN KEY | FOREIGN KEY (vendor_id) REFERENCES vendor(id) |
 | maintenance_contract_purchase_order_id_fkey | FOREIGN KEY | FOREIGN KEY (purchase_order_id) REFERENCES purchase_order(id) |
 | maintenance_contract_pkey | PRIMARY KEY | PRIMARY KEY (id) |

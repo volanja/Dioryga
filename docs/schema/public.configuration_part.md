@@ -19,6 +19,12 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| configuration_part_configuration_id_not_null | n | NOT NULL configuration_id |
+| configuration_part_created_at_not_null | n | NOT NULL created_at |
+| configuration_part_id_not_null | n | NOT NULL id |
+| configuration_part_part_catalog_id_not_null | n | NOT NULL part_catalog_id |
+| configuration_part_quantity_not_null | n | NOT NULL quantity |
+| configuration_part_updated_at_not_null | n | NOT NULL updated_at |
 | configuration_part_part_catalog_id_fkey | FOREIGN KEY | FOREIGN KEY (part_catalog_id) REFERENCES part_catalog(id) |
 | configuration_part_configuration_id_fkey | FOREIGN KEY | FOREIGN KEY (configuration_id) REFERENCES configuration(id) |
 | configuration_part_pkey | PRIMARY KEY | PRIMARY KEY (id) |

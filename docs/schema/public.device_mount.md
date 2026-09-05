@@ -26,6 +26,9 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| device_mount_device_id_not_null | n | NOT NULL device_id |
+| device_mount_from_date_not_null | n | NOT NULL from_date |
+| device_mount_id_not_null | n | NOT NULL id |
 | device_mount_device_id_fkey | FOREIGN KEY | FOREIGN KEY (device_id) REFERENCES device(id) |
 | device_mount_host_device_id_fkey | FOREIGN KEY | FOREIGN KEY (host_device_id) REFERENCES device(id) |
 | device_mount_container_id_fkey | FOREIGN KEY | FOREIGN KEY (container_id) REFERENCES mount_container(id) |

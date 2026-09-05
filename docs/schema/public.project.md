@@ -25,6 +25,13 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| project_created_at_not_null | n | NOT NULL created_at |
+| project_currency_not_null | n | NOT NULL currency |
+| project_description_not_null | n | NOT NULL description |
+| project_id_not_null | n | NOT NULL id |
+| project_name_not_null | n | NOT NULL name |
+| project_uid_not_null | n | NOT NULL uid |
+| project_updated_at_not_null | n | NOT NULL updated_at |
 | project_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 | project_uid_key | UNIQUE | UNIQUE (uid) |
 | project_code_key | UNIQUE | UNIQUE (code) |

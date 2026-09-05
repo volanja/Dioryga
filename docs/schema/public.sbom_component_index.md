@@ -20,6 +20,10 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| sbom_component_index_content_hash_not_null | n | NOT NULL content_hash |
+| sbom_component_index_id_not_null | n | NOT NULL id |
+| sbom_component_index_name_not_null | n | NOT NULL name |
+| sbom_component_index_version_not_null | n | NOT NULL version |
 | sbom_component_index_content_hash_fkey | FOREIGN KEY | FOREIGN KEY (content_hash) REFERENCES sbom_snapshot(content_hash) |
 | sbom_component_index_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

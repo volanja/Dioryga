@@ -20,6 +20,11 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| interface_vlan_from_date_not_null | n | NOT NULL from_date |
+| interface_vlan_id_not_null | n | NOT NULL id |
+| interface_vlan_os_interface_id_not_null | n | NOT NULL os_interface_id |
+| interface_vlan_tagging_mode_not_null | n | NOT NULL tagging_mode |
+| interface_vlan_vlan_id_not_null | n | NOT NULL vlan_id |
 | interface_vlan_vlan_id_fkey | FOREIGN KEY | FOREIGN KEY (vlan_id) REFERENCES vlan(id) |
 | interface_vlan_os_interface_id_fkey | FOREIGN KEY | FOREIGN KEY (os_interface_id) REFERENCES os_interface(id) |
 | interface_vlan_pkey | PRIMARY KEY | PRIMARY KEY (id) |

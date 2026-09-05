@@ -21,6 +21,10 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| interface_stack_from_date_not_null | n | NOT NULL from_date |
+| interface_stack_id_not_null | n | NOT NULL id |
+| interface_stack_lower_interface_id_not_null | n | NOT NULL lower_interface_id |
+| interface_stack_upper_interface_id_not_null | n | NOT NULL upper_interface_id |
 | interface_stack_lower_interface_id_fkey | FOREIGN KEY | FOREIGN KEY (lower_interface_id) REFERENCES os_interface(id) |
 | interface_stack_upper_interface_id_fkey | FOREIGN KEY | FOREIGN KEY (upper_interface_id) REFERENCES os_interface(id) |
 | interface_stack_pkey | PRIMARY KEY | PRIMARY KEY (id) |

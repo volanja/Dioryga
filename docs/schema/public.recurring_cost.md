@@ -25,6 +25,16 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| recurring_cost_amount_not_null | n | NOT NULL amount |
+| recurring_cost_billing_cycle_not_null | n | NOT NULL billing_cycle |
+| recurring_cost_cost_type_not_null | n | NOT NULL cost_type |
+| recurring_cost_created_at_not_null | n | NOT NULL created_at |
+| recurring_cost_created_by_not_null | n | NOT NULL created_by |
+| recurring_cost_id_not_null | n | NOT NULL id |
+| recurring_cost_item_id_not_null | n | NOT NULL item_id |
+| recurring_cost_item_type_not_null | n | NOT NULL item_type |
+| recurring_cost_start_date_not_null | n | NOT NULL start_date |
+| recurring_cost_updated_at_not_null | n | NOT NULL updated_at |
 | recurring_cost_created_by_fkey | FOREIGN KEY | FOREIGN KEY (created_by) REFERENCES app_user(id) |
 | recurring_cost_vendor_id_fkey | FOREIGN KEY | FOREIGN KEY (vendor_id) REFERENCES vendor(id) |
 | recurring_cost_pkey | PRIMARY KEY | PRIMARY KEY (id) |

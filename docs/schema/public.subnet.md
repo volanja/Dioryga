@@ -24,6 +24,12 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| subnet_cidr_not_null | n | NOT NULL cidr |
+| subnet_created_at_not_null | n | NOT NULL created_at |
+| subnet_created_by_not_null | n | NOT NULL created_by |
+| subnet_description_not_null | n | NOT NULL description |
+| subnet_id_not_null | n | NOT NULL id |
+| subnet_updated_at_not_null | n | NOT NULL updated_at |
 | subnet_created_by_fkey | FOREIGN KEY | FOREIGN KEY (created_by) REFERENCES app_user(id) |
 | subnet_project_id_fkey | FOREIGN KEY | FOREIGN KEY (project_id) REFERENCES project(id) |
 | subnet_vlan_id_fkey | FOREIGN KEY | FOREIGN KEY (vlan_id) REFERENCES vlan(id) |

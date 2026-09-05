@@ -23,6 +23,11 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| vendor_created_at_not_null | n | NOT NULL created_at |
+| vendor_created_by_not_null | n | NOT NULL created_by |
+| vendor_id_not_null | n | NOT NULL id |
+| vendor_name_not_null | n | NOT NULL name |
+| vendor_updated_at_not_null | n | NOT NULL updated_at |
 | vendor_created_by_fkey | FOREIGN KEY | FOREIGN KEY (created_by) REFERENCES app_user(id) |
 | vendor_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 | vendor_name_key | UNIQUE | UNIQUE (name) |

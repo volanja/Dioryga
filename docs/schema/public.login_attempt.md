@@ -20,6 +20,11 @@ app_user への外部キーを持たない（20.4）。
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| login_attempt_attempted_at_not_null | n | NOT NULL attempted_at |
+| login_attempt_email_not_null | n | NOT NULL email |
+| login_attempt_id_not_null | n | NOT NULL id |
+| login_attempt_ip_address_not_null | n | NOT NULL ip_address |
+| login_attempt_succeeded_not_null | n | NOT NULL succeeded |
 | login_attempt_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 
 ## Indexes

@@ -23,6 +23,12 @@ SBOMの取込記録（9.5）。**`superseded_at` は他の履歴テーブルの 
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| sbom_import_content_hash_not_null | n | NOT NULL content_hash |
+| sbom_import_device_id_not_null | n | NOT NULL device_id |
+| sbom_import_id_not_null | n | NOT NULL id |
+| sbom_import_imported_at_not_null | n | NOT NULL imported_at |
+| sbom_import_imported_by_not_null | n | NOT NULL imported_by |
+| sbom_import_source_format_not_null | n | NOT NULL source_format |
 | sbom_import_imported_by_fkey | FOREIGN KEY | FOREIGN KEY (imported_by) REFERENCES app_user(id) |
 | sbom_import_device_id_fkey | FOREIGN KEY | FOREIGN KEY (device_id) REFERENCES device(id) |
 | sbom_import_work_order_id_fkey | FOREIGN KEY | FOREIGN KEY (work_order_id) REFERENCES work_order(id) |

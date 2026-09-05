@@ -27,6 +27,14 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| part_catalog_category_not_null | n | NOT NULL category |
+| part_catalog_created_at_not_null | n | NOT NULL created_at |
+| part_catalog_created_by_not_null | n | NOT NULL created_by |
+| part_catalog_id_not_null | n | NOT NULL id |
+| part_catalog_part_number_not_null | n | NOT NULL part_number |
+| part_catalog_spec_json_not_null | n | NOT NULL spec_json |
+| part_catalog_updated_at_not_null | n | NOT NULL updated_at |
+| part_catalog_vendor_id_not_null | n | NOT NULL vendor_id |
 | part_catalog_created_by_fkey | FOREIGN KEY | FOREIGN KEY (created_by) REFERENCES app_user(id) |
 | part_catalog_vendor_id_fkey | FOREIGN KEY | FOREIGN KEY (vendor_id) REFERENCES vendor(id) |
 | part_catalog_pkey | PRIMARY KEY | PRIMARY KEY (id) |

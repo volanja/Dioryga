@@ -30,6 +30,14 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| device_created_at_not_null | n | NOT NULL created_at |
+| device_device_type_not_null | n | NOT NULL device_type |
+| device_hostname_not_null | n | NOT NULL hostname |
+| device_id_not_null | n | NOT NULL id |
+| device_power_watt_not_null | n | NOT NULL power_watt |
+| device_status_not_null | n | NOT NULL status |
+| device_uid_not_null | n | NOT NULL uid |
+| device_updated_at_not_null | n | NOT NULL updated_at |
 | device_configuration_id_fkey | FOREIGN KEY | FOREIGN KEY (configuration_id) REFERENCES configuration(id) |
 | device_merged_into_device_id_fkey | FOREIGN KEY | FOREIGN KEY (merged_into_device_id) REFERENCES device(id) |
 | device_pkey | PRIMARY KEY | PRIMARY KEY (id) |

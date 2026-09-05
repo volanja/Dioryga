@@ -25,6 +25,15 @@ DEVICE_ASSIGNMENT の Disposed 行から、簿価は取得価額と経過期間�
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| fixed_asset_acquisition_cost_not_null | n | NOT NULL acquisition_cost |
+| fixed_asset_acquisition_date_not_null | n | NOT NULL acquisition_date |
+| fixed_asset_created_at_not_null | n | NOT NULL created_at |
+| fixed_asset_depreciation_method_not_null | n | NOT NULL depreciation_method |
+| fixed_asset_id_not_null | n | NOT NULL id |
+| fixed_asset_item_id_not_null | n | NOT NULL item_id |
+| fixed_asset_item_type_not_null | n | NOT NULL item_type |
+| fixed_asset_updated_at_not_null | n | NOT NULL updated_at |
+| fixed_asset_useful_life_years_not_null | n | NOT NULL useful_life_years |
 | fixed_asset_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 
 ## Indexes

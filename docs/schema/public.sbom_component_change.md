@@ -22,6 +22,10 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| sbom_component_change_change_type_not_null | n | NOT NULL change_type |
+| sbom_component_change_id_not_null | n | NOT NULL id |
+| sbom_component_change_name_not_null | n | NOT NULL name |
+| sbom_component_change_sbom_import_id_not_null | n | NOT NULL sbom_import_id |
 | sbom_component_change_sbom_import_id_fkey | FOREIGN KEY | FOREIGN KEY (sbom_import_id) REFERENCES sbom_import(id) |
 | sbom_component_change_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

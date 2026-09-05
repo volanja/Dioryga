@@ -24,6 +24,15 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| chassis_model_created_at_not_null | n | NOT NULL created_at |
+| chassis_model_created_by_not_null | n | NOT NULL created_by |
+| chassis_model_device_category_not_null | n | NOT NULL device_category |
+| chassis_model_height_u_not_null | n | NOT NULL height_u |
+| chassis_model_id_not_null | n | NOT NULL id |
+| chassis_model_model_name_not_null | n | NOT NULL model_name |
+| chassis_model_mount_form_not_null | n | NOT NULL mount_form |
+| chassis_model_updated_at_not_null | n | NOT NULL updated_at |
+| chassis_model_vendor_id_not_null | n | NOT NULL vendor_id |
 | chassis_model_created_by_fkey | FOREIGN KEY | FOREIGN KEY (created_by) REFERENCES app_user(id) |
 | chassis_model_vendor_id_fkey | FOREIGN KEY | FOREIGN KEY (vendor_id) REFERENCES vendor(id) |
 | chassis_model_pkey | PRIMARY KEY | PRIMARY KEY (id) |

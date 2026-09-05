@@ -22,6 +22,13 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| purchase_order_created_at_not_null | n | NOT NULL created_at |
+| purchase_order_currency_not_null | n | NOT NULL currency |
+| purchase_order_id_not_null | n | NOT NULL id |
+| purchase_order_order_date_not_null | n | NOT NULL order_date |
+| purchase_order_order_number_not_null | n | NOT NULL order_number |
+| purchase_order_updated_at_not_null | n | NOT NULL updated_at |
+| purchase_order_vendor_id_not_null | n | NOT NULL vendor_id |
 | purchase_order_vendor_id_fkey | FOREIGN KEY | FOREIGN KEY (vendor_id) REFERENCES vendor(id) |
 | purchase_order_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

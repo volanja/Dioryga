@@ -477,3 +477,32 @@ merge:
   error_cycle: That would create a merge cycle
   error_spec: The specs do not match, so these cannot be merged. Folding different things together corrupts aggregation
   error_conflict: "The target already has the same %{kind} (%{name}). Resolve that one first"
+
+sbom:
+  title: SBOM import
+  lead: Record the software observed on this device and the differences from last time
+  no_auto_hint: An import is an observation. It does not create managed software or vendors on its own
+  upload: Import an SBOM
+  file_hint: CycloneDX or SPDX JSON, up to 8 MB. XML is not supported
+  submit: Import
+  history: Import history
+  imported_at: Imported at
+  source_format: Format
+  imported_by: Imported by
+  components: Components
+  changes: Changes
+  current: Latest
+  no_history: Nothing imported yet
+  latest_changes: Changes since last time
+  no_change: No changes
+  change_type: Type
+  name: Name
+  version_from: From
+  version_to: To
+  reused: An existing snapshot was reused.
+  stored: A new snapshot was stored.
+  done: "Imported %{count} components (%{changes} changes). %{reused}"
+  done_unchanged: "Imported %{count} components. Nothing changed since last time"
+  error_not_json: This is not readable as JSON
+  error_unknown_format: This is neither CycloneDX nor SPDX. XML is not supported
+  error_empty: There are no components

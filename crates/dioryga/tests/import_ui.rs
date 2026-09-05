@@ -234,6 +234,82 @@ async fn 非メンバーは取り込めない(db: &DatabaseConnection) {
     assert_eq!(status, StatusCode::FORBIDDEN);
 }
 
+/// **素のHTMLフォームだけで取り込めること**（不変条件9、設計書20.5）。
+///
+/// `enctype="multipart/form-data"` のフォームは**CSRFヘッダーを付けられない。**
+/// hidden fieldだけで通らないと、JavaScriptを使わない画面が403になる。
+///
+/// P5-1で `application/x-www-form-urlencoded` について同じ穴を塞いだが、
+/// **multipartは塞がっていなかった**——取込UIはブラウザから使えていなかった。
+async fn ヘッダー無しでも取り込める(db: &DatabaseConnection) {
+    let (user, p) = 準備(db, "noheader@example.com", "Operator").await;
+    let (状態, token) = 認証済み(db, &user).await;
+
+    let csrf = dioryga::auth::csrf::derive(&token);
+    let body = multipart(
+        "devices.csv",
+        CSV,
+        &[
+            (dioryga::auth::csrf::FIELD_NAME, &csrf),
+            ("match_on", "serial_number"),
+        ],
+    );
+
+    let res = router(状態)
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/projects/{}/import", p.id))
+                .header(header::COOKIE, cookie_header(&token))
+                // **ヘッダーは付けない。**ブラウザのフォームと同じ条件にする
+                .header(
+                    header::CONTENT_TYPE,
+                    format!("multipart/form-data; boundary={境界}"),
+                )
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    let (status, body) = 分解(res).await;
+    assert_eq!(status, StatusCode::OK, "CSRFで弾かれている");
+    assert!(body.contains("新規 1 件"), "{body}");
+}
+
+/// CSRFトークンが違えば弾くこと（multipartでも）。
+async fn multipartでも不正なトークンは弾く(db: &DatabaseConnection) {
+    let (user, p) = 準備(db, "badtoken@example.com", "Operator").await;
+    let (状態, token) = 認証済み(db, &user).await;
+
+    let body = multipart(
+        "devices.csv",
+        CSV,
+        &[
+            (dioryga::auth::csrf::FIELD_NAME, "でたらめなトークン"),
+            ("match_on", "serial_number"),
+        ],
+    );
+
+    let res = router(状態)
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/projects/{}/import", p.id))
+                .header(header::COOKIE, cookie_header(&token))
+                .header(
+                    header::CONTENT_TYPE,
+                    format!("multipart/form-data; boundary={境界}"),
+                )
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(分解(res).await.0, StatusCode::FORBIDDEN);
+}
+
 // ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
@@ -437,6 +513,8 @@ async fn メンバー(db: &DatabaseConnection, user_id: i32, project_id: i32, ro
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, アップロードだけでは反映されない);
+        全検証!(@one $用意, $属性, ヘッダー無しでも取り込める);
+        全検証!(@one $用意, $属性, multipartでも不正なトークンは弾く);
         全検証!(@one $用意, $属性, 差分を見てから反映できる);
         全検証!(@one $用意, $属性, 同じ預かりで二度は反映できない);
         全検証!(@one $用意, $属性, エラーがあれば反映できない);

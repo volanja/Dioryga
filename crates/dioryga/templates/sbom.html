@@ -1,0 +1,105 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb">
+      <a href="/projects">{{ chrome.t_nav_projects }}</a> / {{ project_name }} /
+      <a href="/projects/{{ project_id }}/devices/{{ device_id }}">{{ hostname }}</a>
+      <span class="hint">（{{ t_back }}）</span>
+    </p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+{% if let Some(message) = notice %}
+<p class="warn">{{ message }}</p>
+{% endif %}
+
+{# 取込は SOFTWARE_INSTANCE も VENDOR も作らない（設計書9.6、18.3） #}
+<p class="hint">{{ t_no_auto_hint }}</p>
+
+{% if can_edit %}
+<h2 class="section">{{ t_upload }}</h2>
+<div class="card">
+  <form method="post" action="/projects/{{ project_id }}/devices/{{ device_id }}/sbom"
+        enctype="multipart/form-data" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="file">{{ t_file }}</label>
+    <input type="file" id="file" name="file" accept=".json,application/json" required>
+    <p class="hint">{{ t_file_hint }}</p>
+
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+</div>
+{% endif %}
+
+<h2 class="section">{{ t_latest_changes }}</h2>
+{% if changes.is_empty() %}
+{# 内容が変わっていなければ差分は0件（設計書9.6の手順3） #}
+<p class="empty">{{ t_no_change }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_change_type }}</th>
+      <th>{{ t_name }}</th>
+      <th>{{ t_from }}</th>
+      <th>{{ t_to }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in changes %}
+    <tr>
+      <td>{{ c.change_type }}</td>
+      <td>{{ c.name }}</td>
+      <td>{{ c.version_from }}</td>
+      <td>{{ c.version_to }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+<h2 class="section">{{ t_history }}</h2>
+{% if history.is_empty() %}
+<p class="empty">{{ t_no_history }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_imported_at }}</th>
+      <th>{{ t_source_format }}</th>
+      <th>{{ t_imported_by }}</th>
+      <th>{{ t_components }}</th>
+      <th>{{ t_changes }}</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for h in history %}
+    <tr class="{% if !h.current %}is-disabled{% endif %}">
+      <td>{{ h.imported_at }}</td>
+      <td>{{ h.source_format }}</td>
+      <td>{{ h.imported_by }}</td>
+      <td>{{ h.component_count }}</td>
+      <td>{{ h.changes }}</td>
+      {# superseded_at IS NULL が現在の観測結果（設計書9.5） #}
+      <td>{% if h.current %}<span class="badge plan">{{ t_current }}</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% endblock %}

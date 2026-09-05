@@ -46,6 +46,9 @@ form_urlencoded = "1.2.2"
 # 一括取込（設計書23章）。カタログはYAML、インスタンスはCSV
 serde_yaml_ng = "0.10.0"
 csv = "1.4.0"
+# SBOMスナップショットの圧縮（設計書9.7）。zstd-sysはCツールチェーンを要求するが、
+# Windows/macOS/Linuxとも各ランナー上でネイティブビルドしており支障が無いことを実測した
+zstd = "0.13.3"
 
 [dev-dependencies]
 chrono.workspace = true
@@ -55,7 +58,4 @@ testcontainers = "0.27"
 testcontainers-modules = { version = "0.15.0", features = ["postgres"] }
 tower = { version = "0.5.3", features = ["util"] }
 uuid = { workspace = true, features = ["v4"] }
-# スキーマ側でblobを扱えることの確認にのみ使う。**本体への採用はSBOM取込の
-# 実装時に判断する**（zstd-sysはCツールチェーンを要求し、Windowsビルドに影響する）
-zstd = "0.13"
 

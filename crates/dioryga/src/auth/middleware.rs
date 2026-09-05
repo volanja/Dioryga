@@ -209,7 +209,14 @@ pub async fn verify_csrf(request: Request, next: Next) -> Response {
     // **ヘッダーだけでは素のHTMLフォームを守れない。**`<form method="post">` は
     // ヘッダーを付けられないため、JavaScriptを前提にしない画面がすべて403になる。
     if is_form_urlencoded(&request) {
-        return verify_from_form_body(request, next, &current.csrf_token).await;
+        return verify_from_form_body(request, next, &current.csrf_token, MAX_FORM_BODY).await;
+    }
+
+    // **ファイル添付のフォームも同じ扱いにする。**`enctype="multipart/form-data"`
+    // でもヘッダーは付けられないため、ここを見ないと取込系の画面がすべて403に
+    // なる——不変条件9（すべての画面は素のHTMLフォームだけで動く）が破れる。
+    if is_multipart(&request) {
+        return verify_from_form_body(request, next, &current.csrf_token, MAX_MULTIPART_BODY).await;
     }
 
     (StatusCode::FORBIDDEN, "CSRFトークンが不正です").into_response()
@@ -220,6 +227,20 @@ pub async fn verify_csrf(request: Request, next: Next) -> Response {
 /// フォームの本文はいずれも小さい。ここを無制限にすると、本文を読み切るまで
 /// メモリを確保し続けることになる。
 const MAX_FORM_BODY: usize = 64 * 1024;
+
+/// ファイル添付のフォームの上限。
+///
+/// 取込・SBOMの受け入れ上限（8MiB）に、境界と他のフィールドのぶんを足した値。
+/// **ハンドラ側でも上限を確かめる**が、ここを通らないと本文を読み切れない。
+const MAX_MULTIPART_BODY: usize = 9 * 1024 * 1024;
+
+fn is_multipart(request: &Request) -> bool {
+    request
+        .headers()
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.starts_with("multipart/form-data"))
+}
 
 fn is_form_urlencoded(request: &Request) -> bool {
     request
@@ -233,17 +254,27 @@ fn is_form_urlencoded(request: &Request) -> bool {
 ///
 /// 本文はストリームであり一度しか読めない。読んだまま次へ渡すとハンドラ側の
 /// `Form` 抽出が空の本文を受け取ってしまうため、バイト列から組み立て直す。
-async fn verify_from_form_body(request: Request, next: Next, expected: &str) -> Response {
+async fn verify_from_form_body(
+    request: Request,
+    next: Next,
+    expected: &str,
+    limit: usize,
+) -> Response {
+    let multipart = is_multipart(&request);
     let (parts, body) = request.into_parts();
 
-    let Ok(bytes) = axum::body::to_bytes(body, MAX_FORM_BODY).await else {
+    let Ok(bytes) = axum::body::to_bytes(body, limit).await else {
         return (StatusCode::BAD_REQUEST, "リクエスト本文を読み取れません").into_response();
     };
 
-    let provided = form_urlencoded::parse(&bytes)
-        .find(|(key, _)| key == csrf::FIELD_NAME)
-        .map(|(_, value)| value.into_owned())
-        .unwrap_or_default();
+    let provided = if multipart {
+        multipart_field(&bytes, csrf::FIELD_NAME).unwrap_or_default()
+    } else {
+        form_urlencoded::parse(&bytes)
+            .find(|(key, _)| key == csrf::FIELD_NAME)
+            .map(|(_, value)| value.into_owned())
+            .unwrap_or_default()
+    };
 
     if !csrf::verify(expected, &provided) {
         return (StatusCode::FORBIDDEN, "CSRFトークンが不正です").into_response();
@@ -251,4 +282,24 @@ async fn verify_from_form_body(request: Request, next: Next, expected: &str) -> 
 
     next.run(Request::from_parts(parts, axum::body::Body::from(bytes)))
         .await
+}
+
+/// multipartの本文から、名前の付いた1つの値を取り出す。
+///
+/// **完全なパーサではない。**CSRFトークンだけを取れればよく、ここで
+/// ファイル本体を読み解く必要はない。ハンドラ側が `Multipart` で改めて読む。
+///
+/// `Content-Disposition: form-data; name="csrf_token"` に続く空行の後から、
+/// 次の境界の直前までを値とみなす。
+fn multipart_field(bytes: &[u8], name: &str) -> Option<String> {
+    let needle = format!("name=\"{name}\"");
+    let haystack = String::from_utf8_lossy(bytes);
+
+    let start = haystack.find(&needle)?;
+    let rest = &haystack[start..];
+    // ヘッダーと本文は空行で区切られる
+    let body_start = rest.find("\r\n\r\n")? + 4;
+    let body = &rest[body_start..];
+    let end = body.find("\r\n--")?;
+    Some(body[..end].to_owned())
 }

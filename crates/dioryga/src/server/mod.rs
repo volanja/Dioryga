@@ -12,6 +12,7 @@ pub mod merge;
 pub mod part;
 pub mod project;
 pub mod rack;
+pub mod sbom;
 pub mod setup;
 pub mod view;
 pub mod work_order;
@@ -123,6 +124,10 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/projects/{id}/devices/{device_id}/edit",
             get(device::edit_form),
+        )
+        .route(
+            "/projects/{id}/devices/{device_id}/sbom",
+            get(sbom::show).post(sbom::upload),
         )
         .route(
             "/projects/{id}/import",

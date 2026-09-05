@@ -21,6 +21,7 @@
 | created_by | integer |  | false |  | [public.app_user](public.app_user.md) |  |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
+| retired_at | timestamp with time zone |  | true |  |  |  |
 
 ## Constraints
 
@@ -37,6 +38,7 @@
 | software_catalog_pkey | CREATE UNIQUE INDEX software_catalog_pkey ON public.software_catalog USING btree (id) |
 | uq_software_catalog_purl | CREATE UNIQUE INDEX uq_software_catalog_purl ON public.software_catalog USING btree (purl) |
 | uq_software_catalog_name_vendor_version | CREATE UNIQUE INDEX uq_software_catalog_name_vendor_version ON public.software_catalog USING btree (name, vendor_id, version) |
+| idx_software_catalog_retired_at | CREATE INDEX idx_software_catalog_retired_at ON public.software_catalog USING btree (retired_at) |
 
 ## Relations
 

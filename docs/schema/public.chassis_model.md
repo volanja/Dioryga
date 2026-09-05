@@ -18,6 +18,7 @@
 | created_by | integer |  | false |  | [public.app_user](public.app_user.md) |  |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
+| retired_at | timestamp with time zone |  | true |  |  |  |
 
 ## Constraints
 
@@ -33,6 +34,7 @@
 | ---- | ---------- |
 | chassis_model_pkey | CREATE UNIQUE INDEX chassis_model_pkey ON public.chassis_model USING btree (id) |
 | uq_chassis_model_vendor_model_name | CREATE UNIQUE INDEX uq_chassis_model_vendor_model_name ON public.chassis_model USING btree (vendor_id, model_name) |
+| idx_chassis_model_retired_at | CREATE INDEX idx_chassis_model_retired_at ON public.chassis_model USING btree (retired_at) |
 
 ## Relations
 

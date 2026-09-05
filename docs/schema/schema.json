@@ -627,7 +627,7 @@
     {
       "name": "public.vendor",
       "type": "BASE TABLE",
-      "comment": "ベンダーのマスタ。**名称の表記ゆれを防ぐために存在する**（18.3）。",
+      "comment": "ベンダーのマスタ。**名称の表記ゆれを防ぐために存在する**（18.3）。\n**18.2の「参照されたら編集不可」は適用しない**——誤字訂正は構成そのものを変えないため。\n",
       "columns": [
         {
           "name": "id",
@@ -653,6 +653,12 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "retired_at",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "廃番（18.5）。null = 現役。**参照済みでも設定できる**——18.2が禁じているのは\nスペックを定義するフィールドの編集であり、選択可否はスペックではない\n"
         }
       ],
       "indexes": [
@@ -670,6 +676,14 @@
           "table": "public.vendor",
           "columns": [
             "name"
+          ]
+        },
+        {
+          "name": "idx_vendor_retired_at",
+          "def": "CREATE INDEX idx_vendor_retired_at ON public.vendor USING btree (retired_at)",
+          "table": "public.vendor",
+          "columns": [
+            "retired_at"
           ]
         }
       ],
@@ -766,6 +780,11 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "retired_at",
+          "type": "timestamp with time zone",
+          "nullable": true
         }
       ],
       "indexes": [
@@ -784,6 +803,14 @@
           "columns": [
             "vendor_id",
             "model_name"
+          ]
+        },
+        {
+          "name": "idx_chassis_model_retired_at",
+          "def": "CREATE INDEX idx_chassis_model_retired_at ON public.chassis_model USING btree (retired_at)",
+          "table": "public.chassis_model",
+          "columns": [
+            "retired_at"
           ]
         }
       ],
@@ -964,6 +991,11 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "retired_at",
+          "type": "timestamp with time zone",
+          "nullable": true
         }
       ],
       "indexes": [
@@ -982,6 +1014,14 @@
           "columns": [
             "vendor_id",
             "part_number"
+          ]
+        },
+        {
+          "name": "idx_part_catalog_retired_at",
+          "def": "CREATE INDEX idx_part_catalog_retired_at ON public.part_catalog USING btree (retired_at)",
+          "table": "public.part_catalog",
+          "columns": [
+            "retired_at"
           ]
         }
       ],
@@ -1149,6 +1189,11 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "retired_at",
+          "type": "timestamp with time zone",
+          "nullable": true
         }
       ],
       "indexes": [
@@ -1166,6 +1211,14 @@
           "table": "public.configuration",
           "columns": [
             "chassis_model_id"
+          ]
+        },
+        {
+          "name": "idx_configuration_retired_at",
+          "def": "CREATE INDEX idx_configuration_retired_at ON public.configuration USING btree (retired_at)",
+          "table": "public.configuration",
+          "columns": [
+            "retired_at"
           ]
         }
       ],
@@ -1354,6 +1407,11 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "retired_at",
+          "type": "timestamp with time zone",
+          "nullable": true
         }
       ],
       "indexes": [
@@ -1371,6 +1429,14 @@
           "table": "public.cable_catalog",
           "columns": [
             "vendor_id"
+          ]
+        },
+        {
+          "name": "idx_cable_catalog_retired_at",
+          "def": "CREATE INDEX idx_cable_catalog_retired_at ON public.cable_catalog USING btree (retired_at)",
+          "table": "public.cable_catalog",
+          "columns": [
+            "retired_at"
           ]
         }
       ],
@@ -1561,6 +1627,11 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "retired_at",
+          "type": "timestamp with time zone",
+          "nullable": true
         }
       ],
       "indexes": [
@@ -1588,6 +1659,14 @@
             "name",
             "vendor_id",
             "version"
+          ]
+        },
+        {
+          "name": "idx_software_catalog_retired_at",
+          "def": "CREATE INDEX idx_software_catalog_retired_at ON public.software_catalog USING btree (retired_at)",
+          "table": "public.software_catalog",
+          "columns": [
+            "retired_at"
           ]
         }
       ],
@@ -2819,6 +2898,11 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "retired_at",
+          "type": "timestamp with time zone",
+          "nullable": true
         }
       ],
       "indexes": [
@@ -2844,6 +2928,14 @@
           "table": "public.vlan",
           "columns": [
             "created_by"
+          ]
+        },
+        {
+          "name": "idx_vlan_retired_at",
+          "def": "CREATE INDEX idx_vlan_retired_at ON public.vlan USING btree (retired_at)",
+          "table": "public.vlan",
+          "columns": [
+            "retired_at"
           ]
         }
       ],

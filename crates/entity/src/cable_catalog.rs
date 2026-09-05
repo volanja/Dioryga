@@ -15,6 +15,10 @@ pub struct Model {
     pub color: String,
     pub vendor_id: Option<i32>,
     pub part_number: Option<String>,
+    /// 廃番（18.5）。`None` = 現役。**参照済みでも設定できる**——18.2が禁じて
+    /// いるのはスペックを定義するフィールドの編集であり、選択可否はスペックでは
+    /// ない。既存の参照は壊さず、過去の事実として残る。
+    pub retired_at: Option<DateTimeUtc>,
     pub created_by: i32,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,

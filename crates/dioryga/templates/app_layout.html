@@ -42,6 +42,10 @@
     <a href="/projects" class="{% if chrome.nav == "projects" %}current{% endif %}">
       {{ chrome.t_nav_projects }}
     </a>
+    {# 共有カタログはプロジェクトを横断する（設計書18章）。System Adminは入れない #}
+    <a href="/catalog/vendors" class="{% if chrome.nav == "catalog" %}current{% endif %}">
+      {{ chrome.t_nav_catalog }}
+    </a>
     {% endif %}
     <a href="/account/password" class="{% if chrome.nav == "account" %}current{% endif %}">
       {{ chrome.t_nav_account }}

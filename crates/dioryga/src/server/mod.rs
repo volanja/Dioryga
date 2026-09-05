@@ -2,6 +2,7 @@
 
 pub mod account;
 pub mod admin;
+pub mod catalog;
 pub mod device;
 mod health;
 pub mod import;
@@ -147,6 +148,20 @@ pub fn router(state: AppState) -> Router {
             "/projects/{id}/work-orders/{work_order_id}/transition",
             post(work_order::transition),
         )
+        // 共有カタログ領域（設計書16.1のD領域、18章）。プロジェクトを横断する
+        .route(
+            "/catalog/vendors",
+            get(catalog::vendors).post(catalog::save_vendor),
+        )
+        .route(
+            "/catalog/chassis-models",
+            get(catalog::chassis_models).post(catalog::create_chassis_model),
+        )
+        .route(
+            "/catalog/configurations",
+            get(catalog::configurations).post(catalog::create_configuration),
+        )
+        .route("/catalog/{kind}/retire", post(catalog::retire))
         .route("/assets/{*path}", get(view::asset))
         .layer(axum::middleware::from_fn(
             crate::auth::middleware::system_admin_only,

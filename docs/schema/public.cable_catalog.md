@@ -17,6 +17,7 @@
 | created_by | integer |  | false |  | [public.app_user](public.app_user.md) |  |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
+| retired_at | timestamp with time zone |  | true |  |  |  |
 
 ## Constraints
 
@@ -32,6 +33,7 @@
 | ---- | ---------- |
 | cable_catalog_pkey | CREATE UNIQUE INDEX cable_catalog_pkey ON public.cable_catalog USING btree (id) |
 | idx_cable_catalog_vendor | CREATE INDEX idx_cable_catalog_vendor ON public.cable_catalog USING btree (vendor_id) |
+| idx_cable_catalog_retired_at | CREATE INDEX idx_cable_catalog_retired_at ON public.cable_catalog USING btree (retired_at) |
 
 ## Relations
 

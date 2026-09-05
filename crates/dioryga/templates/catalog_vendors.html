@@ -1,0 +1,92 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+{# 既定では廃番を隠す（設計書18.5） #}
+<form class="filters" method="get" action="/catalog/vendors">
+  <label class="check">
+    <input type="checkbox" name="retired" value="1" {% if show_retired %}checked{% endif %}>
+    {{ t_show_retired }}
+  </label>
+  <button type="submit">{{ t_apply }}</button>
+</form>
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_name }}</th>
+      {% if can_edit %}<th>{{ t_actions }}</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr class="{% if row.retired %}is-disabled{% endif %}">
+      <td>
+        {% if can_edit %}
+        {# VENDORは18.2の対象外。参照済みでも改名できる（設計書18.3） #}
+        <input type="text" form="vendor-{{ row.id }}" name="name" value="{{ row.name }}" required>
+        {% else %}
+        {{ row.name }}
+        {% endif %}
+        {% if row.retired %}<span class="badge">{{ t_retired }}</span>{% endif %}
+      </td>
+      {% if can_edit %}
+      <td class="actions">
+        <button type="submit" form="vendor-{{ row.id }}" class="ghost">{{ t_save }}</button>
+        <form method="post" action="/catalog/vendors/retire" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <input type="hidden" name="id" value="{{ row.id }}">
+          <input type="hidden" name="undo" value="{% if row.retired %}1{% else %}0{% endif %}">
+          <button type="submit" class="ghost">
+            {% if row.retired %}{{ t_unretire }}{% else %}{{ t_retire }}{% endif %}
+          </button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if can_edit %}
+{# 表の中にフォームは置けないため form 属性で外へ紐づける #}
+{% for row in rows %}
+<form id="vendor-{{ row.id }}" method="post" action="/catalog/vendors" hidden>
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+  <input type="hidden" name="id" value="{{ row.id }}">
+</form>
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{% if can_edit %}
+<p class="hint">{{ t_edit_hint }}</p>
+
+<h2 class="section">{{ t_new }}</h2>
+<div class="card">
+  <form method="post" action="/catalog/vendors" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+    <label for="name">{{ t_name }}</label>
+    <input type="text" id="name" name="name" required>
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

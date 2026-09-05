@@ -58,31 +58,34 @@
 <!-- public.vendor -->
 <g id="node2" class="node">
 <title>public.vendor</title>
-<polygon fill="#efefef" stroke="none" points="93.75,-289.6 93.75,-325.2 347.43,-325.2 347.43,-289.6 93.75,-289.6"/>
-<polygon fill="none" stroke="black" points="93.75,-289.6 93.75,-325.2 347.43,-325.2 347.43,-289.6 93.75,-289.6"/>
-<text text-anchor="start" x="108.61" y="-303" font-family="Arial Bold" font-size="18.00">public.vendor</text>
-<text text-anchor="start" x="208.09" y="-303" font-family="Arial" font-size="14.00">    </text>
-<text text-anchor="start" x="239.2" y="-303" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
-<polygon fill="none" stroke="black" points="93.75,-258.8 93.75,-289.6 347.43,-289.6 347.43,-258.8 93.75,-258.8"/>
-<text text-anchor="start" x="100.75" y="-271" font-family="Arial" font-size="14.00">id </text>
-<text text-anchor="start" x="115.54" y="-271" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="93.75,-228 93.75,-258.8 347.43,-258.8 347.43,-228 93.75,-228"/>
-<text text-anchor="start" x="100.75" y="-240.2" font-family="Arial" font-size="14.00">name </text>
-<text text-anchor="start" x="139.66" y="-240.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="93.75,-197.2 93.75,-228 347.43,-228 347.43,-197.2 93.75,-197.2"/>
-<text text-anchor="start" x="100.75" y="-209.4" font-family="Arial" font-size="14.00">created_by </text>
-<text text-anchor="start" x="173.91" y="-209.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="93.75,-166.4 93.75,-197.2 347.43,-197.2 347.43,-166.4 93.75,-166.4"/>
-<text text-anchor="start" x="100.75" y="-178.6" font-family="Arial" font-size="14.00">created_at </text>
-<text text-anchor="start" x="170.8" y="-178.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="93.75,-135.6 93.75,-166.4 347.43,-166.4 347.43,-135.6 93.75,-135.6"/>
-<text text-anchor="start" x="100.75" y="-147.8" font-family="Arial" font-size="14.00">updated_at </text>
-<text text-anchor="start" x="174.71" y="-147.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="#efefef" stroke="none" points="93.75,-305 93.75,-340.6 347.43,-340.6 347.43,-305 93.75,-305"/>
+<polygon fill="none" stroke="black" points="93.75,-305 93.75,-340.6 347.43,-340.6 347.43,-305 93.75,-305"/>
+<text text-anchor="start" x="108.61" y="-318.4" font-family="Arial Bold" font-size="18.00">public.vendor</text>
+<text text-anchor="start" x="208.09" y="-318.4" font-family="Arial" font-size="14.00">    </text>
+<text text-anchor="start" x="239.2" y="-318.4" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
+<polygon fill="none" stroke="black" points="93.75,-274.2 93.75,-305 347.43,-305 347.43,-274.2 93.75,-274.2"/>
+<text text-anchor="start" x="100.75" y="-286.4" font-family="Arial" font-size="14.00">id </text>
+<text text-anchor="start" x="115.54" y="-286.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="93.75,-243.4 93.75,-274.2 347.43,-274.2 347.43,-243.4 93.75,-243.4"/>
+<text text-anchor="start" x="100.75" y="-255.6" font-family="Arial" font-size="14.00">name </text>
+<text text-anchor="start" x="139.66" y="-255.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="93.75,-212.6 93.75,-243.4 347.43,-243.4 347.43,-212.6 93.75,-212.6"/>
+<text text-anchor="start" x="100.75" y="-224.8" font-family="Arial" font-size="14.00">created_by </text>
+<text text-anchor="start" x="173.91" y="-224.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="93.75,-181.8 93.75,-212.6 347.43,-212.6 347.43,-181.8 93.75,-181.8"/>
+<text text-anchor="start" x="100.75" y="-194" font-family="Arial" font-size="14.00">created_at </text>
+<text text-anchor="start" x="170.8" y="-194" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="93.75,-151 93.75,-181.8 347.43,-181.8 347.43,-151 93.75,-151"/>
+<text text-anchor="start" x="100.75" y="-163.2" font-family="Arial" font-size="14.00">updated_at </text>
+<text text-anchor="start" x="174.71" y="-163.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="93.75,-120.2 93.75,-151 347.43,-151 347.43,-120.2 93.75,-120.2"/>
+<text text-anchor="start" x="100.75" y="-132.4" font-family="Arial" font-size="14.00">retired_at </text>
+<text text-anchor="start" x="163.79" y="-132.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.recurring_cost&#45;&gt;public.vendor -->
 <g id="edge1" class="edge">
 <title>public.recurring_cost:vendor_id&#45;&gt;public.vendor:id</title>
-<path fill="none" stroke="black" d="M244.33,-773.59C136.44,-764.66 218.9,-610.61 255.62,-496.8 277.17,-430.04 325.65,-435.09 347.43,-368.4 360.43,-328.6 390.3,-274.2 348.43,-274.2"/>
+<path fill="none" stroke="black" d="M244.32,-773.59C136.24,-764.59 215.41,-609.43 255.62,-496.8 277.38,-435.86 325.46,-444.66 347.43,-383.8 361.65,-344.42 390.3,-289.6 348.43,-289.6"/>
 <polygon fill="black" stroke="black" points="244.3,-773.59 254.11,-778.48 249.63,-773.8 253.96,-773.97 253.96,-773.97 253.96,-773.97 249.63,-773.8 254.47,-769.49 244.3,-773.59"/>
 <text text-anchor="start" x="7" y="-784" font-family="Arial" font-size="10.00">FOREIGN KEY (vendor_id) REFERENCES vendor(id)</text>
 </g>

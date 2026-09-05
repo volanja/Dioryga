@@ -89,41 +89,44 @@
 <!-- public.vlan -->
 <g id="node3" class="node">
 <title>public.vlan</title>
-<polygon fill="#efefef" stroke="none" points="507.05,-320.4 507.05,-356 760.73,-356 760.73,-320.4 507.05,-320.4"/>
-<polygon fill="none" stroke="black" points="507.05,-320.4 507.05,-356 760.73,-356 760.73,-320.4 507.05,-320.4"/>
-<text text-anchor="start" x="531.4" y="-333.8" font-family="Arial Bold" font-size="18.00">public.vlan</text>
-<text text-anchor="start" x="611.88" y="-333.8" font-family="Arial" font-size="14.00">    </text>
-<text text-anchor="start" x="643" y="-333.8" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
-<polygon fill="none" stroke="black" points="507.05,-289.6 507.05,-320.4 760.73,-320.4 760.73,-289.6 507.05,-289.6"/>
-<text text-anchor="start" x="514.05" y="-301.8" font-family="Arial" font-size="14.00">id </text>
-<text text-anchor="start" x="528.83" y="-301.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="507.05,-258.8 507.05,-289.6 760.73,-289.6 760.73,-258.8 507.05,-258.8"/>
-<text text-anchor="start" x="514.05" y="-271" font-family="Arial" font-size="14.00">vlan_tag </text>
-<text text-anchor="start" x="570.87" y="-271" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="507.05,-228 507.05,-258.8 760.73,-258.8 760.73,-228 507.05,-228"/>
-<text text-anchor="start" x="514.05" y="-240.2" font-family="Arial" font-size="14.00">name </text>
-<text text-anchor="start" x="552.96" y="-240.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="507.05,-197.2 507.05,-228 760.73,-228 760.73,-197.2 507.05,-197.2"/>
-<text text-anchor="start" x="514.05" y="-209.4" font-family="Arial" font-size="14.00">zone </text>
-<text text-anchor="start" x="548.29" y="-209.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="507.05,-166.4 507.05,-197.2 760.73,-197.2 760.73,-166.4 507.05,-166.4"/>
-<text text-anchor="start" x="514.05" y="-178.6" font-family="Arial" font-size="14.00">description </text>
-<text text-anchor="start" x="585.64" y="-178.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="507.05,-135.6 507.05,-166.4 760.73,-166.4 760.73,-135.6 507.05,-135.6"/>
-<text text-anchor="start" x="514.05" y="-147.8" font-family="Arial" font-size="14.00">created_by </text>
-<text text-anchor="start" x="587.2" y="-147.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="507.05,-104.8 507.05,-135.6 760.73,-135.6 760.73,-104.8 507.05,-104.8"/>
-<text text-anchor="start" x="514.05" y="-117" font-family="Arial" font-size="14.00">created_at </text>
-<text text-anchor="start" x="584.09" y="-117" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="507.05,-74 507.05,-104.8 760.73,-104.8 760.73,-74 507.05,-74"/>
-<text text-anchor="start" x="514.05" y="-86.2" font-family="Arial" font-size="14.00">updated_at </text>
-<text text-anchor="start" x="588" y="-86.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="#efefef" stroke="none" points="507.05,-335.8 507.05,-371.4 760.73,-371.4 760.73,-335.8 507.05,-335.8"/>
+<polygon fill="none" stroke="black" points="507.05,-335.8 507.05,-371.4 760.73,-371.4 760.73,-335.8 507.05,-335.8"/>
+<text text-anchor="start" x="531.4" y="-349.2" font-family="Arial Bold" font-size="18.00">public.vlan</text>
+<text text-anchor="start" x="611.88" y="-349.2" font-family="Arial" font-size="14.00">    </text>
+<text text-anchor="start" x="643" y="-349.2" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
+<polygon fill="none" stroke="black" points="507.05,-305 507.05,-335.8 760.73,-335.8 760.73,-305 507.05,-305"/>
+<text text-anchor="start" x="514.05" y="-317.2" font-family="Arial" font-size="14.00">id </text>
+<text text-anchor="start" x="528.83" y="-317.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="507.05,-274.2 507.05,-305 760.73,-305 760.73,-274.2 507.05,-274.2"/>
+<text text-anchor="start" x="514.05" y="-286.4" font-family="Arial" font-size="14.00">vlan_tag </text>
+<text text-anchor="start" x="570.87" y="-286.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="507.05,-243.4 507.05,-274.2 760.73,-274.2 760.73,-243.4 507.05,-243.4"/>
+<text text-anchor="start" x="514.05" y="-255.6" font-family="Arial" font-size="14.00">name </text>
+<text text-anchor="start" x="552.96" y="-255.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="507.05,-212.6 507.05,-243.4 760.73,-243.4 760.73,-212.6 507.05,-212.6"/>
+<text text-anchor="start" x="514.05" y="-224.8" font-family="Arial" font-size="14.00">zone </text>
+<text text-anchor="start" x="548.29" y="-224.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="507.05,-181.8 507.05,-212.6 760.73,-212.6 760.73,-181.8 507.05,-181.8"/>
+<text text-anchor="start" x="514.05" y="-194" font-family="Arial" font-size="14.00">description </text>
+<text text-anchor="start" x="585.64" y="-194" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="507.05,-151 507.05,-181.8 760.73,-181.8 760.73,-151 507.05,-151"/>
+<text text-anchor="start" x="514.05" y="-163.2" font-family="Arial" font-size="14.00">created_by </text>
+<text text-anchor="start" x="587.2" y="-163.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="507.05,-120.2 507.05,-151 760.73,-151 760.73,-120.2 507.05,-120.2"/>
+<text text-anchor="start" x="514.05" y="-132.4" font-family="Arial" font-size="14.00">created_at </text>
+<text text-anchor="start" x="584.09" y="-132.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="507.05,-89.4 507.05,-120.2 760.73,-120.2 760.73,-89.4 507.05,-89.4"/>
+<text text-anchor="start" x="514.05" y="-101.6" font-family="Arial" font-size="14.00">updated_at </text>
+<text text-anchor="start" x="588" y="-101.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="507.05,-58.6 507.05,-89.4 760.73,-89.4 760.73,-58.6 507.05,-58.6"/>
+<text text-anchor="start" x="514.05" y="-70.8" font-family="Arial" font-size="14.00">retired_at </text>
+<text text-anchor="start" x="577.08" y="-70.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.interface_vlan&#45;&gt;public.vlan -->
 <g id="edge2" class="edge">
 <title>public.interface_vlan:vlan_id&#45;&gt;public.vlan:id</title>
-<path fill="none" stroke="black" d="M605.65,-650.14C673.32,-640.88 629.28,-536.24 594.35,-466 572.59,-422.26 528.92,-442.89 507.05,-399.2 488.3,-361.76 464.18,-305 506.05,-305"/>
-<polygon fill="black" stroke="black" points="605.66,-650.14 595.39,-646.29 600.34,-650.48 596.01,-650.76 596.01,-650.76 596.01,-650.76 600.34,-650.48 595.97,-655.27 605.66,-650.14"/>
+<path fill="none" stroke="black" d="M605.67,-650.13C673.69,-640.68 633.46,-534 594.35,-466 571.89,-426.97 529.6,-453.57 507.05,-414.6 486.07,-378.36 464.18,-320.4 506.05,-320.4"/>
+<polygon fill="black" stroke="black" points="605.66,-650.13 595.39,-646.29 600.34,-650.47 596.01,-650.76 596.01,-650.76 596.01,-650.76 600.34,-650.47 595.97,-655.27 605.66,-650.13"/>
 <text text-anchor="start" x="602.35" y="-660.8" font-family="Arial" font-size="10.00">FOREIGN KEY (vlan_id) REFERENCES vlan(id)</text>
 </g>
 </g>

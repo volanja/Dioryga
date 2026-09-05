@@ -2,7 +2,9 @@
 
 ## Description
 
-ベンダーのマスタ。**名称の表記ゆれを防ぐために存在する**（18.3）。
+ベンダーのマスタ。**名称の表記ゆれを防ぐために存在する**（18.3）。  
+**18.2の「参照されたら編集不可」は適用しない**——誤字訂正は構成そのものを変えないため。  
+
 
 ## Columns
 
@@ -13,6 +15,7 @@
 | created_by | integer |  | false |  | [public.app_user](public.app_user.md) |  |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
+| retired_at | timestamp with time zone |  | true |  |  | 廃番（18.5）。null = 現役。**参照済みでも設定できる**——18.2が禁じているのは<br />スペックを定義するフィールドの編集であり、選択可否はスペックではない<br /> |
 
 ## Constraints
 
@@ -28,6 +31,7 @@
 | ---- | ---------- |
 | vendor_pkey | CREATE UNIQUE INDEX vendor_pkey ON public.vendor USING btree (id) |
 | vendor_name_key | CREATE UNIQUE INDEX vendor_name_key ON public.vendor USING btree (name) |
+| idx_vendor_retired_at | CREATE INDEX idx_vendor_retired_at ON public.vendor USING btree (retired_at) |
 
 ## Relations
 

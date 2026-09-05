@@ -18,6 +18,7 @@ VLAN（8.3）。**一意制約を張っていない。**VLANタグはL2ドメイ
 | created_by | integer |  | false |  | [public.app_user](public.app_user.md) |  |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
+| retired_at | timestamp with time zone |  | true |  |  |  |
 
 ## Constraints
 
@@ -33,6 +34,7 @@ VLAN（8.3）。**一意制約を張っていない。**VLANタグはL2ドメイ
 | vlan_pkey | CREATE UNIQUE INDEX vlan_pkey ON public.vlan USING btree (id) |
 | idx_vlan_tag | CREATE INDEX idx_vlan_tag ON public.vlan USING btree (vlan_tag) |
 | idx_vlan_created_by | CREATE INDEX idx_vlan_created_by ON public.vlan USING btree (created_by) |
+| idx_vlan_retired_at | CREATE INDEX idx_vlan_retired_at ON public.vlan USING btree (retired_at) |
 
 ## Relations
 

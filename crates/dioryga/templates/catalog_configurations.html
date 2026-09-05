@@ -1,0 +1,90 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<form class="filters" method="get" action="/catalog/configurations">
+  <label class="check">
+    <input type="checkbox" name="retired" value="1" {% if show_retired %}checked{% endif %}>
+    {{ t_show_retired }}
+  </label>
+  <button type="submit">{{ t_apply }}</button>
+</form>
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_name }}</th>
+      <th>{{ t_chassis_model }}</th>
+      {% if can_edit %}<th>{{ t_actions }}</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr class="{% if row.retired %}is-disabled{% endif %}">
+      <td>
+        {{ row.name }}
+        {% if row.retired %}<span class="badge">{{ t_retired }}</span>{% endif %}
+        {# DEVICE から参照されていたらスペックを編集できない（設計書18.2） #}
+        {% if row.referenced %}<span class="badge">{{ t_referenced }}</span>{% endif %}
+      </td>
+      <td>{{ row.chassis_model }}</td>
+      {% if can_edit %}
+      <td class="actions">
+        <form method="post" action="/catalog/configurations/retire" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <input type="hidden" name="id" value="{{ row.id }}">
+          <input type="hidden" name="undo" value="{% if row.retired %}1{% else %}0{% endif %}">
+          <button type="submit" class="ghost">
+            {% if row.retired %}{{ t_unretire }}{% else %}{{ t_retire }}{% endif %}
+          </button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_new }}</h2>
+<div class="card">
+  {% if models.is_empty() %}
+  <p class="empty">{{ t_no_model }}</p>
+  {% else %}
+  <form method="post" action="/catalog/configurations" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="chassis_model_id">{{ t_chassis_model }}</label>
+    <select id="chassis_model_id" name="chassis_model_id">
+      {% for m in models %}
+      <option value="{{ m.value }}">{{ m.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="name">{{ t_name }}</label>
+    <input type="text" id="name" name="name" required>
+
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

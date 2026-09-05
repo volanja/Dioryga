@@ -8,6 +8,7 @@ pub mod import;
 pub mod login;
 pub mod member;
 pub mod project;
+pub mod rack;
 pub mod setup;
 pub mod view;
 pub mod work_order;
@@ -94,6 +95,22 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/projects/{id}/members",
             get(member::list).post(member::update),
+        )
+        .route(
+            "/projects/{id}/containers",
+            get(rack::list).post(rack::create),
+        )
+        .route(
+            "/projects/{id}/containers/{container_id}",
+            get(rack::detail),
+        )
+        .route(
+            "/projects/{id}/containers/{container_id}/mounts",
+            post(rack::mount),
+        )
+        .route(
+            "/projects/{id}/containers/{container_id}/unmount",
+            post(rack::unmount),
         )
         .route("/projects/{id}/devices/new", get(device::new_form))
         .route(

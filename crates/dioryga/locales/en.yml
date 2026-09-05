@@ -289,3 +289,52 @@ members:
   no_candidate: No users available to add
   error_system_admin: A System Admin cannot be a project member
   error_disabled: A disabled user cannot be added
+
+containers:
+  title: Containers
+  lead: Register racks, desks and shelving. Rack diagrams open from here
+  name: Name
+  container_type: Type
+  capacity: Capacity
+  capacity_hint: Total U for a rack, number of shelves for shelving. Leave empty for a desk
+  mounted: Mounted
+  open: Diagram
+  empty: No containers yet
+  new: Add container
+  submit: Create
+  back: Back to containers
+  error_name: Enter a name
+  error_type: Invalid container type
+  error_capacity: Capacity must be a positive integer
+
+rack:
+  diagram: Rack diagram
+  front: Front
+  rear: Rear
+  legend_planned: Reserved (held by a work order)
+  legend_shelf: Device on a shelf
+  side: Zero-U side mount
+  side_hint: PDUs and the like mounted on the side. These consume no rack units
+  out_of_range: Beyond capacity
+  mount: Mount a device
+  device: Device
+  position: Position
+  position_hint: Starting U for a rack, shelf number for shelving. One is at the bottom. Leave empty for side mounts and shelf-top devices
+  horizontal: Horizontal
+  depth: Depth
+  host: Host device
+  host_hint: Set this to place the device on a shelf. Leave the position empty in that case
+  submit: Mount
+  mounted: Mounted devices
+  unmount: Unmount
+  empty: No devices mounted
+  no_grid: This container has no grid
+  error_not_in_project: A device outside this project cannot be mounted
+  error_already_mounted: This device is already mounted somewhere. Unmount it first
+  error_position: Position must be a positive integer
+  error_rack_side: A zero-U side mount cannot have a position
+  error_host_and_position: Leave the position empty when a host device is set
+  error_half_width: Only half-width models can take a left or right position
+  error_occupied: That position is already taken
+  warn_front_rear: Front and rear devices share this position. This is not recommended for airflow.
+  warn_capacity: This exceeds the capacity. It was registered, but please check.

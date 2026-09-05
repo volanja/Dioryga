@@ -1,0 +1,73 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/projects">{{ chrome.t_nav_projects }}</a> / {{ project_name }}</p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_name }}</th>
+      <th>{{ t_container_type }}</th>
+      <th>{{ t_capacity }}</th>
+      <th>{{ t_mounted }}</th>
+      <th>{{ t_actions }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.name }}</td>
+      <td>{{ row.container_type }}</td>
+      <td>{{ row.capacity }}</td>
+      <td>{{ row.mounted }}</td>
+      <td class="actions">
+        <a href="/projects/{{ project_id }}/containers/{{ row.id }}">{{ t_open }}</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_new }}</h2>
+<div class="card">
+  <form method="post" action="/projects/{{ project_id }}/containers" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="name">{{ t_name }}</label>
+    <input type="text" id="name" name="name" required>
+
+    <label for="container_type">{{ t_container_type }}</label>
+    <select id="container_type" name="container_type">
+      {% for t in container_types %}
+      <option value="{{ t }}">{{ t }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="capacity">{{ t_capacity }}</label>
+    <input type="text" id="capacity" name="capacity" inputmode="numeric">
+    <p class="hint">{{ t_capacity_hint }}</p>
+
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

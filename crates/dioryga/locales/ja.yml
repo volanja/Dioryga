@@ -269,3 +269,23 @@ work_orders:
   error_transition: 遷移先が不正です
   error_transition_from: 現在の状態からは行えない操作です
   error_abort_reason: 中止の理由を入力してください
+
+members:
+  title: メンバー管理
+  lead: このプロジェクトで誰が何をできるかを設定します
+  admin_note: 管理者（正・副）の割り当ては System Admin が行います。ここでは変更できません
+  name: 氏名
+  email: メールアドレス
+  administrator: 管理者
+  operator: 操作者
+  approver: 承認者
+  viewer: 閲覧者
+  save: 保存
+  empty: メンバーがいません
+  disabled: 無効
+  add: メンバーを追加
+  add_lead: 複数のロールを兼務できます。操作と承認の兼務も可能です
+  user: 利用者
+  no_candidate: 追加できる利用者がいません
+  error_system_admin: System Admin はプロジェクトのメンバーにできません
+  error_disabled: 無効化された利用者は追加できません

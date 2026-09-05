@@ -6,6 +6,7 @@ pub mod device;
 mod health;
 pub mod import;
 pub mod login;
+pub mod member;
 pub mod project;
 pub mod setup;
 pub mod view;
@@ -89,6 +90,10 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/projects/{id}/devices",
             get(device::list).post(device::create),
+        )
+        .route(
+            "/projects/{id}/members",
+            get(member::list).post(member::update),
         )
         .route("/projects/{id}/devices/new", get(device::new_form))
         .route(

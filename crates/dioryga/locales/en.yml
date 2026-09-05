@@ -506,3 +506,19 @@ sbom:
   error_not_json: This is not readable as JSON
   error_unknown_format: This is neither CycloneDX nor SPDX. XML is not supported
   error_empty: There are no components
+
+components:
+  title: Component search
+  lead: Find every device carrying a given library version. Used for vulnerability response
+  keyword: Search by PURL or name
+  keyword_hint: PURL matches as a prefix (e.g. pkg:maven/org.apache.logging.log4j/log4j-core). Name matches anywhere, so components without a PURL are found too
+  scope_current: Current configuration
+  scope_all: Include past observations
+  device: Device
+  version: Version
+  purl: PURL
+  observed_at: Observed at
+  past: Past
+  empty: No matching components
+  prompt: Enter a search term
+  truncated: "More than %{limit} rows matched; the rest are not shown. Narrow the search"

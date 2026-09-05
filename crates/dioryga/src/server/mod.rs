@@ -3,6 +3,7 @@
 pub mod account;
 pub mod admin;
 pub mod catalog;
+pub mod component;
 pub mod device;
 mod health;
 pub mod import;
@@ -129,6 +130,7 @@ pub fn router(state: AppState) -> Router {
             "/projects/{id}/devices/{device_id}/sbom",
             get(sbom::show).post(sbom::upload),
         )
+        .route("/projects/{id}/software/components", get(component::search))
         .route(
             "/projects/{id}/import",
             get(import::show).post(import::upload),

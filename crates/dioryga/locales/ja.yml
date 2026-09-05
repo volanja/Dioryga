@@ -269,6 +269,15 @@ work_orders:
   error_transition: 遷移先が不正です
   error_transition_from: 現在の状態からは行えない操作です
   error_abort_reason: 中止の理由を入力してください
+  reservations: 予約している配置
+  reservations_hint: 計画の時点でラック位置を確保します。ラック図に予約中として現れ、他の担当者が同じ場所を使えなくなります。中止すると解放されます
+  reserve: ラック位置を予約する
+  container: 什器
+  released: 解放済み
+  relocation_hint: 移設での予約は未対応です。稼働中の機器は移設元で動いたままである必要があり、増設と同じ方式を当てられません
+  error_reserve_not_planned: 予約を作れるのは計画中のチケットだけです
+  error_reserve_work_type: 予約を作れるのは増設（Addition）のチケットだけです
+  error_reserve_no_device: 対象機器が指定されていません
 
 members:
   title: メンバー管理

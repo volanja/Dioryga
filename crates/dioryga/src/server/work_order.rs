@@ -24,6 +24,18 @@
 //! 立てて自分でレビューしてから進む手順の価値が高い。承認を飛ばすのではなく、
 //! 承認者が自分自身であることを `self_approved` に明示的に記録する。
 //!
+//! # 計画は予約として実データに載せる（11.6）
+//!
+//! `planned` の時点で `DEVICE_MOUNT` を **`work_order_id` 付きで実際に作る。**
+//! Executeまで待たない。こうするとラック図がそのまま予約状況の図になり、
+//! 他の担当者が計画中の場所を誤って使うことを防げる（1.1、11.6）。
+//!
+//! **中断したら解放する。**閉じ忘れるとラックが埋まったまま残り、予約という
+//! 仕組みそのものが信用されなくなる。
+//!
+//! **検証は [`crate::server::rack`] と同じ経路を通す。**予約用に別の検証を
+//! 持つと、片方だけ直したときに規則が食い違う。
+//!
 //! # 誰が何をできるか
 //!
 //! | 操作 | ロール |
@@ -40,7 +52,11 @@ use axum::extract::{Path, Query, State};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::{Extension, Form};
 use chrono::{NaiveDate, Utc};
-use entity::{app_user, device, project, project_member, work_order, work_order_approval};
+use entity::{
+    app_user, device, device_mount, mount_container, project, project_member, work_order,
+    work_order_approval,
+};
+use sea_orm::prelude::DateTimeUtc;
 use sea_orm::{
     ColumnTrait, Condition, ConnectionTrait, EntityTrait, ExprTrait, QueryFilter, QueryOrder,
     QuerySelect, Set,
@@ -60,6 +76,13 @@ const WORK_TYPES: &[&str] = &["Repair", "Addition", "Relocation", "Disposal", "T
 /// 移譲。**このときだけ承認行が2つになる**（11.5）。
 const TRANSFER: &str = "Transfer";
 
+/// 増設。**予約レコードを作れるのはこれだけ**（11.6）。
+const ADDITION: &str = "Addition";
+
+/// 予約中の機器（11.6）。ラック図が破線で描く。
+const PLAN: &str = "plan";
+const RUNNING: &str = "running";
+
 const PLANNED: &str = "planned";
 const APPROVED: &str = "approved";
 const EXECUTING: &str = "executing";
@@ -68,6 +91,112 @@ const ABORTED: &str = "aborted";
 
 const PENDING: &str = "pending";
 const REJECTED: &str = "rejected";
+
+// ---------------------------------------------------------------------------
+// 予約（設計書11.6）
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+pub struct ReserveForm {
+    pub container_id: i32,
+    #[serde(default)]
+    pub position: String,
+    #[serde(default)]
+    pub horizontal_position: String,
+    #[serde(default)]
+    pub depth_position: String,
+}
+
+/// ラック位置を予約する（設計書11.6）。
+///
+/// **Executeまで待たずに `DEVICE_MOUNT` を作る。**こうするとラック図がそのまま
+/// 予約状況の図になり、二重予約は12.3の重複配置検証がそのまま止める——予約用の
+/// 新しい仕組みを足していない。
+pub async fn reserve(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path((project_id, work_order_id)): Path<(i32, i32)>,
+    Form(form): Form<ReserveForm>,
+) -> AppResult<Response> {
+    入場(&state, &current, project_id).await?;
+    authorization::require_project_editor(&state.db, &current.user, project_id)
+        .await
+        .map_err(|_| AppError::Forbidden)?;
+
+    let l = Locale::parse(&current.user.locale).as_str();
+    let 訳 = |key: &str| rust_i18n::t!(key, locale = l).to_string();
+    let w = 取得(&state, project_id, work_order_id).await?;
+
+    // **予約は計画中の増設にしか作れない**（11.6）。
+    //
+    // - 承認後に場所が変わっては、承認した内容と実施する内容がずれる
+    // - **移設への適用は未検討**（11.6の末尾、17章の課題）。稼働中の機器は
+    //   移設元で status="running" のまま稼働している必要があり、同じ仕組みを
+    //   そのまま当てられない
+    let 拒否 = if w.status != PLANNED {
+        Some("work_orders.error_reserve_not_planned")
+    } else if w.work_type != ADDITION {
+        Some("work_orders.error_reserve_work_type")
+    } else if w.device_id.is_none() {
+        Some("work_orders.error_reserve_no_device")
+    } else {
+        None
+    };
+    if let Some(key) = 拒否 {
+        return 詳細を描く(
+            &state,
+            &current,
+            project_id,
+            work_order_id,
+            Some(訳(key)),
+            None,
+        )
+        .await;
+    }
+    let device_id = w.device_id.expect("上で確認済み");
+
+    // **検証はrackと同じ経路を通す**（重複配置・半width・0Uサイドマウント）
+    let 結果 = crate::server::rack::搭載を試みる(
+        &state,
+        current.user.id,
+        crate::server::rack::搭載要求 {
+            project_id,
+            container_id: form.container_id,
+            device_id,
+            position: &form.position,
+            horizontal: &form.horizontal_position,
+            depth: &form.depth_position,
+            host_device_id: "",
+            work_order_id: Some(w.id),
+        },
+    )
+    .await?;
+
+    match 結果 {
+        Err(key) => {
+            詳細を描く(
+                &state,
+                &current,
+                project_id,
+                work_order_id,
+                Some(訳(key)),
+                None,
+            )
+            .await
+        }
+        Ok(warnings) => {
+            let notice = (!warnings.is_empty())
+                .then(|| warnings.iter().map(|k| 訳(k)).collect::<Vec<_>>().join(" "));
+            if notice.is_some() {
+                return 詳細を描く(&state, &current, project_id, work_order_id, None, notice).await;
+            }
+            Ok(Redirect::to(&format!(
+                "/projects/{project_id}/work-orders/{work_order_id}"
+            ))
+            .into_response())
+        }
+    }
+}
 
 // ---------------------------------------------------------------------------
 // 状態遷移（設計書11.2）
@@ -213,7 +342,35 @@ struct WorkOrderDetailPage {
     can_execute: bool,
     can_complete: bool,
     can_abort: bool,
+    // --- 予約（設計書11.6） ---
+    t_reservations: String,
+    t_reservations_hint: String,
+    t_reserve: String,
+    t_container: String,
+    t_position: String,
+    t_position_hint: String,
+    t_horizontal: String,
+    t_depth: String,
+    t_released: String,
+    t_relocation_hint: String,
+    /// この画面から予約を作れる。`planned` かつ `Addition` のときだけ（11.6）。
+    can_reserve: bool,
+    /// 移設は「Plan時点で正式レコードを作る」方式を当てられない（11.6、17章）。
+    relocation_unsupported: bool,
+    containers: Vec<Labeled>,
+    reservations: Vec<ReservationRow>,
+    horizontals: Vec<&'static str>,
+    depths: Vec<&'static str>,
     error: Option<String>,
+    notice: Option<String>,
+}
+
+/// このチケットが確保している配置（設計書11.6）。
+struct ReservationRow {
+    container: String,
+    place: String,
+    /// 中断で解放済み。**行は消さず閉じる**ため、閉じたものも見える
+    released: bool,
 }
 
 #[derive(askama::Template)]
@@ -379,7 +536,7 @@ pub async fn detail(
     Extension(current): Extension<CurrentUser>,
     Path((project_id, work_order_id)): Path<(i32, i32)>,
 ) -> AppResult<Response> {
-    詳細を描く(&state, &current, project_id, work_order_id, None).await
+    詳細を描く(&state, &current, project_id, work_order_id, None, None).await
 }
 
 async fn 詳細を描く(
@@ -388,6 +545,7 @@ async fn 詳細を描く(
     project_id: i32,
     work_order_id: i32,
     error: Option<String>,
+    notice: Option<String>,
 ) -> AppResult<Response> {
     let (project, can_edit) = 入場(state, current, project_id).await?;
     let l = Locale::parse(&current.user.locale).as_str();
@@ -407,8 +565,11 @@ async fn 詳細を描く(
             .await
             .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
-        // **承認の可否は承認先プロジェクトで判定する。**起票元ではない（11.5）
+        // **承認の可否は承認先プロジェクトで判定する。**起票元ではない（11.5）。
+        // 中止・完了済みのチケットにボタンを出さない——押しても弾かれるので、
+        // 出ていること自体が誤解を招く
         let 承認できる = a.status == PENDING
+            && w.status == PLANNED
             && authorization::require_project_role(
                 &state.db,
                 &current.user,
@@ -469,8 +630,90 @@ async fn 詳細を描く(
         can_execute: can_edit && w.status == APPROVED,
         can_complete: can_edit && w.status == EXECUTING,
         can_abort: can_edit && 未完了,
+        // --- 予約（設計書11.6） ---
+        t_reservations: rust_i18n::t!("work_orders.reservations", locale = l).to_string(),
+        t_reservations_hint: rust_i18n::t!("work_orders.reservations_hint", locale = l).to_string(),
+        t_reserve: rust_i18n::t!("work_orders.reserve", locale = l).to_string(),
+        t_container: rust_i18n::t!("work_orders.container", locale = l).to_string(),
+        t_position: rust_i18n::t!("rack.position", locale = l).to_string(),
+        t_position_hint: rust_i18n::t!("rack.position_hint", locale = l).to_string(),
+        t_horizontal: rust_i18n::t!("rack.horizontal", locale = l).to_string(),
+        t_depth: rust_i18n::t!("rack.depth", locale = l).to_string(),
+        t_released: rust_i18n::t!("work_orders.released", locale = l).to_string(),
+        t_relocation_hint: rust_i18n::t!("work_orders.relocation_hint", locale = l).to_string(),
+        // **予約を作れるのは計画中の増設だけ**（11.6）
+        can_reserve: can_edit && w.status == PLANNED && w.work_type == ADDITION,
+        relocation_unsupported: w.work_type == "Relocation",
+        containers: 什器の候補(&state.db, project_id).await?,
+        reservations: 予約一覧(&state.db, w.id).await?,
+        horizontals: vec!["Left", "Right", "Full"],
+        depths: vec!["Front", "Rear", "Full"],
         error,
+        notice,
     })
+}
+
+/// このチケットが確保している配置（設計書11.6）。
+///
+/// **閉じたものも出す。**中断で解放された事実が見えないと、何が起きたのか
+/// 追えない（不変条件1で行を消さないのと同じ理由）。
+async fn 予約一覧<C: ConnectionTrait>(
+    db: &C,
+    work_order_id: i32,
+) -> AppResult<Vec<ReservationRow>> {
+    let mounts = device_mount::Entity::find()
+        .filter(device_mount::Column::WorkOrderId.eq(work_order_id))
+        .order_by_asc(device_mount::Column::Id)
+        .all(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    let mut rows = Vec::new();
+    for m in mounts {
+        let container = match m.container_id {
+            Some(id) => mount_container::Entity::find_by_id(id)
+                .one(db)
+                .await
+                .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+                .map(|c| c.name)
+                .unwrap_or_default(),
+            None => String::new(),
+        };
+
+        let mut place = Vec::new();
+        if let Some(p) = m.position {
+            place.push(format!("{p}U"));
+        }
+        if let Some(h) = &m.horizontal_position {
+            place.push(h.clone());
+        }
+        if let Some(d) = &m.depth_position {
+            place.push(d.clone());
+        }
+
+        rows.push(ReservationRow {
+            container,
+            place: place.join(" / "),
+            released: m.to_date.is_some(),
+        });
+    }
+    Ok(rows)
+}
+
+async fn 什器の候補<C: ConnectionTrait>(db: &C, project_id: i32) -> AppResult<Vec<Labeled>> {
+    Ok(mount_container::Entity::find()
+        .filter(mount_container::Column::LocationType.eq("Project"))
+        .filter(mount_container::Column::LocationId.eq(project_id))
+        .order_by_asc(mount_container::Column::Name)
+        .all(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .into_iter()
+        .map(|c| Labeled {
+            label: c.name,
+            value: c.id.to_string(),
+        })
+        .collect())
 }
 
 async fn 基本情報(state: &AppState, w: &work_order::Model, l: &str) -> AppResult<Vec<Labeled>> {
@@ -796,12 +1039,12 @@ pub async fn approve(
 
     if approval.status != PENDING {
         let e = rust_i18n::t!("work_orders.error_already_decided", locale = l).to_string();
-        return 詳細を描く(&state, &current, project_id, work_order_id, Some(e)).await;
+        return 詳細を描く(&state, &current, project_id, work_order_id, Some(e), None).await;
     }
     // 中止・完了済みのチケットを後から承認できてしまうと、状態が意味を失う
     if w.status != PLANNED {
         let e = rust_i18n::t!("work_orders.error_not_planned", locale = l).to_string();
-        return 詳細を描く(&state, &current, project_id, work_order_id, Some(e)).await;
+        return 詳細を描く(&state, &current, project_id, work_order_id, Some(e), None).await;
     }
 
     let 却下 = form.decision == "reject";
@@ -819,7 +1062,7 @@ pub async fn approve(
         .await?
         {
             let e = rust_i18n::t!("work_orders.error_self_approval", locale = l).to_string();
-            return 詳細を描く(&state, &current, project_id, work_order_id, Some(e)).await;
+            return 詳細を描く(&state, &current, project_id, work_order_id, Some(e), None).await;
         }
         // 承認者が自分しかいない。**承認ステップは省略せず、その旨を記録して通す**
         self_approved = true;
@@ -943,20 +1186,20 @@ pub async fn transition(
 
     let Some(t) = Transition::parse(&form.to) else {
         let e = rust_i18n::t!("work_orders.error_transition", locale = l).to_string();
-        return 詳細を描く(&state, &current, project_id, work_order_id, Some(e)).await;
+        return 詳細を描く(&state, &current, project_id, work_order_id, Some(e), None).await;
     };
 
     // **遷移元を必ず確かめる。**画面が出していなくてもPOSTは直接叩ける
     if !t.遷移元().contains(&w.status.as_str()) {
         let e = rust_i18n::t!("work_orders.error_transition_from", locale = l).to_string();
-        return 詳細を描く(&state, &current, project_id, work_order_id, Some(e)).await;
+        return 詳細を描く(&state, &current, project_id, work_order_id, Some(e), None).await;
     }
 
     let 理由 = form.aborted_reason.trim().to_owned();
     if t == Transition::Abort && 理由.is_empty() {
         // 中止の理由は必須。**「結果はどうだったのか」に答えられなくなる**（旧C-2）
         let e = rust_i18n::t!("work_orders.error_abort_reason", locale = l).to_string();
-        return 詳細を描く(&state, &current, project_id, work_order_id, Some(e)).await;
+        return 詳細を描く(&state, &current, project_id, work_order_id, Some(e), None).await;
     }
 
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
@@ -982,6 +1225,17 @@ pub async fn transition(
     tx.update(&w, model)
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    match t {
+        // **中断したら予約を解放する**（設計書11.6）。閉じ忘れるとラックが
+        // 埋まったまま残り、予約という仕組みそのものが信用されなくなる
+        Transition::Abort => 予約を解放する(&tx, w.id, now).await?,
+        // **実行したら予約が実機になる**（16.2のフロー）。status=plan のまま
+        // だとラック図に予約中として描かれ続ける
+        Transition::Execute => 予約を実機にする(&tx, &w, now).await?,
+        Transition::Complete => {}
+    }
+
     tx.commit()
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
@@ -995,6 +1249,77 @@ pub async fn transition(
 // ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
+
+/// 中断時に予約を解放する（設計書11.6）。
+///
+/// **行は消さず `to_date` を閉じる**（不変条件1）。「いつまで確保していたか」も
+/// 事実であり、後から経緯を追えなくなる。
+async fn 予約を解放する(
+    tx: &AuditedTx,
+    work_order_id: i32,
+    at: DateTimeUtc,
+) -> AppResult<()> {
+    let 予約 = device_mount::Entity::find()
+        .filter(device_mount::Column::WorkOrderId.eq(work_order_id))
+        .filter(device_mount::Column::ToDate.is_null())
+        .all(tx.reader())
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    for row in 予約 {
+        tx.update(
+            &row,
+            device_mount::ActiveModel {
+                id: Set(row.id),
+                to_date: Set(Some(at)),
+                ..Default::default()
+            },
+        )
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    }
+    Ok(())
+}
+
+/// 実行開始時に、予約中の機器を稼働中にする（設計書16.2のフロー）。
+///
+/// **`plan` のときだけ動かす。**既に `running` の機器（移設等）や、`broken` の
+/// まま修理しているものを勝手に書き換えない。
+async fn 予約を実機にする(
+    tx: &AuditedTx,
+    w: &work_order::Model,
+    at: DateTimeUtc,
+) -> AppResult<()> {
+    let Some(device_id) = w.device_id else {
+        return Ok(());
+    };
+
+    let Some(d) = device::Entity::find_by_id(device_id)
+        .one(tx.reader())
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+    else {
+        return Ok(());
+    };
+
+    if d.status != PLAN {
+        return Ok(());
+    }
+
+    tx.update(
+        &d,
+        device::ActiveModel {
+            id: Set(d.id),
+            status: Set(RUNNING.to_owned()),
+            updated_at: Set(at),
+            ..Default::default()
+        },
+    )
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    Ok(())
+}
 
 /// このプロジェクトから見えるチケットを取得する。
 ///

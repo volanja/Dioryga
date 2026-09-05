@@ -8,6 +8,7 @@ mod health;
 pub mod import;
 pub mod login;
 pub mod member;
+pub mod part;
 pub mod project;
 pub mod rack;
 pub mod setup;
@@ -161,7 +162,45 @@ pub fn router(state: AppState) -> Router {
             "/catalog/configurations",
             get(catalog::configurations).post(catalog::create_configuration),
         )
-        .route("/catalog/{kind}/retire", post(catalog::retire))
+        .route(
+            "/catalog/chassis-models/{id}",
+            get(catalog::chassis_model_detail),
+        )
+        .route(
+            "/catalog/chassis-models/{id}/slots",
+            post(catalog::add_slot),
+        )
+        .route(
+            "/catalog/chassis-models/{id}/slots/remove",
+            post(catalog::remove_slot),
+        )
+        .route(
+            "/catalog/configurations/{id}",
+            get(catalog::configuration_detail),
+        )
+        .route(
+            "/catalog/configurations/{id}/parts",
+            post(catalog::add_part),
+        )
+        .route(
+            "/catalog/configurations/{id}/parts/remove",
+            post(catalog::remove_part),
+        )
+        .route("/catalog/parts", get(part::list).post(part::create))
+        .route("/catalog/parts/retire", post(part::retire))
+        .route("/catalog/parts/{id}", get(part::detail))
+        .route("/catalog/parts/{id}/ports", post(part::add_port))
+        .route("/catalog/parts/{id}/ports/remove", post(part::remove_port))
+        // 廃番は静的パスで置く。`/catalog/{kind}/retire` は詳細と衝突する
+        .route("/catalog/vendors/retire", post(catalog::retire_vendor))
+        .route(
+            "/catalog/chassis-models/retire",
+            post(catalog::retire_chassis_model),
+        )
+        .route(
+            "/catalog/configurations/retire",
+            post(catalog::retire_configuration),
+        )
         .route("/assets/{*path}", get(view::asset))
         .layer(axum::middleware::from_fn(
             crate::auth::middleware::system_admin_only,

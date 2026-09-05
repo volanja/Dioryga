@@ -159,6 +159,10 @@ button:hover { filter: brightness(1.08); }
 .sidenav a:hover { background: var(--hover); }
 .sidenav a.current { background: var(--hover); font-weight: 600; }
 
+/* カタログの下位項目。開いているときだけ並ぶ（設計書16.1のD領域） */
+.sidenav a.sub { padding-left: 26px; font-size: 13px; color: var(--muted); }
+.sidenav a.sub:hover { color: var(--text); }
+
 .content { flex: 1 1 auto; min-width: 0; padding: 24px; }
 
 /* 画面が狭いときはナビを上へ回す */

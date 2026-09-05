@@ -39,7 +39,9 @@ use axum::extract::{Path, Query, State};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::{Extension, Form};
 use chrono::Utc;
-use entity::{chassis_model, chassis_slot, configuration, device, vendor};
+use entity::{
+    chassis_model, chassis_slot, configuration, configuration_part, device, part_catalog, vendor,
+};
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, Set};
 use serde::Deserialize;
 
@@ -53,6 +55,21 @@ use crate::server::AppState;
 /// 語彙（`vocabularies.md`、設計書6.2、12.3）。
 const MOUNT_FORMS: &[&str] = &["RackU", "RackSide", "Surface"];
 const RACK_WIDTHS: &[&str] = &["Full", "Half"];
+/// `CHASSIS_SLOT.slot_type`（`vocabularies.md`）。
+const SLOT_TYPES: &[&str] = &["CPU_SOCKET", "DIMM", "DRIVE_BAY", "PCIE", "PSU_BAY"];
+
+/// どの部品カテゴリがどのスロットを消費するか（設計書6.1）。
+///
+/// **対応が無いカテゴリ（`PDU`）では警告を出さない。**機器に内蔵する部品では
+/// ないため、消費するスロットが無い。
+const カテゴリとスロット: &[(&str, &str)] = &[
+    ("CPU", "CPU_SOCKET"),
+    ("Memory", "DIMM"),
+    ("Storage", "DRIVE_BAY"),
+    ("NIC", "PCIE"),
+    ("PSU", "PSU_BAY"),
+];
+
 const DEVICE_CATEGORIES: &[&str] = &[
     "Server",
     "Switch",
@@ -128,6 +145,7 @@ struct ChassisModelRow {
 struct ChassisModelsPage {
     chrome: Chrome,
     t_apply: String,
+    t_detail: String,
     t_title: String,
     t_lead: String,
     t_naming_hint: String,
@@ -173,6 +191,7 @@ struct ConfigurationRow {
 struct ConfigurationsPage {
     chrome: Chrome,
     t_apply: String,
+    t_detail: String,
     t_title: String,
     t_lead: String,
     t_name: String,
@@ -194,9 +213,9 @@ struct ConfigurationsPage {
     error: Option<String>,
 }
 
-struct Labeled {
-    label: String,
-    value: String,
+pub(crate) struct Labeled {
+    pub label: String,
+    pub value: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -396,6 +415,7 @@ async fn 筐体型を描く(
     render(&ChassisModelsPage {
         chrome: Chrome::new(&current.user, current.csrf_token.clone(), "catalog"),
         t_apply: rust_i18n::t!("catalog.apply", locale = l).to_string(),
+        t_detail: rust_i18n::t!("devices.detail", locale = l).to_string(),
         t_title: rust_i18n::t!("catalog.chassis_models", locale = l).to_string(),
         t_lead: rust_i18n::t!("catalog.chassis_models_lead", locale = l).to_string(),
         t_naming_hint: rust_i18n::t!("catalog.naming_hint", locale = l).to_string(),
@@ -587,6 +607,7 @@ async fn 構成を描く(
     render(&ConfigurationsPage {
         chrome: Chrome::new(&current.user, current.csrf_token.clone(), "catalog"),
         t_apply: rust_i18n::t!("catalog.apply", locale = l).to_string(),
+        t_detail: rust_i18n::t!("devices.detail", locale = l).to_string(),
         t_title: rust_i18n::t!("catalog.configurations", locale = l).to_string(),
         t_lead: rust_i18n::t!("catalog.configurations_lead", locale = l).to_string(),
         t_name: rust_i18n::t!("catalog.name", locale = l).to_string(),
@@ -653,6 +674,536 @@ pub async fn create_configuration(
 }
 
 // ---------------------------------------------------------------------------
+// 筐体モデルの詳細（スロット、設計書6.1）
+// ---------------------------------------------------------------------------
+
+struct SlotRow {
+    id: i32,
+    slot_type: String,
+    slot_label: String,
+}
+
+#[derive(askama::Template)]
+#[template(path = "catalog_chassis_model_detail.html")]
+struct ChassisModelDetailPage {
+    chrome: Chrome,
+    chassis_model_id: i32,
+    t_back: String,
+    t_basic: String,
+    t_slots: String,
+    t_slots_hint: String,
+    t_slot_type: String,
+    t_slot_label: String,
+    t_add_slot: String,
+    t_remove: String,
+    t_empty: String,
+    t_actions: String,
+    title: String,
+    basic: Vec<Labeled>,
+    slots: Vec<SlotRow>,
+    slot_types: Vec<&'static str>,
+    can_edit: bool,
+    error: Option<String>,
+}
+
+pub async fn chassis_model_detail(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path(id): Path<i32>,
+) -> AppResult<Response> {
+    筐体型の詳細を描く(&state, &current, id, None).await
+}
+
+async fn 筐体型の詳細を描く(
+    state: &AppState,
+    current: &CurrentUser,
+    id: i32,
+    error: Option<String>,
+) -> AppResult<Response> {
+    let l = 入場(state, current)?;
+    let can_edit = 編集権(state, current).await.is_ok();
+
+    let m = chassis_model::Entity::find_by_id(id)
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .ok_or(AppError::NotFound)?;
+
+    let mut basic = vec![
+        Labeled {
+            label: rust_i18n::t!("catalog.vendor", locale = l).to_string(),
+            value: ベンダー名(&state.db, m.vendor_id).await?,
+        },
+        Labeled {
+            label: rust_i18n::t!("catalog.height_u", locale = l).to_string(),
+            value: m.height_u.to_string(),
+        },
+        Labeled {
+            label: rust_i18n::t!("catalog.mount_form", locale = l).to_string(),
+            value: m.mount_form.clone(),
+        },
+    ];
+    if let Some(w) = &m.rack_width {
+        basic.push(Labeled {
+            label: rust_i18n::t!("catalog.rack_width", locale = l).to_string(),
+            value: w.clone(),
+        });
+    }
+
+    let slots = chassis_slot::Entity::find()
+        .filter(chassis_slot::Column::ChassisModelId.eq(id))
+        .order_by_asc(chassis_slot::Column::Id)
+        .all(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .into_iter()
+        .map(|s| SlotRow {
+            id: s.id,
+            slot_type: s.slot_type,
+            slot_label: s.slot_label,
+        })
+        .collect();
+
+    render(&ChassisModelDetailPage {
+        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "catalog"),
+        chassis_model_id: id,
+        t_back: rust_i18n::t!("catalog.back_models", locale = l).to_string(),
+        t_basic: rust_i18n::t!("devices.basic", locale = l).to_string(),
+        t_slots: rust_i18n::t!("catalog.slots", locale = l).to_string(),
+        t_slots_hint: rust_i18n::t!("catalog.slots_hint", locale = l).to_string(),
+        t_slot_type: rust_i18n::t!("catalog.slot_type", locale = l).to_string(),
+        t_slot_label: rust_i18n::t!("catalog.slot_label", locale = l).to_string(),
+        t_add_slot: rust_i18n::t!("catalog.add_slot", locale = l).to_string(),
+        t_remove: rust_i18n::t!("catalog.remove", locale = l).to_string(),
+        t_empty: rust_i18n::t!("catalog.no_slot", locale = l).to_string(),
+        t_actions: rust_i18n::t!("projects.actions", locale = l).to_string(),
+        title: format!(
+            "{} {}",
+            ベンダー名(&state.db, m.vendor_id).await?,
+            m.model_name
+        ),
+        basic,
+        slots,
+        slot_types: SLOT_TYPES.to_vec(),
+        can_edit,
+        error,
+    })
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SlotForm {
+    #[serde(default)]
+    pub slot_type: String,
+    #[serde(default)]
+    pub slot_label: String,
+}
+
+pub async fn add_slot(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path(id): Path<i32>,
+    Form(form): Form<SlotForm>,
+) -> AppResult<Response> {
+    let l = 入場(&state, &current)?;
+    編集権(&state, &current).await?;
+    let 誤り = |key: &str| Some(rust_i18n::t!(key, locale = l).to_string());
+
+    chassis_model::Entity::find_by_id(id)
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .ok_or(AppError::NotFound)?;
+
+    if !SLOT_TYPES.contains(&form.slot_type.as_str()) {
+        return 筐体型の詳細を描く(&state, &current, id, 誤り("catalog.error_slot_type")).await;
+    }
+    let label = form.slot_label.trim();
+    if label.is_empty() {
+        return 筐体型の詳細を描く(&state, &current, id, 誤り("catalog.error_slot_label")).await;
+    }
+
+    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let now = Utc::now();
+    tx.insert(chassis_slot::ActiveModel {
+        chassis_model_id: Set(id),
+        slot_type: Set(form.slot_type.clone()),
+        slot_label: Set(label.to_owned()),
+        created_at: Set(now),
+        updated_at: Set(now),
+        ..Default::default()
+    })
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    Ok(Redirect::to(&format!("/catalog/chassis-models/{id}")).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RemoveChildForm {
+    pub child_id: i32,
+}
+
+pub async fn remove_slot(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path(id): Path<i32>,
+    Form(form): Form<RemoveChildForm>,
+) -> AppResult<Response> {
+    入場(&state, &current)?;
+    編集権(&state, &current).await?;
+
+    let row = chassis_slot::Entity::find_by_id(form.child_id)
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .filter(|r| r.chassis_model_id == id)
+        .ok_or(AppError::NotFound)?;
+
+    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.delete(row)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    Ok(Redirect::to(&format!("/catalog/chassis-models/{id}")).into_response())
+}
+
+// ---------------------------------------------------------------------------
+// 構成の詳細（部品、設計書6.1・6.2）
+// ---------------------------------------------------------------------------
+
+struct ConfigurationPartRow {
+    id: i32,
+    part: String,
+    category: String,
+    quantity: i32,
+}
+
+#[derive(askama::Template)]
+#[template(path = "catalog_configuration_detail.html")]
+struct ConfigurationDetailPage {
+    chrome: Chrome,
+    configuration_id: i32,
+    t_back: String,
+    t_basic: String,
+    t_parts: String,
+    t_parts_hint: String,
+    t_part: String,
+    t_category: String,
+    t_quantity: String,
+    t_quantity_hint: String,
+    t_add_part: String,
+    t_remove: String,
+    t_empty: String,
+    t_actions: String,
+    t_no_part: String,
+    title: String,
+    basic: Vec<Labeled>,
+    parts: Vec<ConfigurationPartRow>,
+    candidates: Vec<Labeled>,
+    can_edit: bool,
+    error: Option<String>,
+    /// スロット本数の超過。**エラーではなく警告**（6.1、不変条件6）。
+    notice: Option<String>,
+}
+
+pub async fn configuration_detail(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path(id): Path<i32>,
+) -> AppResult<Response> {
+    構成の詳細を描く(&state, &current, id, None, None).await
+}
+
+async fn 構成の詳細を描く(
+    state: &AppState,
+    current: &CurrentUser,
+    id: i32,
+    error: Option<String>,
+    notice: Option<String>,
+) -> AppResult<Response> {
+    let l = 入場(state, current)?;
+    let can_edit = 編集権(state, current).await.is_ok();
+
+    let c = configuration::Entity::find_by_id(id)
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .ok_or(AppError::NotFound)?;
+
+    let rows = configuration_part::Entity::find()
+        .filter(configuration_part::Column::ConfigurationId.eq(id))
+        .order_by_asc(configuration_part::Column::Id)
+        .all(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    let mut parts = Vec::new();
+    for r in rows {
+        let p = part_catalog::Entity::find_by_id(r.part_catalog_id)
+            .one(&state.db)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+        parts.push(ConfigurationPartRow {
+            part: match &p {
+                Some(p) => format!(
+                    "{} {}",
+                    ベンダー名(&state.db, p.vendor_id).await?,
+                    p.part_number
+                ),
+                None => String::new(),
+            },
+            category: p.map(|p| p.category).unwrap_or_default(),
+            id: r.id,
+            quantity: r.quantity,
+        });
+    }
+
+    render(&ConfigurationDetailPage {
+        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "catalog"),
+        configuration_id: id,
+        t_back: rust_i18n::t!("catalog.back_configurations", locale = l).to_string(),
+        t_basic: rust_i18n::t!("devices.basic", locale = l).to_string(),
+        t_parts: rust_i18n::t!("catalog.parts", locale = l).to_string(),
+        t_parts_hint: rust_i18n::t!("catalog.parts_hint", locale = l).to_string(),
+        t_part: rust_i18n::t!("catalog.part", locale = l).to_string(),
+        t_category: rust_i18n::t!("parts.category", locale = l).to_string(),
+        t_quantity: rust_i18n::t!("catalog.quantity", locale = l).to_string(),
+        t_quantity_hint: rust_i18n::t!("catalog.quantity_hint", locale = l).to_string(),
+        t_add_part: rust_i18n::t!("catalog.add_part", locale = l).to_string(),
+        t_remove: rust_i18n::t!("catalog.remove", locale = l).to_string(),
+        t_empty: rust_i18n::t!("catalog.no_part", locale = l).to_string(),
+        t_actions: rust_i18n::t!("projects.actions", locale = l).to_string(),
+        t_no_part: rust_i18n::t!("catalog.no_part_catalog", locale = l).to_string(),
+        title: c.name.clone(),
+        basic: vec![Labeled {
+            label: rust_i18n::t!("catalog.chassis_model", locale = l).to_string(),
+            value: 筐体型名(&state.db, c.chassis_model_id).await?,
+        }],
+        parts,
+        candidates: 現役の部品(&state.db).await?,
+        can_edit,
+        error,
+        notice,
+    })
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ConfigurationPartForm {
+    pub part_catalog_id: i32,
+    #[serde(default)]
+    pub quantity: String,
+}
+
+pub async fn add_part(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path(id): Path<i32>,
+    Form(form): Form<ConfigurationPartForm>,
+) -> AppResult<Response> {
+    let l = 入場(&state, &current)?;
+    編集権(&state, &current).await?;
+    let 誤り = |key: &str| Some(rust_i18n::t!(key, locale = l).to_string());
+
+    let c = configuration::Entity::find_by_id(id)
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .ok_or(AppError::NotFound)?;
+
+    let quantity = match form.quantity.trim().parse::<i32>() {
+        Ok(n) if n > 0 => n,
+        _ => {
+            return 構成の詳細を描く(
+                &state,
+                &current,
+                id,
+                誤り("catalog.error_quantity"),
+                None,
+            )
+            .await
+        }
+    };
+
+    let p = part_catalog::Entity::find_by_id(form.part_catalog_id)
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .ok_or(AppError::NotFound)?;
+
+    // **同じ部品を複数行に分けず `quantity` で表す**（6.2）
+    let 既存 = configuration_part::Entity::find()
+        .filter(configuration_part::Column::ConfigurationId.eq(id))
+        .filter(configuration_part::Column::PartCatalogId.eq(p.id))
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    if 既存.is_some() {
+        return 構成の詳細を描く(
+            &state,
+            &current,
+            id,
+            誤り("catalog.error_part_duplicate"),
+            None,
+        )
+        .await;
+    }
+
+    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let now = Utc::now();
+    tx.insert(configuration_part::ActiveModel {
+        configuration_id: Set(id),
+        part_catalog_id: Set(p.id),
+        quantity: Set(quantity),
+        created_at: Set(now),
+        updated_at: Set(now),
+        ..Default::default()
+    })
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    // **超過は登録を拒否せず警告する**（6.1、不変条件6）。実機の構成が仕様の
+    // 想定外であること自体はありうるうえ、誤って拒否すると事実を記録できなくなる
+    let notice = スロット超過(&state.db, c.chassis_model_id, id, &p.category)
+        .await?
+        .map(|(使用, 本数)| {
+            rust_i18n::t!(
+                "catalog.warn_slot_over",
+                locale = l,
+                category = p.category,
+                used = 使用,
+                slots = 本数
+            )
+            .to_string()
+        });
+
+    if notice.is_some() {
+        return 構成の詳細を描く(&state, &current, id, None, notice).await;
+    }
+
+    Ok(Redirect::to(&format!("/catalog/configurations/{id}")).into_response())
+}
+
+pub async fn remove_part(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path(id): Path<i32>,
+    Form(form): Form<RemoveChildForm>,
+) -> AppResult<Response> {
+    入場(&state, &current)?;
+    編集権(&state, &current).await?;
+
+    let row = configuration_part::Entity::find_by_id(form.child_id)
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .filter(|r| r.configuration_id == id)
+        .ok_or(AppError::NotFound)?;
+
+    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.delete(row)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    Ok(Redirect::to(&format!("/catalog/configurations/{id}")).into_response())
+}
+
+/// スロット本数を超えているか（設計書6.1）。
+///
+/// **超えていなければ `None`。**返すのは `(使用本数, スロット本数)`。
+///
+/// 次の2つの場合は判定しない。どちらも「本数が分からない」のであって
+/// 「本数が0」ではなく、**警告が常に出る状態は警告が無いのと同じ**になる。
+///
+/// - 対応するスロット種別が無いカテゴリ（`PDU`）
+/// - その種別の `CHASSIS_SLOT` が1件も登録されていない筐体モデル
+async fn スロット超過<C: ConnectionTrait>(
+    db: &C,
+    chassis_model_id: i32,
+    configuration_id: i32,
+    category: &str,
+) -> AppResult<Option<(i32, i32)>> {
+    let Some((_, slot_type)) = カテゴリとスロット.iter().find(|(c, _)| *c == category)
+    else {
+        return Ok(None);
+    };
+
+    let 本数 = chassis_slot::Entity::find()
+        .filter(chassis_slot::Column::ChassisModelId.eq(chassis_model_id))
+        .filter(chassis_slot::Column::SlotType.eq(*slot_type))
+        .all(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .len() as i32;
+    if 本数 == 0 {
+        return Ok(None);
+    }
+
+    // 同じスロットを使う部品の数量を合算する
+    let 行 = configuration_part::Entity::find()
+        .filter(configuration_part::Column::ConfigurationId.eq(configuration_id))
+        .all(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    let mut 使用 = 0;
+    for r in 行 {
+        let 同じ種別 = part_catalog::Entity::find_by_id(r.part_catalog_id)
+            .one(db)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+            .is_some_and(|p| p.category == category);
+        if 同じ種別 {
+            使用 += r.quantity;
+        }
+    }
+
+    Ok((使用 > 本数).then_some((使用, 本数)))
+}
+
+async fn 現役の部品<C: ConnectionTrait>(db: &C) -> AppResult<Vec<Labeled>> {
+    let parts = part_catalog::Entity::find()
+        .filter(part_catalog::Column::RetiredAt.is_null())
+        .order_by_asc(part_catalog::Column::PartNumber)
+        .all(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    let mut out = Vec::new();
+    for p in parts {
+        out.push(Labeled {
+            label: format!(
+                "{} {} ({})",
+                ベンダー名(db, p.vendor_id).await?,
+                p.part_number,
+                p.category
+            ),
+            value: p.id.to_string(),
+        });
+    }
+    Ok(out)
+}
+
+// ---------------------------------------------------------------------------
 // 廃番（設計書18.5）
 // ---------------------------------------------------------------------------
 
@@ -664,24 +1215,19 @@ pub struct RetireForm {
     pub undo: String,
 }
 
-/// どのカタログを廃番にするか。URLで分ける。
+/// どのカタログを廃番にするか。
+///
+/// **URLのパスパラメータでは受けない。**`/catalog/{kind}/retire` にすると
+/// `/catalog/chassis-models/{id}`（詳細）と衝突し、静的セグメントが優先される
+/// ぶん詳細側が勝って405になる。ルートごとに静的パスを置き、種別はここで渡す。
 #[derive(Debug, Clone, Copy)]
-pub enum Kind {
+enum Kind {
     Vendor,
     ChassisModel,
     Configuration,
 }
 
 impl Kind {
-    fn parse(value: &str) -> Option<Self> {
-        match value {
-            "vendors" => Some(Self::Vendor),
-            "chassis-models" => Some(Self::ChassisModel),
-            "configurations" => Some(Self::Configuration),
-            _ => None,
-        }
-    }
-
     fn path(self) -> &'static str {
         match self {
             Self::Vendor => "/catalog/vendors",
@@ -691,20 +1237,43 @@ impl Kind {
     }
 }
 
+pub async fn retire_vendor(
+    state: State<AppState>,
+    current: Extension<CurrentUser>,
+    form: Form<RetireForm>,
+) -> AppResult<Response> {
+    retire(state, current, Kind::Vendor, form).await
+}
+
+pub async fn retire_chassis_model(
+    state: State<AppState>,
+    current: Extension<CurrentUser>,
+    form: Form<RetireForm>,
+) -> AppResult<Response> {
+    retire(state, current, Kind::ChassisModel, form).await
+}
+
+pub async fn retire_configuration(
+    state: State<AppState>,
+    current: Extension<CurrentUser>,
+    form: Form<RetireForm>,
+) -> AppResult<Response> {
+    retire(state, current, Kind::Configuration, form).await
+}
+
 /// 廃番にする／取り消す。
 ///
 /// **参照済みでも設定できる**（18.5）。18.2が禁じているのはスペックを定義する
 /// フィールドの編集であり、選択可否はスペックではない。
-pub async fn retire(
+async fn retire(
     State(state): State<AppState>,
     Extension(current): Extension<CurrentUser>,
-    Path(kind): Path<String>,
+    kind: Kind,
     Form(form): Form<RetireForm>,
 ) -> AppResult<Response> {
     入場(&state, &current)?;
     編集権(&state, &current).await?;
 
-    let kind = Kind::parse(&kind).ok_or(AppError::NotFound)?;
     let at = (form.undo != "1").then(Utc::now);
 
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
@@ -795,7 +1364,7 @@ fn 廃番を含む(query: &ListQuery) -> bool {
 ///
 /// 変換するのは全角ASCII（`U+FF01`〜`U+FF5E`）と全角空白だけで、**仮名・漢字は
 /// 触らない。**「富士通」はそのまま残る。
-fn 正規化(value: &str) -> String {
+pub(crate) fn 正規化(value: &str) -> String {
     let 半角: String = value
         .chars()
         .map(|c| match c {
@@ -830,7 +1399,7 @@ async fn 筐体型が参照されている<C: ConnectionTrait>(db: &C, id: i32) 
 }
 
 /// 登録時の候補。**廃番は出さない**（18.5）——押せてしまう選択肢を出さない。
-async fn 現役のベンダー<C: ConnectionTrait>(db: &C) -> AppResult<Vec<Labeled>> {
+pub(crate) async fn 現役のベンダー<C: ConnectionTrait>(db: &C) -> AppResult<Vec<Labeled>> {
     Ok(vendor::Entity::find()
         .filter(vendor::Column::RetiredAt.is_null())
         .order_by_asc(vendor::Column::Name)
@@ -888,12 +1457,12 @@ async fn 筐体型名<C: ConnectionTrait>(db: &C, id: i32) -> AppResult<String> 
 }
 
 /// カタログは全メンバーが閲覧できる。**System Adminだけが入れない**（3章）。
-fn 入場(_state: &AppState, current: &CurrentUser) -> AppResult<&'static str> {
+pub(crate) fn 入場(_state: &AppState, current: &CurrentUser) -> AppResult<&'static str> {
     authorization::deny_system_admin(&current.user).map_err(|_| AppError::Forbidden)?;
     Ok(Locale::parse(&current.user.locale).as_str())
 }
 
-async fn 編集権(state: &AppState, current: &CurrentUser) -> AppResult<()> {
+pub(crate) async fn 編集権(state: &AppState, current: &CurrentUser) -> AppResult<()> {
     authorization::require_catalog_editor(&state.db, &current.user)
         .await
         .map_err(|_| AppError::Forbidden)

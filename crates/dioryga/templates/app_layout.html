@@ -46,6 +46,12 @@
     <a href="/catalog/vendors" class="{% if chrome.nav == "catalog" %}current{% endif %}">
       {{ chrome.t_nav_catalog }}
     </a>
+    {% if chrome.nav == "catalog" %}
+    {# カタログの中は7種類ある（設計書16.1のD領域）。開いているときだけ並べる #}
+    <a href="/catalog/chassis-models" class="sub">{{ chrome.t_nav_chassis_models }}</a>
+    <a href="/catalog/parts" class="sub">{{ chrome.t_nav_parts }}</a>
+    <a href="/catalog/configurations" class="sub">{{ chrome.t_nav_configurations }}</a>
+    {% endif %}
     {% endif %}
     <a href="/account/password" class="{% if chrome.nav == "account" %}current{% endif %}">
       {{ chrome.t_nav_account }}

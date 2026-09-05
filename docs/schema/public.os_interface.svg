@@ -147,41 +147,47 @@
 <!-- public.part_port_slot -->
 <g id="node8" class="node">
 <title>public.part_port_slot</title>
-<polygon fill="#efefef" stroke="none" points="836.17,-397.4 836.17,-433 1125.14,-433 1125.14,-397.4 836.17,-397.4"/>
-<polygon fill="none" stroke="black" points="836.17,-397.4 836.17,-433 1125.14,-433 1125.14,-397.4 836.17,-397.4"/>
-<text text-anchor="start" x="843.17" y="-410.8" font-family="Arial Bold" font-size="18.00">public.part_port_slot</text>
-<text text-anchor="start" x="993.65" y="-410.8" font-family="Arial" font-size="14.00">    </text>
-<text text-anchor="start" x="1024.77" y="-410.8" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
+<polygon fill="#efefef" stroke="none" points="836.17,-428.2 836.17,-463.8 1125.14,-463.8 1125.14,-428.2 836.17,-428.2"/>
+<polygon fill="none" stroke="black" points="836.17,-428.2 836.17,-463.8 1125.14,-463.8 1125.14,-428.2 836.17,-428.2"/>
+<text text-anchor="start" x="843.17" y="-441.6" font-family="Arial Bold" font-size="18.00">public.part_port_slot</text>
+<text text-anchor="start" x="993.65" y="-441.6" font-family="Arial" font-size="14.00">    </text>
+<text text-anchor="start" x="1024.77" y="-441.6" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
+<polygon fill="none" stroke="black" points="836.17,-397.4 836.17,-428.2 1125.14,-428.2 1125.14,-397.4 836.17,-397.4"/>
+<text text-anchor="start" x="843.17" y="-409.6" font-family="Arial" font-size="14.00">id </text>
+<text text-anchor="start" x="857.96" y="-409.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
 <polygon fill="none" stroke="black" points="836.17,-366.6 836.17,-397.4 1125.14,-397.4 1125.14,-366.6 836.17,-366.6"/>
-<text text-anchor="start" x="843.17" y="-378.8" font-family="Arial" font-size="14.00">id </text>
-<text text-anchor="start" x="857.96" y="-378.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<text text-anchor="start" x="843.17" y="-378.8" font-family="Arial" font-size="14.00">part_catalog_id </text>
+<text text-anchor="start" x="942.8" y="-378.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
 <polygon fill="none" stroke="black" points="836.17,-335.8 836.17,-366.6 1125.14,-366.6 1125.14,-335.8 836.17,-335.8"/>
-<text text-anchor="start" x="843.17" y="-348" font-family="Arial" font-size="14.00">part_catalog_id </text>
-<text text-anchor="start" x="942.8" y="-348" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<text text-anchor="start" x="843.17" y="-348" font-family="Arial" font-size="14.00">port_kind </text>
+<text text-anchor="start" x="904.66" y="-348" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 <polygon fill="none" stroke="black" points="836.17,-305 836.17,-335.8 1125.14,-335.8 1125.14,-305 836.17,-305"/>
-<text text-anchor="start" x="843.17" y="-317.2" font-family="Arial" font-size="14.00">port_kind </text>
-<text text-anchor="start" x="904.66" y="-317.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<text text-anchor="start" x="843.17" y="-317.2" font-family="Arial" font-size="14.00">port_label </text>
+<text text-anchor="start" x="908.55" y="-317.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 <polygon fill="none" stroke="black" points="836.17,-274.2 836.17,-305 1125.14,-305 1125.14,-274.2 836.17,-274.2"/>
-<text text-anchor="start" x="843.17" y="-286.4" font-family="Arial" font-size="14.00">port_label </text>
-<text text-anchor="start" x="908.55" y="-286.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<text text-anchor="start" x="843.17" y="-286.4" font-family="Arial" font-size="14.00">connector_type </text>
+<text text-anchor="start" x="942.79" y="-286.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 <polygon fill="none" stroke="black" points="836.17,-243.4 836.17,-274.2 1125.14,-274.2 1125.14,-243.4 836.17,-243.4"/>
-<text text-anchor="start" x="843.17" y="-255.6" font-family="Arial" font-size="14.00">connector_type </text>
-<text text-anchor="start" x="942.79" y="-255.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<text text-anchor="start" x="843.17" y="-255.6" font-family="Arial" font-size="14.00">port_speed </text>
+<text text-anchor="start" x="917.12" y="-255.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 <polygon fill="none" stroke="black" points="836.17,-212.6 836.17,-243.4 1125.14,-243.4 1125.14,-212.6 836.17,-212.6"/>
-<text text-anchor="start" x="843.17" y="-224.8" font-family="Arial" font-size="14.00">port_speed </text>
-<text text-anchor="start" x="917.12" y="-224.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<text text-anchor="start" x="843.17" y="-224.8" font-family="Arial" font-size="14.00">created_at </text>
+<text text-anchor="start" x="913.22" y="-224.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 <polygon fill="none" stroke="black" points="836.17,-181.8 836.17,-212.6 1125.14,-212.6 1125.14,-181.8 836.17,-181.8"/>
-<text text-anchor="start" x="843.17" y="-194" font-family="Arial" font-size="14.00">created_at </text>
-<text text-anchor="start" x="913.22" y="-194" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<text text-anchor="start" x="843.17" y="-194" font-family="Arial" font-size="14.00">updated_at </text>
+<text text-anchor="start" x="917.13" y="-194" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 <polygon fill="none" stroke="black" points="836.17,-151 836.17,-181.8 1125.14,-181.8 1125.14,-151 836.17,-151"/>
-<text text-anchor="start" x="843.17" y="-163.2" font-family="Arial" font-size="14.00">updated_at </text>
-<text text-anchor="start" x="917.13" y="-163.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<text text-anchor="start" x="843.17" y="-163.2" font-family="Arial" font-size="14.00">voltage_min </text>
+<text text-anchor="start" x="922.55" y="-163.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="836.17,-120.2 836.17,-151 1125.14,-151 1125.14,-120.2 836.17,-120.2"/>
+<text text-anchor="start" x="843.17" y="-132.4" font-family="Arial" font-size="14.00">voltage_max </text>
+<text text-anchor="start" x="926.44" y="-132.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
 </g>
 <!-- public.os_interface&#45;&gt;public.part_port_slot -->
 <g id="edge8" class="edge">
 <title>public.os_interface:port_slot_id&#45;&gt;public.part_port_slot:id</title>
-<path fill="none" stroke="black" d="M737.51,-830.81C780.94,-782.33 786.54,-382 835.17,-382"/>
-<polygon fill="black" stroke="black" points="737.72,-830.7 726.78,-831.48 733.02,-833.23 729.21,-835.28 729.21,-835.28 729.21,-835.28 733.02,-833.23 731.05,-839.4 737.72,-830.7"/>
+<path fill="none" stroke="black" d="M737.53,-830.56C778.47,-782.85 789.85,-412.8 835.17,-412.8"/>
+<polygon fill="black" stroke="black" points="737.62,-830.51 726.7,-831.52 732.97,-833.14 729.2,-835.27 729.2,-835.27 729.2,-835.27 732.97,-833.14 731.13,-839.35 737.62,-830.51"/>
 <text text-anchor="start" x="735.62" y="-845.6" font-family="Arial" font-size="10.00">FOREIGN KEY (port_slot_id) REFERENCES part_port_slot(id)</text>
 </g>
 <!-- public.interface_stack -->

@@ -1,0 +1,96 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/catalog/configurations">{{ t_back }}</a></p>
+    <h1>{{ title }}</h1>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+{# スロット本数の超過は警告に留める（設計書6.1、不変条件6） #}
+{% if let Some(message) = notice %}
+<p class="warn">{{ message }}</p>
+{% endif %}
+
+<div class="panels">
+  <div class="card">
+    <h2>{{ t_basic }}</h2>
+    <dl>
+      {% for item in basic %}
+      <dt>{{ item.label }}</dt>
+      <dd>{{ item.value }}</dd>
+      {% endfor %}
+    </dl>
+  </div>
+</div>
+
+<h2 class="section">{{ t_parts }}</h2>
+<p class="hint">{{ t_parts_hint }}</p>
+
+{% if parts.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_part }}</th>
+      <th>{{ t_category }}</th>
+      <th>{{ t_quantity }}</th>
+      {% if can_edit %}<th>{{ t_actions }}</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in parts %}
+    <tr>
+      <td>{{ p.part }}</td>
+      <td>{{ p.category }}</td>
+      <td>{{ p.quantity }}</td>
+      {% if can_edit %}
+      <td class="actions">
+        <form method="post" action="/catalog/configurations/{{ configuration_id }}/parts/remove" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <input type="hidden" name="child_id" value="{{ p.id }}">
+          <button type="submit" class="ghost">{{ t_remove }}</button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_add_part }}</h2>
+<div class="card">
+  {% if candidates.is_empty() %}
+  <p class="empty">{{ t_no_part }}</p>
+  {% else %}
+  <form method="post" action="/catalog/configurations/{{ configuration_id }}/parts" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="part_catalog_id">{{ t_part }}</label>
+    <select id="part_catalog_id" name="part_catalog_id">
+      {% for c in candidates %}
+      <option value="{{ c.value }}">{{ c.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="quantity">{{ t_quantity }}</label>
+    <input type="text" id="quantity" name="quantity" inputmode="numeric" value="1">
+    <p class="hint">{{ t_quantity_hint }}</p>
+
+    <button type="submit">{{ t_add_part }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

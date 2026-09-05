@@ -390,3 +390,65 @@ catalog:
   error_rack_width_unused: Width can only be set on a RackU chassis model
   error_vendor_duplicate: A vendor with that name already exists
   error_model_duplicate: That vendor already has a chassis model with this name
+  back_models: Back to chassis models
+  back_configurations: Back to configurations
+  slots: Slots
+  slots_hint: The physical limits on what parts fit. Used to check counts when parts are added to a configuration. Leaving them unregistered is fine — no warning is raised when the count is unknown
+  slot_type: Type
+  slot_label: Label
+  add_slot: Add slot
+  no_slot: No slots registered
+  remove: Remove
+  parts: Parts
+  parts_hint: The same part is not split across rows; use the quantity instead
+  part: Part
+  quantity: Quantity
+  quantity_hint: A positive integer
+  add_part: Add part
+  no_part: No parts registered
+  no_part_catalog: Register a part catalog entry first
+  error_slot_type: Invalid slot type
+  error_slot_label: Enter a label
+  error_quantity: Quantity must be a positive integer
+  error_part_duplicate: That part is already listed. Use the quantity instead
+  warn_slot_over: "%{category} totals %{used}, which exceeds the %{slots} available slots. It was registered, but please check."
+
+parts:
+  title: Part catalog
+  lead: Model numbers for CPUs, memory, storage and so on. Configurations are built from these
+  hybrid_hint: Only the values used for aggregation are stored as columns; the rest goes into JSON (design 6.4)
+  spec_column_hint: Core count and capacity are columns because they are aggregated across projects. Leave them empty for parts where they do not apply
+  category: Category
+  part_number: Part number
+  core_count: Cores
+  capacity_gb: Capacity (GB)
+  spec_json: Other specs
+  spec_hint: Frequency, ECC, RPM and the like, written as JSON. Not used for aggregation
+  ports: Ports
+  ports_hint: The ports this part provides. Speed applies only to Network, voltage only to Power
+  port_kind: Kind
+  port_label: Label
+  connector_type: Connector
+  connector_hint: RJ-45, LC, QSFP28, IEC C13, NEMA 5-15P and so on
+  port_speed: Speed
+  port_speed_hint: Only for Network ports (10GBASE-T, 25G, ...)
+  voltage: Voltage
+  voltage_min: Minimum voltage (V)
+  voltage_max: Maximum voltage (V)
+  voltage_hint: Only for Power ports, and both ends are required. Use 100 and 240 for a 100-240V inlet, 200 and 200 for a 200V-only outlet
+  add_port: Add port
+  remove_port: Remove
+  no_port: No ports registered
+  back: Back to part catalog
+  new: Add part
+  error_part_number: Enter a part number
+  error_category: Invalid category
+  error_number: Enter a number
+  error_spec_json: The specs are not valid JSON
+  error_duplicate: That vendor already has a part with this number
+  error_port_kind: Invalid port kind
+  error_port_required: Enter a label and a connector
+  error_speed_unused: Speed can only be set on a Network port
+  error_voltage_unused: Voltage can only be set on a Power port
+  error_voltage_pair: Enter both the minimum and the maximum voltage
+  error_voltage_order: The minimum voltage exceeds the maximum

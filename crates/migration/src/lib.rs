@@ -18,6 +18,7 @@ mod m20260905_000001_create_work_order_tables;
 mod m20260905_000002_create_software_tables;
 mod m20260905_000003_add_self_approved;
 mod m20260905_000004_add_catalog_retired_at;
+mod m20260905_000005_add_port_voltage;
 
 pub struct Migrator;
 
@@ -37,6 +38,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260905_000002_create_software_tables::Migration),
             Box::new(m20260905_000003_add_self_approved::Migration),
             Box::new(m20260905_000004_add_catalog_retired_at::Migration),
+            Box::new(m20260905_000005_add_port_voltage::Migration),
         ]
     }
 }

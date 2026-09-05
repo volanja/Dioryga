@@ -19,8 +19,13 @@ use dioryga::auth::session;
 use dioryga::auth::setup::SetupState;
 use dioryga::config::Config;
 use dioryga::server::{router, AppState};
-use entity::{app_user, chassis_model, configuration, device, project, project_member, vendor};
-use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, QueryOrder, Set};
+use entity::{
+    app_user, chassis_model, chassis_slot, configuration, configuration_part, device, part_catalog,
+    part_port_slot, project, project_member, vendor,
+};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
+};
 use std::sync::Arc;
 use tower::ServiceExt;
 
@@ -503,8 +508,424 @@ async fn 構成を登録できる(db: &DatabaseConnection) {
 }
 
 // ---------------------------------------------------------------------------
+// 部品カタログ（設計書6.4、8.3、12.7）
+// ---------------------------------------------------------------------------
+
+/// **集計に使う値は列、残りはJSON**（設計書6.4のハイブリッド）。
+async fn 部品を登録できる(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "part@example.com", "Operator").await;
+    let v = ベンダー(db, "HPE", user.id).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 送信(
+        状態,
+        "/catalog/parts",
+        &token,
+        &[
+            ("vendor_id", &v.id.to_string()),
+            ("category", "CPU"),
+            ("part_number", "P24479-B21"),
+            ("core_count", "16"),
+            ("spec_json", r#"{"base_clock_ghz": 2.0}"#),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+
+    let p = part_catalog::Entity::find()
+        .all(db)
+        .await
+        .unwrap()
+        .pop()
+        .unwrap();
+    assert_eq!(p.core_count, Some(16));
+    assert!(p.capacity_gb.is_none(), "該当しない列が埋まっている");
+    assert!(p.spec_json.contains("base_clock_ghz"));
+}
+
+/// **壊れたJSONを受け付けないこと**（設計書6.4）。
+///
+/// 読めない文字列を溜めると、後から使おうとした時点で全件が疑わしくなる。
+async fn 壊れたスペックは拒否される(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "badjson@example.com", "Operator").await;
+    let v = ベンダー(db, "HPE", user.id).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 送信(
+        状態,
+        "/catalog/parts",
+        &token,
+        &[
+            ("vendor_id", &v.id.to_string()),
+            ("category", "Memory"),
+            ("part_number", "P07640-B21"),
+            ("spec_json", "{壊れている"),
+        ],
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("JSONとして読めません"));
+    assert!(part_catalog::Entity::find()
+        .all(db)
+        .await
+        .unwrap()
+        .is_empty());
+}
+
+/// **`UNIQUE(vendor_id, part_number)`**（設計書18.5）。
+async fn 同一ベンダーの同じ型番は登録できない(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "partdup@example.com", "Operator").await;
+    let v = ベンダー(db, "HPE", user.id).await;
+
+    for _ in 0..2 {
+        let (状態, token) = 認証済み(db, &user).await;
+        let (status, body) = 送信(
+            状態,
+            "/catalog/parts",
+            &token,
+            &[
+                ("vendor_id", &v.id.to_string()),
+                ("category", "Storage"),
+                ("part_number", "P19917-B21"),
+            ],
+        )
+        .await;
+        let _ = (status, body);
+    }
+    assert_eq!(part_catalog::Entity::find().all(db).await.unwrap().len(), 1);
+}
+
+/// **`port_speed` は Network、電圧は Power のときだけ**（設計書8.3、12.7）。
+///
+/// 他の `port_kind` に値が来たら**黙って捨てず拒否する**（Q-21）。
+async fn ポートの列は種別ごとに意味を持つ(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "port@example.com", "Operator").await;
+    let v = ベンダー(db, "HPE", user.id).await;
+    let p = 部品(db, v.id, "NIC", "P08449-B21", user.id).await;
+
+    // Power に速度は指定できない
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = ポートを送る(
+        状態,
+        &token,
+        p.id,
+        &[
+            ("port_kind", "Power"),
+            ("port_label", "Inlet"),
+            ("connector_type", "IEC C14"),
+            ("port_speed", "25G"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("Network のポートだけ"));
+
+    // Network に電圧は指定できない
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = ポートを送る(
+        状態,
+        &token,
+        p.id,
+        &[
+            ("port_kind", "Network"),
+            ("port_label", "Port1"),
+            ("connector_type", "SFP28"),
+            ("voltage_min", "100"),
+            ("voltage_max", "240"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("Power のポートだけ"));
+
+    assert!(ポート一覧(db, p.id).await.is_empty());
+}
+
+/// **電圧は範囲で持つ。片方だけでは意味を成さない**（設計書12.7）。
+///
+/// 「100-240V対応」と「200V専用」を区別するために範囲にしている。
+async fn 電圧は下限と上限の両方が要る(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "voltage@example.com", "Operator").await;
+    let v = ベンダー(db, "Delta", user.id).await;
+    let p = 部品(db, v.id, "PSU", "PSU-800W", user.id).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = ポートを送る(
+        状態,
+        &token,
+        p.id,
+        &[
+            ("port_kind", "Power"),
+            ("port_label", "Inlet"),
+            ("connector_type", "IEC C14"),
+            ("voltage_min", "100"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("下限と上限の両方"));
+
+    // 逆転していても拒否する
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = ポートを送る(
+        状態,
+        &token,
+        p.id,
+        &[
+            ("port_kind", "Power"),
+            ("port_label", "Inlet"),
+            ("connector_type", "IEC C14"),
+            ("voltage_min", "240"),
+            ("voltage_max", "100"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("下限が上限を超えています"));
+
+    // 両方揃えば通る
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = ポートを送る(
+        状態,
+        &token,
+        p.id,
+        &[
+            ("port_kind", "Power"),
+            ("port_label", "Inlet"),
+            ("connector_type", "IEC C14"),
+            ("voltage_min", "100"),
+            ("voltage_max", "240"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let ports = ポート一覧(db, p.id).await;
+    assert_eq!(ports.len(), 1);
+    assert_eq!(ports[0].voltage_min, Some(100));
+    assert_eq!(ports[0].voltage_max, Some(240));
+}
+
+// ---------------------------------------------------------------------------
+// 構成の部品とスロット（設計書6.1、6.2）
+// ---------------------------------------------------------------------------
+
+/// **同じ部品は行を分けず数量で表すこと**（設計書6.2）。
+async fn 同じ部品は数量でまとめる(db: &DatabaseConnection) {
+    let 場 = 部品つき構成(db, "qty@example.com").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 部品を足す(状態, &token, 場.configuration_id, 場.part_id, "8").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 部品を足す(状態, &token, 場.configuration_id, 場.part_id, "4").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("既に追加されています"));
+
+    let rows = 構成部品(db, 場.configuration_id).await;
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].quantity, 8);
+}
+
+/// **スロット本数の超過は警告に留め、登録は通すこと**（設計書6.1、不変条件6）。
+async fn スロット超過は警告に留まる(db: &DatabaseConnection) {
+    let 場 = 部品つき構成(db, "slotover@example.com").await;
+    // DIMMスロットを2本だけ登録する
+    for i in 1..=2 {
+        スロット(db, 場.chassis_model_id, "DIMM", &format!("DIMM-{i}")).await;
+    }
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 部品を足す(状態, &token, 場.configuration_id, 場.part_id, "8").await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("超えています"), "警告が出ていない");
+    // **登録は通っている**
+    assert_eq!(構成部品(db, 場.configuration_id).await.len(), 1);
+}
+
+/// **スロットが1件も無ければ警告を出さないこと**（設計書6.1）。
+///
+/// 本数が分からないことと、本数が0であることは違う。**警告が常に出る状態は、
+/// 警告が無いのと同じである。**
+async fn スロット未登録なら警告を出さない(db: &DatabaseConnection) {
+    let 場 = 部品つき構成(db, "noslot@example.com").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 部品を足す(状態, &token, 場.configuration_id, 場.part_id, "999").await;
+
+    assert_eq!(status, StatusCode::SEE_OTHER, "警告が出てしまっている");
+    assert_eq!(構成部品(db, 場.configuration_id).await.len(), 1);
+}
+
+/// 本数に収まっていれば警告を出さないこと（設計書6.1）。
+async fn 本数に収まれば警告を出さない(db: &DatabaseConnection) {
+    let 場 = 部品つき構成(db, "within@example.com").await;
+    for i in 1..=8 {
+        スロット(db, 場.chassis_model_id, "DIMM", &format!("DIMM-{i}")).await;
+    }
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 部品を足す(状態, &token, 場.configuration_id, 場.part_id, "8").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+}
+
+/// スロットを登録できること（設計書6.1）。
+async fn スロットを登録できる(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "slot@example.com", "Operator").await;
+    let v = ベンダー(db, "HPE", user.id).await;
+    let m = 筐体モデル(db, v.id, "DL360 Gen10", user.id).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = 送信(
+        状態,
+        &format!("/catalog/chassis-models/{}/slots", m.id),
+        &token,
+        &[("slot_type", "DRIVE_BAY"), ("slot_label", "Bay1")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let slots = chassis_slot::Entity::find().all(db).await.unwrap();
+    assert_eq!(slots.len(), 1);
+    assert_eq!(slots[0].slot_type, "DRIVE_BAY");
+
+    // 語彙外は拒否する（Q-21）
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 送信(
+        状態,
+        &format!("/catalog/chassis-models/{}/slots", m.id),
+        &token,
+        &[("slot_type", "USB"), ("slot_label", "USB1")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("スロット種別の値が不正"));
+}
+
+// ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
+
+struct 構成の舞台 {
+    user: app_user::Model,
+    chassis_model_id: i32,
+    configuration_id: i32,
+    part_id: i32,
+}
+
+async fn 部品つき構成(db: &DatabaseConnection, email: &str) -> 構成の舞台 {
+    let user = メンバーの利用者(db, email, "Operator").await;
+    let v = ベンダー(db, "HPE", user.id).await;
+    let m = 筐体モデル(db, v.id, "DL360 Gen10", user.id).await;
+    let c = 構成(db, m.id, "標準構成", user.id).await;
+    let p = 部品(db, v.id, "Memory", "P07640-B21", user.id).await;
+    構成の舞台 {
+        user,
+        chassis_model_id: m.id,
+        configuration_id: c.id,
+        part_id: p.id,
+    }
+}
+
+async fn 部品を足す(
+    state: AppState,
+    token: &str,
+    configuration_id: i32,
+    part_id: i32,
+    quantity: &str,
+) -> (StatusCode, String) {
+    送信(
+        state,
+        &format!("/catalog/configurations/{configuration_id}/parts"),
+        token,
+        &[
+            ("part_catalog_id", &part_id.to_string()),
+            ("quantity", quantity),
+        ],
+    )
+    .await
+}
+
+async fn ポートを送る(
+    state: AppState,
+    token: &str,
+    part_id: i32,
+    fields: &[(&str, &str)],
+) -> (StatusCode, String) {
+    送信(
+        state,
+        &format!("/catalog/parts/{part_id}/ports"),
+        token,
+        fields,
+    )
+    .await
+}
+
+async fn ポート一覧(db: &DatabaseConnection, part_id: i32) -> Vec<part_port_slot::Model> {
+    part_port_slot::Entity::find()
+        .filter(part_port_slot::Column::PartCatalogId.eq(part_id))
+        .all(db)
+        .await
+        .unwrap()
+}
+
+async fn 構成部品(
+    db: &DatabaseConnection,
+    configuration_id: i32,
+) -> Vec<configuration_part::Model> {
+    configuration_part::Entity::find()
+        .filter(configuration_part::Column::ConfigurationId.eq(configuration_id))
+        .all(db)
+        .await
+        .unwrap()
+}
+
+async fn スロット(
+    db: &DatabaseConnection,
+    chassis_model_id: i32,
+    slot_type: &str,
+    label: &str,
+) {
+    chassis_slot::ActiveModel {
+        chassis_model_id: Set(chassis_model_id),
+        slot_type: Set(slot_type.to_owned()),
+        slot_label: Set(label.to_owned()),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+}
+
+async fn 部品(
+    db: &DatabaseConnection,
+    vendor_id: i32,
+    category: &str,
+    part_number: &str,
+    by: i32,
+) -> part_catalog::Model {
+    part_catalog::ActiveModel {
+        category: Set(category.to_owned()),
+        vendor_id: Set(vendor_id),
+        part_number: Set(part_number.to_owned()),
+        core_count: Set(None),
+        capacity_gb: Set(None),
+        spec_json: Set("{}".to_owned()),
+        retired_at: Set(None),
+        created_by: Set(by),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap()
+}
 
 async fn 筐体モデルを送る(
     state: AppState,
@@ -767,6 +1188,16 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 廃番は候補に出ない);
         全検証!(@one $用意, $属性, 廃番を取り消せる);
         全検証!(@one $用意, $属性, 構成を登録できる);
+        全検証!(@one $用意, $属性, 部品を登録できる);
+        全検証!(@one $用意, $属性, 壊れたスペックは拒否される);
+        全検証!(@one $用意, $属性, 同一ベンダーの同じ型番は登録できない);
+        全検証!(@one $用意, $属性, ポートの列は種別ごとに意味を持つ);
+        全検証!(@one $用意, $属性, 電圧は下限と上限の両方が要る);
+        全検証!(@one $用意, $属性, 同じ部品は数量でまとめる);
+        全検証!(@one $用意, $属性, スロット超過は警告に留まる);
+        全検証!(@one $用意, $属性, スロット未登録なら警告を出さない);
+        全検証!(@one $用意, $属性, 本数に収まれば警告を出さない);
+        全検証!(@one $用意, $属性, スロットを登録できる);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

@@ -30,7 +30,7 @@
     <tr>
       <th>{{ t_name }}</th>
       <th>{{ t_chassis_model }}</th>
-      {% if can_edit %}<th>{{ t_actions }}</th>{% endif %}
+      <th>{{ t_actions }}</th>
     </tr>
   </thead>
   <tbody>
@@ -43,8 +43,9 @@
         {% if row.referenced %}<span class="badge">{{ t_referenced }}</span>{% endif %}
       </td>
       <td>{{ row.chassis_model }}</td>
-      {% if can_edit %}
       <td class="actions">
+        <a href="/catalog/configurations/{{ row.id }}">{{ t_detail }}</a>
+        {% if can_edit %}
         <form method="post" action="/catalog/configurations/retire" class="inline">
           <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
           <input type="hidden" name="id" value="{{ row.id }}">
@@ -53,8 +54,8 @@
             {% if row.retired %}{{ t_unretire }}{% else %}{{ t_retire }}{% endif %}
           </button>
         </form>
+        {% endif %}
       </td>
-      {% endif %}
     </tr>
     {% endfor %}
   </tbody>

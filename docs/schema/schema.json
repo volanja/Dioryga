@@ -1109,6 +1109,16 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "voltage_min",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "voltage_max",
+          "type": "integer",
+          "nullable": true
         }
       ],
       "indexes": [

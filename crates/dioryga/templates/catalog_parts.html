@@ -13,7 +13,7 @@
 <p class="error">{{ message }}</p>
 {% endif %}
 
-<form class="filters" method="get" action="/catalog/chassis-models">
+<form class="filters" method="get" action="/catalog/parts">
   <label class="check">
     <input type="checkbox" name="retired" value="1" {% if show_retired %}checked{% endif %}>
     {{ t_show_retired }}
@@ -28,34 +28,34 @@
 <table>
   <thead>
     <tr>
+      <th>{{ t_category }}</th>
       <th>{{ t_vendor }}</th>
-      <th>{{ t_model_name }}</th>
-      <th>{{ t_device_category }}</th>
-      <th>{{ t_height_u }}</th>
-      <th>{{ t_mount_form }}</th>
-      <th>{{ t_rack_width }}</th>
+      <th>{{ t_part_number }}</th>
+      <th>{{ t_core_count }}</th>
+      <th>{{ t_capacity_gb }}</th>
+      <th>{{ t_ports }}</th>
       <th>{{ t_actions }}</th>
     </tr>
   </thead>
   <tbody>
     {% for row in rows %}
     <tr class="{% if row.retired %}is-disabled{% endif %}">
+      <td>{{ row.category }}</td>
       <td>{{ row.vendor }}</td>
       <td>
-        {{ row.model_name }}
+        {{ row.part_number }}
         {% if row.retired %}<span class="badge">{{ t_retired }}</span>{% endif %}
         {# 参照されたカタログはスペックを編集できない（設計書18.2） #}
         {% if row.referenced %}<span class="badge">{{ t_referenced }}</span>{% endif %}
       </td>
-      <td>{{ row.device_category }}</td>
-      <td>{{ row.height_u }}</td>
-      <td>{{ row.mount_form }}</td>
-      <td>{{ row.rack_width }}</td>
+      {# 集計に使う値だけ実カラム（設計書6.4）。該当しない部品では空 #}
+      <td>{{ row.core_count }}</td>
+      <td>{{ row.capacity_gb }}</td>
+      <td>{{ row.ports }}</td>
       <td class="actions">
-        <a href="/catalog/chassis-models/{{ row.id }}">{{ t_detail }}</a>
+        <a href="/catalog/parts/{{ row.id }}">{{ t_detail }}</a>
         {% if can_edit %}
-        {# 廃番は参照済みでも設定できる（設計書18.5） #}
-        <form method="post" action="/catalog/chassis-models/retire" class="inline">
+        <form method="post" action="/catalog/parts/retire" class="inline">
           <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
           <input type="hidden" name="id" value="{{ row.id }}">
           <input type="hidden" name="undo" value="{% if row.retired %}1{% else %}0{% endif %}">
@@ -78,9 +78,16 @@
   {% if vendors.is_empty() %}
   <p class="empty">{{ t_no_vendor }}</p>
   {% else %}
-  <p class="hint">{{ t_naming_hint }}</p>
-  <form method="post" action="/catalog/chassis-models" class="form">
+  <p class="hint">{{ t_hybrid_hint }}</p>
+  <form method="post" action="/catalog/parts" class="form">
     <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="category">{{ t_category }}</label>
+    <select id="category" name="category">
+      {% for c in categories %}
+      <option value="{{ c }}">{{ c }}</option>
+      {% endfor %}
+    </select>
 
     <label for="vendor_id">{{ t_vendor }}</label>
     <select id="vendor_id" name="vendor_id">
@@ -89,35 +96,19 @@
       {% endfor %}
     </select>
 
-    <label for="model_name">{{ t_model_name }}</label>
-    <input type="text" id="model_name" name="model_name" required>
+    <label for="part_number">{{ t_part_number }}</label>
+    <input type="text" id="part_number" name="part_number" required>
 
-    <label for="device_category">{{ t_device_category }}</label>
-    <select id="device_category" name="device_category">
-      {% for c in device_categories %}
-      <option value="{{ c }}">{{ c }}</option>
-      {% endfor %}
-    </select>
+    <label for="core_count">{{ t_core_count }}</label>
+    <input type="text" id="core_count" name="core_count" inputmode="numeric">
 
-    <label for="height_u">{{ t_height_u }}</label>
-    <input type="text" id="height_u" name="height_u" inputmode="numeric" value="1">
-    <p class="hint">{{ t_height_hint }}</p>
+    <label for="capacity_gb">{{ t_capacity_gb }}</label>
+    <input type="text" id="capacity_gb" name="capacity_gb" inputmode="numeric">
+    <p class="hint">{{ t_spec_column_hint }}</p>
 
-    <label for="mount_form">{{ t_mount_form }}</label>
-    <select id="mount_form" name="mount_form">
-      {% for m in mount_forms %}
-      <option value="{{ m }}">{{ m }}</option>
-      {% endfor %}
-    </select>
-    <p class="hint">{{ t_mount_form_hint }}</p>
-
-    <label for="rack_width">{{ t_rack_width }}</label>
-    <select id="rack_width" name="rack_width">
-      {% for w in rack_widths %}
-      <option value="{{ w }}">{{ w }}</option>
-      {% endfor %}
-    </select>
-    <p class="hint">{{ t_rack_width_hint }}</p>
+    <label for="spec_json">{{ t_spec_json }}</label>
+    <textarea id="spec_json" name="spec_json" rows="3" placeholder="{}"></textarea>
+    <p class="hint">{{ t_spec_hint }}</p>
 
     <button type="submit">{{ t_submit }}</button>
   </form>

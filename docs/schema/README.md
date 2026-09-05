@@ -14,7 +14,7 @@
 | [public.chassis_model](public.chassis_model.md) | 11 | 筐体モデル。自然キーは `(vendor_id, model_name)`。**別ベンダーなら同じ型番を持てる**（6.2）。 | BASE TABLE |
 | [public.chassis_slot](public.chassis_slot.md) | 6 | 筐体モデルが持つスロット。**無条件の一覧である。**「4CPU構成でなければ使えない」といった<br />条件付き制約は表現しない（6.1で対応しないと決着済み）。<br /> | BASE TABLE |
 | [public.part_catalog](public.part_catalog.md) | 11 | 部品カタログ。**集計に使う値だけをカラム化する**ハイブリッド方針（6.4）。<br /> | BASE TABLE |
-| [public.part_port_slot](public.part_port_slot.md) | 8 | 部品が備えるポート（8.3、8.7）。 | BASE TABLE |
+| [public.part_port_slot](public.part_port_slot.md) | 10 | 部品が備えるポート（8.3、8.7）。 | BASE TABLE |
 | [public.configuration](public.configuration.md) | 7 | 筐体モデルに対する構成（6.2）。 | BASE TABLE |
 | [public.configuration_part](public.configuration_part.md) | 6 | 構成に含まれる部品。同じ部品を複数行に分けず `quantity` で表す。 | BASE TABLE |
 | [public.cable_catalog](public.cable_catalog.md) | 10 | ケーブルのカタログ（8.3）。**v1では画面・取込の対象外**だが定義は持つ。 | BASE TABLE |

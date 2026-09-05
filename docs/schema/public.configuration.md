@@ -14,6 +14,7 @@
 | created_by | integer |  | false |  | [public.app_user](public.app_user.md) |  |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
+| retired_at | timestamp with time zone |  | true |  |  |  |
 
 ## Constraints
 
@@ -29,6 +30,7 @@
 | ---- | ---------- |
 | configuration_pkey | CREATE UNIQUE INDEX configuration_pkey ON public.configuration USING btree (id) |
 | idx_configuration_chassis_model | CREATE INDEX idx_configuration_chassis_model ON public.configuration USING btree (chassis_model_id) |
+| idx_configuration_retired_at | CREATE INDEX idx_configuration_retired_at ON public.configuration USING btree (retired_at) |
 
 ## Relations
 

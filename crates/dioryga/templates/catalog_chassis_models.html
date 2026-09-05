@@ -1,0 +1,127 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<form class="filters" method="get" action="/catalog/chassis-models">
+  <label class="check">
+    <input type="checkbox" name="retired" value="1" {% if show_retired %}checked{% endif %}>
+    {{ t_show_retired }}
+  </label>
+  <button type="submit">{{ t_apply }}</button>
+</form>
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_vendor }}</th>
+      <th>{{ t_model_name }}</th>
+      <th>{{ t_device_category }}</th>
+      <th>{{ t_height_u }}</th>
+      <th>{{ t_mount_form }}</th>
+      <th>{{ t_rack_width }}</th>
+      {% if can_edit %}<th>{{ t_actions }}</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr class="{% if row.retired %}is-disabled{% endif %}">
+      <td>{{ row.vendor }}</td>
+      <td>
+        {{ row.model_name }}
+        {% if row.retired %}<span class="badge">{{ t_retired }}</span>{% endif %}
+        {# 参照されたカタログはスペックを編集できない（設計書18.2） #}
+        {% if row.referenced %}<span class="badge">{{ t_referenced }}</span>{% endif %}
+      </td>
+      <td>{{ row.device_category }}</td>
+      <td>{{ row.height_u }}</td>
+      <td>{{ row.mount_form }}</td>
+      <td>{{ row.rack_width }}</td>
+      {% if can_edit %}
+      <td class="actions">
+        {# 廃番は参照済みでも設定できる（設計書18.5） #}
+        <form method="post" action="/catalog/chassis-models/retire" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <input type="hidden" name="id" value="{{ row.id }}">
+          <input type="hidden" name="undo" value="{% if row.retired %}1{% else %}0{% endif %}">
+          <button type="submit" class="ghost">
+            {% if row.retired %}{{ t_unretire }}{% else %}{{ t_retire }}{% endif %}
+          </button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_new }}</h2>
+<div class="card">
+  {% if vendors.is_empty() %}
+  <p class="empty">{{ t_no_vendor }}</p>
+  {% else %}
+  <p class="hint">{{ t_naming_hint }}</p>
+  <form method="post" action="/catalog/chassis-models" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="vendor_id">{{ t_vendor }}</label>
+    <select id="vendor_id" name="vendor_id">
+      {% for v in vendors %}
+      <option value="{{ v.value }}">{{ v.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="model_name">{{ t_model_name }}</label>
+    <input type="text" id="model_name" name="model_name" required>
+
+    <label for="device_category">{{ t_device_category }}</label>
+    <select id="device_category" name="device_category">
+      {% for c in device_categories %}
+      <option value="{{ c }}">{{ c }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="height_u">{{ t_height_u }}</label>
+    <input type="text" id="height_u" name="height_u" inputmode="numeric" value="1">
+    <p class="hint">{{ t_height_hint }}</p>
+
+    <label for="mount_form">{{ t_mount_form }}</label>
+    <select id="mount_form" name="mount_form">
+      {% for m in mount_forms %}
+      <option value="{{ m }}">{{ m }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_mount_form_hint }}</p>
+
+    <label for="rack_width">{{ t_rack_width }}</label>
+    <select id="rack_width" name="rack_width">
+      {% for w in rack_widths %}
+      <option value="{{ w }}">{{ w }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_rack_width_hint }}</p>
+
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

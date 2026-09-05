@@ -347,3 +347,46 @@ rack:
   error_occupied: That position is already taken
   warn_front_rear: Front and rear devices share this position. This is not recommended for airflow.
   warn_capacity: This exceeds the capacity. It was registered, but please check.
+
+catalog:
+  nav: Catalog
+  vendors: Vendors
+  vendors_lead: The master that prevents naming drift. A model cannot be registered for a vendor that is not listed here
+  vendor: Vendor
+  vendor_edit_hint: A vendor name can be corrected even after it is referenced, because fixing a typo does not change any configuration
+  chassis_models: Chassis models
+  chassis_models_lead: The models a manufacturer ships, carrying the physical limits on what parts fit
+  chassis_model: Chassis model
+  configurations: Configurations
+  configurations_lead: Part combinations for a chassis model, one per performance requirement. Devices are registered against these
+  name: Name
+  model_name: Model name
+  naming_hint: Use the product name as the vendor publishes it. Only when variants with different slot layouts genuinely exist, append the vendor's order code after a single space (e.g. PRIMERGY RX4770 M8 PYR4778RBT). Do not use brackets or separators
+  height_u: Height (U)
+  height_hint: Height when rack mounted. Zero is fine for zero-U side mounts and surface-mounted units
+  mount_form: Mount form
+  mount_form_hint: RackU occupies rack units, RackSide mounts on the side and consumes none, Surface sits on a desk or shelf
+  rack_width: Width
+  rack_width_hint: Half lets two units share a rack unit. It has no meaning outside RackU
+  empty: Nothing matches
+  new_vendor: Add vendor
+  new_chassis_model: Add chassis model
+  new_configuration: Add configuration
+  submit: Create
+  retire: Retire
+  unretire: Un-retire
+  retired: Retired
+  referenced: Referenced
+  apply: Apply
+  show_retired: Include retired
+  no_vendor: Register a vendor first
+  no_model: Register a chassis model first
+  error_name: Enter a name
+  error_model_name: Enter a model name
+  error_category: Invalid category
+  error_mount_form: Invalid mount form
+  error_height: Height must be a non-negative integer
+  error_rack_width: Invalid width
+  error_rack_width_unused: Width can only be set on a RackU chassis model
+  error_vendor_duplicate: A vendor with that name already exists
+  error_model_duplicate: That vendor already has a chassis model with this name

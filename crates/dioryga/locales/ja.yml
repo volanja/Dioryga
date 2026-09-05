@@ -347,3 +347,46 @@ rack:
   error_occupied: その位置には既に機器があります
   warn_front_rear: 同じ位置に前面と背面の機器が同居しています。排熱上は推奨されません。
   warn_capacity: 収容能力を超えています。登録は行いましたが確認してください。
+
+catalog:
+  nav: 共有カタログ
+  vendors: ベンダー
+  vendors_lead: 表記ゆれを防ぐためのマスタです。ここに無いベンダーは型番も登録できません
+  vendor: ベンダー
+  vendor_edit_hint: ベンダー名は参照済みでも直せます。誤字の訂正が構成そのものを変えるわけではないためです
+  chassis_models: 筐体モデル
+  chassis_models_lead: メーカーが製品として出している型番です。搭載できる部品の物理的な制約を持ちます
+  chassis_model: 筐体モデル
+  configurations: 構成
+  configurations_lead: 同じ筐体モデルに対する、性能要件ごとの部品の組み合わせです。機器はこれを選んで登録します
+  name: 名前
+  model_name: 製品名
+  naming_hint: ベンダーが公表する製品名をそのまま入れてください。スロット構成が異なる派生が実在する場合に限り、ベンダーの型名を半角空白1つで続けます（例：PRIMERGY RX4770 M8 PYR4778RBT）。括弧や記号は使いません
+  height_u: 高さ（U）
+  height_hint: ラックに搭載したときの高さ。0Uサイドマウントや据置きでは0で構いません
+  mount_form: 搭載形態
+  mount_form_hint: RackU はU単位で搭載するもの、RackSide は側面に取り付けてU数を消費しないもの、Surface は机や棚に置くものです
+  rack_width: 幅
+  rack_width_hint: Half は同じUに2台並べられます。RackU 以外では意味を持ちません
+  empty: 該当するものがありません
+  new_vendor: ベンダーを登録
+  new_chassis_model: 筐体モデルを登録
+  new_configuration: 構成を登録
+  submit: 登録する
+  retire: 廃番にする
+  unretire: 廃番を取り消す
+  retired: 廃番
+  referenced: 参照済み
+  apply: 表示を切り替える
+  show_retired: 廃番を含める
+  no_vendor: 先にベンダーを登録してください
+  no_model: 先に筐体モデルを登録してください
+  error_name: 名前を入力してください
+  error_model_name: 製品名を入力してください
+  error_category: 種別の値が不正です
+  error_mount_form: 搭載形態の値が不正です
+  error_height: 高さは0以上の整数で入力してください
+  error_rack_width: 幅の値が不正です
+  error_rack_width_unused: 幅を指定できるのは RackU の筐体モデルだけです
+  error_vendor_duplicate: 同じ名前のベンダーが既にあります
+  error_model_duplicate: そのベンダーに同じ製品名の筐体モデルが既にあります

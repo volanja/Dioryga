@@ -11,6 +11,7 @@
   <div class="head-actions">
     {# 閲覧だけの利用者からも見えること。承認者は編集権を持たない（設計書11章） #}
     <a class="button ghost" href="/projects/{{ project_id }}/work-orders">{{ t_work_orders }}</a>
+    <a class="button ghost" href="/projects/{{ project_id }}/members">{{ t_members }}</a>
     {% if can_edit %}
     <a class="button ghost" href="/projects/{{ project_id }}/import">{{ t_import }}</a>
     <a class="button" href="/projects/{{ project_id }}/devices/new">{{ t_new }}</a>

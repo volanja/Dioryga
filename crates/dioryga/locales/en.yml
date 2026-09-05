@@ -269,3 +269,23 @@ work_orders:
   error_transition: Invalid transition
   error_transition_from: This operation is not allowed from the current state
   error_abort_reason: Enter a reason for aborting
+
+members:
+  title: Members
+  lead: Decide who can do what in this project
+  admin_note: Administrators (primary and secondary) are assigned by the System Admin and cannot be changed here
+  name: Name
+  email: Email
+  administrator: Administrator
+  operator: Operator
+  approver: Approver
+  viewer: Viewer
+  save: Save
+  empty: No members yet
+  disabled: Disabled
+  add: Add member
+  add_lead: A user may hold several roles at once, including operate and approve together
+  user: User
+  no_candidate: No users available to add
+  error_system_admin: A System Admin cannot be a project member
+  error_disabled: A disabled user cannot be added

@@ -1,0 +1,110 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/projects">{{ chrome.t_nav_projects }}</a> / {{ project_name }}</p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+{# 管理者はSystem Adminだけが割り当てる（設計書5章）。ここでは読み取り専用 #}
+<p class="hint">{{ t_admin_note }}</p>
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_name }}</th>
+      <th>{{ t_email }}</th>
+      <th>{{ t_admin }}</th>
+      <th>{{ t_operator }}</th>
+      <th>{{ t_approver }}</th>
+      <th>{{ t_viewer }}</th>
+      {% if can_edit %}<th>{{ t_actions }}</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr class="{% if row.disabled %}is-disabled{% endif %}">
+      <td>
+        {{ row.name }}
+        {% if row.disabled %}<span class="badge">{{ t_disabled }}</span>{% endif %}
+      </td>
+      <td>{{ row.email }}</td>
+      <td>{{ row.admin_rank }}</td>
+      {# 兼務を許すためチェックボックスにする（設計書5章、旧C-8） #}
+      <td>
+        <input type="checkbox" form="member-{{ row.user_id }}" name="operator"
+               {% if row.operator %}checked{% endif %} {% if !can_edit %}disabled{% endif %}>
+      </td>
+      <td>
+        <input type="checkbox" form="member-{{ row.user_id }}" name="approver"
+               {% if row.approver %}checked{% endif %} {% if !can_edit %}disabled{% endif %}>
+      </td>
+      <td>
+        <input type="checkbox" form="member-{{ row.user_id }}" name="viewer"
+               {% if row.viewer %}checked{% endif %} {% if !can_edit %}disabled{% endif %}>
+      </td>
+      {% if can_edit %}
+      <td class="actions">
+        {# form属性で表の外のフォームへ紐づける。表の中にフォームは置けない #}
+        <button type="submit" form="member-{{ row.user_id }}" class="ghost">{{ t_save }}</button>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if can_edit %}
+{# 行ごとに1フォーム。チェックを全部外して保存すればプロジェクトから外れる #}
+{% for row in rows %}
+<form id="member-{{ row.user_id }}" method="post" action="/projects/{{ project_id }}/members" hidden>
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+  <input type="hidden" name="user_id" value="{{ row.user_id }}">
+</form>
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_add }}</h2>
+<div class="card">
+  <p class="lead">{{ t_add_lead }}</p>
+  {% if candidates.is_empty() %}
+  <p class="empty">{{ t_no_candidate }}</p>
+  {% else %}
+  <form method="post" action="/projects/{{ project_id }}/members" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="user_id">{{ t_user }}</label>
+    <select id="user_id" name="user_id">
+      {% for c in candidates %}
+      <option value="{{ c.id }}">{{ c.label }}</option>
+      {% endfor %}
+    </select>
+
+    <div class="checks">
+      <label class="check"><input type="checkbox" name="operator" checked> {{ t_operator }}</label>
+      <label class="check"><input type="checkbox" name="approver"> {{ t_approver }}</label>
+      <label class="check"><input type="checkbox" name="viewer"> {{ t_viewer }}</label>
+    </div>
+
+    <button type="submit">{{ t_add }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

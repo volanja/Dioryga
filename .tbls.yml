@@ -358,3 +358,50 @@ comments:
       required_project_id: どのプロジェクトの承認か
       approver_id: 承認前は null。誰が承認したかは押した時点で決まる
       status: pending / approved / rejected
+
+  # --- ソフトウェア・SBOM ---------------------------------------------------
+  - table: software_instance
+    tableComment: |
+      ソフトウェアの固有のインストール単位（9.3）。**バージョンアップを跨いで引き継がれる固有情報**を持つ。
+      **`status` を持たない**（9.4.1）。インストール状態は SOFTWARE_INSTALLATION から導出する。
+    columnComments:
+      retired_at: |
+        null = 保有中。**導出できないのはここだけ。**
+        未インストールの在庫と失効済みは、インストール履歴からは区別がつかない
+  - table: software_installation
+    tableComment: |
+      ソフトウェアのインストール — **履歴テーブル**（9.4）。`to_date IS NULL` が現在有効な行。
+      **1つのインスタンスが同時に2台へ入ることはない**ため現行行に部分ユニークを張る。
+    columnComments:
+      work_order_id: |
+        11章。**先行して作った履歴テーブルと違い、ここは外部キーを張れている**（24.3）
+      to_date: null が現在有効な行
+  - table: software_role_assignment
+    tableComment: |
+      ソフトウェアの役割 — 履歴テーブル（9.9）。**SBOM取込の対象外で、常に運用者が画面上で設定する。**
+      1つのインストールに複数のroleを付与できる（dnsmasqのようにDNSとDHCPを兼ねる場合）。
+    columnComments:
+      to_date: null が現在有効な行
+  - table: sbom_snapshot
+    tableComment: |
+      SBOMのスナップショット（9.7）。**本システムで唯一、代理キーを持たないテーブル。**
+      主キーは正規化後の内容のSHA-256で、**同一内容は1件しか保存しない。**
+      ゴールデンイメージが同じ機器が何台あっても実体は1つであり、保存量が台数に比例しない。
+    columnComments:
+      content: zstdで圧縮した正規化済みコンポーネント一覧。**内側の形式はJSONのまま**（デバッグ容易性を優先）
+  - table: sbom_import
+    tableComment: |
+      SBOMの取込記録（9.5）。**`superseded_at` は他の履歴テーブルの `to_date` と同じ役割**を果たす。
+      **取込は SOFTWARE_INSTANCE も VENDOR も自動生成しない**（9.6。資産管理の判断は人が行う）。
+    columnComments:
+      superseded_at: null = そのDeviceの最新の観測結果
+  - table: sbom_component_change
+    tableComment: |
+      直前の取込との差分（9.5）。**SBOM取込の目的はこれを記録すること**であり、
+      コンポーネント1件ごとの集計は要件ではない（9.2）。構成に変化がなければ0件。
+    columnComments:
+      purl: 差分計算時の同一性判定キー。**無いコンポーネントは `name` で代替する**（9.6）
+  - table: sbom_component_index
+    tableComment: |
+      機器横断のコンポーネント検索用の索引（9.8）。**再構築可能な派生索引であり、真実の源は SBOM_SNAPSHOT。**
+      **`content_hash` 単位に張る（Device単位にしない）。**Device単位だと3,000万行になる。

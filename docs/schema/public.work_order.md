@@ -10,7 +10,7 @@ SQLiteが後から制約を足せないため。参照整合はアプリケー�
 
 | Name | Type | Default | Nullable | Children | Parents | Comment |
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
-| id | integer |  | false | [public.work_order_approval](public.work_order_approval.md) |  |  |
+| id | integer |  | false | [public.work_order_approval](public.work_order_approval.md) [public.software_installation](public.software_installation.md) [public.sbom_import](public.sbom_import.md) |  |  |
 | project_id | integer |  | false |  | [public.project](public.project.md) |  |
 | target_project_id | integer |  | true |  | [public.project](public.project.md) | work_type=Transfer の移譲先。それ以外では null |
 | device_id | integer |  | true |  | [public.device](public.device.md) |  |

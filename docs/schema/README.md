@@ -49,6 +49,13 @@
 | [public.milestone_device](public.milestone_device.md) | 7 | マイルストーンと機器の対応（10.4）。 | BASE TABLE |
 | [public.work_order](public.work_order.md) | 19 | 変更管理チケット（11章）。**`work_order_id` を持つ履歴テーブルからの外部キーは存在しない**（24.3）。<br />SQLiteが後から制約を足せないため。参照整合はアプリケーション層と `dioryga check` で担保する。<br /> | BASE TABLE |
 | [public.work_order_approval](public.work_order_approval.md) | 8 | 変更の承認（11章）。**影響を受けるプロジェクトごとに1行を起こす。**<br />他プロジェクトの機器を巻き込む変更（移設・移譲）では複数必要になる。<br /> | BASE TABLE |
+| [public.software_instance](public.software_instance.md) | 7 | ソフトウェアの固有のインストール単位（9.3）。**バージョンアップを跨いで引き継がれる固有情報**を持つ。<br />**`status` を持たない**（9.4.1）。インストール状態は SOFTWARE_INSTALLATION から導出する。<br /> | BASE TABLE |
+| [public.software_installation](public.software_installation.md) | 6 | ソフトウェアのインストール — **履歴テーブル**（9.4）。`to_date IS NULL` が現在有効な行。<br />**1つのインスタンスが同時に2台へ入ることはない**ため現行行に部分ユニークを張る。<br /> | BASE TABLE |
+| [public.software_role_assignment](public.software_role_assignment.md) | 5 | ソフトウェアの役割 — 履歴テーブル（9.9）。**SBOM取込の対象外で、常に運用者が画面上で設定する。**<br />1つのインストールに複数のroleを付与できる（dnsmasqのようにDNSとDHCPを兼ねる場合）。<br /> | BASE TABLE |
+| [public.sbom_snapshot](public.sbom_snapshot.md) | 4 | SBOMのスナップショット（9.7）。**本システムで唯一、代理キーを持たないテーブル。**<br />主キーは正規化後の内容のSHA-256で、**同一内容は1件しか保存しない。**<br />ゴールデンイメージが同じ機器が何台あっても実体は1つであり、保存量が台数に比例しない。<br /> | BASE TABLE |
+| [public.sbom_import](public.sbom_import.md) | 8 | SBOMの取込記録（9.5）。**`superseded_at` は他の履歴テーブルの `to_date` と同じ役割**を果たす。<br />**取込は SOFTWARE_INSTANCE も VENDOR も自動生成しない**（9.6。資産管理の判断は人が行う）。<br /> | BASE TABLE |
+| [public.sbom_component_change](public.sbom_component_change.md) | 7 | 直前の取込との差分（9.5）。**SBOM取込の目的はこれを記録すること**であり、<br />コンポーネント1件ごとの集計は要件ではない（9.2）。構成に変化がなければ0件。<br /> | BASE TABLE |
+| [public.sbom_component_index](public.sbom_component_index.md) | 5 | 機器横断のコンポーネント検索用の索引（9.8）。**再構築可能な派生索引であり、真実の源は SBOM_SNAPSHOT。**<br />**`content_hash` 単位に張る（Device単位にしない）。**Device単位だと3,000万行になる。<br /> | BASE TABLE |
 
 ## Relations
 

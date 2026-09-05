@@ -55,3 +55,7 @@ testcontainers = "0.27"
 testcontainers-modules = { version = "0.15.0", features = ["postgres"] }
 tower = { version = "0.5.3", features = ["util"] }
 uuid = { workspace = true, features = ["v4"] }
+# スキーマ側でblobを扱えることの確認にのみ使う。**本体への採用はSBOM取込の
+# 実装時に判断する**（zstd-sysはCツールチェーンを要求し、Windowsビルドに影響する）
+zstd = "0.13"
+

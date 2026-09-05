@@ -5071,6 +5071,698 @@
           ]
         }
       ]
+    },
+    {
+      "name": "public.software_instance",
+      "type": "BASE TABLE",
+      "comment": "ソフトウェアの固有のインストール単位（9.3）。**バージョンアップを跨いで引き継がれる固有情報**を持つ。\n**`status` を持たない**（9.4.1）。インストール状態は SOFTWARE_INSTALLATION から導出する。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "software_catalog_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "license_key",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "asset_number",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "retired_at",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null = 保有中。**導出できないのはここだけ。**\n未インストールの在庫と失効済みは、インストール履歴からは区別がつかない\n"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "software_instance_pkey",
+          "def": "CREATE UNIQUE INDEX software_instance_pkey ON public.software_instance USING btree (id)",
+          "table": "public.software_instance",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_software_instance_catalog",
+          "def": "CREATE INDEX idx_software_instance_catalog ON public.software_instance USING btree (software_catalog_id)",
+          "table": "public.software_instance",
+          "columns": [
+            "software_catalog_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "software_instance_software_catalog_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (software_catalog_id) REFERENCES software_catalog(id)",
+          "table": "public.software_instance",
+          "referenced_table": "public.software_catalog",
+          "columns": [
+            "software_catalog_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "software_instance_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.software_instance",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.software_installation",
+      "type": "BASE TABLE",
+      "comment": "ソフトウェアのインストール — **履歴テーブル**（9.4）。`to_date IS NULL` が現在有効な行。\n**1つのインスタンスが同時に2台へ入ることはない**ため現行行に部分ユニークを張る。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "software_instance_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "device_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "work_order_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "11章。**先行して作った履歴テーブルと違い、ここは外部キーを張れている**（24.3）\n"
+        },
+        {
+          "name": "from_date",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "to_date",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null が現在有効な行"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "software_installation_pkey",
+          "def": "CREATE UNIQUE INDEX software_installation_pkey ON public.software_installation USING btree (id)",
+          "table": "public.software_installation",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_software_installation_instance",
+          "def": "CREATE INDEX idx_software_installation_instance ON public.software_installation USING btree (software_instance_id)",
+          "table": "public.software_installation",
+          "columns": [
+            "software_instance_id"
+          ]
+        },
+        {
+          "name": "idx_software_installation_device",
+          "def": "CREATE INDEX idx_software_installation_device ON public.software_installation USING btree (device_id)",
+          "table": "public.software_installation",
+          "columns": [
+            "device_id"
+          ]
+        },
+        {
+          "name": "idx_software_installation_work_order",
+          "def": "CREATE INDEX idx_software_installation_work_order ON public.software_installation USING btree (work_order_id)",
+          "table": "public.software_installation",
+          "columns": [
+            "work_order_id"
+          ]
+        },
+        {
+          "name": "uq_software_installation_current",
+          "def": "CREATE UNIQUE INDEX uq_software_installation_current ON public.software_installation USING btree (software_instance_id) WHERE (to_date IS NULL)",
+          "table": "public.software_installation",
+          "columns": [
+            "software_instance_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "software_installation_device_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (device_id) REFERENCES device(id)",
+          "table": "public.software_installation",
+          "referenced_table": "public.device",
+          "columns": [
+            "device_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "software_installation_work_order_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (work_order_id) REFERENCES work_order(id)",
+          "table": "public.software_installation",
+          "referenced_table": "public.work_order",
+          "columns": [
+            "work_order_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "software_installation_software_instance_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (software_instance_id) REFERENCES software_instance(id)",
+          "table": "public.software_installation",
+          "referenced_table": "public.software_instance",
+          "columns": [
+            "software_instance_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "software_installation_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.software_installation",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.software_role_assignment",
+      "type": "BASE TABLE",
+      "comment": "ソフトウェアの役割 — 履歴テーブル（9.9）。**SBOM取込の対象外で、常に運用者が画面上で設定する。**\n1つのインストールに複数のroleを付与できる（dnsmasqのようにDNSとDHCPを兼ねる場合）。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "software_installation_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "role",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "from_date",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "to_date",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null が現在有効な行"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "software_role_assignment_pkey",
+          "def": "CREATE UNIQUE INDEX software_role_assignment_pkey ON public.software_role_assignment USING btree (id)",
+          "table": "public.software_role_assignment",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_software_role_assignment_installation",
+          "def": "CREATE INDEX idx_software_role_assignment_installation ON public.software_role_assignment USING btree (software_installation_id)",
+          "table": "public.software_role_assignment",
+          "columns": [
+            "software_installation_id"
+          ]
+        },
+        {
+          "name": "uq_software_role_assignment_current",
+          "def": "CREATE UNIQUE INDEX uq_software_role_assignment_current ON public.software_role_assignment USING btree (software_installation_id, role) WHERE (to_date IS NULL)",
+          "table": "public.software_role_assignment",
+          "columns": [
+            "software_installation_id",
+            "role"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "software_role_assignment_software_installation_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (software_installation_id) REFERENCES software_installation(id)",
+          "table": "public.software_role_assignment",
+          "referenced_table": "public.software_installation",
+          "columns": [
+            "software_installation_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "software_role_assignment_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.software_role_assignment",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.sbom_snapshot",
+      "type": "BASE TABLE",
+      "comment": "SBOMのスナップショット（9.7）。**本システムで唯一、代理キーを持たないテーブル。**\n主キーは正規化後の内容のSHA-256で、**同一内容は1件しか保存しない。**\nゴールデンイメージが同じ機器が何台あっても実体は1つであり、保存量が台数に比例しない。\n",
+      "columns": [
+        {
+          "name": "content_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "content",
+          "type": "bytea",
+          "nullable": false,
+          "comment": "zstdで圧縮した正規化済みコンポーネント一覧。**内側の形式はJSONのまま**（デバッグ容易性を優先）"
+        },
+        {
+          "name": "component_count",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "first_seen_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sbom_snapshot_pkey",
+          "def": "CREATE UNIQUE INDEX sbom_snapshot_pkey ON public.sbom_snapshot USING btree (content_hash)",
+          "table": "public.sbom_snapshot",
+          "columns": [
+            "content_hash"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "sbom_snapshot_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (content_hash)",
+          "table": "public.sbom_snapshot",
+          "referenced_table": "",
+          "columns": [
+            "content_hash"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.sbom_import",
+      "type": "BASE TABLE",
+      "comment": "SBOMの取込記録（9.5）。**`superseded_at` は他の履歴テーブルの `to_date` と同じ役割**を果たす。\n**取込は SOFTWARE_INSTANCE も VENDOR も自動生成しない**（9.6。資産管理の判断は人が行う）。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "device_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "content_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "source_format",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "work_order_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "imported_by",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "imported_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "superseded_at",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null = そのDeviceの最新の観測結果"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sbom_import_pkey",
+          "def": "CREATE UNIQUE INDEX sbom_import_pkey ON public.sbom_import USING btree (id)",
+          "table": "public.sbom_import",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_sbom_import_device",
+          "def": "CREATE INDEX idx_sbom_import_device ON public.sbom_import USING btree (device_id)",
+          "table": "public.sbom_import",
+          "columns": [
+            "device_id"
+          ]
+        },
+        {
+          "name": "idx_sbom_import_content_hash",
+          "def": "CREATE INDEX idx_sbom_import_content_hash ON public.sbom_import USING btree (content_hash)",
+          "table": "public.sbom_import",
+          "columns": [
+            "content_hash"
+          ]
+        },
+        {
+          "name": "idx_sbom_import_work_order",
+          "def": "CREATE INDEX idx_sbom_import_work_order ON public.sbom_import USING btree (work_order_id)",
+          "table": "public.sbom_import",
+          "columns": [
+            "work_order_id"
+          ]
+        },
+        {
+          "name": "idx_sbom_import_imported_by",
+          "def": "CREATE INDEX idx_sbom_import_imported_by ON public.sbom_import USING btree (imported_by)",
+          "table": "public.sbom_import",
+          "columns": [
+            "imported_by"
+          ]
+        },
+        {
+          "name": "uq_sbom_import_current",
+          "def": "CREATE UNIQUE INDEX uq_sbom_import_current ON public.sbom_import USING btree (device_id) WHERE (superseded_at IS NULL)",
+          "table": "public.sbom_import",
+          "columns": [
+            "device_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "sbom_import_imported_by_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (imported_by) REFERENCES app_user(id)",
+          "table": "public.sbom_import",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "imported_by"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "sbom_import_device_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (device_id) REFERENCES device(id)",
+          "table": "public.sbom_import",
+          "referenced_table": "public.device",
+          "columns": [
+            "device_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "sbom_import_work_order_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (work_order_id) REFERENCES work_order(id)",
+          "table": "public.sbom_import",
+          "referenced_table": "public.work_order",
+          "columns": [
+            "work_order_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "sbom_import_content_hash_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (content_hash) REFERENCES sbom_snapshot(content_hash)",
+          "table": "public.sbom_import",
+          "referenced_table": "public.sbom_snapshot",
+          "columns": [
+            "content_hash"
+          ],
+          "referenced_columns": [
+            "content_hash"
+          ]
+        },
+        {
+          "name": "sbom_import_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.sbom_import",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.sbom_component_change",
+      "type": "BASE TABLE",
+      "comment": "直前の取込との差分（9.5）。**SBOM取込の目的はこれを記録すること**であり、\nコンポーネント1件ごとの集計は要件ではない（9.2）。構成に変化がなければ0件。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "sbom_import_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "change_type",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "purl",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "差分計算時の同一性判定キー。**無いコンポーネントは `name` で代替する**（9.6）"
+        },
+        {
+          "name": "version_from",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "version_to",
+          "type": "varchar",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sbom_component_change_pkey",
+          "def": "CREATE UNIQUE INDEX sbom_component_change_pkey ON public.sbom_component_change USING btree (id)",
+          "table": "public.sbom_component_change",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_sbom_component_change_import",
+          "def": "CREATE INDEX idx_sbom_component_change_import ON public.sbom_component_change USING btree (sbom_import_id)",
+          "table": "public.sbom_component_change",
+          "columns": [
+            "sbom_import_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "sbom_component_change_sbom_import_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (sbom_import_id) REFERENCES sbom_import(id)",
+          "table": "public.sbom_component_change",
+          "referenced_table": "public.sbom_import",
+          "columns": [
+            "sbom_import_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "sbom_component_change_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.sbom_component_change",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public.sbom_component_index",
+      "type": "BASE TABLE",
+      "comment": "機器横断のコンポーネント検索用の索引（9.8）。**再構築可能な派生索引であり、真実の源は SBOM_SNAPSHOT。**\n**`content_hash` 単位に張る（Device単位にしない）。**Device単位だと3,000万行になる。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "content_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "purl",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "version",
+          "type": "varchar",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sbom_component_index_pkey",
+          "def": "CREATE UNIQUE INDEX sbom_component_index_pkey ON public.sbom_component_index USING btree (id)",
+          "table": "public.sbom_component_index",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_sbom_component_index_content_hash",
+          "def": "CREATE INDEX idx_sbom_component_index_content_hash ON public.sbom_component_index USING btree (content_hash)",
+          "table": "public.sbom_component_index",
+          "columns": [
+            "content_hash"
+          ]
+        },
+        {
+          "name": "idx_sbom_component_index_purl",
+          "def": "CREATE INDEX idx_sbom_component_index_purl ON public.sbom_component_index USING btree (purl)",
+          "table": "public.sbom_component_index",
+          "columns": [
+            "purl"
+          ]
+        },
+        {
+          "name": "idx_sbom_component_index_name",
+          "def": "CREATE INDEX idx_sbom_component_index_name ON public.sbom_component_index USING btree (name)",
+          "table": "public.sbom_component_index",
+          "columns": [
+            "name"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "sbom_component_index_content_hash_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (content_hash) REFERENCES sbom_snapshot(content_hash)",
+          "table": "public.sbom_component_index",
+          "referenced_table": "public.sbom_snapshot",
+          "columns": [
+            "content_hash"
+          ],
+          "referenced_columns": [
+            "content_hash"
+          ]
+        },
+        {
+          "name": "sbom_component_index_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.sbom_component_index",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
     }
   ],
   "relations": [
@@ -6035,6 +6727,149 @@
       ],
       "parent_cardinality": "exactly_one",
       "def": "FOREIGN KEY (work_order_id) REFERENCES work_order(id)"
+    },
+    {
+      "table": "public.software_instance",
+      "columns": [
+        "software_catalog_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.software_catalog",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (software_catalog_id) REFERENCES software_catalog(id)"
+    },
+    {
+      "table": "public.software_installation",
+      "columns": [
+        "device_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.device",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (device_id) REFERENCES device(id)"
+    },
+    {
+      "table": "public.software_installation",
+      "columns": [
+        "work_order_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.work_order",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (work_order_id) REFERENCES work_order(id)"
+    },
+    {
+      "table": "public.software_installation",
+      "columns": [
+        "software_instance_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.software_instance",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (software_instance_id) REFERENCES software_instance(id)"
+    },
+    {
+      "table": "public.software_role_assignment",
+      "columns": [
+        "software_installation_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.software_installation",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (software_installation_id) REFERENCES software_installation(id)"
+    },
+    {
+      "table": "public.sbom_import",
+      "columns": [
+        "imported_by"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (imported_by) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.sbom_import",
+      "columns": [
+        "device_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.device",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (device_id) REFERENCES device(id)"
+    },
+    {
+      "table": "public.sbom_import",
+      "columns": [
+        "work_order_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.work_order",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (work_order_id) REFERENCES work_order(id)"
+    },
+    {
+      "table": "public.sbom_import",
+      "columns": [
+        "content_hash"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.sbom_snapshot",
+      "parent_columns": [
+        "content_hash"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (content_hash) REFERENCES sbom_snapshot(content_hash)"
+    },
+    {
+      "table": "public.sbom_component_change",
+      "columns": [
+        "sbom_import_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.sbom_import",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (sbom_import_id) REFERENCES sbom_import(id)"
+    },
+    {
+      "table": "public.sbom_component_index",
+      "columns": [
+        "content_hash"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.sbom_snapshot",
+      "parent_columns": [
+        "content_hash"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (content_hash) REFERENCES sbom_snapshot(content_hash)"
     }
   ],
   "driver": {

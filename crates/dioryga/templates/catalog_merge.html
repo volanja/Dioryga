@@ -1,0 +1,111 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+{% if let Some(message) = notice %}
+<p class="warn">{{ message }}</p>
+{% endif %}
+
+{# 統合はプロジェクト横断に影響するため Administrator 以上（設計書18.5-4） #}
+{% if !can_merge %}
+<p class="hint">{{ t_admin_hint }}</p>
+{% else %}
+
+{# 下流に重複があるとベンダーを統合できない（設計書18.5） #}
+<p class="hint">{{ t_order_hint }}</p>
+
+<h2 class="section">{{ t_parts }}</h2>
+<div class="card">
+  <p class="lead">{{ t_parts_hint }}</p>
+  {% if parts.is_empty() %}
+  <p class="empty">{{ t_no_candidate }}</p>
+  {% else %}
+  <form method="post" action="/catalog/merge/parts" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="part_source">{{ t_source }}</label>
+    <select id="part_source" name="source_id">
+      {% for p in parts %}
+      <option value="{{ p.value }}">{{ p.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="part_target">{{ t_target }}</label>
+    <select id="part_target" name="target_id">
+      {% for p in parts %}
+      <option value="{{ p.value }}">{{ p.label }}</option>
+      {% endfor %}
+    </select>
+
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+  {% endif %}
+</div>
+
+<h2 class="section">{{ t_vendors }}</h2>
+<div class="card">
+  <p class="lead">{{ t_vendors_hint }}</p>
+  {% if vendors.is_empty() %}
+  <p class="empty">{{ t_no_candidate }}</p>
+  {% else %}
+  <form method="post" action="/catalog/merge/vendors" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="vendor_source">{{ t_source }}</label>
+    <select id="vendor_source" name="source_id">
+      {% for v in vendors %}
+      <option value="{{ v.value }}">{{ v.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="vendor_target">{{ t_target }}</label>
+    <select id="vendor_target" name="target_id">
+      {% for v in vendors %}
+      <option value="{{ v.value }}">{{ v.label }}</option>
+      {% endfor %}
+    </select>
+
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+<h2 class="section">{{ t_merged }}</h2>
+{% if merged.is_empty() %}
+<p class="empty">{{ t_merged_none }}</p>
+{% else %}
+{# 削除ではないので記録が残る（設計書23.9.4） #}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th>{{ t_from }}</th>
+      <th>{{ t_to }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in merged %}
+    <tr>
+      <td>{{ row.kind }}</td>
+      <td class="is-disabled">{{ row.from }}</td>
+      <td>{{ row.to }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% endblock %}

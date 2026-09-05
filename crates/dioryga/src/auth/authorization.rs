@@ -94,6 +94,38 @@ pub async fn require_project_editor<C: ConnectionTrait>(
     require_project_role(db, user, project_id, &[ADMINISTRATOR, OPERATOR]).await
 }
 
+/// カタログの統合・廃番を行えるか（設計書18.5-4）。
+///
+/// > 18.1のカタログ編集は「Operator以上」だが、統合と廃番はプロジェクト横断に
+/// > 影響するため一段上げる。
+///
+/// **いずれか1つ以上のプロジェクトで `Administrator`。**23.9が `DEVICE` の統合を
+/// Project Administrator に限ったのと揃えた形である。System Adminは18.1の通り
+/// 触れない。
+pub async fn require_catalog_admin<C: ConnectionTrait>(
+    db: &C,
+    user: &app_user::Model,
+) -> Result<(), AuthzError> {
+    deny_system_admin(user)?;
+
+    if user.disabled_at.is_some() {
+        return Err(AuthzError::Denied);
+    }
+
+    let 該当あり = project_member::Entity::find()
+        .filter(project_member::Column::UserId.eq(user.id))
+        .filter(project_member::Column::Role.eq(ADMINISTRATOR))
+        .one(db)
+        .await?
+        .is_some();
+
+    if 該当あり {
+        Ok(())
+    } else {
+        Err(AuthzError::Denied)
+    }
+}
+
 /// カタログマスタを編集できるか（設計書18.1）。
 ///
 /// > いずれか1つ以上のプロジェクトでOperator以上のロールを持つUserであれば、

@@ -10,10 +10,10 @@
 | [public.session](public.session.md) | 9 | セッション。生のトークンは保存せずハッシュのみを持つ（20.5）。 | BASE TABLE |
 | [public.login_attempt](public.login_attempt.md) | 5 | ログイン試行。レート制限に使う。**存在しない利用者への試行も記録する**ため<br />app_user への外部キーを持たない（20.4）。<br /> | BASE TABLE |
 | [public.audit_log](public.audit_log.md) | 9 | 監査ログ。全ての書き込みがリポジトリ層を通り、同一トランザクション内で記録される（15.2、24.4）。<br />**認証情報の平文を含めない**（不変条件8）。<br /> | BASE TABLE |
-| [public.vendor](public.vendor.md) | 6 | ベンダーのマスタ。**名称の表記ゆれを防ぐために存在する**（18.3）。<br />**18.2の「参照されたら編集不可」は適用しない**——誤字訂正は構成そのものを変えないため。<br /> | BASE TABLE |
+| [public.vendor](public.vendor.md) | 8 | ベンダーのマスタ。**名称の表記ゆれを防ぐために存在する**（18.3）。<br />**18.2の「参照されたら編集不可」は適用しない**——誤字訂正は構成そのものを変えないため。<br /> | BASE TABLE |
 | [public.chassis_model](public.chassis_model.md) | 11 | 筐体モデル。自然キーは `(vendor_id, model_name)`。**別ベンダーなら同じ型番を持てる**（6.2）。 | BASE TABLE |
 | [public.chassis_slot](public.chassis_slot.md) | 6 | 筐体モデルが持つスロット。**無条件の一覧である。**「4CPU構成でなければ使えない」といった<br />条件付き制約は表現しない（6.1で対応しないと決着済み）。<br /> | BASE TABLE |
-| [public.part_catalog](public.part_catalog.md) | 11 | 部品カタログ。**集計に使う値だけをカラム化する**ハイブリッド方針（6.4）。<br /> | BASE TABLE |
+| [public.part_catalog](public.part_catalog.md) | 13 | 部品カタログ。**集計に使う値だけをカラム化する**ハイブリッド方針（6.4）。<br /> | BASE TABLE |
 | [public.part_port_slot](public.part_port_slot.md) | 10 | 部品が備えるポート（8.3、8.7）。 | BASE TABLE |
 | [public.configuration](public.configuration.md) | 7 | 筐体モデルに対する構成（6.2）。 | BASE TABLE |
 | [public.configuration_part](public.configuration_part.md) | 6 | 構成に含まれる部品。同じ部品を複数行に分けず `quantity` で表す。 | BASE TABLE |

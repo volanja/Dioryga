@@ -242,6 +242,9 @@ async fn ベンダーを描く(
         .is_ok();
 
     let rows = vendor::Entity::find()
+        // **統合で吸収された行は一覧に出さない**（23.9.4）。重複として畳まれた
+        // 側であり、出すと同じベンダーが2行に見える
+        .filter(vendor::Column::MergedIntoVendorId.is_null())
         .order_by_asc(vendor::Column::Name)
         .all(&state.db)
         .await
@@ -1183,6 +1186,7 @@ async fn スロット超過<C: ConnectionTrait>(
 async fn 現役の部品<C: ConnectionTrait>(db: &C) -> AppResult<Vec<Labeled>> {
     let parts = part_catalog::Entity::find()
         .filter(part_catalog::Column::RetiredAt.is_null())
+        .filter(part_catalog::Column::MergedIntoPartCatalogId.is_null())
         .order_by_asc(part_catalog::Column::PartNumber)
         .all(db)
         .await
@@ -1402,6 +1406,7 @@ async fn 筐体型が参照されている<C: ConnectionTrait>(db: &C, id: i32) 
 pub(crate) async fn 現役のベンダー<C: ConnectionTrait>(db: &C) -> AppResult<Vec<Labeled>> {
     Ok(vendor::Entity::find()
         .filter(vendor::Column::RetiredAt.is_null())
+        .filter(vendor::Column::MergedIntoVendorId.is_null())
         .order_by_asc(vendor::Column::Name)
         .all(db)
         .await

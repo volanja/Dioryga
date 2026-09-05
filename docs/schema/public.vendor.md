@@ -16,6 +16,8 @@
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
 | retired_at | timestamp with time zone |  | true |  |  | 廃番（18.5）。null = 現役。**参照済みでも設定できる**——18.2が禁じているのは<br />スペックを定義するフィールドの編集であり、選択可否はスペックではない<br /> |
+| merged_into_vendor_id | integer |  | true |  |  |  |
+| merged_at | timestamp with time zone |  | true |  |  |  |
 
 ## Constraints
 
@@ -32,6 +34,7 @@
 | vendor_pkey | CREATE UNIQUE INDEX vendor_pkey ON public.vendor USING btree (id) |
 | vendor_name_key | CREATE UNIQUE INDEX vendor_name_key ON public.vendor USING btree (name) |
 | idx_vendor_retired_at | CREATE INDEX idx_vendor_retired_at ON public.vendor USING btree (retired_at) |
+| idx_vendor_merged_into | CREATE INDEX idx_vendor_merged_into ON public.vendor USING btree (merged_into_vendor_id) |
 
 ## Relations
 

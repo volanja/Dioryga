@@ -439,6 +439,7 @@ parts:
   add_port: Add port
   remove_port: Remove
   no_port: No ports registered
+  merged_into: 'This part was merged. It now lives at:'
   back: Back to part catalog
   new: Add part
   error_part_number: Enter a part number
@@ -452,3 +453,27 @@ parts:
   error_voltage_unused: Voltage can only be set on a Power port
   error_voltage_pair: Enter both the minimum and the maximum voltage
   error_voltage_order: The minimum voltage exceeds the maximum
+
+merge:
+  title: Merge catalog entries
+  lead: Fold vendors and parts that were registered twice under different spellings into one
+  admin_hint: Merging affects every project, so only users holding an administrator role in some project can do it
+  order_hint: Work upward from the bottom. While parts or chassis models are still duplicated, merging the vendor fails on a unique constraint
+  vendors: Merge vendors
+  vendors_hint: Every model, contract and other row pointing at the absorbed vendor is repointed
+  parts: Merge parts
+  parts_hint: Only possible when the category, core count, capacity and other specs all match
+  source: Absorbed
+  target: Kept
+  submit: Merge
+  no_candidate: Nothing available to merge
+  merged: Merge history
+  merged_none: No merges yet
+  from: Absorbed
+  to: Merged into
+  done_vendor: "Merged %{from} into %{to} (%{count} rows repointed)"
+  done_part: "Merged %{from} into %{to} (%{count} rows repointed)"
+  error_same: The absorbed and the kept entry cannot be the same
+  error_cycle: That would create a merge cycle
+  error_spec: The specs do not match, so these cannot be merged. Folding different things together corrupts aggregation
+  error_conflict: "The target already has the same %{kind} (%{name}). Resolve that one first"

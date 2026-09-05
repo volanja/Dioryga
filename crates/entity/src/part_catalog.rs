@@ -25,6 +25,12 @@ pub struct Model {
     /// いるのはスペックを定義するフィールドの編集であり、選択可否はスペックでは
     /// ない。既存の参照は壊さず、過去の事実として残る。
     pub retired_at: Option<DateTimeUtc>,
+    /// 重複統合で吸収された場合の統合先（18.5）。**削除ではなくリダイレクト**。
+    ///
+    /// **外部キーは張らない**（24.3）。後からの列追加であり、SQLiteは
+    /// `ALTER TABLE` で制約を足せない。
+    pub merged_into_part_catalog_id: Option<i32>,
+    pub merged_at: Option<DateTimeUtc>,
     pub created_by: i32,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,

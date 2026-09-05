@@ -34,6 +34,14 @@ SQLiteが後から制約を足せないため。参照整合はアプリケー�
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| work_order_created_at_not_null | n | NOT NULL created_at |
+| work_order_description_not_null | n | NOT NULL description |
+| work_order_id_not_null | n | NOT NULL id |
+| work_order_project_id_not_null | n | NOT NULL project_id |
+| work_order_status_not_null | n | NOT NULL status |
+| work_order_title_not_null | n | NOT NULL title |
+| work_order_updated_at_not_null | n | NOT NULL updated_at |
+| work_order_work_type_not_null | n | NOT NULL work_type |
 | work_order_primary_assignee_id_fkey | FOREIGN KEY | FOREIGN KEY (primary_assignee_id) REFERENCES app_user(id) |
 | work_order_secondary_assignee_id_fkey | FOREIGN KEY | FOREIGN KEY (secondary_assignee_id) REFERENCES app_user(id) |
 | work_order_project_id_fkey | FOREIGN KEY | FOREIGN KEY (project_id) REFERENCES project(id) |

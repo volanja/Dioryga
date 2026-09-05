@@ -23,6 +23,12 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| cable_connection_cable_end_slot_id_not_null | n | NOT NULL cable_end_slot_id |
+| cable_connection_cable_instance_id_not_null | n | NOT NULL cable_instance_id |
+| cable_connection_from_date_not_null | n | NOT NULL from_date |
+| cable_connection_id_not_null | n | NOT NULL id |
+| cable_connection_part_instance_id_not_null | n | NOT NULL part_instance_id |
+| cable_connection_port_slot_id_not_null | n | NOT NULL port_slot_id |
 | cable_connection_port_slot_id_fkey | FOREIGN KEY | FOREIGN KEY (port_slot_id) REFERENCES part_port_slot(id) |
 | cable_connection_cable_end_slot_id_fkey | FOREIGN KEY | FOREIGN KEY (cable_end_slot_id) REFERENCES cable_end_slot(id) |
 | cable_connection_part_instance_id_fkey | FOREIGN KEY | FOREIGN KEY (part_instance_id) REFERENCES part_instance(id) |

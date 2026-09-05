@@ -22,6 +22,12 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| project_member_created_at_not_null | n | NOT NULL created_at |
+| project_member_id_not_null | n | NOT NULL id |
+| project_member_project_id_not_null | n | NOT NULL project_id |
+| project_member_role_not_null | n | NOT NULL role |
+| project_member_updated_at_not_null | n | NOT NULL updated_at |
+| project_member_user_id_not_null | n | NOT NULL user_id |
 | project_member_user_id_fkey | FOREIGN KEY | FOREIGN KEY (user_id) REFERENCES app_user(id) |
 | project_member_project_id_fkey | FOREIGN KEY | FOREIGN KEY (project_id) REFERENCES project(id) |
 | project_member_pkey | PRIMARY KEY | PRIMARY KEY (id) |

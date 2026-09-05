@@ -24,6 +24,14 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| milestone_created_at_not_null | n | NOT NULL created_at |
+| milestone_description_not_null | n | NOT NULL description |
+| milestone_id_not_null | n | NOT NULL id |
+| milestone_milestone_type_not_null | n | NOT NULL milestone_type |
+| milestone_planned_date_not_null | n | NOT NULL planned_date |
+| milestone_project_id_not_null | n | NOT NULL project_id |
+| milestone_status_not_null | n | NOT NULL status |
+| milestone_updated_at_not_null | n | NOT NULL updated_at |
 | milestone_project_id_fkey | FOREIGN KEY | FOREIGN KEY (project_id) REFERENCES project(id) |
 | milestone_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

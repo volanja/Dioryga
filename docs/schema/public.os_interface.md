@@ -26,6 +26,11 @@ VMの仮想NICは物理ポートに1対1で対応しない。
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| os_interface_device_id_not_null | n | NOT NULL device_id |
+| os_interface_from_date_not_null | n | NOT NULL from_date |
+| os_interface_id_not_null | n | NOT NULL id |
+| os_interface_interface_type_not_null | n | NOT NULL interface_type |
+| os_interface_os_interface_name_not_null | n | NOT NULL os_interface_name |
 | os_interface_port_slot_id_fkey | FOREIGN KEY | FOREIGN KEY (port_slot_id) REFERENCES part_port_slot(id) |
 | os_interface_device_id_fkey | FOREIGN KEY | FOREIGN KEY (device_id) REFERENCES device(id) |
 | os_interface_part_instance_id_fkey | FOREIGN KEY | FOREIGN KEY (part_instance_id) REFERENCES part_instance(id) |

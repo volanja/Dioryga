@@ -22,6 +22,13 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| firmware_version_changed_by_not_null | n | NOT NULL changed_by |
+| firmware_version_component_not_null | n | NOT NULL component |
+| firmware_version_from_date_not_null | n | NOT NULL from_date |
+| firmware_version_id_not_null | n | NOT NULL id |
+| firmware_version_item_id_not_null | n | NOT NULL item_id |
+| firmware_version_item_type_not_null | n | NOT NULL item_type |
+| firmware_version_version_not_null | n | NOT NULL version |
 | firmware_version_changed_by_fkey | FOREIGN KEY | FOREIGN KEY (changed_by) REFERENCES app_user(id) |
 | firmware_version_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

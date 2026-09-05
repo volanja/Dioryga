@@ -22,6 +22,10 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| device_assignment_device_id_not_null | n | NOT NULL device_id |
+| device_assignment_from_date_not_null | n | NOT NULL from_date |
+| device_assignment_id_not_null | n | NOT NULL id |
+| device_assignment_location_type_not_null | n | NOT NULL location_type |
 | device_assignment_device_id_fkey | FOREIGN KEY | FOREIGN KEY (device_id) REFERENCES device(id) |
 | device_assignment_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

@@ -22,6 +22,11 @@ in_stock / disposed も status に含む。v1では画面・取込の対象外�
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| cable_instance_cable_catalog_id_not_null | n | NOT NULL cable_catalog_id |
+| cable_instance_created_at_not_null | n | NOT NULL created_at |
+| cable_instance_id_not_null | n | NOT NULL id |
+| cable_instance_status_not_null | n | NOT NULL status |
+| cable_instance_updated_at_not_null | n | NOT NULL updated_at |
 | cable_instance_cable_catalog_id_fkey | FOREIGN KEY | FOREIGN KEY (cable_catalog_id) REFERENCES cable_catalog(id) |
 | cable_instance_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

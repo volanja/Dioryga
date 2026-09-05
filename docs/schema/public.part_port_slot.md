@@ -23,6 +23,13 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| part_port_slot_connector_type_not_null | n | NOT NULL connector_type |
+| part_port_slot_created_at_not_null | n | NOT NULL created_at |
+| part_port_slot_id_not_null | n | NOT NULL id |
+| part_port_slot_part_catalog_id_not_null | n | NOT NULL part_catalog_id |
+| part_port_slot_port_kind_not_null | n | NOT NULL port_kind |
+| part_port_slot_port_label_not_null | n | NOT NULL port_label |
+| part_port_slot_updated_at_not_null | n | NOT NULL updated_at |
 | part_port_slot_part_catalog_id_fkey | FOREIGN KEY | FOREIGN KEY (part_catalog_id) REFERENCES part_catalog(id) |
 | part_port_slot_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

@@ -19,6 +19,12 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| warehouse_address_not_null | n | NOT NULL address |
+| warehouse_created_at_not_null | n | NOT NULL created_at |
+| warehouse_created_by_not_null | n | NOT NULL created_by |
+| warehouse_id_not_null | n | NOT NULL id |
+| warehouse_name_not_null | n | NOT NULL name |
+| warehouse_updated_at_not_null | n | NOT NULL updated_at |
 | warehouse_created_by_fkey | FOREIGN KEY | FOREIGN KEY (created_by) REFERENCES app_user(id) |
 | warehouse_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

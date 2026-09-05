@@ -20,6 +20,12 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| configuration_chassis_model_id_not_null | n | NOT NULL chassis_model_id |
+| configuration_created_at_not_null | n | NOT NULL created_at |
+| configuration_created_by_not_null | n | NOT NULL created_by |
+| configuration_id_not_null | n | NOT NULL id |
+| configuration_name_not_null | n | NOT NULL name |
+| configuration_updated_at_not_null | n | NOT NULL updated_at |
 | configuration_created_by_fkey | FOREIGN KEY | FOREIGN KEY (created_by) REFERENCES app_user(id) |
 | configuration_chassis_model_id_fkey | FOREIGN KEY | FOREIGN KEY (chassis_model_id) REFERENCES chassis_model(id) |
 | configuration_pkey | PRIMARY KEY | PRIMARY KEY (id) |

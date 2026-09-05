@@ -22,6 +22,14 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| session_created_at_not_null | n | NOT NULL created_at |
+| session_expires_at_not_null | n | NOT NULL expires_at |
+| session_id_not_null | n | NOT NULL id |
+| session_ip_address_not_null | n | NOT NULL ip_address |
+| session_last_seen_at_not_null | n | NOT NULL last_seen_at |
+| session_token_hash_not_null | n | NOT NULL token_hash |
+| session_user_agent_not_null | n | NOT NULL user_agent |
+| session_user_id_not_null | n | NOT NULL user_id |
 | session_user_id_fkey | FOREIGN KEY | FOREIGN KEY (user_id) REFERENCES app_user(id) |
 | session_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 | session_token_hash_key | UNIQUE | UNIQUE (token_hash) |

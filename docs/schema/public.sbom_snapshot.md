@@ -20,6 +20,10 @@ SBOMのスナップショット（9.7）。**本システムで唯一、代理�
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| sbom_snapshot_component_count_not_null | n | NOT NULL component_count |
+| sbom_snapshot_content_hash_not_null | n | NOT NULL content_hash |
+| sbom_snapshot_content_not_null | n | NOT NULL content |
+| sbom_snapshot_first_seen_at_not_null | n | NOT NULL first_seen_at |
 | sbom_snapshot_pkey | PRIMARY KEY | PRIMARY KEY (content_hash) |
 
 ## Indexes

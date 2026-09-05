@@ -22,6 +22,14 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| mount_container_container_type_not_null | n | NOT NULL container_type |
+| mount_container_created_at_not_null | n | NOT NULL created_at |
+| mount_container_created_by_not_null | n | NOT NULL created_by |
+| mount_container_id_not_null | n | NOT NULL id |
+| mount_container_location_id_not_null | n | NOT NULL location_id |
+| mount_container_location_type_not_null | n | NOT NULL location_type |
+| mount_container_name_not_null | n | NOT NULL name |
+| mount_container_updated_at_not_null | n | NOT NULL updated_at |
 | mount_container_created_by_fkey | FOREIGN KEY | FOREIGN KEY (created_by) REFERENCES app_user(id) |
 | mount_container_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

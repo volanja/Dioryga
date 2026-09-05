@@ -22,6 +22,10 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| software_instance_created_at_not_null | n | NOT NULL created_at |
+| software_instance_id_not_null | n | NOT NULL id |
+| software_instance_software_catalog_id_not_null | n | NOT NULL software_catalog_id |
+| software_instance_updated_at_not_null | n | NOT NULL updated_at |
 | software_instance_software_catalog_id_fkey | FOREIGN KEY | FOREIGN KEY (software_catalog_id) REFERENCES software_catalog(id) |
 | software_instance_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

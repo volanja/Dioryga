@@ -21,6 +21,14 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| purchase_order_item_created_at_not_null | n | NOT NULL created_at |
+| purchase_order_item_id_not_null | n | NOT NULL id |
+| purchase_order_item_item_id_not_null | n | NOT NULL item_id |
+| purchase_order_item_item_type_not_null | n | NOT NULL item_type |
+| purchase_order_item_purchase_order_id_not_null | n | NOT NULL purchase_order_id |
+| purchase_order_item_quantity_not_null | n | NOT NULL quantity |
+| purchase_order_item_unit_price_not_null | n | NOT NULL unit_price |
+| purchase_order_item_updated_at_not_null | n | NOT NULL updated_at |
 | purchase_order_item_purchase_order_id_fkey | FOREIGN KEY | FOREIGN KEY (purchase_order_id) REFERENCES purchase_order(id) |
 | purchase_order_item_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

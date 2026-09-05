@@ -24,6 +24,12 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| audit_log_action_not_null | n | NOT NULL action |
+| audit_log_changed_at_not_null | n | NOT NULL changed_at |
+| audit_log_id_not_null | n | NOT NULL id |
+| audit_log_record_id_not_null | n | NOT NULL record_id |
+| audit_log_table_name_not_null | n | NOT NULL table_name |
+| audit_log_user_id_not_null | n | NOT NULL user_id |
 | audit_log_user_id_fkey | FOREIGN KEY | FOREIGN KEY (user_id) REFERENCES app_user(id) |
 | audit_log_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 

@@ -23,6 +23,12 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| cable_catalog_cable_type_not_null | n | NOT NULL cable_type |
+| cable_catalog_color_not_null | n | NOT NULL color |
+| cable_catalog_created_at_not_null | n | NOT NULL created_at |
+| cable_catalog_created_by_not_null | n | NOT NULL created_by |
+| cable_catalog_id_not_null | n | NOT NULL id |
+| cable_catalog_updated_at_not_null | n | NOT NULL updated_at |
 | cable_catalog_created_by_fkey | FOREIGN KEY | FOREIGN KEY (created_by) REFERENCES app_user(id) |
 | cable_catalog_vendor_id_fkey | FOREIGN KEY | FOREIGN KEY (vendor_id) REFERENCES vendor(id) |
 | cable_catalog_pkey | PRIMARY KEY | PRIMARY KEY (id) |

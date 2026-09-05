@@ -22,6 +22,11 @@ DEVICE_MOUNT や power_watt は物理側が持つ。
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| device_stack_from_date_not_null | n | NOT NULL from_date |
+| device_stack_id_not_null | n | NOT NULL id |
+| device_stack_logical_device_id_not_null | n | NOT NULL logical_device_id |
+| device_stack_member_device_id_not_null | n | NOT NULL member_device_id |
+| device_stack_member_number_not_null | n | NOT NULL member_number |
 | device_stack_logical_device_id_fkey | FOREIGN KEY | FOREIGN KEY (logical_device_id) REFERENCES device(id) |
 | device_stack_member_device_id_fkey | FOREIGN KEY | FOREIGN KEY (member_device_id) REFERENCES device(id) |
 | device_stack_pkey | PRIMARY KEY | PRIMARY KEY (id) |

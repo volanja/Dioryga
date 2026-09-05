@@ -30,20 +30,25 @@ use testcontainers::runners::AsyncRunner;
 use testcontainers::{ContainerAsync, ImageExt};
 use testcontainers_modules::postgres::Postgres;
 
-/// テストで使うPostgreSQLの版。**明示的に固定する。**
+/// テストで使うPostgreSQLの版。
+///
+/// **リポジトリ直下の `.postgres-version` を唯一の出所とする。**`scripts/schema-docs.sh`
+/// も同じファイルを読む。**同じ版を2箇所に書くと必ず食い違う**——実際、
+/// テストが既定の `11-alpine`、スキーマドキュメントの生成が `17-alpine` という
+/// 状態が続いており、**スキーマの検査と動作の検証が別のPostgreSQLに対して
+/// 行われていた**（#76）。
+///
+/// # 版を明示する理由
 ///
 /// testcontainers-modules の既定は `11-alpine` で、**PostgreSQL 11 は2023年に
-/// サポートが終わっている。**既定のまま使っていたため、EOLの版に対して
-/// 「PostgreSQLで動く」を検証していた。
+/// サポートが終わっている。**指定しないままだと、EOLの版に対して
+/// 「PostgreSQLで動く」を検証することになる。
 ///
-/// **版を上げると `CREATE DATABASE ... TEMPLATE` も速くなる。**PostgreSQL 15 で
-/// 既定の複製方式が `WAL_LOG` になり、複製のたびに2回走っていたチェックポイントが
+/// **版はテストの速さにも効く。**PostgreSQL 15 で `CREATE DATABASE` の既定の
+/// 複製方式が `WAL_LOG` になり、複製のたびに2回走っていたチェックポイントが
 /// 要らなくなった。同じ55本のテストで**11-alpineは15.9秒、17-alpineは4.7秒**
-/// ——テンプレートDBを使う本体（#76）はこの版に乗っている。
-///
-/// **`scripts/schema-docs.sh` も17-alpineを使っている。**版が食い違ったままでは、
-/// スキーマの検査と動作の検証が別のPostgreSQLに対して行われることになる。
-const PG: &str = "17-alpine";
+/// ——テンプレートDBを使う本体（#76）はこの性質に乗っている。
+const PG: &str = include_str!("../../../../.postgres-version");
 
 /// 複製元になるDBの名前。
 const テンプレート: &str = "dioryga_template";
@@ -152,7 +157,8 @@ async fn 共有を得る() -> Arc<共有> {
 impl 共有 {
     async fn 起動する() -> Self {
         let container = Postgres::default()
-            .with_tag(PG)
+            // `.postgres-version` の末尾には改行が入る
+            .with_tag(PG.trim())
             .start()
             .await
             .expect("PostgreSQLコンテナを起動できませんでした");

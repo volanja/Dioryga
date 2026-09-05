@@ -24,6 +24,13 @@
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
+| work_order_approval_created_at_not_null | n | NOT NULL created_at |
+| work_order_approval_id_not_null | n | NOT NULL id |
+| work_order_approval_required_project_id_not_null | n | NOT NULL required_project_id |
+| work_order_approval_self_approved_not_null | n | NOT NULL self_approved |
+| work_order_approval_status_not_null | n | NOT NULL status |
+| work_order_approval_updated_at_not_null | n | NOT NULL updated_at |
+| work_order_approval_work_order_id_not_null | n | NOT NULL work_order_id |
 | work_order_approval_approver_id_fkey | FOREIGN KEY | FOREIGN KEY (approver_id) REFERENCES app_user(id) |
 | work_order_approval_required_project_id_fkey | FOREIGN KEY | FOREIGN KEY (required_project_id) REFERENCES project(id) |
 | work_order_approval_work_order_id_fkey | FOREIGN KEY | FOREIGN KEY (work_order_id) REFERENCES work_order(id) |

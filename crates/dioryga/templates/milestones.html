@@ -1,0 +1,129 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/projects/{{ project_id }}/devices">{{ project_name }}</a></p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_type }}</th>
+      {# 予定と実績を別に持つ。上書きするとズレが見えなくなる（設計書10.4） #}
+      <th>{{ t_planned_date }}</th>
+      <th>{{ t_actual_date }}</th>
+      <th>{{ t_delay }}</th>
+      <th>{{ t_status }}</th>
+      <th>{{ t_devices }}</th>
+      <th>{{ t_description }}</th>
+      {% if can_edit %}<th>{{ t_actions }}</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr class="{% if !row.delay.is_empty() %}is-warn{% endif %}">
+      <td>{{ row.milestone_type }}</td>
+      <td>{{ row.planned_date }}</td>
+      <td>{{ row.actual_date }}</td>
+      <td>{{ row.delay }}</td>
+      <td>{{ row.status }}</td>
+      <td>{{ row.devices }}</td>
+      <td>{{ row.description }}</td>
+      {% if can_edit %}
+      <td class="actions">
+        {% if row.open %}
+        <form method="post" action="/projects/{{ project_id }}/milestones/complete" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <input type="hidden" name="id" value="{{ row.id }}">
+          <input type="date" name="actual_date" aria-label="{{ t_actual_date }}">
+          <button type="submit" class="ghost">{{ t_complete }}</button>
+        </form>
+        <form method="post" action="/projects/{{ project_id }}/milestones/complete" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <input type="hidden" name="id" value="{{ row.id }}">
+          <input type="hidden" name="cancel" value="1">
+          <button type="submit" class="ghost">{{ t_cancel }}</button>
+        </form>
+        {% endif %}
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="hint">{{ t_actual_hint }}</p>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_new }}</h2>
+<div class="card">
+  <form method="post" action="/projects/{{ project_id }}/milestones" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="milestone_type">{{ t_type }}</label>
+    <select id="milestone_type" name="milestone_type">
+      {% for t in types %}
+      <option value="{{ t }}">{{ t }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="planned_date">{{ t_planned_date }}</label>
+    <input type="date" id="planned_date" name="planned_date" required>
+
+    <label for="description">{{ t_description }}</label>
+    <input type="text" id="description" name="description">
+
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+</div>
+
+{# 機器の増設・移設・撤去を対象機器と直結する（設計書10.4） #}
+{% if !rows.is_empty() && !devices.is_empty() %}
+<h2 class="section">{{ t_add_device }}</h2>
+<div class="card">
+  <form method="post" action="/projects/{{ project_id }}/milestones/devices" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="milestone_id">{{ t_target }}</label>
+    <select id="milestone_id" name="milestone_id">
+      {% for row in rows %}
+      <option value="{{ row.id }}">{{ row.milestone_type }} {{ row.planned_date }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="device_id">{{ t_devices }}</label>
+    <select id="device_id" name="device_id">
+      {% for d in devices %}
+      <option value="{{ d.value }}">{{ d.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="change_type">{{ t_change_type }}</label>
+    <select id="change_type" name="change_type">
+      {% for c in change_types %}
+      <option value="{{ c }}">{{ c }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_device_hint }}</p>
+
+    <button type="submit">{{ t_add_device }}</button>
+  </form>
+</div>
+{% endif %}
+{% endif %}
+
+{% endblock %}

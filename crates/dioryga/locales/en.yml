@@ -731,3 +731,35 @@ costs:
   error_item: Invalid target
   error_cost_type: Enter a cost type
   error_cycle: Invalid billing cycle
+
+milestones:
+  title: Milestones
+  lead: Planned and actual dates for service start, updates, maintenance and end. The planned date is never overwritten; the actual date is held separately
+  milestone_type: Type
+  planned_date: Planned date
+  actual_date: Actual date
+  actual_hint: Completing with an empty actual date records today. The planned date is left untouched
+  devices: Devices
+  device_hint: The devices being added, relocated or removed. Their status stays plan until the change is approved and executed
+  change_type: Change type
+  delay: Delay
+  delayed: "%{days} days"
+  complete: Mark complete
+  cancel: Cancel
+  add_device: Link a device
+  new: Register a milestone
+  error_type: Invalid milestone type
+  error_change_type: Invalid change type
+  error_duplicate: That device is already linked to this milestone
+
+power:
+  title: Power
+  lead: Total power draw of the devices mounted in each container
+  v2_hint: v1 covers containers only. Per-circuit totals, load on loss of redundancy and current-based capacity management depend on cable connection records and are v2
+  virtual_hint: Virtual machines and containers are not counted. The host draws the power; counting them would double-count
+  running: Running devices
+  watt: Power (running)
+  planned: Reserved devices
+  watt_with_plan: Power (incl. reserved)
+  virtual: Virtual (not counted)
+  total: Total

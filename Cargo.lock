@@ -1205,6 +1205,7 @@ dependencies = [
  "chrono",
  "clap",
  "csv",
+ "dioryga-catalog-format",
  "entity",
  "figment",
  "form_urlencoded",
@@ -1230,6 +1231,16 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "zstd",
+]
+
+[[package]]
+name = "dioryga-catalog-format"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "thiserror",
 ]
 
 [[package]]

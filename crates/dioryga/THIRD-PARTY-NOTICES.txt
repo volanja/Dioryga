@@ -5359,6 +5359,7 @@ MIT License
 ================================================================================
 
 適用されるパッケージ / Applies to:
+  - dioryga-catalog-format 0.1.0
   - dioryga 0.1.0
   - entity 0.1.0
   - migration 0.1.0

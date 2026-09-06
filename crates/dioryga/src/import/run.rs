@@ -159,7 +159,7 @@ async fn catalog_file(
     apply: bool,
 ) -> Result<Executed, RunError> {
     let actor = 取込者(db, as_user).await?;
-    let file = catalog::parse(source)?;
+    let file = catalog::parse(source).map_err(ImportError::from)?;
 
     let report = catalog::dry_run(db, &file).await?;
 

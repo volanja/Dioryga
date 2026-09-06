@@ -160,6 +160,23 @@ pub enum ImportError {
     Db(#[from] sea_orm::DbErr),
 }
 
+/// **形式の誤りは別crateが持つ**（#77）。同じ意味の変種へ写して受ける。
+///
+/// 変種を統合せず写すのは、`instances.rs`（CSVとマニフェスト）が同じ変種を
+/// 使っており、そちらは形式のcrateを通らないためである。
+impl From<dioryga_catalog_format::FormatError> for ImportError {
+    fn from(e: dioryga_catalog_format::FormatError) -> Self {
+        use dioryga_catalog_format::FormatError as F;
+        match e {
+            F::Yaml(e) => Self::Yaml(e),
+            F::UnsupportedVersion { found, expected } => {
+                Self::UnsupportedVersion { found, expected }
+            }
+            F::UnexpectedKind { found, expected } => Self::UnexpectedKind { found, expected },
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

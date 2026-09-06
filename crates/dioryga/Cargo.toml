@@ -23,6 +23,7 @@ figment.workspace = true
 entity.workspace = true
 migration.workspace = true
 sea-orm.workspace = true
+dioryga-catalog-format = { path = "../catalog-format" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -44,7 +45,7 @@ rust-i18n = "4.2.1"
 # 素のHTMLフォームからのCSRFトークンを本文から読むために使う（auth::middleware）
 form_urlencoded = "1.2.2"
 # 一括取込（設計書23章）。カタログはYAML、インスタンスはCSV
-serde_yaml_ng = "0.10.0"
+serde_yaml_ng.workspace = true
 csv = "1.4.0"
 # SBOMスナップショットの圧縮（設計書9.7）。zstd-sysはCツールチェーンを要求するが、
 # Windows/macOS/Linuxとも各ランナー上でネイティブビルドしており支障が無いことを実測した

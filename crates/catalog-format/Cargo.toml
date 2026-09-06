@@ -1,0 +1,22 @@
+[package]
+name = "dioryga-catalog-format"
+description = "Dioryga のカタログ取込フォーマット（設計書23.4）の入力型と展開記法"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# **crates.io へは公開しない。**Dioryga も Krounos も非公開リポジトリであり、
+# 公開すると取込フォーマットだけが外に出る。Krounos からは git 依存で参照し、
+# リビジョンを固定する（#77）。
+publish = false
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml_ng.workspace = true
+thiserror.workspace = true
+
+# **sea-orm にも entity にも依存しない。**Krounos に ORM を持ち込まないことが
+# このcrateを切り出した目的である（設計リポジトリ external-tools.md 4.2）。

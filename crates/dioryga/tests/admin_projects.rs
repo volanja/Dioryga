@@ -375,6 +375,46 @@ async fn system_adminは割り当てられない(db: &DatabaseConnection) {
     assert!(管理者行(db, p.id).await.is_empty());
 }
 
+/// **候補が0件のとき、理由と次の一手を出すこと**（#90）。
+///
+/// 初回セットアップ直後はSystem Adminしか居ないため、候補が1人も出ない。
+/// **画面は「正管理者のみでも登録できます」と書いており、空のプルダウンは
+/// 不具合に見える。**空なのが実態なのか設定漏れなのかを判別できる必要がある。
+async fn 候補がゼロなら理由を出す(db: &DatabaseConnection) {
+    let admin = 利用者(db, "only-sysadmin@example.com", true).await;
+    let p = プロジェクト(db, "候補ゼロ検証", None).await;
+
+    let (状態, token) = 認証済み(db, &admin).await;
+    let (status, body) = 取得(状態, &format!("/admin/projects/{}/members", p.id), &token).await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains("割り当てられる利用者がいません"),
+        "理由が出ていない"
+    );
+    // **次の一手を示す。**サイドナビまで戻らせない
+    assert!(body.contains("/admin/users"), "ユーザー管理への導線が無い");
+    // 選べない以上、保存欄は出さない
+    assert!(
+        !body.contains("name=\"primary\""),
+        "空のプルダウンが出ている"
+    );
+}
+
+/// 候補が1件でもあれば、従来どおり選択欄を出すこと（#90）。
+async fn 候補があれば選択欄を出す(db: &DatabaseConnection) {
+    let admin = 利用者(db, "has-candidate@example.com", true).await;
+    利用者(db, "member@example.com", false).await;
+    let p = プロジェクト(db, "候補あり検証", None).await;
+
+    let (状態, token) = 認証済み(db, &admin).await;
+    let (_, body) = 取得(状態, &format!("/admin/projects/{}/members", p.id), &token).await;
+
+    assert!(body.contains("name=\"primary\""));
+    assert!(body.contains("member@example.com"));
+    assert!(!body.contains("割り当てられる利用者がいません"));
+}
+
 /// 無効化された利用者は割り当てられないこと（設計書20.11）。
 async fn 無効化された利用者は割り当てられない(db: &DatabaseConnection) {
     let admin = 利用者(db, "disabled-assign@example.com", true).await;
@@ -675,6 +715,8 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 割り当て直しても正副は各1名);
         全検証!(@one $用意, $属性, 割り当て直しても他のロールは残る);
         全検証!(@one $用意, $属性, system_adminは割り当てられない);
+        全検証!(@one $用意, $属性, 候補がゼロなら理由を出す);
+        全検証!(@one $用意, $属性, 候補があれば選択欄を出す);
         全検証!(@one $用意, $属性, 無効化された利用者は割り当てられない);
         全検証!(@one $用意, $属性, 同じ利用者を正副にできない);
         全検証!(@one $用意, $属性, 副だけは割り当てられない);

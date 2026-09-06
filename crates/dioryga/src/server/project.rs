@@ -140,6 +140,9 @@ struct MembersPage {
     t_secondary_hint: String,
     t_unassigned: String,
     t_submit: String,
+    /// 候補が0件のときの説明（#90）。**空なのが実態か設定漏れかを判別できるように。**
+    t_no_candidate: String,
+    t_go_users: String,
     project_id: i32,
     project_name: String,
     candidates: Vec<Candidate>,
@@ -721,6 +724,8 @@ async fn 割り当て画面(
         t_secondary_hint: rust_i18n::t!("projects.secondary_hint", locale = l).to_string(),
         t_unassigned: rust_i18n::t!("projects.unassigned", locale = l).to_string(),
         t_submit: rust_i18n::t!("common.save", locale = l).to_string(),
+        t_no_candidate: rust_i18n::t!("projects.no_candidate", locale = l).to_string(),
+        t_go_users: rust_i18n::t!("projects.go_users", locale = l).to_string(),
         project_id: target.id,
         project_name: target.name.clone(),
         candidates: 候補(state).await?,
@@ -735,6 +740,10 @@ async fn 割り当て画面(
 /// **System Adminと無効化された利用者を除く。**System Adminはロールを持っても
 /// プロジェクトデータへアクセスできず（3章）、選べてしまうと画面と実際の挙動が
 /// 食い違う。無効化された利用者を新規の担当者にできないのは20.11の通り。
+///
+/// **0件になりうる。**初回セットアップ直後はSystem Adminしか居ないため、
+/// 候補が1人も出ない。画面はそのとき理由と次の一手を出す（#90）——
+/// 空なのが実態なのか設定漏れなのかを、利用者が判別できる必要がある。
 async fn 候補(state: &AppState) -> AppResult<Vec<Candidate>> {
     let users = app_user::Entity::find()
         .filter(app_user::Column::IsSystemAdmin.eq(false))

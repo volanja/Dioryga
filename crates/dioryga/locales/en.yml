@@ -110,6 +110,8 @@ projects:
   members_title: Assign administrators
   members_lead: A primary and secondary pair covers absence and handover
   secondary_hint: The secondary administrator is optional. A primary alone is fine
+  no_candidate: No user can be assigned. A system administrator cannot be a project administrator (they have no access to project data at all), so register a user first
+  go_users: Go to user management
   same_admin: The same person cannot be both primary and secondary administrator
   secondary_without_primary: A secondary administrator cannot be assigned on its own. Assign a primary first
   invalid_candidate: The selection includes a user who cannot be assigned

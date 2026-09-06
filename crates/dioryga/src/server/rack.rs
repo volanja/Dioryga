@@ -1,4 +1,4 @@
-//! 什器と搭載位置、およびラック図（設計書12章、12.8）。
+//! 什器と搭載位置、およびラック図（設計書12章、12.9）。
 //!
 //! # 図は事実をそのまま映す
 //!
@@ -9,20 +9,20 @@
 //!
 //! # U番号は下から数える
 //!
-//! 実機のラックは下が1Uである（12.8）。`position` は実機のラベルと一致して
+//! 実機のラックは下が1Uである（12.9）。`position` は実機のラベルと一致して
 //! いなければ現場で図と実機を照合できないため、**データ側は反転させず、描画時に
 //! 一度だけ上下を入れ替える。**
 //!
 //! # 前面と背面は別の図にする
 //!
 //! `depth_position` は同じ `position` に `Front` と `Rear` が同居しうる（12.3）。
-//! 1枚に重ねるとどちらの機器か判別できないため、2枚並べる（12.8）。
+//! 1枚に重ねるとどちらの機器か判別できないため、2枚並べる（12.9）。
 //!
 //! # 予約は破線と淡色の両方で描く
 //!
 //! `status=plan` の機器は予約中である（11.6）。**破線だけでは縮小・印刷で潰れ、
 //! 色だけでは色覚特性によっては区別できない**ため、両方を使い、凡例に文字の
-//! ラベルも置く（12.8）。
+//! ラベルも置く（12.9）。
 
 use axum::extract::{Path, State};
 use axum::response::{IntoResponse, Redirect, Response};
@@ -63,7 +63,7 @@ const FRONT: &str = "Front";
 const REAR: &str = "Rear";
 
 // ---------------------------------------------------------------------------
-// 図の寸法（設計書12.8）
+// 図の寸法（設計書12.9）
 // ---------------------------------------------------------------------------
 
 /// 1Uの高さ（px）。これを変えると図全体が拡縮する。
@@ -120,10 +120,10 @@ struct Cell {
     w: i32,
     h: i32,
     label: String,
-    /// `status=plan`。破線＋淡色で描く（設計書11.6、12.8）。
+    /// `status=plan`。破線＋淡色で描く（設計書11.6、12.9）。
     planned: bool,
     /// 棚板の上に載っている機器（`host_device_id`）。**帯の中に**小さく並べる
-    /// （設計書12.8）。1Uは22pxしかないので、ラベルと同じ行の右端へ寄せる。
+    /// （設計書12.9）。1Uは22pxしかないので、ラベルと同じ行の右端へ寄せる。
     shelf_label: String,
 }
 
@@ -191,11 +191,11 @@ struct RackPage {
     grid_height: i32,
     panels: Vec<Panel>,
     ticks: Vec<Tick>,
-    /// 0Uサイドマウント。**格子の外に置く**（設計書12.8）。
+    /// 0Uサイドマウント。**格子の外に置く**（設計書12.9）。
     side_items: Vec<SideItem>,
     /// `capacity` を超えた位置の機器。描いたうえで警告する（不変条件6）。
     out_of_range: Vec<SideItem>,
-    /// 格子を持たない什器（Desk）。並べるだけ（設計書12.8）。
+    /// 格子を持たない什器（Desk）。並べるだけ（設計書12.9）。
     loose: Vec<SideItem>,
     has_grid: bool,
     devices: Vec<Labeled>,
@@ -410,7 +410,7 @@ async fn 図を描く(
         let 名 = 表示名(m);
         let planned = m.device.status == PLAN;
 
-        // **0UサイドマウントはU数を消費しない**（12.3）。格子の外に置く（12.8）
+        // **0UサイドマウントはU数を消費しない**（12.3）。格子の外に置く（12.9）
         if m.mount_form == RACK_SIDE {
             side_items.push(SideItem {
                 label: 名, planned
@@ -419,7 +419,7 @@ async fn 図を描く(
         }
 
         let Some(position) = m.mount.position.filter(|_| 格子) else {
-            // 格子を持たない什器、または位置未設定。並べるだけ（12.8）
+            // 格子を持たない什器、または位置未設定。並べるだけ（12.9）
             loose.push(SideItem {
                 label: 名, planned
             });
@@ -437,7 +437,7 @@ async fn 図を描く(
 
         let cell = 箱を作る(m, position, capacity, &名, planned, &棚上);
         match m.mount.depth_position.as_deref() {
-            // 前面図・背面図のどちらか一方だけに現れる（12.8）
+            // 前面図・背面図のどちらか一方だけに現れる（12.9）
             Some(FRONT) => front.push(cell),
             Some(REAR) => rear.push(cell),
             // Full と未設定は両方に現れる
@@ -450,13 +450,13 @@ async fn 図を描く(
 
     let ticks = (1..=capacity)
         .map(|u| Tick {
-            // 下が1U（12.8）。描画時に一度だけ上下を入れ替える
+            // 下が1U（12.9）。描画時に一度だけ上下を入れ替える
             y: (capacity - u) * U高 + 見出し高,
             label: u.to_string(),
         })
         .collect();
 
-    // Rack だけ前面・背面を分ける。Shelving に前後の区別は無い（12.8）
+    // Rack だけ前面・背面を分ける。Shelving に前後の区別は無い（12.9）
     let 前後を分ける = container.container_type == RACK;
     let mut panels = vec![Panel {
         x: 0,
@@ -544,7 +544,7 @@ async fn 図を描く(
     })
 }
 
-/// 1台ぶんの箱を組み立てる。**上下の反転はここでだけ行う**（設計書12.8）。
+/// 1台ぶんの箱を組み立てる。**上下の反転はここでだけ行う**（設計書12.9）。
 fn 箱を作る(
     m: &搭載,
     position: i32,
@@ -553,7 +553,7 @@ fn 箱を作る(
     planned: bool,
     棚上: &[(i32, String)],
 ) -> Cell {
-    // 半width は幅を半分ずつ使う。Full と未設定は全幅（12.8）
+    // 半width は幅を半分ずつ使う。Full と未設定は全幅（12.9）
     let (x, w) = match m.mount.horizontal_position.as_deref() {
         Some(LEFT) => (番号欄, 枠幅 / 2),
         Some(RIGHT) => (番号欄 + 枠幅 / 2, 枠幅 / 2),
@@ -568,7 +568,7 @@ fn 箱を作る(
         h: m.height_u * U高,
         label: format!("{名}  {position}U"),
         planned,
-        // **棚板の上の機器は棚板の帯の中に描く**（12.8）
+        // **棚板の上の機器は棚板の帯の中に描く**（12.9）
         shelf_label: 棚上
             .iter()
             .filter(|(host, _)| *host == m.device.id)
@@ -989,7 +989,7 @@ async fn 棚の上の機器<C: ConnectionTrait>(
             .await
             .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
         {
-            // **ラック図は物理の図。**VM・コンテナは描かない（12.8）
+            // **ラック図は物理の図。**VM・コンテナは描かない（12.9）
             if d.device_type == "Physical" {
                 out.push((host, d.hostname));
             }

@@ -57,6 +57,7 @@
 | 対象 | 値 |
 |---|---|
 | `PART_PORT_SLOT.port_kind` | `Network` / `Power` / `Stack` |
+| `CABLE_CATALOG.cable_kind` | `Network` / `Power` / `Stack`（8.7。**画面と取込をここで分ける**） |
 | `OS_INTERFACE.interface_type` | `Physical` / `Bond` / `Vlan` / `Svi` / `Bridge` / `Virtual` |
 | `OS_INTERFACE.aggregation_mode` | `LACP` / `Static` / `ActiveBackup`（interface_type=Bondのみ、nullable） |
 | `INTERFACE_VLAN.tagging_mode` | `Untagged` / `Tagged` |
@@ -73,6 +74,15 @@
 
 **ホスト側の属性**。サーバ運用者が決める。1つのインターフェースに複数付与できる。`zone` とは別軸であり、両者の食い違い（役割がBackupなのにDMZゾーンに載っている等）の検出に用いる。
 
+### 電源（12.7、12.8）
+
+| 対象 | 値 |
+|---|---|
+| `PORT_POWER_RATING.current_type` | `AC` / `DC` |
+| `CONFIGURATION.current_type` | `AC` / `DC` |
+
+**閉じた語彙である。**1つのポートが交流と直流の双方を受けることがあるため、`PORT_POWER_RATING` は方式ごとに1行を持つ。**DCの電圧は負値をとる**（Ciscoの`-48V`電源は`-72`〜`-40`）。符号を含めたまま格納し、絶対値で比較しない。
+
 ### connector_type
 
 `CABLE_END_SLOT.connector_type` と `PART_PORT_SLOT.connector_type` で共通の語彙を使う。
@@ -81,6 +91,8 @@
 - 電源：`IEC C13` / `IEC C14` / `IEC C19` / `IEC C20` / `NEMA 5-15P` / `NEMA 5-15R` ...
 
 **互換性判定は一致比較ではなく「対になるか」**（C13⇔C14、NEMA 5-15P⇔5-15R）。適合表が必要（validation.md参照）。
+
+**これは開いた語彙である**（設計書8.6）。上の列挙は代表例であって網羅ではない。**閉じると「表に無いから取り込めない」が常態になる**ため、正規化した自由入力として受け、語彙外でも拒否しない。`port_speed` と `cable_type` も同じ扱いである。
 
 ### cable_type
 

@@ -4,8 +4,13 @@ mod support;
 
 use chrono::Utc;
 use dioryga::import::{catalog, Outcome};
-use entity::{app_user, chassis_model, chassis_slot, configuration_part, part_catalog, vendor};
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use entity::{
+    app_user, chassis_model, chassis_slot, configuration_part, part_catalog, part_port_slot,
+    port_power_rating, vendor,
+};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
+};
 
 const 基本: &str = r#"
 format_version: 1
@@ -254,8 +259,284 @@ chassis_models:
 }
 
 // ---------------------------------------------------------------------------
+// ポート（設計書8.3、23.4）
+// ---------------------------------------------------------------------------
+
+const ポートつき: &str = r#"
+format_version: 1
+kind: catalog
+vendors:
+  - name: Intel
+  - name: Fujitsu
+part_catalogs:
+  - vendor: Intel
+    part_number: E810-XXVDA2
+    category: NIC
+    ports:
+      - { port_kind: Network, count: 2, label_format: "Port{n}", connector_type: SFP28ケージ, port_speed: 25G }
+  - vendor: Fujitsu
+    part_number: PYBPS1600
+    category: PSU
+    ports:
+      - port_kind: Power
+        count: 2
+        label_format: "Inlet{n}"
+        connector_type: "IEC C14"
+        power_ratings:
+          - { current_type: AC, voltage_min: 100, voltage_max: 240 }
+          - { current_type: DC, voltage_min: 240, voltage_max: 240 }
+"#;
+
+/// **ポートがスロットと同じ記法で展開されること**（設計書23.4）。
+async fn 取り込むとポートが展開される(db: &DatabaseConnection) {
+    let user = 利用者(db, "ports@example.com").await;
+    let file = catalog::parse(ポートつき).unwrap();
+    catalog::apply(db, &file, user.id, 1).await.unwrap();
+
+    let nic = 部品を引く(db, "E810-XXVDA2").await;
+    let ports = ポート一覧(db, nic.id).await;
+    assert_eq!(ports.len(), 2);
+    // **1始まりであること。**実機のラベルに合わせる
+    assert!(ports.iter().any(|p| p.port_label == "Port1"));
+    assert!(ports.iter().any(|p| p.port_label == "Port2"));
+    assert!(!ports.iter().any(|p| p.port_label == "Port0"));
+    assert_eq!(ports[0].port_speed.as_deref(), Some("25G"));
+}
+
+/// **展開したポートすべてが同じ定格を持つこと**（設計書23.4）。
+///
+/// 同じ型番のインレットが2口あって片方だけ定格が違う、ということは起こらない。
+/// **交流と直流の双方を持てること**も併せて確かめる（12.7）。
+async fn 電源定格は展開したポートすべてに付く(db: &DatabaseConnection) {
+    let user = 利用者(db, "ratings@example.com").await;
+    catalog::apply(db, &catalog::parse(ポートつき).unwrap(), user.id, 1)
+        .await
+        .unwrap();
+
+    let psu = 部品を引く(db, "PYBPS1600").await;
+    let ports = ポート一覧(db, psu.id).await;
+    assert_eq!(ports.len(), 2);
+
+    for port in &ports {
+        let ratings = 定格一覧(db, port.id).await;
+        assert_eq!(
+            ratings.len(),
+            2,
+            "{} に2方式が入っていない",
+            port.port_label
+        );
+        let ac = ratings.iter().find(|r| r.current_type == "AC").unwrap();
+        assert_eq!((ac.voltage_min, ac.voltage_max), (100, 240));
+        assert!(ratings.iter().any(|r| r.current_type == "DC"));
+    }
+}
+
+/// **閉じた語彙は既定へ寄せず拒否すること**（設計書8.6、Q-21）。
+async fn 語彙外のポート種別はエラー(db: &DatabaseConnection) {
+    let 誤り = ポートつき.replace("port_kind: Network", "port_kind: ネットワーク");
+    let file = catalog::parse(&誤り).unwrap();
+    let report = catalog::dry_run(db, &file).await.unwrap();
+
+    assert_eq!(report.count(Outcome::Error), 1);
+    assert!(report
+        .errors()
+        .any(|e| e.detail.contains("語彙にありません")));
+
+    // 反映は全体が止まる
+    let user = 利用者(db, "badkind@example.com").await;
+    assert!(catalog::apply(db, &file, user.id, 1).await.is_err());
+    assert_eq!(ポート総数(db).await, 0);
+}
+
+/// **開いた語彙は語彙外でも取り込むこと**（設計書8.6）。
+///
+/// `connector_type` / `port_speed` を閉じると、**コネクタ形状も速度表記も
+/// ベンダーと世代で増え続けるため「表に無いから取り込めない」が常態になる。**
+/// 取り込めなかったものは台帳に載らない。
+async fn 未知のコネクタでも取り込む(db: &DatabaseConnection) {
+    let user = 利用者(db, "newconnector@example.com").await;
+    let 新型 = ポートつき
+        .replace("connector_type: SFP28ケージ", "connector_type: OSFP-XD")
+        .replace("port_speed: 25G", "port_speed: 1.6T");
+    let file = catalog::parse(&新型).unwrap();
+
+    let report = catalog::dry_run(db, &file).await.unwrap();
+    assert_eq!(report.count(Outcome::Error), 0, "開いた語彙で拒否している");
+
+    catalog::apply(db, &file, user.id, 1).await.unwrap();
+    let ports = ポート一覧(db, 部品を引く(db, "E810-XXVDA2").await.id).await;
+    assert_eq!(ports[0].connector_type, "OSFP-XD");
+    assert_eq!(ports[0].port_speed.as_deref(), Some("1.6T"));
+}
+
+/// **意味を持たない列は取り込むが記録すること**（設計書23.6、12.7）。
+///
+/// 語彙外の値（拒否）とは別の話である。値そのものは読めるが、その `port_kind`
+/// では意味を持たない。**ポート自体は作る。**
+async fn 意味を持たない列は警告して捨てる(db: &DatabaseConnection) {
+    let user = 利用者(db, "unused@example.com").await;
+    // Power のポートに port_speed を書いてある
+    let 誤り = ポートつき.replace(
+        r#"connector_type: "IEC C14""#,
+        r#"connector_type: "IEC C14"
+        port_speed: 25G"#,
+    );
+    let file = catalog::parse(&誤り).unwrap();
+
+    let report = catalog::dry_run(db, &file).await.unwrap();
+    assert_eq!(report.count(Outcome::Error), 0);
+    assert_eq!(report.count(Outcome::Warning), 1);
+    assert!(report
+        .warnings()
+        .any(|w| w.detail.contains("意味を持たない")));
+
+    catalog::apply(db, &file, user.id, 1).await.unwrap();
+    let ports = ポート一覧(db, 部品を引く(db, "PYBPS1600").await.id).await;
+    assert_eq!(ports.len(), 2, "ポート自体は作られるべき");
+    assert!(ports[0].port_speed.is_none(), "意味を持たない値が入った");
+}
+
+/// **DCの電圧を絶対値で比べないこと**（設計書12.7）。
+///
+/// Ciscoの`-48V`電源は許容範囲が`-40 to -72`。-72が下限、-40が上限になる。
+async fn 直流の負電圧を受け付ける(db: &DatabaseConnection) {
+    let user = 利用者(db, "dcimport@example.com").await;
+    let dc = ポートつき.replace(
+        "- { current_type: DC, voltage_min: 240, voltage_max: 240 }",
+        "- { current_type: DC, voltage_min: -72, voltage_max: -40 }",
+    );
+    let file = catalog::parse(&dc).unwrap();
+
+    let report = catalog::dry_run(db, &file).await.unwrap();
+    assert_eq!(report.count(Outcome::Error), 0, "負の範囲が拒否された");
+
+    catalog::apply(db, &file, user.id, 1).await.unwrap();
+    let port = ポート一覧(db, 部品を引く(db, "PYBPS1600").await.id)
+        .await
+        .remove(0);
+    let dc = 定格一覧(db, port.id)
+        .await
+        .into_iter()
+        .find(|r| r.current_type == "DC")
+        .unwrap();
+    assert_eq!((dc.voltage_min, dc.voltage_max), (-72, -40));
+}
+
+/// 上下が逆転していれば拒否すること（設計書12.7）。
+async fn 逆転した電圧範囲はエラー(db: &DatabaseConnection) {
+    let 誤り = ポートつき.replace(
+        "- { current_type: AC, voltage_min: 100, voltage_max: 240 }",
+        "- { current_type: AC, voltage_min: 240, voltage_max: 100 }",
+    );
+    let file = catalog::parse(&誤り).unwrap();
+    let report = catalog::dry_run(db, &file).await.unwrap();
+
+    assert_eq!(report.count(Outcome::Error), 1);
+    assert!(report.errors().any(|e| e.detail.contains("上限")));
+}
+
+/// **同じポートに同じ方式を2行書けないこと**（設計書12.7）。
+async fn 方式の重複はエラー(db: &DatabaseConnection) {
+    let 誤り = ポートつき.replace(
+        "- { current_type: DC, voltage_min: 240, voltage_max: 240 }",
+        "- { current_type: AC, voltage_min: 200, voltage_max: 200 }",
+    );
+    let file = catalog::parse(&誤り).unwrap();
+    let report = catalog::dry_run(db, &file).await.unwrap();
+
+    assert_eq!(report.count(Outcome::Error), 1);
+    assert!(report.errors().any(|e| e.detail.contains("重複")));
+}
+
+/// 上の `ポートつき` から `ports` を落としたもの。
+const ポート無し: &str = r#"
+format_version: 1
+kind: catalog
+vendors:
+  - name: Intel
+  - name: Fujitsu
+part_catalogs:
+  - { vendor: Intel,    part_number: E810-XXVDA2, category: NIC }
+  - { vendor: Fujitsu,  part_number: PYBPS1600,   category: PSU }
+"#;
+
+/// **子行が1件も無い既存の部品には、ポートを後から足せること**（設計書23.4）。
+///
+/// 構成図パーサ（25章）は情報を段階的に供給する。「既存は触らない」をそのまま
+/// 適用すると、**初回にポートを含めなかった部品は永久に空のまま**になる。
+async fn ポートの無い既存部品には後から足せる(db: &DatabaseConnection) {
+    let user = 利用者(db, "backfill@example.com").await;
+
+    // 1回目：ports を書かずに取り込む
+    catalog::apply(db, &catalog::parse(ポート無し).unwrap(), user.id, 1)
+        .await
+        .unwrap();
+    assert_eq!(ポート総数(db).await, 0);
+
+    // 2回目：同じ部品に ports を付けて流す
+    let file = catalog::parse(ポートつき).unwrap();
+    let report = catalog::dry_run(db, &file).await.unwrap();
+    assert_eq!(report.count(Outcome::Updated), 2, "追加として出ていない");
+
+    catalog::apply(db, &file, user.id, 2).await.unwrap();
+    assert_eq!(ポート総数(db).await, 4);
+}
+
+/// **既にポートがある部品には触らないこと**（設計書18.2、23.4）。
+///
+/// 足すのは子行が0件のときだけであり、**上書きは起こらない。**
+async fn ポートのある部品は上書きしない(db: &DatabaseConnection) {
+    let user = 利用者(db, "nooverwrite@example.com").await;
+    catalog::apply(db, &catalog::parse(ポートつき).unwrap(), user.id, 1)
+        .await
+        .unwrap();
+
+    // ラベルもコネクタも変えたファイルを流す
+    let 書き換え = ポートつき
+        .replace(r#"label_format: "Port{n}""#, r#"label_format: "eth{n}""#)
+        .replace("count: 2, label_format", "count: 4, label_format");
+    let file = catalog::parse(&書き換え).unwrap();
+    let report = catalog::apply(db, &file, user.id, 2).await.unwrap();
+
+    assert_eq!(report.count(Outcome::Updated), 0);
+    let ports = ポート一覧(db, 部品を引く(db, "E810-XXVDA2").await.id).await;
+    assert_eq!(ports.len(), 2, "ポートが上書きされました");
+    assert!(ports.iter().any(|p| p.port_label == "Port1"));
+}
+
+// ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
+
+async fn 部品を引く(db: &DatabaseConnection, part_number: &str) -> part_catalog::Model {
+    part_catalog::Entity::find()
+        .filter(part_catalog::Column::PartNumber.eq(part_number))
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap_or_else(|| panic!("{part_number} が見つかりません"))
+}
+
+async fn ポート一覧(db: &DatabaseConnection, part_id: i32) -> Vec<part_port_slot::Model> {
+    part_port_slot::Entity::find()
+        .filter(part_port_slot::Column::PartCatalogId.eq(part_id))
+        .order_by_asc(part_port_slot::Column::Id)
+        .all(db)
+        .await
+        .unwrap()
+}
+
+async fn 定格一覧(db: &DatabaseConnection, port_id: i32) -> Vec<port_power_rating::Model> {
+    port_power_rating::Entity::find()
+        .filter(port_power_rating::Column::PartPortSlotId.eq(port_id))
+        .all(db)
+        .await
+        .unwrap()
+}
+
+async fn ポート総数(db: &DatabaseConnection) -> usize {
+    part_port_slot::Entity::find().all(db).await.unwrap().len()
+}
 
 async fn 件数(db: &DatabaseConnection) -> usize {
     vendor::Entity::find().all(db).await.unwrap().len()
@@ -304,6 +585,16 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 既存のカタログを上書きしない);
         全検証!(@one $用意, $属性, 取込は行ごとの監査ログを書かない);
         全検証!(@one $用意, $属性, エラーがあれば何も反映しない);
+        全検証!(@one $用意, $属性, 取り込むとポートが展開される);
+        全検証!(@one $用意, $属性, 電源定格は展開したポートすべてに付く);
+        全検証!(@one $用意, $属性, 語彙外のポート種別はエラー);
+        全検証!(@one $用意, $属性, 未知のコネクタでも取り込む);
+        全検証!(@one $用意, $属性, 意味を持たない列は警告して捨てる);
+        全検証!(@one $用意, $属性, 直流の負電圧を受け付ける);
+        全検証!(@one $用意, $属性, 逆転した電圧範囲はエラー);
+        全検証!(@one $用意, $属性, 方式の重複はエラー);
+        全検証!(@one $用意, $属性, ポートの無い既存部品には後から足せる);
+        全検証!(@one $用意, $属性, ポートのある部品は上書きしない);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

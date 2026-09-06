@@ -18,6 +18,9 @@
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
 | retired_at | timestamp with time zone |  | true |  |  |  |
+| cable_kind | varchar |  | true |  |  | Network / Power / Stack（8.7）。**ネットワークと電源はテーブルではなく<br />ここと画面で分ける。**接続グラフは流れているものによらず同じ形のため。<br />**DB上はnullableだがアプリケーション層では必須**——SQLiteが後から<br />NOT NULL を足す際に要求するDEFAULTが残り、種別未指定を黙って<br />Network に分類してしまうため（8.6、24.3）<br /> |
+| rated_voltage | integer |  | true |  |  | `cable_kind=Power` のときだけ意味を持つ（8.7） |
+| rated_current_ma | integer |  | true |  |  | 同上。**mAの整数**（24.2.1）。**形状が嵌合しても定格が足りなければ<br />使えない**——同じC13に10A品と15A品がある<br /> |
 
 ## Constraints
 

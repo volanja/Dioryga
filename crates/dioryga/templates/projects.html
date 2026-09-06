@@ -32,7 +32,8 @@
       <td>{{ row.code }}</td>
       <td>{{ row.roles }}</td>
       <td class="actions">
-        <a href="/projects/{{ row.id }}/devices">{{ t_open }}</a>
+        {# 入口はダッシュボード。機器一覧ではない（設計書16.1） #}
+        <a href="/projects/{{ row.id }}">{{ t_open }}</a>
       </td>
     </tr>
     {% endfor %}

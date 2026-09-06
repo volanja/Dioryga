@@ -6,6 +6,7 @@ pub mod cable;
 pub mod catalog;
 pub mod component;
 pub mod cost;
+pub mod dashboard;
 pub mod device;
 mod health;
 pub mod import;
@@ -100,6 +101,8 @@ pub fn router(state: AppState) -> Router {
         )
         // プロジェクト領域（設計書16.1のB領域）。ロールでアクセス制御される
         .route("/projects", get(workspace::list))
+        // プロジェクトの入口（16.1）。一覧からはここへ入る
+        .route("/projects/{id}", get(dashboard::show))
         .route(
             "/projects/{id}/devices",
             get(device::list).post(device::create),

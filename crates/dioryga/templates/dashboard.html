@@ -1,0 +1,105 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ project_name }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/projects">{{ chrome.t_nav_projects }}</a></p>
+    <h1>
+      {{ project_name }}
+      {% if !project_code.is_empty() %}<span class="badge">{{ project_code }}</span>{% endif %}
+      {% if archived %}<span class="badge">{{ t_archived }}</span>{% endif %}
+    </h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{# 機器数。予約中は分けて出す（設計書11.6、12.5と同じ考え方） #}
+<div class="panels">
+  <div class="card">
+    <h2>{{ t_devices_running }}</h2>
+    <p class="metric">{{ running }}</p>
+  </div>
+  <div class="card">
+    <h2>{{ t_devices_planned }}</h2>
+    <p class="metric">{{ planned }}</p>
+  </div>
+</div>
+
+{# 期限間近の窓の広さを明示する。何を基準に並んでいるか分からないと読めない #}
+<p class="hint">{{ t_window }}</p>
+
+<section>
+  <h2>{{ t_contracts }}</h2>
+  {% if contracts.is_empty() %}
+  <p class="empty">{{ t_none }}</p>
+  {% else %}
+  <div class="table-scroll">
+  <table>
+    <thead>
+      <tr><th>{{ t_contracts }}</th><th>{{ t_due }}</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for row in contracts %}
+      <tr>
+        <td>{{ row.label }}</td>
+        <td>{{ row.due }}{% if row.overdue %} <span class="badge danger">{{ t_overdue }}</span>{% endif %}</td>
+        <td class="actions"><a href="{{ row.href }}">{{ t_open }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</section>
+
+<section>
+  <h2>{{ t_milestones }}</h2>
+  {% if milestones.is_empty() %}
+  <p class="empty">{{ t_none }}</p>
+  {% else %}
+  <div class="table-scroll">
+  <table>
+    <thead>
+      <tr><th>{{ t_milestones }}</th><th>{{ t_due }}</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for row in milestones %}
+      <tr>
+        <td>{{ row.label }}{% if !row.sub.is_empty() %} <span class="muted">{{ row.sub }}</span>{% endif %}</td>
+        <td>{{ row.due }}{% if row.overdue %} <span class="badge danger">{{ t_overdue }}</span>{% endif %}</td>
+        <td class="actions"><a href="{{ row.href }}">{{ t_open }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</section>
+
+{# チケットは期限で絞らない。期限未設定のものが最も見落とされやすい #}
+<section>
+  <h2>{{ t_work_orders }}</h2>
+  {% if work_orders.is_empty() %}
+  <p class="empty">{{ t_none }}</p>
+  {% else %}
+  <div class="table-scroll">
+  <table>
+    <thead>
+      <tr><th>{{ t_work_orders }}</th><th>{{ t_due }}</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for row in work_orders %}
+      <tr>
+        <td>{{ row.label }} <span class="muted">{{ row.sub }}</span></td>
+        <td>{{ row.due }}{% if row.overdue %} <span class="badge danger">{{ t_overdue }}</span>{% endif %}</td>
+        <td class="actions"><a href="{{ row.href }}">{{ t_open }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</section>
+
+{% endblock %}

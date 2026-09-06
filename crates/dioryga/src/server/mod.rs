@@ -2,6 +2,7 @@
 
 pub mod account;
 pub mod admin;
+pub mod cable;
 pub mod catalog;
 pub mod component;
 pub mod device;
@@ -15,7 +16,9 @@ pub mod project;
 pub mod rack;
 pub mod sbom;
 pub mod setup;
+pub mod software_catalog;
 pub mod view;
+pub mod vlan;
 pub mod work_order;
 pub mod workspace;
 
@@ -213,6 +216,19 @@ pub fn router(state: AppState) -> Router {
             "/catalog/parts/{id}/power-ratings/remove",
             post(part::remove_rating),
         )
+        // 残りのカタログ（8.7、9.4、8.5）。**取込は無いが手入力はできる**
+        .route("/catalog/cables", get(cable::list).post(cable::create))
+        .route("/catalog/cables/retire", post(cable::retire))
+        .route("/catalog/cables/{id}", get(cable::detail))
+        .route("/catalog/cables/{id}/ends", post(cable::add_end))
+        .route("/catalog/cables/{id}/ends/remove", post(cable::remove_end))
+        .route(
+            "/catalog/software",
+            get(software_catalog::list).post(software_catalog::create),
+        )
+        .route("/catalog/software/retire", post(software_catalog::retire))
+        .route("/catalog/vlans", get(vlan::list).post(vlan::create))
+        .route("/catalog/vlans/retire", post(vlan::retire))
         // 廃番は静的パスで置く。`/catalog/{kind}/retire` は詳細と衝突する
         .route("/catalog/vendors/retire", post(catalog::retire_vendor))
         .route(

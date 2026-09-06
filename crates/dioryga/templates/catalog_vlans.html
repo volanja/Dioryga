@@ -1,0 +1,106 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{# 同じタグは登録できる。拠点が違えば同じVLAN 100が別物として存在する #}
+<p class="hint">{{ t_duplicate_hint }}</p>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+{# 取り違えが起きやすいので警告する。禁止ではない（不変条件6） #}
+{% if let Some(message) = notice %}
+<p class="warn">{{ message }}</p>
+{% endif %}
+
+<form class="filters" method="get" action="/catalog/vlans">
+  <label class="check">
+    <input type="checkbox" name="retired" value="1" {% if show_retired %}checked{% endif %}>
+    {{ t_show_retired }}
+  </label>
+  <button type="submit">{{ t_apply }}</button>
+</form>
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_tag }}</th>
+      <th>{{ t_name }}</th>
+      <th>{{ t_zone }}</th>
+      <th>{{ t_description }}</th>
+      {% if can_edit %}<th>{{ t_actions }}</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr class="{% if row.retired %}is-disabled{% endif %}">
+      <td>{{ row.vlan_tag }}</td>
+      <td>
+        {{ row.name }}
+        {% if row.retired %}<span class="badge">{{ t_retired }}</span>{% endif %}
+        {% if row.referenced %}<span class="badge">{{ t_referenced }}</span>{% endif %}
+      </td>
+      <td>{{ row.zone }}</td>
+      <td>{{ row.description }}</td>
+      {% if can_edit %}
+      <td class="actions">
+        <form method="post" action="/catalog/vlans/retire" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <input type="hidden" name="id" value="{{ row.id }}">
+          <input type="hidden" name="undo" value="{% if row.retired %}1{% else %}0{% endif %}">
+          <button type="submit" class="ghost">
+            {% if row.retired %}{{ t_unretire }}{% else %}{{ t_retire }}{% endif %}
+          </button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_new }}</h2>
+<div class="card">
+  <form method="post" action="/catalog/vlans" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="vlan_tag">{{ t_tag }}</label>
+    <input type="text" id="vlan_tag" name="vlan_tag" inputmode="numeric" required>
+    <p class="hint">{{ t_tag_hint }}</p>
+
+    <label for="name">{{ t_name }}</label>
+    <input type="text" id="name" name="name" required>
+
+    {# zone はネットワーク側の属性。INTERFACE_ROLE とは別軸（設計書8.5） #}
+    <label for="zone">{{ t_zone }}</label>
+    <select id="zone" name="zone">
+      <option value="">{{ t_unset }}</option>
+      {% for z in zones %}
+      <option value="{{ z }}">{{ z }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_zone_hint }}</p>
+
+    <label for="description">{{ t_description }}</label>
+    <input type="text" id="description" name="description">
+
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

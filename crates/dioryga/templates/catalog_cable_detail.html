@@ -1,0 +1,89 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/catalog/cables">{{ t_back }}</a></p>
+    <h1>{{ title }}</h1>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<div class="panels">
+  <div class="card">
+    <h2>{{ t_basic }}</h2>
+    <dl>
+      {% for item in basic %}
+      <dt>{{ item.label }}</dt>
+      <dd>{{ item.value }}</dd>
+      {% endfor %}
+    </dl>
+  </div>
+</div>
+
+{# 端ごとに異なるコネクタを持てる（設計書8.7）。NEMA 5-15P と C13、LC と SC #}
+<h2 class="section">{{ t_ends }}</h2>
+<p class="hint">{{ t_ends_hint }}</p>
+
+{% if ends.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_end_label }}</th>
+      <th>{{ t_connector_type }}</th>
+      <th>{{ t_port_speed }}</th>
+      {% if can_edit %}<th>{{ t_actions }}</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for e in ends %}
+    <tr>
+      <td>{{ e.end_label }}</td>
+      <td>{{ e.connector_type }}</td>
+      <td>{{ e.port_speed }}</td>
+      {% if can_edit %}
+      <td class="actions">
+        <form method="post" action="/catalog/cables/{{ cable_id }}/ends/remove" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <input type="hidden" name="end_id" value="{{ e.id }}">
+          <button type="submit" class="ghost">{{ t_remove }}</button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_add_end }}</h2>
+<div class="card">
+  <form method="post" action="/catalog/cables/{{ cable_id }}/ends" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="end_label">{{ t_end_label }}</label>
+    <input type="text" id="end_label" name="end_label" required>
+    <p class="hint">{{ t_end_label_hint }}</p>
+
+    <label for="connector_type">{{ t_connector_type }}</label>
+    <input type="text" id="connector_type" name="connector_type" required>
+    <p class="hint">{{ t_connector_hint }}</p>
+
+    <label for="port_speed">{{ t_port_speed }}</label>
+    <input type="text" id="port_speed" name="port_speed">
+
+    <button type="submit">{{ t_add_end }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

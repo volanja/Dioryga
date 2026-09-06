@@ -161,7 +161,9 @@ comments:
         （-48V電源は -72 が下限、-40 が上限）
       voltage_max: 同上
   - table: cable_catalog
-    tableComment: ケーブルのカタログ（8.3）。**v1では画面・取込の対象外**だが定義は持つ。
+    tableComment: |
+      ケーブルのカタログ（8.3、8.7）。**v1は手入力の画面を持つが、取込は無い**（#68）。
+      ケーブルの実物と接続（CABLE_INSTANCE / CABLE_CONNECTION）はv2（23.8）。
     columnComments:
       length_mm: |
         **ミリメートルの整数。**SQLiteに DECIMAL が無いため（24.2.1）。

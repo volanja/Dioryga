@@ -73,6 +73,9 @@ pub struct Chrome {
     pub t_nav_chassis_models: String,
     pub t_nav_parts: String,
     pub t_nav_configurations: String,
+    pub t_nav_cables: String,
+    pub t_nav_software: String,
+    pub t_nav_vlans: String,
     pub t_nav_merge: String,
     pub t_nav_account: String,
 }
@@ -95,6 +98,9 @@ impl Chrome {
             t_nav_chassis_models: rust_i18n::t!("catalog.chassis_models", locale = l).to_string(),
             t_nav_parts: rust_i18n::t!("parts.title", locale = l).to_string(),
             t_nav_configurations: rust_i18n::t!("catalog.configurations", locale = l).to_string(),
+            t_nav_cables: rust_i18n::t!("cables.title", locale = l).to_string(),
+            t_nav_software: rust_i18n::t!("software.title", locale = l).to_string(),
+            t_nav_vlans: rust_i18n::t!("vlans.title", locale = l).to_string(),
             t_nav_merge: rust_i18n::t!("merge.title", locale = l).to_string(),
             t_nav_account: rust_i18n::t!("nav.account", locale = l).to_string(),
         }

@@ -540,3 +540,61 @@ components:
   empty: No matching components
   prompt: Enter a search term
   truncated: "More than %{limit} rows matched; the rest are not shown. Narrow the search"
+
+cables:
+  title: Cable catalog
+  lead: Register cable types and the connectors on each end
+  v2_hint: Cable instances and connections are v2. This page defines types only, and there is no import
+  kind: Kind
+  cable_type: Type
+  cable_type_hint: Cat6A / OM4 / OS2 / DAC / Power Cord and so on. Types not listed can still be registered
+  length: Length
+  length_hint: In metres (e.g. 1.8). Stored as an integer number of millimetres
+  color: Colour
+  rating: Rating
+  rated_voltage: Rated voltage (V)
+  rated_current: Rated current (A)
+  rating_hint: A connector that mates is not enough if the rating falls short. The same C13 comes in 10A and 15A
+  ends: Ends
+  ends_hint: Each end can carry a different connector, for asymmetric cables such as NEMA 5-15P to C13 or LC to SC. Breakouts with three or more ends can also be registered
+  end_label: End label
+  end_label_hint: A / B, or Trunk / Branch1 for a breakout
+  add_end: Add end
+  no_end: No ends registered
+  back: Back to cable catalog
+  new: Register a cable
+  error_kind: Invalid cable kind
+  error_type: Enter a cable type
+  error_length: Length must be a positive number
+  error_vendor: Invalid vendor
+  error_rating_number: Ratings must be numbers
+  error_rating_positive: Rated current must be greater than 0
+  error_rating_unused: Ratings can only be set on power cables
+  error_end_required: Enter both the end label and the connector
+  error_end_duplicate: That end label is already registered
+
+software:
+  title: Software catalog
+  lead: Register the software your organisation manages
+  sbom_hint: SBOM imports do not populate this table. An SBOM records what was observed on a device; the cross-device component search covers that
+  license: License
+  purl_hint: Unique when present. Leave empty for in-house tools that have none
+  no_vendor: Not specified
+  new: Register software
+  error_required: Enter both a name and a version
+  error_category: Invalid category
+  error_purl_duplicate: That purl is already registered
+
+vlans:
+  title: VLANs
+  lead: Register VLAN tags and their security zones
+  duplicate_hint: The same tag can be registered more than once. VLAN tags are scoped to an L2 domain, so VLAN 100 at one site is a different thing from VLAN 100 at another
+  tag: Tag
+  tag_hint: 1-4094. 0 and 4095 are reserved
+  zone: Zone
+  zone_hint: A network-side attribute. It is a separate axis from interface roles, and the two are compared to spot inconsistencies
+  description: Description
+  new: Register a VLAN
+  error_tag: The tag must be between 1 and 4094
+  error_zone: Invalid zone
+  warn_duplicate_tag: 'Tag %{tag} is already used by "%{name}". It was registered, but please check.'

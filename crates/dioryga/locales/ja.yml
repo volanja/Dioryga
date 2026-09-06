@@ -540,3 +540,61 @@ components:
   empty: 該当するコンポーネントがありません
   prompt: 検索語を入力してください
   truncated: "%{limit} 件を超えたため、以降は表示していません。検索語を絞ってください"
+
+cables:
+  title: ケーブルカタログ
+  lead: ケーブルの型と、その両端のコネクタを登録します
+  v2_hint: ケーブルの実物と接続の記録はv2です。ここで登録するのは型の定義だけで、取込はありません
+  kind: 種別
+  cable_type: 種類
+  cable_type_hint: Cat6A / OM4 / OS2 / DAC / Power Cord など。表にない種類も登録できます
+  length: 長さ
+  length_hint: メートルで入力します（1.8 など）。ミリメートルの整数で保存します
+  color: 色
+  rating: 定格
+  rated_voltage: 定格電圧（V）
+  rated_current: 定格電流（A）
+  rating_hint: 形状が嵌合しても定格が足りなければ使えません。同じC13に10A品と15A品があります
+  ends: 端
+  ends_hint: 端ごとに異なるコネクタを持てます。NEMA 5-15P と C13、LC と SC のような非対称なケーブルのためです。MPOブレイクアウトのように3本以上の端も登録できます
+  end_label: 端のラベル
+  end_label_hint: A / B、またはブレイクアウトの Trunk / Branch1 など
+  add_end: 端を追加
+  no_end: 端が登録されていません
+  back: ケーブルカタログへ戻る
+  new: ケーブルを登録
+  error_kind: 種別の値が不正です
+  error_type: 種類を入力してください
+  error_length: 長さは正の数で入力してください
+  error_vendor: ベンダーの指定が不正です
+  error_rating_number: 定格は数値で入力してください
+  error_rating_positive: 定格電流は0より大きい値で入力してください
+  error_rating_unused: 定格を指定できるのは電源ケーブルだけです
+  error_end_required: 端のラベルとコネクタを入力してください
+  error_end_duplicate: その端のラベルは既に登録されています
+
+software:
+  title: ソフトウェアカタログ
+  lead: 組織として管理対象に選んだソフトウェアを登録します
+  sbom_hint: SBOMの取込はこの表を自動生成しません。SBOMが運ぶのは「その機器に何が入っていたか」という観測で、機器横断のコンポーネント検索がそちらを扱います
+  license: ライセンス
+  purl_hint: あれば一意になります。社内ツールなど持たないものは空のままにしてください
+  no_vendor: 指定しない
+  new: ソフトウェアを登録
+  error_required: 名前とバージョンを入力してください
+  error_category: 種別の値が不正です
+  error_purl_duplicate: その purl は既に登録されています
+
+vlans:
+  title: VLAN
+  lead: VLANタグと、そのセキュリティ境界を登録します
+  duplicate_hint: 同じタグを複数登録できます。VLANタグはL2ドメインごとに独立しており、拠点が違えば同じ VLAN 100 が別物として存在するためです
+  tag: タグ
+  tag_hint: 1〜4094。0と4095は予約されています
+  zone: ゾーン
+  zone_hint: ネットワーク設計者が決める属性です。インターフェースの役割とは別軸で、両者の食い違いの検出に使います
+  description: 説明
+  new: VLANを登録
+  error_tag: タグは1〜4094で入力してください
+  error_zone: ゾーンの値が不正です
+  warn_duplicate_tag: "タグ %{tag} は「%{name}」で既に使われています。登録は行いましたが確認してください。"

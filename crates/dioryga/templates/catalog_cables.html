@@ -1,0 +1,130 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+<p class="hint">{{ t_v2_hint }}</p>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+{# ネットワークと電源は種別で分ける（設計書8.7）。テーブルは1つのまま #}
+<form class="filters" method="get" action="/catalog/cables">
+  <label for="kind">{{ t_kind }}</label>
+  <select id="kind" name="kind">
+    {% for k in kinds %}
+    <option value="{{ k }}"{% if kind == *k %} selected{% endif %}>{{ k }}</option>
+    {% endfor %}
+  </select>
+  <label class="check">
+    <input type="checkbox" name="retired" value="1" {% if show_retired %}checked{% endif %}>
+    {{ t_show_retired }}
+  </label>
+  <button type="submit">{{ t_apply }}</button>
+</form>
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_cable_type }}</th>
+      <th>{{ t_length }}</th>
+      <th>{{ t_color }}</th>
+      <th>{{ t_vendor }}</th>
+      <th>{{ t_part_number }}</th>
+      {# 定格は電源のときだけ意味を持つ（設計書8.7） #}
+      {% if is_power %}<th>{{ t_rating }}</th>{% endif %}
+      <th>{{ t_ends }}</th>
+      <th>{{ t_actions }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr class="{% if row.retired %}is-disabled{% endif %}">
+      <td>
+        {{ row.cable_type }}
+        {% if row.retired %}<span class="badge">{{ t_retired }}</span>{% endif %}
+      </td>
+      <td>{{ row.length }}</td>
+      <td>{{ row.color }}</td>
+      <td>{{ row.vendor }}</td>
+      <td>{{ row.part_number }}</td>
+      {% if is_power %}<td>{{ row.rating }}</td>{% endif %}
+      <td>{{ row.ends }}</td>
+      <td class="actions">
+        <a href="/catalog/cables/{{ row.id }}">{{ t_detail }}</a>
+        {% if can_edit %}
+        <form method="post" action="/catalog/cables/retire" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <input type="hidden" name="id" value="{{ row.id }}">
+          <input type="hidden" name="kind" value="{{ kind }}">
+          <input type="hidden" name="undo" value="{% if row.retired %}1{% else %}0{% endif %}">
+          <button type="submit" class="ghost">
+            {% if row.retired %}{{ t_unretire }}{% else %}{{ t_retire }}{% endif %}
+          </button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_new }}</h2>
+<div class="card">
+  <form method="post" action="/catalog/cables" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+    {# いま見ている種別で登録する。欄はそれに合わせて出し分ける #}
+    <input type="hidden" name="cable_kind" value="{{ kind }}">
+
+    <label for="cable_type">{{ t_cable_type }}</label>
+    <input type="text" id="cable_type" name="cable_type" required>
+    <p class="hint">{{ t_cable_type_hint }}</p>
+
+    <label for="length_m">{{ t_length }}</label>
+    <input type="text" id="length_m" name="length_m" inputmode="decimal">
+    <p class="hint">{{ t_length_hint }}</p>
+
+    <label for="color">{{ t_color }}</label>
+    <input type="text" id="color" name="color">
+
+    <label for="vendor_id">{{ t_vendor }}</label>
+    <select id="vendor_id" name="vendor_id">
+      <option value="">{{ t_unset }}</option>
+      {% for v in vendors %}
+      <option value="{{ v.value }}">{{ v.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="part_number">{{ t_part_number }}</label>
+    <input type="text" id="part_number" name="part_number">
+
+    {# 電源コードの登録画面にだけ定格の欄を出す（設計書8.7） #}
+    {% if is_power %}
+    <label for="rated_voltage">{{ t_rated_voltage }}</label>
+    <input type="text" id="rated_voltage" name="rated_voltage" inputmode="numeric">
+
+    <label for="rated_current_a">{{ t_rated_current }}</label>
+    <input type="text" id="rated_current_a" name="rated_current_a" inputmode="decimal">
+    <p class="hint">{{ t_rating_hint }}</p>
+    {% endif %}
+
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

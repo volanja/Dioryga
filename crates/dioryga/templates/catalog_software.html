@@ -1,0 +1,117 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{# SBOM取込はこのテーブルを自動生成しない（設計書9.2） #}
+<p class="hint">{{ t_sbom_hint }}</p>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<form class="filters" method="get" action="/catalog/software">
+  <label for="q">{{ t_keyword }}</label>
+  <input type="text" id="q" name="q" value="{{ q }}">
+  <label class="check">
+    <input type="checkbox" name="retired" value="1" {% if show_retired %}checked{% endif %}>
+    {{ t_show_retired }}
+  </label>
+  <button type="submit">{{ t_apply }}</button>
+</form>
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_name }}</th>
+      <th>{{ t_version }}</th>
+      <th>{{ t_category }}</th>
+      <th>{{ t_vendor }}</th>
+      <th>{{ t_purl }}</th>
+      <th>{{ t_license }}</th>
+      {% if can_edit %}<th>{{ t_actions }}</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr class="{% if row.retired %}is-disabled{% endif %}">
+      <td>
+        {{ row.name }}
+        {% if row.retired %}<span class="badge">{{ t_retired }}</span>{% endif %}
+        {% if row.referenced %}<span class="badge">{{ t_referenced }}</span>{% endif %}
+      </td>
+      <td>{{ row.version }}</td>
+      <td>{{ row.category }}</td>
+      <td>{{ row.vendor }}</td>
+      <td class="mono">{{ row.purl }}</td>
+      <td>{{ row.license }}</td>
+      {% if can_edit %}
+      <td class="actions">
+        <form method="post" action="/catalog/software/retire" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <input type="hidden" name="id" value="{{ row.id }}">
+          <input type="hidden" name="undo" value="{% if row.retired %}1{% else %}0{% endif %}">
+          <button type="submit" class="ghost">
+            {% if row.retired %}{{ t_unretire }}{% else %}{{ t_retire }}{% endif %}
+          </button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_new }}</h2>
+<div class="card">
+  <form method="post" action="/catalog/software" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="name">{{ t_name }}</label>
+    <input type="text" id="name" name="name" required>
+
+    {# バージョンごとに別レコード（設計書9.4） #}
+    <label for="version">{{ t_version }}</label>
+    <input type="text" id="version" name="version" required>
+
+    <label for="category">{{ t_category }}</label>
+    <select id="category" name="category">
+      {% for c in categories %}
+      <option value="{{ c }}">{{ c }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="vendor_id">{{ t_vendor }}</label>
+    <select id="vendor_id" name="vendor_id">
+      <option value="">{{ t_no_vendor }}</option>
+      {% for v in vendors %}
+      <option value="{{ v.value }}">{{ v.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="purl">{{ t_purl }}</label>
+    <input type="text" id="purl" name="purl">
+    <p class="hint">{{ t_purl_hint }}</p>
+
+    <label for="license_expression">{{ t_license }}</label>
+    <input type="text" id="license_expression" name="license_expression">
+
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

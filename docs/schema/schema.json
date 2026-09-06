@@ -2293,7 +2293,7 @@
     {
       "name": "public.cable_catalog",
       "type": "BASE TABLE",
-      "comment": "ケーブルのカタログ（8.3）。**v1では画面・取込の対象外**だが定義は持つ。",
+      "comment": "ケーブルのカタログ（8.3、8.7）。**v1は手入力の画面を持つが、取込は無い**（#68）。\nケーブルの実物と接続（CABLE_INSTANCE / CABLE_CONNECTION）はv2（23.8）。\n",
       "columns": [
         {
           "name": "id",

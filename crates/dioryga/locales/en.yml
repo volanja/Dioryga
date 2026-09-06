@@ -598,3 +598,62 @@ vlans:
   error_tag: The tag must be between 1 and 4094
   error_zone: Invalid zone
   warn_duplicate_tag: 'Tag %{tag} is already used by "%{name}". It was registered, but please check.'
+
+network:
+  subnets: Subnets
+  subnets_lead: The unit that groups IP addresses. Subnets are scoped to a project, so two projects can use the same address range without colliding
+  cidr: CIDR
+  cidr_hint: Written as 192.168.1.0/24
+  zone_hint: If left unset, the VLAN's zone is used. When both are set, this one wins
+  zone_from_vlan: from VLAN
+  used: In use
+  shared: Shared
+  new_subnet: Register a subnet
+  ip_addresses: IP addresses
+  ip_addresses_lead: Every IP address currently assigned to a device in this project
+  address: Address
+  prefix: Prefix length
+  subnet: Subnet
+  no_ip: No IP addresses registered
+  interfaces: Interfaces
+  interfaces_lead: Records how each port appears to the OS, what network it reaches, and what job it does
+  interface: Interface
+  interface_hint: The name as it appears on the OS or switch, e.g. ens1f0 / bond0 / bond0.100 / Eth1/1/1 / Vlan100
+  interface_type: Type
+  port: Physical port
+  port_hint: Only for Physical interfaces. Choose from the NIC ports fitted to this device
+  aggregation: Aggregation
+  aggregation_hint: Only for Bond interfaces
+  members: Lower interfaces
+  member_hint: A bond groups several physical ports; a VLAN subinterface sits on top of a bond. Both are expressed the same way
+  tagging: Tagging
+  vlan_hint: An access port has a single Untagged row; a trunk port has an Untagged native VLAN alongside Tagged VLANs. VLANs are registered in the catalog
+  roles: Roles
+  role_hint: The job this interface does. It is a separate axis from the zone (network side), and the two are compared to spot inconsistencies
+  target: Target
+  no_interface: No interfaces registered
+  add_interface: Add interface
+  add_vlan: Add VLAN
+  add_role: Add role
+  add_ip: Add IP address
+  add_member: Group
+  close: Close
+  error_cidr: Enter the CIDR as 192.168.1.0/24
+  error_subnet_duplicate: That CIDR is already registered in this project
+  error_name: Enter an interface name
+  error_type: Invalid interface type
+  error_port: Invalid physical port
+  error_port_unused: A physical port can only be set on a Physical interface
+  error_aggregation: Invalid aggregation mode
+  error_aggregation_unused: An aggregation mode can only be set on a Bond interface
+  error_interface_duplicate: An interface with that name already exists on this device
+  error_tagging: Invalid tagging mode
+  error_vlan_duplicate: That VLAN is already on this interface
+  error_role: Enter a role
+  error_role_duplicate: That role is already assigned
+  error_ip: Invalid IP address
+  error_prefix: The prefix length must be between 0 and 128
+  error_ip_duplicate: That IP address already exists in the subnet
+  error_member_self: An interface cannot group itself
+  error_member_cycle: That would create a cycle
+  error_member_duplicate: That interface is already grouped

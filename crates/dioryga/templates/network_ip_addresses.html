@@ -1,0 +1,62 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/projects/{{ project_id }}/devices">{{ project_name }}</a></p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+  <p class="head-actions">
+    <a class="button ghost" href="/projects/{{ project_id }}/network/subnets">{{ t_subnets }}</a>
+  </p>
+</div>
+
+<form class="filters" method="get" action="/projects/{{ project_id }}/network/ip-addresses">
+  <label for="q">{{ t_keyword }}</label>
+  <input type="text" id="q" name="q" value="{{ q }}">
+  <button type="submit">{{ t_apply }}</button>
+</form>
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_address }}</th>
+      <th>{{ t_device }}</th>
+      <th>{{ t_interface }}</th>
+      <th>{{ t_type }}</th>
+      <th>{{ t_subnet }}</th>
+      <th>{{ t_vlan }}</th>
+      {# ゾーンはネットワーク側、役割はホスト側。別軸である（設計書8.5） #}
+      <th>{{ t_zone }}</th>
+      <th>{{ t_roles }}</th>
+      <th>{{ t_actions }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td class="mono">{{ row.address }}</td>
+      <td>{{ row.hostname }}</td>
+      <td>{{ row.interface }}</td>
+      <td>{{ row.interface_type }}</td>
+      <td>{{ row.subnet }}</td>
+      <td>{{ row.vlan }}</td>
+      <td>{{ row.zone }}</td>
+      <td>{{ row.roles }}</td>
+      <td class="actions">
+        <a href="/projects/{{ project_id }}/devices/{{ row.device_id }}/interfaces">{{ t_detail }}</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% endblock %}

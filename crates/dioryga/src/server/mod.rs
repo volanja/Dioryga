@@ -11,6 +11,7 @@ pub mod import;
 pub mod login;
 pub mod member;
 pub mod merge;
+pub mod network;
 pub mod part;
 pub mod project;
 pub mod rack;
@@ -134,6 +135,39 @@ pub fn router(state: AppState) -> Router {
             get(sbom::show).post(sbom::upload),
         )
         .route("/projects/{id}/software/components", get(component::search))
+        // ネットワーク管理（設計書16.1のB領域、8.5、14章）
+        .route(
+            "/projects/{id}/network/subnets",
+            get(network::subnets).post(network::create_subnet),
+        )
+        .route(
+            "/projects/{id}/network/ip-addresses",
+            get(network::ip_addresses),
+        )
+        .route(
+            "/projects/{id}/devices/{device_id}/interfaces",
+            get(network::interfaces).post(network::create_interface),
+        )
+        .route(
+            "/projects/{id}/devices/{device_id}/interfaces/vlans",
+            post(network::add_vlan),
+        )
+        .route(
+            "/projects/{id}/devices/{device_id}/interfaces/roles",
+            post(network::add_role),
+        )
+        .route(
+            "/projects/{id}/devices/{device_id}/interfaces/ips",
+            post(network::add_ip),
+        )
+        .route(
+            "/projects/{id}/devices/{device_id}/interfaces/members",
+            post(network::add_member),
+        )
+        .route(
+            "/projects/{id}/devices/{device_id}/interfaces/close",
+            post(network::close),
+        )
         .route(
             "/projects/{id}/import",
             get(import::show).post(import::upload),

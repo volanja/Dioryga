@@ -73,6 +73,7 @@ struct DevicesPage {
     t_containers: String,
     t_components: String,
     t_ip_addresses: String,
+    t_costs: String,
     t_keyword: String,
     t_search: String,
     t_scope_current: String,
@@ -129,7 +130,43 @@ struct DeviceDetailPage {
     parts: Vec<Labeled>,
     firmware: Vec<Labeled>,
     stack: Vec<Labeled>,
+    /// 発注明細（10.2）。**専用の一覧画面を持たず、ここに出す。**
+    orders: Vec<OrderRow>,
+    order_form: OrderForm,
     can_edit: bool,
+}
+
+/// 発注明細の1行（設計書10.2）。
+struct OrderRow {
+    order_number: String,
+    order_date: String,
+    vendor: String,
+    quantity: i32,
+    unit_price: String,
+    /// `quantity × unit_price`。**保存しない**（不変条件2）。
+    subtotal: String,
+    /// プロジェクトの通貨と違う（Q-6）。年間コストの合算からは外れる
+    other_currency: String,
+}
+
+/// 発注の登録欄（10.2）。**発注を作る画面と明細を足す画面を分けない。**
+struct OrderForm {
+    t_orders: String,
+    t_orders_hint: String,
+    t_order_number: String,
+    t_order_number_hint: String,
+    t_order_date: String,
+    t_vendor: String,
+    t_quantity: String,
+    t_unit_price: String,
+    t_amount_hint: String,
+    t_subtotal: String,
+    t_add: String,
+    t_empty: String,
+    currency: String,
+    vendors: Vec<Labeled>,
+    /// 既存の発注番号。選ぶと明細だけを足す
+    existing: Vec<Labeled>,
 }
 
 #[derive(askama::Template)]
@@ -291,6 +328,7 @@ pub async fn list(
         t_containers: rust_i18n::t!("containers.title", locale = l).to_string(),
         t_components: rust_i18n::t!("components.title", locale = l).to_string(),
         t_ip_addresses: rust_i18n::t!("network.ip_addresses", locale = l).to_string(),
+        t_costs: rust_i18n::t!("costs.title", locale = l).to_string(),
         t_keyword: rust_i18n::t!("devices.keyword", locale = l).to_string(),
         t_search: rust_i18n::t!("common.search", locale = l).to_string(),
         t_scope_current: rust_i18n::t!("devices.scope_current", locale = l).to_string(),
@@ -568,8 +606,219 @@ pub async fn detail(
         parts: 搭載部品(&state, &d).await?,
         firmware: ファームウェア(&state, &d).await?,
         stack: スタック構成(&state, &d).await?,
+        orders: 発注明細(&state, &d, &project.currency).await?,
+        order_form: 発注の入力欄(&state, &project.currency, l).await?,
         can_edit,
     })
+}
+
+/// この機器の発注明細（設計書10.2）。
+///
+/// **専用の一覧画面を持たず、ここに出す。**発注は機器・パーツ・ソフトウェアの
+/// いずれにも紐づくため、品目の側から見るのが自然である。
+async fn 発注明細(
+    state: &AppState, d: &device::Model, 通貨: &str
+) -> AppResult<Vec<OrderRow>> {
+    let items = entity::purchase_order_item::Entity::find()
+        .filter(entity::purchase_order_item::Column::ItemType.eq("Device"))
+        .filter(entity::purchase_order_item::Column::ItemId.eq(d.id))
+        .order_by_asc(entity::purchase_order_item::Column::Id)
+        .all(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    let mut rows = Vec::new();
+    for item in items {
+        let Some(order) = entity::purchase_order::Entity::find_by_id(item.purchase_order_id)
+            .one(&state.db)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        else {
+            continue;
+        };
+        let vendor = entity::vendor::Entity::find_by_id(order.vendor_id)
+            .one(&state.db)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+            .map(|v| v.name)
+            .unwrap_or_default();
+
+        rows.push(OrderRow {
+            order_number: order.order_number.clone(),
+            order_date: order.order_date.to_string(),
+            vendor,
+            quantity: item.quantity,
+            unit_price: crate::currency::表示(item.unit_price, &order.currency),
+            // **保存せず計算する**（不変条件2）
+            subtotal: crate::currency::表示(
+                item.quantity as i64 * item.unit_price,
+                &order.currency,
+            ),
+            // **通貨が違えば年間コストの合算から外れる**（Q-6、10.3）
+            other_currency: if order.currency == 通貨 {
+                String::new()
+            } else {
+                order.currency.clone()
+            },
+        });
+    }
+    Ok(rows)
+}
+
+async fn 発注の入力欄(
+    state: &AppState, 通貨: &str, l: &'static str
+) -> AppResult<OrderForm> {
+    let existing = entity::purchase_order::Entity::find()
+        .order_by_desc(entity::purchase_order::Column::OrderDate)
+        .all(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .into_iter()
+        .map(|o| Labeled {
+            label: format!("{} ({})", o.order_number, o.order_date),
+            value: o.id.to_string(),
+        })
+        .collect();
+
+    let vendors = entity::vendor::Entity::find()
+        .filter(entity::vendor::Column::RetiredAt.is_null())
+        .order_by_asc(entity::vendor::Column::Name)
+        .all(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .into_iter()
+        .map(|v| Labeled {
+            label: v.name,
+            value: v.id.to_string(),
+        })
+        .collect();
+
+    Ok(OrderForm {
+        t_orders: rust_i18n::t!("costs.purchase_orders", locale = l).to_string(),
+        t_orders_hint: rust_i18n::t!("devices.orders_hint", locale = l).to_string(),
+        t_order_number: rust_i18n::t!("devices.order_number", locale = l).to_string(),
+        t_order_number_hint: rust_i18n::t!("devices.order_number_hint", locale = l).to_string(),
+        t_order_date: rust_i18n::t!("devices.order_date", locale = l).to_string(),
+        t_vendor: rust_i18n::t!("catalog.vendor", locale = l).to_string(),
+        t_quantity: rust_i18n::t!("catalog.quantity", locale = l).to_string(),
+        t_unit_price: rust_i18n::t!("devices.unit_price", locale = l).to_string(),
+        t_amount_hint: rust_i18n::t!("costs.amount_hint", locale = l).to_string(),
+        t_subtotal: rust_i18n::t!("devices.subtotal", locale = l).to_string(),
+        t_add: rust_i18n::t!("devices.add_order", locale = l).to_string(),
+        t_empty: rust_i18n::t!("devices.no_order", locale = l).to_string(),
+        currency: 通貨.to_owned(),
+        vendors,
+        existing,
+    })
+}
+
+/// 発注明細を足す（設計書10.2）。
+///
+/// **既存の発注番号を選べば明細だけを足す。**1発注に複数品目がある場合に、
+/// 発注を作る画面と明細を足す画面を分けない。
+#[derive(Debug, Deserialize)]
+pub struct AddOrderForm {
+    /// 空なら新しい発注を作る。
+    #[serde(default)]
+    pub purchase_order_id: String,
+    #[serde(default)]
+    pub order_number: String,
+    #[serde(default)]
+    pub order_date: String,
+    #[serde(default)]
+    pub vendor_id: String,
+    #[serde(default)]
+    pub quantity: String,
+    #[serde(default)]
+    pub unit_price: String,
+}
+
+pub async fn add_order(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path((project_id, device_id)): Path<(i32, i32)>,
+    Form(form): Form<AddOrderForm>,
+) -> AppResult<Response> {
+    let project = 編集入場(&state, &current, project_id).await?;
+    let d = 対象(&state, project_id, device_id).await?;
+    let 誤り = |key: &str| AppError::Validation(rust_i18n::t!(key, locale = "ja").to_string());
+
+    let quantity = match form.quantity.trim().parse::<i32>() {
+        Ok(n) if n > 0 => n,
+        _ => return Err(誤り("catalog.error_quantity")),
+    };
+
+    // **既存の発注を選んだなら、その通貨で単価を読む。**プロジェクトの通貨と
+    // 違う発注もありうる（Q-6）
+    let 既存 = match form.purchase_order_id.trim() {
+        "" => None,
+        v => entity::purchase_order::Entity::find_by_id(
+            v.parse::<i32>().map_err(|_| 誤り("costs.error_item"))?,
+        )
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?,
+    };
+    let 通貨 = 既存
+        .as_ref()
+        .map(|o| o.currency.clone())
+        .unwrap_or_else(|| project.currency.clone());
+    let unit_price = crate::currency::最小単位へ(&form.unit_price, &通貨)
+        .ok_or_else(|| 誤り("costs.error_amount"))?;
+
+    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let now = Utc::now();
+
+    let order_id = match 既存 {
+        Some(o) => o.id,
+        None => {
+            let number = crate::server::catalog::正規化(&form.order_number);
+            if number.is_empty() {
+                return Err(誤り("devices.error_order_number"));
+            }
+            let date = chrono::NaiveDate::parse_from_str(form.order_date.trim(), "%Y-%m-%d")
+                .map_err(|_| 誤り("costs.error_date"))?;
+            let vendor_id = form
+                .vendor_id
+                .trim()
+                .parse::<i32>()
+                .map_err(|_| 誤り("cables.error_vendor"))?;
+
+            tx.insert(entity::purchase_order::ActiveModel {
+                order_number: Set(number),
+                order_date: Set(date),
+                vendor_id: Set(vendor_id),
+                // **画面の入力はプロジェクトの通貨で固定する**（Q-6、10.3）
+                currency: Set(project.currency.clone()),
+                created_at: Set(now),
+                updated_at: Set(now),
+                ..Default::default()
+            })
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+            .id
+        }
+    };
+
+    tx.insert(entity::purchase_order_item::ActiveModel {
+        purchase_order_id: Set(order_id),
+        item_type: Set("Device".to_owned()),
+        item_id: Set(d.id),
+        quantity: Set(quantity),
+        unit_price: Set(unit_price),
+        created_at: Set(now),
+        updated_at: Set(now),
+        ..Default::default()
+    })
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    Ok(Redirect::to(&format!("/projects/{project_id}/devices/{device_id}")).into_response())
 }
 
 /// 現在の搭載位置（`DEVICE_MOUNT` の `to_date IS NULL`）。

@@ -11,6 +11,7 @@ pub mod admin;
 pub mod auth;
 pub mod cli;
 pub mod config;
+pub mod cost;
 pub mod currency;
 pub mod db;
 pub mod error;

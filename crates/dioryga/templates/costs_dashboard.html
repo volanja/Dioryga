@@ -1,0 +1,71 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/projects/{{ project_id }}/devices">{{ project_name }}</a></p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+  <p class="head-actions">
+    <a class="button ghost" href="/projects/{{ project_id }}/costs/maintenance-contracts">{{ t_contracts }}</a>
+    <a class="button ghost" href="/projects/{{ project_id }}/costs/fixed-assets">{{ t_assets }}</a>
+    <a class="button ghost" href="/projects/{{ project_id }}/costs/recurring">{{ t_recurring }}</a>
+  </p>
+</div>
+
+<form class="filters" method="get" action="/projects/{{ project_id }}/costs">
+  <label for="year">{{ t_year }}</label>
+  <input type="text" id="year" name="year" inputmode="numeric" value="{{ year }}">
+  <button type="submit">{{ t_apply }}</button>
+</form>
+
+{# 値は保存せず都度計算する（不変条件2、設計書10.3） #}
+<div class="panels">
+  <div class="card">
+    <h2>{{ t_total }}</h2>
+    <p class="metric">{{ total }} <span class="unit">{{ currency }}</span></p>
+  </div>
+  <div class="card">
+    <h2>{{ t_breakdown }}</h2>
+    <dl>
+      {% for row in rows %}
+      <dt>{{ row.label }}</dt>
+      <dd>{{ row.amount }} {{ currency }}</dd>
+      {% endfor %}
+    </dl>
+  </div>
+</div>
+
+{# 計算できない行は合算から外して列挙する（設計書10.3、24.2.2）。
+   金額が小さいのが実態なのかデータ不備なのかを判別できるようにする #}
+<h2 class="section">{{ t_excluded }}</h2>
+<p class="hint">{{ t_excluded_lead }}</p>
+
+{% if excluded.is_empty() %}
+<p class="empty">{{ t_no_excluded }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_kind }}</th>
+      <th>{{ t_name }}</th>
+      <th>{{ t_reason }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in excluded %}
+    <tr class="is-warn">
+      <td>{{ row.kind }}</td>
+      <td>{{ row.name }}</td>
+      <td>{{ row.reason }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% endblock %}

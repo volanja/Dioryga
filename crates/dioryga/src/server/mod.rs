@@ -5,6 +5,7 @@ pub mod admin;
 pub mod cable;
 pub mod catalog;
 pub mod component;
+pub mod cost;
 pub mod device;
 mod health;
 pub mod import;
@@ -130,11 +131,34 @@ pub fn router(state: AppState) -> Router {
             "/projects/{id}/devices/{device_id}/edit",
             get(device::edit_form),
         )
+        // 発注は専用の一覧画面を持たず、機器詳細から登録する（10.2）
+        .route(
+            "/projects/{id}/devices/{device_id}/orders",
+            post(device::add_order),
+        )
         .route(
             "/projects/{id}/devices/{device_id}/sbom",
             get(sbom::show).post(sbom::upload),
         )
         .route("/projects/{id}/software/components", get(component::search))
+        // コスト・契約管理（設計書16.1のB領域、10.2、10.3）
+        .route("/projects/{id}/costs", get(cost::dashboard))
+        .route(
+            "/projects/{id}/costs/maintenance-contracts",
+            get(cost::contracts).post(cost::create_contract),
+        )
+        .route(
+            "/projects/{id}/costs/maintenance-contracts/items",
+            post(cost::add_contract_item),
+        )
+        .route(
+            "/projects/{id}/costs/fixed-assets",
+            get(cost::assets).post(cost::create_asset),
+        )
+        .route(
+            "/projects/{id}/costs/recurring",
+            get(cost::recurring).post(cost::create_recurring),
+        )
         // ネットワーク管理（設計書16.1のB領域、8.5、14章）
         .route(
             "/projects/{id}/network/subnets",

@@ -1,0 +1,104 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/projects/{{ project_id }}/costs">{{ t_back }}</a></p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_item }}</th>
+      <th>{{ t_cost_type }}</th>
+      <th>{{ t_vendor }}</th>
+      <th>{{ t_amount }}</th>
+      <th>{{ t_cycle }}</th>
+      <th>{{ t_period }}</th>
+      <th>{{ t_this_year }}（{{ year }}）</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr class="{% if row.excluded %}is-warn{% endif %}">
+      <td>{{ row.item }}</td>
+      <td>{{ row.cost_type }}</td>
+      <td>{{ row.vendor }}</td>
+      <td>{{ row.amount }} {{ currency }}</td>
+      <td>{{ row.billing_cycle }}</td>
+      <td>{{ row.period }}</td>
+      <td>
+        {% if row.excluded %}{{ row.this_year }}{% else %}{{ row.this_year }} {{ currency }}{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_new }}</h2>
+<div class="card">
+  <form method="post" action="/projects/{{ project_id }}/costs/recurring" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    {# ラックレンタル等はプロジェクトか什器に付く（設計書10.2） #}
+    <label for="item">{{ t_item }}</label>
+    <select id="item" name="item">
+      <option value="Project">{{ project_name }}</option>
+      {% for c in containers %}
+      <option value="{{ c.value }}">{{ c.label }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_item_hint }}</p>
+
+    <label for="cost_type">{{ t_cost_type }}</label>
+    <input type="text" id="cost_type" name="cost_type" required>
+    <p class="hint">{{ t_cost_type_hint }}</p>
+
+    <label for="vendor_id">{{ t_vendor }}</label>
+    <select id="vendor_id" name="vendor_id">
+      <option value="">{{ t_unset }}</option>
+      {% for v in vendors %}
+      <option value="{{ v.value }}">{{ v.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="amount">{{ t_amount }}（{{ currency }}）</label>
+    <input type="text" id="amount" name="amount" inputmode="decimal" required>
+    <p class="hint">{{ t_amount_hint }}</p>
+
+    <label for="billing_cycle">{{ t_cycle }}</label>
+    <select id="billing_cycle" name="billing_cycle">
+      {% for c in cycles %}
+      <option value="{{ c }}">{{ c }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_cycle_hint }}</p>
+
+    <label for="start_date">{{ t_start }}</label>
+    <input type="date" id="start_date" name="start_date" required>
+
+    <label for="end_date">{{ t_end }}</label>
+    <input type="date" id="end_date" name="end_date">
+    <p class="hint">{{ t_end_hint }}</p>
+
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

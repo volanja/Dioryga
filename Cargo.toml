@@ -1,6 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["crates/dioryga", "crates/entity", "crates/migration"]
+members = [
+    "crates/catalog-format",
+    "crates/dioryga",
+    "crates/entity",
+    "crates/migration",
+]
 
 [workspace.package]
 version = "0.1.0"
@@ -31,6 +36,7 @@ sea-orm-migration = { version = "2.0", default-features = false, features = [
     "with-chrono",
 ] }
 serde_json = "1"
+serde_yaml_ng = "0.10.0"
 thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
 tower-http = { version = "0.6", features = ["trace"] }

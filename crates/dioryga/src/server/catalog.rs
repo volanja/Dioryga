@@ -1634,21 +1634,10 @@ fn 廃番を含む(query: &ListQuery) -> bool {
 /// いるが、`ＨＰＥ` と `HPE` が別行になると、表記ゆれを防ぐために置いたマスタが
 /// 表記ゆれの発生源になる。18.3の目的からして同じ扱いが要る。
 ///
-/// 変換するのは全角ASCII（`U+FF01`〜`U+FF5E`）と全角空白だけで、**仮名・漢字は
-/// 触らない。**「富士通」はそのまま残る。
-pub(crate) fn 正規化(value: &str) -> String {
-    let 半角: String = value
-        .chars()
-        .map(|c| match c {
-            // 全角英数・記号は半角へ。全角空白も通常の空白へ
-            '\u{FF01}'..='\u{FF5E}' => char::from_u32(c as u32 - 0xFEE0).unwrap_or(c),
-            '\u{3000}' => ' ',
-            _ => c,
-        })
-        .collect();
-
-    半角.split_whitespace().collect::<Vec<_>>().join(" ")
-}
+/// 表記の正規化（18.4）。**取込と同じ実装を使う**（#77）。
+///
+/// 経路によって正規化が食い違うと、同じ値が別行になる。
+pub(crate) use dioryga_catalog_format::正規化;
 
 /// 18.2の判定。**`CONFIGURATION` と `CHASSIS_SLOT` の両方を見る。**
 async fn 筐体型が参照されている<C: ConnectionTrait>(db: &C, id: i32) -> AppResult<bool> {

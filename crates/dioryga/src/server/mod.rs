@@ -24,6 +24,7 @@ pub mod setup;
 pub mod software_catalog;
 pub mod view;
 pub mod vlan;
+pub mod warehouse;
 pub mod work_order;
 pub mod workspace;
 
@@ -279,6 +280,15 @@ pub fn router(state: AppState) -> Router {
             "/catalog/configurations/{id}/power",
             post(catalog::update_power),
         )
+        // 倉庫領域（設計書16.1のC領域）。プロジェクトを横断する
+        .route("/warehouses", get(warehouse::list).post(warehouse::create))
+        .route("/warehouses/{id}", post(warehouse::update))
+        .route("/warehouses/{id}/devices", get(warehouse::devices))
+        .route(
+            "/warehouses/{id}/devices/{device_id}",
+            get(warehouse::device_detail),
+        )
+        .route("/warehouses/{id}/parts", get(warehouse::parts))
         .route("/catalog/merge", get(merge::show))
         .route("/catalog/merge/vendors", post(merge::merge_vendor))
         .route("/catalog/merge/parts", post(merge::merge_part))

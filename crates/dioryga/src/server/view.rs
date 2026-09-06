@@ -61,7 +61,7 @@ pub struct Chrome {
     pub locale: &'static str,
     pub app_name: String,
     pub user_name: String,
-    /// 現在選択中のナビ項目。`users` / `projects` / `account`。
+    /// 現在選択中のナビ項目。`users` / `projects` / `warehouses` / `catalog` / `account`。
     pub nav: &'static str,
     /// フォームのhidden fieldへ埋め込むCSRFトークン（設計書20.5）。
     pub csrf_token: String,
@@ -69,6 +69,7 @@ pub struct Chrome {
     pub t_logout: String,
     pub t_nav_users: String,
     pub t_nav_projects: String,
+    pub t_nav_warehouses: String,
     pub t_nav_catalog: String,
     pub t_nav_chassis_models: String,
     pub t_nav_parts: String,
@@ -94,6 +95,7 @@ impl Chrome {
             t_logout: rust_i18n::t!("common.logout", locale = l).to_string(),
             t_nav_users: rust_i18n::t!("nav.users", locale = l).to_string(),
             t_nav_projects: rust_i18n::t!("nav.projects", locale = l).to_string(),
+            t_nav_warehouses: rust_i18n::t!("warehouses.title", locale = l).to_string(),
             t_nav_catalog: rust_i18n::t!("catalog.nav", locale = l).to_string(),
             t_nav_chassis_models: rust_i18n::t!("catalog.chassis_models", locale = l).to_string(),
             t_nav_parts: rust_i18n::t!("parts.title", locale = l).to_string(),

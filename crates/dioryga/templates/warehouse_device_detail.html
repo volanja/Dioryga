@@ -1,0 +1,60 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ hostname }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb">
+      <a href="/warehouses">{{ warehouse_name }}</a> /
+      <a href="/warehouses/{{ warehouse_id }}/devices">{{ t_title }}</a>
+    </p>
+    <h1>{{ hostname }}</h1>
+  </div>
+</div>
+
+<div class="panels">
+  <div class="card">
+    <h2>{{ t_title }}</h2>
+    <dl>
+      <dt>{{ t_hostname }}</dt><dd>{{ hostname }}</dd>
+      <dt>{{ t_device_type }}</dt><dd>{{ device_type }}</dd>
+      <dt>{{ t_status }}</dt><dd>{{ status }}</dd>
+      <dt>{{ t_serial }}</dt><dd>{{ serial_number }}</dd>
+      <dt>{{ t_asset }}</dt><dd>{{ asset_number }}</dd>
+    </dl>
+  </div>
+</div>
+
+{# 倉庫にある間はA-6の対象外。全期間の所在を出す（設計書16.1のC領域） #}
+<h2>{{ t_history }}</h2>
+<p class="hint">{{ t_history_note }}</p>
+
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_location }}</th>
+      <th>{{ t_from }}</th>
+      <th>{{ t_to }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in history %}
+    <tr>
+      <td>
+        {{ row.location_type }}
+        {% if !row.location_name.is_empty() %} / {{ row.location_name }}{% endif %}
+      </td>
+      <td>{{ row.from_date }}</td>
+      {# to_date が null の行が現在有効。空欄のままでは「未入力」と読める #}
+      <td>
+        {% if row.current %}<span class="badge">{{ t_current }}</span>
+        {% else %}{{ row.to_date }}{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% endblock %}

@@ -155,3 +155,67 @@ pub async fn require_catalog_editor<C: ConnectionTrait>(
         Err(AuthzError::Denied)
     }
 }
+
+/// 倉庫・在庫を閲覧できるか（設計書16.1のC領域）。
+///
+/// > 閲覧はいずれか1つ以上のプロジェクトのメンバー。
+///
+/// **System Adminは入れない。**倉庫にある機器は**過去にプロジェクトへ属していた
+/// 履歴を持ち続ける**（A-6）ため、倉庫を経由すればプロジェクト内データが見える。
+/// 「倉庫はプロジェクト外だからSystem Adminの管轄」という整理は、この一点で
+/// 成立しない（3章）。
+///
+/// **カタログ用の関数を流用しない。**判定は今のところ同じ形だが、名前が実態と
+/// 合わなくなり、**後からカタログ側の条件を変えたときに倉庫が巻き添えになる。**
+pub async fn require_warehouse_viewer<C: ConnectionTrait>(
+    db: &C,
+    user: &app_user::Model,
+) -> Result<(), AuthzError> {
+    deny_system_admin(user)?;
+
+    if user.disabled_at.is_some() {
+        return Err(AuthzError::Denied);
+    }
+
+    let 該当あり = project_member::Entity::find()
+        .filter(project_member::Column::UserId.eq(user.id))
+        .one(db)
+        .await?
+        .is_some();
+
+    if 該当あり {
+        Ok(())
+    } else {
+        Err(AuthzError::Denied)
+    }
+}
+
+/// 倉庫を登録・編集できるか（設計書16.1のC領域）。
+///
+/// > 倉庫の登録・編集はいずれか1つ以上のプロジェクトで `Operator` 以上。
+///
+/// 18.1のカタログ編集と同じ条件に揃えた。倉庫はプロジェクトを横断する
+/// マスタであり、カタログと同じ位置づけにある。
+pub async fn require_warehouse_editor<C: ConnectionTrait>(
+    db: &C,
+    user: &app_user::Model,
+) -> Result<(), AuthzError> {
+    deny_system_admin(user)?;
+
+    if user.disabled_at.is_some() {
+        return Err(AuthzError::Denied);
+    }
+
+    let 該当あり = project_member::Entity::find()
+        .filter(project_member::Column::UserId.eq(user.id))
+        .filter(project_member::Column::Role.is_in([ADMINISTRATOR, OPERATOR]))
+        .one(db)
+        .await?
+        .is_some();
+
+    if 該当あり {
+        Ok(())
+    } else {
+        Err(AuthzError::Denied)
+    }
+}

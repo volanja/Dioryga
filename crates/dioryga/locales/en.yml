@@ -778,3 +778,27 @@ dashboard:
   overdue: Overdue
   no_due: No due date
   none: Nothing to show
+
+warehouses:
+  title: Warehouses
+  lead: Where devices and parts not assigned to a project are kept. Shared across projects
+  name: Warehouse
+  address: Address
+  devices: Devices in stock
+  devices_lead: Devices held in this warehouse. Hand-off to a project goes through a change ticket
+  devices_empty: No devices in this warehouse
+  parts: Parts in stock
+  parts_lead: Spare parts held in this warehouse
+  parts_empty: No parts in this warehouse
+  serial: Serial number
+  asset: Asset number
+  since: Received
+  history: Location history
+  history_note: For a device in a warehouse the full location history is shown. Once handed off, it is reachable only from the projects involved
+  from: From
+  to: To
+  current: Current
+  unknown: Referenced record not found
+  edit: Update
+  new: Add a warehouse
+  empty: No warehouses yet

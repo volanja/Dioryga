@@ -6,10 +6,7 @@
 
 ## 設計書の場所
 
-| | |
-|---|---|
-| 設計リポジトリ | `volanja/Dioryga_Design` |
-| ローカル | `../Dioryga_Design/docs/design/basic-design.md`（兄弟ディレクトリ） |
+設計リポジトリは `volanja/Dioryga_Design`。設計書は `docs/design/` にある。
 
 設計書は**判断の経緯を含む議論記録**であり分量が大きい。日常の実装では、本リポジトリの `docs/spec/` を参照する。仕様の背景や「なぜそう決めたか」を知る必要があるときだけ設計書を開く。
 

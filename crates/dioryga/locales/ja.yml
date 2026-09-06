@@ -765,3 +765,16 @@ power:
   watt_with_plan: 予約を含めた消費電力
   virtual: 仮想（数えない）
   total: 合計
+
+dashboard:
+  lead: このプロジェクトの状況です。値は保存せず、開くたびに計算します
+  window: 期限間近は%{days}日以内です。期限を過ぎたものも同じ枠に出します
+  devices_running: 稼働中の機器
+  devices_planned: 予約中の機器
+  contracts: 満了が近い保守契約
+  milestones: 予定日が近いマイルストーン
+  work_orders: 未完了の変更管理チケット
+  due: 期限
+  overdue: 期限超過
+  no_due: 期限なし
+  none: 該当するものはありません

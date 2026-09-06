@@ -765,3 +765,16 @@ power:
   watt_with_plan: Power (incl. reserved)
   virtual: Virtual (not counted)
   total: Total
+
+dashboard:
+  lead: Current state of this project. Values are not stored; they are computed each time you open this page
+  window: "Due soon means within %{days} days. Items already past due are shown here too"
+  devices_running: Devices in service
+  devices_planned: Devices reserved
+  contracts: Maintenance contracts expiring soon
+  milestones: Milestones due soon
+  work_orders: Open change tickets
+  due: Due
+  overdue: Overdue
+  no_due: No due date
+  none: Nothing to show

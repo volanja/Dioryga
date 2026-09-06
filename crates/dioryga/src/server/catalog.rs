@@ -40,7 +40,8 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::{Extension, Form};
 use chrono::Utc;
 use entity::{
-    chassis_model, chassis_slot, configuration, configuration_part, device, part_catalog, vendor,
+    chassis_model, chassis_slot, configuration, configuration_part, device, part_catalog,
+    part_port_slot, port_power_rating, vendor,
 };
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, Set};
 use serde::Deserialize;
@@ -206,6 +207,13 @@ struct ConfigurationsPage {
     t_referenced: String,
     t_show_retired: String,
     t_no_model: String,
+    /// 想定消費電力（12.8）。登録時にも入れられる
+    t_current_type: String,
+    t_assumed_voltage: String,
+    t_assumed_va: String,
+    t_assumed_va_hint: String,
+    t_power_unset: String,
+    current_types: Vec<&'static str>,
     rows: Vec<ConfigurationRow>,
     models: Vec<Labeled>,
     show_retired: bool,
@@ -625,6 +633,12 @@ async fn 構成を描く(
         t_referenced: rust_i18n::t!("catalog.referenced", locale = l).to_string(),
         t_show_retired: rust_i18n::t!("catalog.show_retired", locale = l).to_string(),
         t_no_model: rust_i18n::t!("catalog.no_model", locale = l).to_string(),
+        t_current_type: rust_i18n::t!("parts.current_type", locale = l).to_string(),
+        t_assumed_voltage: rust_i18n::t!("catalog.assumed_voltage", locale = l).to_string(),
+        t_assumed_va: rust_i18n::t!("catalog.assumed_va", locale = l).to_string(),
+        t_assumed_va_hint: rust_i18n::t!("catalog.assumed_va_hint", locale = l).to_string(),
+        t_power_unset: rust_i18n::t!("catalog.power_unset", locale = l).to_string(),
+        current_types: crate::server::part::CURRENT_TYPES.to_vec(),
         rows,
         models: 現役の筐体型(&state.db).await?,
         show_retired,
@@ -638,6 +652,88 @@ pub struct ConfigurationForm {
     pub chassis_model_id: i32,
     #[serde(default)]
     pub name: String,
+    // 想定消費電力（12.8）。**`serde(flatten)` は使わない**——`Form` が使う
+    // urlencodedのデシリアライザが対応しておらず、実行時に落ちる
+    #[serde(default)]
+    pub current_type: String,
+    #[serde(default)]
+    pub assumed_voltage: String,
+    #[serde(default)]
+    pub assumed_va: String,
+}
+
+/// 想定消費電力だけを受ける（設計書12.8）。詳細画面での編集に使う。
+#[derive(Debug, Default, Deserialize)]
+pub struct PowerForm {
+    #[serde(default)]
+    pub current_type: String,
+    #[serde(default)]
+    pub assumed_voltage: String,
+    #[serde(default)]
+    pub assumed_va: String,
+}
+
+/// 読み取った想定消費電力。
+#[derive(Debug, Default, Clone, Copy)]
+struct 想定電力<'a> {
+    current_type: Option<&'a str>,
+    voltage: Option<i32>,
+    va: Option<i32>,
+}
+
+/// 入力を読む（設計書12.8）。
+///
+/// **3つは揃うか、揃って空か。**この3列は「何アンペア引く見込みか」と
+/// 「選んだPSUの対応範囲に収まっているか」に答えるために置いたもので、
+/// **欠けた組み合わせではどちらにも答えられない。**分からない値を0で埋めさせない
+/// ために全体をnullableにしてあるので、「未入力」は3つとも空で表す。
+///
+/// **電流は受け取らない**（不変条件2）。`A = VA ÷ V` で求める。
+fn 電力を読む<'a>(
+    current_type: &'a str,
+    assumed_voltage: &str,
+    assumed_va: &str,
+) -> Result<想定電力<'a>, &'static str> {
+    let kind = current_type.trim();
+    let voltage = assumed_voltage.trim();
+    let va = assumed_va.trim();
+
+    if kind.is_empty() && voltage.is_empty() && va.is_empty() {
+        return Ok(想定電力::default());
+    }
+    if kind.is_empty() || voltage.is_empty() || va.is_empty() {
+        return Err("catalog.error_power_partial");
+    }
+
+    // **語彙外は既定へ寄せず拒否する**（Q-21）
+    if !crate::server::part::CURRENT_TYPES.contains(&kind) {
+        return Err("catalog.error_current_type");
+    }
+
+    // **0Vは受け付けない。**`A = VA ÷ V` が定義できない。DCの負値は正当なので
+    // 「正の数」ではなく「0でないこと」を条件にする（12.7）
+    let voltage: i32 = voltage.parse().map_err(|_| "catalog.error_power_number")?;
+    if voltage == 0 {
+        return Err("catalog.error_voltage_zero");
+    }
+    let va: i32 = va.parse().map_err(|_| "catalog.error_power_number")?;
+    if va <= 0 {
+        return Err("catalog.error_va_positive");
+    }
+
+    Ok(想定電力 {
+        current_type: Some(kind),
+        voltage: Some(voltage),
+        va: Some(va),
+    })
+}
+
+/// 引くと見込む電流（設計書12.7・12.8）。
+///
+/// **保存せず、表示のたびに計算する**（不変条件2）。DCの負電圧でも電流の向きは
+/// 問題にならないため、**絶対値で割る。**
+fn 想定電流(voltage: i32, va: i32) -> String {
+    format!("{:.1}A", va as f64 / (voltage.abs() as f64))
 }
 
 pub async fn create_configuration(
@@ -654,6 +750,14 @@ pub async fn create_configuration(
         return 構成を描く(&state, &current, false, Some(e)).await;
     }
 
+    let 電力 = match 電力を読む(&form.current_type, &form.assumed_voltage, &form.assumed_va) {
+        Ok(v) => v,
+        Err(key) => {
+            let e = rust_i18n::t!(key, locale = l).to_string();
+            return 構成を描く(&state, &current, false, Some(e)).await;
+        }
+    };
+
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
@@ -662,6 +766,9 @@ pub async fn create_configuration(
         chassis_model_id: Set(form.chassis_model_id),
         name: Set(name),
         retired_at: Set(None),
+        current_type: Set(電力.current_type.map(str::to_owned)),
+        assumed_voltage: Set(電力.voltage),
+        assumed_va: Set(電力.va),
         created_by: Set(current.user.id),
         created_at: Set(now),
         updated_at: Set(now),
@@ -909,6 +1016,14 @@ struct ConfigurationDetailPage {
     t_empty: String,
     t_actions: String,
     t_no_part: String,
+    t_power: String,
+    t_power_hint: String,
+    t_current_type: String,
+    t_assumed_voltage: String,
+    t_assumed_va: String,
+    t_assumed_va_hint: String,
+    t_save: String,
+    t_unset: String,
     title: String,
     basic: Vec<Labeled>,
     parts: Vec<ConfigurationPartRow>,
@@ -917,6 +1032,15 @@ struct ConfigurationDetailPage {
     error: Option<String>,
     /// スロット本数の超過。**エラーではなく警告**（6.1、不変条件6）。
     notice: Option<String>,
+    /// 想定消費電力（12.8）。フォームの初期値に使う。
+    current_type: String,
+    assumed_voltage: String,
+    assumed_va: String,
+    current_types: Vec<&'static str>,
+    /// `VA ÷ V` の計算結果。**保存しない**（不変条件2）。
+    assumed_current: Option<String>,
+    /// 選んだPSUの対応範囲から外れている、という警告（12.8、不変条件6）。
+    power_warning: Option<String>,
 }
 
 pub async fn configuration_detail(
@@ -987,6 +1111,14 @@ async fn 構成の詳細を描く(
         t_empty: rust_i18n::t!("catalog.no_part", locale = l).to_string(),
         t_actions: rust_i18n::t!("projects.actions", locale = l).to_string(),
         t_no_part: rust_i18n::t!("catalog.no_part_catalog", locale = l).to_string(),
+        t_power: rust_i18n::t!("catalog.power", locale = l).to_string(),
+        t_power_hint: rust_i18n::t!("catalog.power_hint", locale = l).to_string(),
+        t_current_type: rust_i18n::t!("parts.current_type", locale = l).to_string(),
+        t_assumed_voltage: rust_i18n::t!("catalog.assumed_voltage", locale = l).to_string(),
+        t_assumed_va: rust_i18n::t!("catalog.assumed_va", locale = l).to_string(),
+        t_assumed_va_hint: rust_i18n::t!("catalog.assumed_va_hint", locale = l).to_string(),
+        t_save: rust_i18n::t!("catalog.submit", locale = l).to_string(),
+        t_unset: rust_i18n::t!("catalog.power_unset", locale = l).to_string(),
         title: c.name.clone(),
         basic: vec![Labeled {
             label: rust_i18n::t!("catalog.chassis_model", locale = l).to_string(),
@@ -997,7 +1129,143 @@ async fn 構成の詳細を描く(
         can_edit,
         error,
         notice,
+        current_type: c.current_type.clone().unwrap_or_default(),
+        assumed_voltage: c.assumed_voltage.map(|v| v.to_string()).unwrap_or_default(),
+        assumed_va: c.assumed_va.map(|v| v.to_string()).unwrap_or_default(),
+        current_types: crate::server::part::CURRENT_TYPES.to_vec(),
+        // **計算して見せるだけで保存しない**（不変条件2）。利用者が知りたいのは
+        // 何アンペア引く見込みかであり、VAとVはその材料である（12.7）
+        assumed_current: match (c.assumed_voltage, c.assumed_va) {
+            (Some(v), Some(va)) => Some(想定電流(v, va)),
+            _ => None,
+        },
+        power_warning: 定格の範囲外(&state.db, &c).await?.map(|(kind, v)| {
+            rust_i18n::t!(
+                "catalog.warn_power_range",
+                locale = l,
+                current_type = kind,
+                voltage = v
+            )
+            .to_string()
+        }),
     })
+}
+
+/// 選んだPSUが対応する方式・電圧範囲から外れていないか（設計書12.8）。
+///
+/// `CONFIGURATION` → `CONFIGURATION_PART` → `PART_CATALOG`（category=PSU）→
+/// `PART_PORT_SLOT`（port_kind=Power）→ `PORT_POWER_RATING` を辿る。
+///
+/// **ハードな禁止ではなく警告にする**（不変条件6）。実機が仕様の想定外である
+/// ことはありうるし、誤って拒否すると事実を記録できなくなる。
+///
+/// **`PORT_POWER_RATING` が1件も無いなら判定しない。**#53の取込が入るまで
+/// データが無く、「登録されていない」を「違反」と扱うと**警告が常に出る状態に
+/// なり、それは警告が無いのと同じ**である（6.1のスロット超過と同じ考え方）。
+async fn 定格の範囲外<C: ConnectionTrait>(
+    db: &C,
+    c: &configuration::Model,
+) -> AppResult<Option<(String, i32)>> {
+    let (Some(kind), Some(voltage)) = (c.current_type.as_deref(), c.assumed_voltage) else {
+        return Ok(None);
+    };
+
+    let parts = configuration_part::Entity::find()
+        .filter(configuration_part::Column::ConfigurationId.eq(c.id))
+        .all(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    let mut 定格あり = false;
+    for r in parts {
+        let psu = part_catalog::Entity::find_by_id(r.part_catalog_id)
+            .one(db)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+            .filter(|p| p.category == "PSU");
+        let Some(psu) = psu else { continue };
+
+        let ports = part_port_slot::Entity::find()
+            .filter(part_port_slot::Column::PartCatalogId.eq(psu.id))
+            .filter(part_port_slot::Column::PortKind.eq("Power"))
+            .all(db)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+        for port in ports {
+            let ratings = port_power_rating::Entity::find()
+                .filter(port_power_rating::Column::PartPortSlotId.eq(port.id))
+                .all(db)
+                .await
+                .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+            for rating in ratings {
+                定格あり = true;
+                // **絶対値で比べない**（12.7）。`-72 ≤ -48 ≤ -40` が成り立つ
+                if rating.current_type == kind
+                    && rating.voltage_min <= voltage
+                    && voltage <= rating.voltage_max
+                {
+                    return Ok(None);
+                }
+            }
+        }
+    }
+
+    Ok(定格あり.then(|| (kind.to_owned(), voltage)))
+}
+
+/// 想定消費電力を保存する（設計書12.8）。
+///
+/// **18.2の「参照済みはスペックを編集できない」の対象にしない。**18.2が守ろうと
+/// しているのは「構成がいつの間にか変わっていること」であり、想定消費電力は
+/// 構成そのものではなく**その構成についての見積もり**である。実測や再計算で
+/// 更新されうる値を凍結すると、正しい値を書けなくなる。
+pub async fn update_power(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path(id): Path<i32>,
+    Form(form): Form<PowerForm>,
+) -> AppResult<Response> {
+    let l = 入場(&state, &current)?;
+    編集権(&state, &current).await?;
+
+    let before = configuration::Entity::find_by_id(id)
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .ok_or(AppError::NotFound)?;
+
+    let 電力 = match 電力を読む(&form.current_type, &form.assumed_voltage, &form.assumed_va) {
+        Ok(v) => v,
+        Err(key) => {
+            let e = rust_i18n::t!(key, locale = l).to_string();
+            return 構成の詳細を描く(&state, &current, id, Some(e), None).await;
+        }
+    };
+
+    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.update(
+        &before,
+        configuration::ActiveModel {
+            id: Set(id),
+            current_type: Set(電力.current_type.map(str::to_owned)),
+            assumed_voltage: Set(電力.voltage),
+            assumed_va: Set(電力.va),
+            updated_at: Set(Utc::now()),
+            ..Default::default()
+        },
+    )
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    // **範囲外でも保存はする**（不変条件6）。警告は再描画で見せる
+    Ok(Redirect::to(&format!("/catalog/configurations/{id}")).into_response())
 }
 
 #[derive(Debug, Deserialize)]

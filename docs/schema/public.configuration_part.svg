@@ -40,38 +40,47 @@
 <!-- public.configuration -->
 <g id="node2" class="node">
 <title>public.configuration</title>
-<polygon fill="#efefef" stroke="none" points="135.49,-351.2 135.49,-386.8 420.44,-386.8 420.44,-351.2 135.49,-351.2"/>
-<polygon fill="none" stroke="black" points="135.49,-351.2 135.49,-386.8 420.44,-386.8 420.44,-351.2 135.49,-351.2"/>
-<text text-anchor="start" x="142.49" y="-364.6" font-family="Arial Bold" font-size="18.00">public.configuration</text>
-<text text-anchor="start" x="288.95" y="-364.6" font-family="Arial" font-size="14.00">    </text>
-<text text-anchor="start" x="320.06" y="-364.6" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
-<polygon fill="none" stroke="black" points="135.49,-320.4 135.49,-351.2 420.44,-351.2 420.44,-320.4 135.49,-320.4"/>
-<text text-anchor="start" x="142.49" y="-332.6" font-family="Arial" font-size="14.00">id </text>
-<text text-anchor="start" x="157.27" y="-332.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="135.49,-289.6 135.49,-320.4 420.44,-320.4 420.44,-289.6 135.49,-289.6"/>
-<text text-anchor="start" x="142.49" y="-301.8" font-family="Arial" font-size="14.00">chassis_model_id </text>
-<text text-anchor="start" x="257.66" y="-301.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="135.49,-258.8 135.49,-289.6 420.44,-289.6 420.44,-258.8 135.49,-258.8"/>
-<text text-anchor="start" x="142.49" y="-271" font-family="Arial" font-size="14.00">name </text>
-<text text-anchor="start" x="181.4" y="-271" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="135.49,-228 135.49,-258.8 420.44,-258.8 420.44,-228 135.49,-228"/>
-<text text-anchor="start" x="142.49" y="-240.2" font-family="Arial" font-size="14.00">created_by </text>
-<text text-anchor="start" x="215.64" y="-240.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="135.49,-197.2 135.49,-228 420.44,-228 420.44,-197.2 135.49,-197.2"/>
-<text text-anchor="start" x="142.49" y="-209.4" font-family="Arial" font-size="14.00">created_at </text>
-<text text-anchor="start" x="212.53" y="-209.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="135.49,-166.4 135.49,-197.2 420.44,-197.2 420.44,-166.4 135.49,-166.4"/>
-<text text-anchor="start" x="142.49" y="-178.6" font-family="Arial" font-size="14.00">updated_at </text>
-<text text-anchor="start" x="216.44" y="-178.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="135.49,-135.6 135.49,-166.4 420.44,-166.4 420.44,-135.6 135.49,-135.6"/>
-<text text-anchor="start" x="142.49" y="-147.8" font-family="Arial" font-size="14.00">retired_at </text>
-<text text-anchor="start" x="205.52" y="-147.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="#efefef" stroke="none" points="135.49,-397.4 135.49,-433 420.44,-433 420.44,-397.4 135.49,-397.4"/>
+<polygon fill="none" stroke="black" points="135.49,-397.4 135.49,-433 420.44,-433 420.44,-397.4 135.49,-397.4"/>
+<text text-anchor="start" x="142.49" y="-410.8" font-family="Arial Bold" font-size="18.00">public.configuration</text>
+<text text-anchor="start" x="288.95" y="-410.8" font-family="Arial" font-size="14.00">    </text>
+<text text-anchor="start" x="320.06" y="-410.8" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
+<polygon fill="none" stroke="black" points="135.49,-366.6 135.49,-397.4 420.44,-397.4 420.44,-366.6 135.49,-366.6"/>
+<text text-anchor="start" x="142.49" y="-378.8" font-family="Arial" font-size="14.00">id </text>
+<text text-anchor="start" x="157.27" y="-378.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="135.49,-335.8 135.49,-366.6 420.44,-366.6 420.44,-335.8 135.49,-335.8"/>
+<text text-anchor="start" x="142.49" y="-348" font-family="Arial" font-size="14.00">chassis_model_id </text>
+<text text-anchor="start" x="257.66" y="-348" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="135.49,-305 135.49,-335.8 420.44,-335.8 420.44,-305 135.49,-305"/>
+<text text-anchor="start" x="142.49" y="-317.2" font-family="Arial" font-size="14.00">name </text>
+<text text-anchor="start" x="181.4" y="-317.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="135.49,-274.2 135.49,-305 420.44,-305 420.44,-274.2 135.49,-274.2"/>
+<text text-anchor="start" x="142.49" y="-286.4" font-family="Arial" font-size="14.00">created_by </text>
+<text text-anchor="start" x="215.64" y="-286.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="135.49,-243.4 135.49,-274.2 420.44,-274.2 420.44,-243.4 135.49,-243.4"/>
+<text text-anchor="start" x="142.49" y="-255.6" font-family="Arial" font-size="14.00">created_at </text>
+<text text-anchor="start" x="212.53" y="-255.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="135.49,-212.6 135.49,-243.4 420.44,-243.4 420.44,-212.6 135.49,-212.6"/>
+<text text-anchor="start" x="142.49" y="-224.8" font-family="Arial" font-size="14.00">updated_at </text>
+<text text-anchor="start" x="216.44" y="-224.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="135.49,-181.8 135.49,-212.6 420.44,-212.6 420.44,-181.8 135.49,-181.8"/>
+<text text-anchor="start" x="142.49" y="-194" font-family="Arial" font-size="14.00">retired_at </text>
+<text text-anchor="start" x="205.52" y="-194" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="135.49,-151 135.49,-181.8 420.44,-181.8 420.44,-151 135.49,-151"/>
+<text text-anchor="start" x="142.49" y="-163.2" font-family="Arial" font-size="14.00">current_type </text>
+<text text-anchor="start" x="224.2" y="-163.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="135.49,-120.2 135.49,-151 420.44,-151 420.44,-120.2 135.49,-120.2"/>
+<text text-anchor="start" x="142.49" y="-132.4" font-family="Arial" font-size="14.00">assumed_voltage </text>
+<text text-anchor="start" x="256.11" y="-132.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="135.49,-89.4 135.49,-120.2 420.44,-120.2 420.44,-89.4 135.49,-89.4"/>
+<text text-anchor="start" x="142.49" y="-101.6" font-family="Arial" font-size="14.00">assumed_va </text>
+<text text-anchor="start" x="225.75" y="-101.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
 </g>
 <!-- public.configuration_part&#45;&gt;public.configuration -->
 <g id="edge1" class="edge">
 <title>public.configuration_part:configuration_id&#45;&gt;public.configuration:id</title>
-<path fill="none" stroke="black" d="M297.74,-742.56C230.68,-733.57 281.35,-631.81 308.99,-558.4 335.62,-487.68 393.63,-500.65 420.44,-430 435.29,-390.86 463.31,-335.8 421.44,-335.8"/>
-<polygon fill="black" stroke="black" points="297.68,-742.56 307.38,-747.67 303,-742.89 307.33,-743.16 307.33,-743.16 307.33,-743.16 303,-742.89 307.94,-738.69 297.68,-742.56"/>
+<path fill="none" stroke="black" d="M297.69,-742.54C229.97,-733.25 273.44,-628.33 308.99,-558.4 336.89,-503.54 392.4,-530.99 420.44,-476.2 439.51,-438.93 463.31,-382 421.44,-382"/>
+<polygon fill="black" stroke="black" points="297.68,-742.54 307.37,-747.67 303,-742.88 307.33,-743.16 307.33,-743.16 307.33,-743.16 303,-742.88 307.95,-738.69 297.68,-742.54"/>
 <text text-anchor="start" x="7" y="-753.2" font-family="Arial" font-size="10.00">FOREIGN KEY (configuration_id) REFERENCES configuration(id)</text>
 </g>
 <!-- public.part_catalog -->

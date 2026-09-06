@@ -412,6 +412,18 @@ catalog:
   error_quantity: 数量は1以上の整数で入力してください
   error_part_duplicate: この部品は既に追加されています。数量で表してください
   warn_slot_over: "%{category} が %{used} 個で、スロット %{slots} 本を超えています。登録は行いましたが確認してください。"
+  power: 想定消費電力
+  power_hint: この構成が引くと見込む電力です。カタログではなく設計値なので、ベンダーのコンフィギュレーター等で算出した値を入れてください。3つとも入れるか、3つとも空にします
+  power_unset: 未設定
+  assumed_voltage: 想定電圧（V）
+  assumed_va: 想定皮相電力（VA）
+  assumed_va_hint: ブレーカーに効くのはワットではなく皮相電力です。電流は A = VA ÷ V で計算して表示するため、入力しません
+  error_power_partial: 給電方式・想定電圧・想定皮相電力は3つとも入れるか、3つとも空にしてください
+  error_power_number: 想定電圧と想定皮相電力は数値で入力してください
+  error_current_type: 給電方式の値が不正です
+  error_voltage_zero: 想定電圧に0は指定できません
+  error_va_positive: 想定皮相電力は1以上で入力してください
+  warn_power_range: "%{current_type} の %{voltage}V は、この構成のPSUが対応する範囲から外れています。保存は行いましたが確認してください。"
 
 parts:
   title: 部品カタログ
@@ -432,10 +444,14 @@ parts:
   connector_hint: RJ-45 / LC / QSFP28 / IEC C13 / NEMA 5-15P など
   port_speed: 速度
   port_speed_hint: Network のときだけ指定できます（10GBASE-T、25G など）
-  voltage: 電圧
   voltage_min: 電圧の下限（V）
   voltage_max: 電圧の上限（V）
-  voltage_hint: Power のときだけ指定できます。両方を入れてください。100-240V対応なら 100 と 240、200V専用なら 200 と 200 です
+  voltage_hint: 下限と上限の両方を入れてください。100-240V対応なら 100 と 240、200V専用なら 200 と 200 です。直流の -48V 電源は下限 -72、上限 -40 のように符号を含めて入れます
+  power_rating: 電源定格
+  power_rating_hint: そのポートが受け付けられる給電方式と電圧の範囲です。交流と直流の双方を受けるPSUがあるため、方式ごとに1行を持ちます
+  current_type: 給電方式
+  add_rating: 電源定格を追加
+  no_rating: 電源定格が登録されていません
   add_port: ポートを追加
   remove_port: 取り消す
   no_port: ポートが登録されていません
@@ -453,6 +469,8 @@ parts:
   error_voltage_unused: 電圧を指定できるのは Power のポートだけです
   error_voltage_pair: 電圧は下限と上限の両方を入れてください
   error_voltage_order: 電圧の下限が上限を超えています
+  error_current_type: 給電方式の値が不正です
+  error_rating_duplicate: そのポートには同じ給電方式の定格が既にあります
 
 merge:
   title: カタログの統合

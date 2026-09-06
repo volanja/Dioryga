@@ -412,6 +412,18 @@ catalog:
   error_quantity: Quantity must be a positive integer
   error_part_duplicate: That part is already listed. Use the quantity instead
   warn_slot_over: "%{category} totals %{used}, which exceeds the %{slots} available slots. It was registered, but please check."
+  power: Assumed power draw
+  power_hint: What this configuration is expected to draw. This is a design value, not a catalog value, so enter what the vendor configurator gives you. Fill in all three fields or leave all three empty
+  power_unset: Not set
+  assumed_voltage: Assumed voltage (V)
+  assumed_va: Assumed apparent power (VA)
+  assumed_va_hint: Breakers respond to apparent power, not watts. Current is not entered; it is shown as A = VA / V
+  error_power_partial: Enter all three of current type, assumed voltage and assumed apparent power, or leave all three empty
+  error_power_number: Assumed voltage and apparent power must be numbers
+  error_current_type: Invalid current type
+  error_voltage_zero: Assumed voltage cannot be 0
+  error_va_positive: Assumed apparent power must be 1 or more
+  warn_power_range: "%{voltage}V %{current_type} is outside the range the PSUs in this configuration accept. It was saved, but please check."
 
 parts:
   title: Part catalog
@@ -432,10 +444,14 @@ parts:
   connector_hint: RJ-45, LC, QSFP28, IEC C13, NEMA 5-15P and so on
   port_speed: Speed
   port_speed_hint: Only for Network ports (10GBASE-T, 25G, ...)
-  voltage: Voltage
   voltage_min: Minimum voltage (V)
   voltage_max: Maximum voltage (V)
-  voltage_hint: Only for Power ports, and both ends are required. Use 100 and 240 for a 100-240V inlet, 200 and 200 for a 200V-only outlet
+  voltage_hint: Both ends are required. Use 100 and 240 for a 100-240V inlet, 200 and 200 for a 200V-only outlet. A -48V DC supply is entered signed, as -72 and -40
+  power_rating: Power ratings
+  power_rating_hint: The current types and voltage ranges this port accepts. Some PSUs take both AC and DC, so each type is one row
+  current_type: Current type
+  add_rating: Add power rating
+  no_rating: No power rating registered
   add_port: Add port
   remove_port: Remove
   no_port: No ports registered
@@ -453,6 +469,8 @@ parts:
   error_voltage_unused: Voltage can only be set on a Power port
   error_voltage_pair: Enter both the minimum and the maximum voltage
   error_voltage_order: The minimum voltage exceeds the maximum
+  error_current_type: Invalid current type
+  error_rating_duplicate: That port already has a rating for this current type
 
 merge:
   title: Merge catalog entries

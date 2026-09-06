@@ -22,15 +22,25 @@
 //! # ポートは部品が持つ（8.3）
 //!
 //! `PART_PORT_SLOT` は `port_kind`（Network / Power / Stack）で一般化されて
-//! いる。`port_speed` は `Network` のとき、`voltage_min`/`voltage_max` は
-//! `Power` のときだけ意味を持つ（12.7）。**他の `port_kind` に値が来たら
-//! 黙って捨てず拒否する**（Q-21）。
+//! いる。`port_speed` は `Network` のときだけ意味を持つ。**他の `port_kind` に
+//! 値が来たら黙って捨てず拒否する**（Q-21）。
+//!
+//! # 電源定格は子テーブルに持つ（12.7）
+//!
+//! 電圧の範囲は `PART_PORT_SLOT` の列ではなく `PORT_POWER_RATING` にある。
+//! **1つのポートが複数の給電方式を持ちうる**ためで、Dellには`AC 100~240V`と
+//! `DC 240V`の双方を受けるPSUが、Ciscoには`-48V`のDC電源が実在する。
+//!
+//! **範囲で持つのは「100-240V対応」と「200V専用」を区別するため**であり、
+//! 単一値では表せない。**DCの負電圧は絶対値で比べない**——`-72 ≤ -48 ≤ -40`。
 
 use axum::extract::{Path, Query, State};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::{Extension, Form};
 use chrono::Utc;
-use entity::{configuration_part, part_catalog, part_instance, part_port_slot, vendor};
+use entity::{
+    configuration_part, part_catalog, part_instance, part_port_slot, port_power_rating, vendor,
+};
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, Set};
 use serde::Deserialize;
 
@@ -44,6 +54,9 @@ use crate::server::AppState;
 /// 語彙（`vocabularies.md`、設計書6.4）。
 const CATEGORIES: &[&str] = &["CPU", "Memory", "NIC", "Storage", "PSU", "PDU"];
 const PORT_KINDS: &[&str] = &["Network", "Power", "Stack"];
+
+/// 給電方式（12.7）。**交流と直流の双方を受け付けるPSUが実在する。**
+pub(crate) const CURRENT_TYPES: &[&str] = &["AC", "DC"];
 
 const NETWORK: &str = "Network";
 const POWER: &str = "Power";
@@ -115,8 +128,18 @@ struct PortRow {
     connector_type: String,
     /// `port_kind=Network` のときだけ埋まる。
     port_speed: String,
+    /// そのポートの電源定格をまとめたもの（`AC 100〜240V / DC 240V`）。
     /// `port_kind=Power` のときだけ埋まる（12.7）。
-    voltage: String,
+    power: String,
+}
+
+/// `PORT_POWER_RATING` の1行（12.7）。
+struct RatingRow {
+    id: i32,
+    port_label: String,
+    current_type: String,
+    /// `100〜240V` / `200V`。
+    range: String,
 }
 
 #[derive(askama::Template)]
@@ -134,7 +157,6 @@ struct PartDetailPage {
     t_connector_hint: String,
     t_port_speed: String,
     t_port_speed_hint: String,
-    t_voltage: String,
     t_voltage_hint: String,
     t_voltage_min: String,
     t_voltage_max: String,
@@ -143,12 +165,22 @@ struct PartDetailPage {
     t_empty: String,
     t_actions: String,
     t_merged_into: String,
+    t_power: String,
+    t_power_hint: String,
+    t_current_type: String,
+    t_port: String,
+    t_add_rating: String,
+    t_no_rating: String,
     title: String,
     basic: Vec<Labeled>,
     ports: Vec<PortRow>,
+    ratings: Vec<RatingRow>,
+    /// `port_kind=Power` のポート。**定格を足せる相手がここだけである。**
+    power_ports: Vec<Labeled>,
     /// 統合で吸収された場合の統合先（23.9.4）。**削除ではないので詳細は開ける。**
     merged_into: Option<i32>,
     port_kinds: Vec<&'static str>,
+    current_types: Vec<&'static str>,
     can_edit: bool,
     error: Option<String>,
 }
@@ -393,30 +425,51 @@ async fn 詳細を描く(
     // 過去の記録に残ったURLから辿り着いた人が「消えた」と誤解しないため
     let merged_into = p.merged_into_part_catalog_id;
 
-    let ports = part_port_slot::Entity::find()
+    let slots = part_port_slot::Entity::find()
         .filter(part_port_slot::Column::PartCatalogId.eq(part_id))
         .order_by_asc(part_port_slot::Column::Id)
         .all(&state.db)
         .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-        .into_iter()
-        .map(|s| PortRow {
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    let mut ports = Vec::new();
+    let mut ratings = Vec::new();
+    let mut power_ports = Vec::new();
+    for s in slots {
+        let 定格 = 定格を引く(&state.db, s.id).await?;
+
+        if s.port_kind == POWER {
+            power_ports.push(Labeled {
+                label: s.port_label.clone(),
+                value: s.id.to_string(),
+            });
+        }
+        for r in &定格 {
+            ratings.push(RatingRow {
+                id: r.id,
+                port_label: s.port_label.clone(),
+                current_type: r.current_type.clone(),
+                range: 範囲(r.voltage_min, r.voltage_max),
+            });
+        }
+
+        ports.push(PortRow {
             // **意味を持つ列だけを見せる**（8.3、12.7）
             port_speed: match s.port_kind.as_str() {
                 NETWORK => s.port_speed.clone().unwrap_or_default(),
                 _ => String::new(),
             },
-            voltage: match (s.port_kind.as_str(), s.voltage_min, s.voltage_max) {
-                (POWER, Some(min), Some(max)) if min == max => format!("{min}V"),
-                (POWER, Some(min), Some(max)) => format!("{min}〜{max}V"),
-                _ => String::new(),
-            },
+            power: 定格
+                .iter()
+                .map(|r| format!("{} {}", r.current_type, 範囲(r.voltage_min, r.voltage_max)))
+                .collect::<Vec<_>>()
+                .join(" / "),
             id: s.id,
             port_kind: s.port_kind,
             port_label: s.port_label,
             connector_type: s.connector_type,
-        })
-        .collect();
+        });
+    }
 
     render(&PartDetailPage {
         chrome: Chrome::new(&current.user, current.csrf_token.clone(), "catalog"),
@@ -431,7 +484,6 @@ async fn 詳細を描く(
         t_connector_hint: rust_i18n::t!("parts.connector_hint", locale = l).to_string(),
         t_port_speed: rust_i18n::t!("parts.port_speed", locale = l).to_string(),
         t_port_speed_hint: rust_i18n::t!("parts.port_speed_hint", locale = l).to_string(),
-        t_voltage: rust_i18n::t!("parts.voltage", locale = l).to_string(),
         t_voltage_hint: rust_i18n::t!("parts.voltage_hint", locale = l).to_string(),
         t_voltage_min: rust_i18n::t!("parts.voltage_min", locale = l).to_string(),
         t_voltage_max: rust_i18n::t!("parts.voltage_max", locale = l).to_string(),
@@ -439,6 +491,12 @@ async fn 詳細を描く(
         t_remove: rust_i18n::t!("parts.remove_port", locale = l).to_string(),
         t_empty: rust_i18n::t!("parts.no_port", locale = l).to_string(),
         t_actions: rust_i18n::t!("projects.actions", locale = l).to_string(),
+        t_power: rust_i18n::t!("parts.power_rating", locale = l).to_string(),
+        t_power_hint: rust_i18n::t!("parts.power_rating_hint", locale = l).to_string(),
+        t_current_type: rust_i18n::t!("parts.current_type", locale = l).to_string(),
+        t_port: rust_i18n::t!("parts.port_label", locale = l).to_string(),
+        t_add_rating: rust_i18n::t!("parts.add_rating", locale = l).to_string(),
+        t_no_rating: rust_i18n::t!("parts.no_rating", locale = l).to_string(),
         title: format!(
             "{} {}",
             ベンダー名(&state.db, p.vendor_id).await?,
@@ -446,12 +504,37 @@ async fn 詳細を描く(
         ),
         basic,
         ports,
+        ratings,
+        power_ports,
         merged_into,
         t_merged_into: rust_i18n::t!("parts.merged_into", locale = l).to_string(),
         port_kinds: PORT_KINDS.to_vec(),
+        current_types: CURRENT_TYPES.to_vec(),
         can_edit,
         error,
     })
+}
+
+/// そのポートの電源定格（12.7）。**方式の並びを安定させる。**
+async fn 定格を引く<C: ConnectionTrait>(
+    db: &C,
+    port_id: i32,
+) -> AppResult<Vec<port_power_rating::Model>> {
+    port_power_rating::Entity::find()
+        .filter(port_power_rating::Column::PartPortSlotId.eq(port_id))
+        .order_by_asc(port_power_rating::Column::CurrentType)
+        .all(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))
+}
+
+/// `100〜240V` / `200V`。**上下が同じなら幅として見せない。**
+fn 範囲(min: i32, max: i32) -> String {
+    if min == max {
+        format!("{min}V")
+    } else {
+        format!("{min}〜{max}V")
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -464,10 +547,6 @@ pub struct PortForm {
     pub connector_type: String,
     #[serde(default)]
     pub port_speed: String,
-    #[serde(default)]
-    pub voltage_min: String,
-    #[serde(default)]
-    pub voltage_max: String,
 }
 
 pub async fn add_port(
@@ -502,30 +581,6 @@ pub async fn add_port(
         return 詳細を描く(&state, &current, part_id, 誤り("parts.error_speed_unused")).await;
     }
 
-    // **電圧は Power のときだけ**（12.7）
-    let (min, max) = match (任意の整数(&form.voltage_min), 任意の整数(&form.voltage_max))
-    {
-        (Ok(a), Ok(b)) => (a, b),
-        _ => return 詳細を描く(&state, &current, part_id, 誤り("parts.error_number")).await,
-    };
-    if (min.is_some() || max.is_some()) && form.port_kind != POWER {
-        return 詳細を描く(
-            &state,
-            &current,
-            part_id,
-            誤り("parts.error_voltage_unused"),
-        )
-        .await;
-    }
-    // **片方だけでは範囲にならない。**「100-240V対応」と「200V専用」を区別する
-    // ために範囲で持っているので、欠けていると意味を成さない（12.7）
-    if min.is_some() != max.is_some() {
-        return 詳細を描く(&state, &current, part_id, 誤り("parts.error_voltage_pair")).await;
-    }
-    if matches!((min, max), (Some(a), Some(b)) if a > b) {
-        return 詳細を描く(&state, &current, part_id, 誤り("parts.error_voltage_order")).await;
-    }
-
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
@@ -536,8 +591,6 @@ pub async fn add_port(
         port_label: Set(label.to_owned()),
         connector_type: Set(connector.to_owned()),
         port_speed: Set((!speed.is_empty()).then(|| speed.to_owned())),
-        voltage_min: Set(min),
-        voltage_max: Set(max),
         created_at: Set(now),
         updated_at: Set(now),
         ..Default::default()
@@ -575,6 +628,155 @@ pub async fn remove_port(
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
         .filter(|r| r.part_catalog_id == part_id)
+        .ok_or(AppError::NotFound)?;
+
+    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.delete(row)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    Ok(Redirect::to(&format!("/catalog/parts/{part_id}")).into_response())
+}
+
+// ---------------------------------------------------------------------------
+// 電源定格（設計書12.7）
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+pub struct RatingForm {
+    pub part_port_slot_id: i32,
+    #[serde(default)]
+    pub current_type: String,
+    #[serde(default)]
+    pub voltage_min: String,
+    #[serde(default)]
+    pub voltage_max: String,
+}
+
+/// ポートに電源定格を足す。
+///
+/// **取るのは公称の入力電圧範囲だけとする**（12.7）。Ciscoの
+/// `Maximum Allowable Input Voltage Range` は瞬時電圧低下への耐性であって
+/// 運用で選ぶ電圧ではなく、**混ぜると判定が緩んで誤った接続を通してしまう。**
+pub async fn add_rating(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path(part_id): Path<i32>,
+    Form(form): Form<RatingForm>,
+) -> AppResult<Response> {
+    let l = 入場(&state, &current)?;
+    編集権(&state, &current).await?;
+    let 誤り = |key: &str| Some(rust_i18n::t!(key, locale = l).to_string());
+
+    // **このポートがこの部品のものであることを確かめる。**IDだけを信じると、
+    // 別の部品のポートに定格を足せてしまう
+    let slot = part_port_slot::Entity::find_by_id(form.part_port_slot_id)
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .filter(|s| s.part_catalog_id == part_id)
+        .ok_or(AppError::NotFound)?;
+
+    // **電源定格は Power のポートにしか意味を持たない**（12.7）
+    if slot.port_kind != POWER {
+        return 詳細を描く(
+            &state,
+            &current,
+            part_id,
+            誤り("parts.error_voltage_unused"),
+        )
+        .await;
+    }
+    // **語彙外は既定へ寄せず拒否する**（Q-21）
+    if !CURRENT_TYPES.contains(&form.current_type.as_str()) {
+        return 詳細を描く(&state, &current, part_id, 誤り("parts.error_current_type")).await;
+    }
+
+    // **上下とも必須。**「100-240V対応」と「200V専用」を区別するために範囲で
+    // 持っているので、片方だけでは意味を成さない（12.7）
+    let (min, max) = match (任意の整数(&form.voltage_min), 任意の整数(&form.voltage_max))
+    {
+        (Ok(Some(a)), Ok(Some(b))) => (a, b),
+        (Ok(_), Ok(_)) => {
+            return 詳細を描く(&state, &current, part_id, 誤り("parts.error_voltage_pair")).await;
+        }
+        _ => return 詳細を描く(&state, &current, part_id, 誤り("parts.error_number")).await,
+    };
+    // **絶対値ではなく符号を含めた大小で見る**（12.7）。DCは -72 が下限、-40 が上限
+    if min > max {
+        return 詳細を描く(&state, &current, part_id, 誤り("parts.error_voltage_order")).await;
+    }
+
+    // **方式ごとに1行**（12.7）。DB側のUNIQUEに任せず、画面で理由を返す
+    let 重複 = port_power_rating::Entity::find()
+        .filter(port_power_rating::Column::PartPortSlotId.eq(slot.id))
+        .filter(port_power_rating::Column::CurrentType.eq(&form.current_type))
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    if 重複.is_some() {
+        return 詳細を描く(
+            &state,
+            &current,
+            part_id,
+            誤り("parts.error_rating_duplicate"),
+        )
+        .await;
+    }
+
+    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let now = Utc::now();
+    tx.insert(port_power_rating::ActiveModel {
+        part_port_slot_id: Set(slot.id),
+        current_type: Set(form.current_type.clone()),
+        voltage_min: Set(min),
+        voltage_max: Set(max),
+        created_at: Set(now),
+        updated_at: Set(now),
+        ..Default::default()
+    })
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    Ok(Redirect::to(&format!("/catalog/parts/{part_id}")).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RemoveRatingForm {
+    pub rating_id: i32,
+}
+
+pub async fn remove_rating(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path(part_id): Path<i32>,
+    Form(form): Form<RemoveRatingForm>,
+) -> AppResult<Response> {
+    入場(&state, &current)?;
+    編集権(&state, &current).await?;
+
+    let row = port_power_rating::Entity::find_by_id(form.rating_id)
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .ok_or(AppError::NotFound)?;
+
+    // **この部品のポートに属する定格だけを消せる。**
+    part_port_slot::Entity::find_by_id(row.part_port_slot_id)
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .filter(|s| s.part_catalog_id == part_id)
         .ok_or(AppError::NotFound)?;
 
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))

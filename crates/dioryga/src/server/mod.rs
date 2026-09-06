@@ -194,6 +194,11 @@ pub fn router(state: AppState) -> Router {
             "/catalog/configurations/{id}/parts/remove",
             post(catalog::remove_part),
         )
+        // 想定消費電力（12.8）
+        .route(
+            "/catalog/configurations/{id}/power",
+            post(catalog::update_power),
+        )
         .route("/catalog/merge", get(merge::show))
         .route("/catalog/merge/vendors", post(merge::merge_vendor))
         .route("/catalog/merge/parts", post(merge::merge_part))
@@ -202,6 +207,12 @@ pub fn router(state: AppState) -> Router {
         .route("/catalog/parts/{id}", get(part::detail))
         .route("/catalog/parts/{id}/ports", post(part::add_port))
         .route("/catalog/parts/{id}/ports/remove", post(part::remove_port))
+        // 電源定格は方式ごとに1行を持つ子テーブル（12.7）
+        .route("/catalog/parts/{id}/power-ratings", post(part::add_rating))
+        .route(
+            "/catalog/parts/{id}/power-ratings/remove",
+            post(part::remove_rating),
+        )
         // 廃番は静的パスで置く。`/catalog/{kind}/retire` は詳細と衝突する
         .route("/catalog/vendors/retire", post(catalog::retire_vendor))
         .route(

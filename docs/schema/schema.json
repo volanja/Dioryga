@@ -1835,16 +1835,6 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "nullable": false
-        },
-        {
-          "name": "voltage_min",
-          "type": "integer",
-          "nullable": true
-        },
-        {
-          "name": "voltage_max",
-          "type": "integer",
-          "nullable": true
         }
       ],
       "indexes": [
@@ -2000,6 +1990,24 @@
           "name": "retired_at",
           "type": "timestamp with time zone",
           "nullable": true
+        },
+        {
+          "name": "current_type",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "その構成で**実際に使う**給電方式（12.8）。カタログでは決まらないためここに持つ\n"
+        },
+        {
+          "name": "assumed_voltage",
+          "type": "integer",
+          "nullable": true,
+          "comment": "想定電圧（V）。**DCは負値をとりうる**"
+        },
+        {
+          "name": "assumed_va",
+          "type": "integer",
+          "nullable": true,
+          "comment": "引くと見込む皮相電力。**ワットではない**——ブレーカーに効くのは皮相電力（12.7）。\n**電流は保存しない**（A = VA ÷ V で求める）\n"
         }
       ],
       "indexes": [
@@ -9148,6 +9156,164 @@
           ]
         }
       ]
+    },
+    {
+      "name": "public.port_power_rating",
+      "type": "BASE TABLE",
+      "comment": "ポートが受け付ける給電方式と定格電圧（12.7）。**給電方式ごとに1行。**\n交流と直流の双方を受けるPSUが実在するため、`PART_PORT_SLOT` の列にはできない。\n",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "part_port_slot_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "current_type",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "voltage_min",
+          "type": "integer",
+          "nullable": false,
+          "comment": "**DCは負値をとりうる。**絶対値ではなく符号を含めた大小で扱う\n（-48V電源は -72 が下限、-40 が上限）\n"
+        },
+        {
+          "name": "voltage_max",
+          "type": "integer",
+          "nullable": false,
+          "comment": "同上"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "port_power_rating_pkey",
+          "def": "CREATE UNIQUE INDEX port_power_rating_pkey ON public.port_power_rating USING btree (id)",
+          "table": "public.port_power_rating",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_port_power_rating_slot_current",
+          "def": "CREATE UNIQUE INDEX idx_port_power_rating_slot_current ON public.port_power_rating USING btree (part_port_slot_id, current_type)",
+          "table": "public.port_power_rating",
+          "columns": [
+            "part_port_slot_id",
+            "current_type"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "port_power_rating_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.port_power_rating",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "port_power_rating_current_type_not_null",
+          "type": "n",
+          "def": "NOT NULL current_type",
+          "table": "public.port_power_rating",
+          "referenced_table": "",
+          "columns": [
+            "current_type"
+          ]
+        },
+        {
+          "name": "port_power_rating_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.port_power_rating",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "port_power_rating_part_port_slot_id_not_null",
+          "type": "n",
+          "def": "NOT NULL part_port_slot_id",
+          "table": "public.port_power_rating",
+          "referenced_table": "",
+          "columns": [
+            "part_port_slot_id"
+          ]
+        },
+        {
+          "name": "port_power_rating_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.port_power_rating",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
+          "name": "port_power_rating_voltage_max_not_null",
+          "type": "n",
+          "def": "NOT NULL voltage_max",
+          "table": "public.port_power_rating",
+          "referenced_table": "",
+          "columns": [
+            "voltage_max"
+          ]
+        },
+        {
+          "name": "port_power_rating_voltage_min_not_null",
+          "type": "n",
+          "def": "NOT NULL voltage_min",
+          "table": "public.port_power_rating",
+          "referenced_table": "",
+          "columns": [
+            "voltage_min"
+          ]
+        },
+        {
+          "name": "fk_port_power_rating_part_port_slot",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (part_port_slot_id) REFERENCES part_port_slot(id)",
+          "table": "public.port_power_rating",
+          "referenced_table": "public.part_port_slot",
+          "columns": [
+            "part_port_slot_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "port_power_rating_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.port_power_rating",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
     }
   ],
   "relations": [
@@ -10255,6 +10421,19 @@
       ],
       "parent_cardinality": "exactly_one",
       "def": "FOREIGN KEY (content_hash) REFERENCES sbom_snapshot(content_hash)"
+    },
+    {
+      "table": "public.port_power_rating",
+      "columns": [
+        "part_port_slot_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.part_port_slot",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (part_port_slot_id) REFERENCES part_port_slot(id)"
     }
   ],
   "driver": {

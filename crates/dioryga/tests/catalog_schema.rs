@@ -10,7 +10,7 @@ use chrono::Utc;
 use dioryga::repository::{Actor, AuditedTx};
 use entity::{
     app_user, cable_catalog, cable_end_slot, chassis_model, configuration, configuration_part,
-    part_catalog, software_catalog, vendor,
+    part_catalog, part_port_slot, port_power_rating, software_catalog, vendor,
 };
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
 
@@ -140,6 +140,48 @@ async fn 構成の部品は重複しない(db: &DatabaseConnection) {
     assert!(
         追加(1).insert(db).await.is_err(),
         "同じ部品が2行登録できてしまいました"
+    );
+}
+
+/// **同じポートに同じ給電方式を2行持てないこと**（設計書12.7）。
+///
+/// 「方式ごとに1行」がDB制約で守られていることを確かめる。**画面の判定だけに
+/// 頼らない**——取込（#53）が同じ表を書くため。
+async fn 電源定格は方式ごとに一意(db: &DatabaseConnection) {
+    let user = 利用者(db, "rating@example.com").await;
+    let v = ベンダー(db, "RatingVendor", user.id).await;
+    let part = 部品(db, v.id, "PSU-1", user.id).await;
+
+    let port = part_port_slot::ActiveModel {
+        part_catalog_id: Set(part.id),
+        port_kind: Set("Power".to_owned()),
+        port_label: Set("Inlet".to_owned()),
+        connector_type: Set("IEC C14".to_owned()),
+        port_speed: Set(None),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    let 定格 = |kind: &str, min: i32, max: i32| port_power_rating::ActiveModel {
+        part_port_slot_id: Set(port.id),
+        current_type: Set(kind.to_owned()),
+        voltage_min: Set(min),
+        voltage_max: Set(max),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    };
+
+    assert!(定格("AC", 100, 240).insert(db).await.is_ok());
+    // **交流と直流の双方は持てる。**これが子テーブルにした理由である（12.7）
+    assert!(定格("DC", -72, -40).insert(db).await.is_ok());
+    assert!(
+        定格("AC", 200, 200).insert(db).await.is_err(),
+        "同じ方式の定格が2行登録できてしまいました"
     );
 }
 
@@ -374,6 +416,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 筐体モデルはベンダーごとに型番が一意);
         全検証!(@one $用意, $属性, 部品はベンダーごとに型番が一意);
         全検証!(@one $用意, $属性, 構成の部品は重複しない);
+        全検証!(@one $用意, $属性, 電源定格は方式ごとに一意);
         全検証!(@one $用意, $属性, purlなしのソフトウェアは複数登録できる);
         全検証!(@one $用意, $属性, ケーブル長はミリメートルの整数で往復する);
         全検証!(@one $用意, $属性, ケーブルの両端は非対称にできる);

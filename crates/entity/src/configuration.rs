@@ -14,6 +14,18 @@ pub struct Model {
     /// いるのはスペックを定義するフィールドの編集であり、選択可否はスペックでは
     /// ない。既存の参照は壊さず、過去の事実として残る。
     pub retired_at: Option<DateTimeUtc>,
+    /// その構成で**実際に使う**給電方式（AC / DC、12.8）。
+    ///
+    /// **カタログでは決まらない。**交流と直流の双方を受け付けるPSUが実在し、
+    /// どちらで使うかは設置環境による（12.7）。
+    pub current_type: Option<String>,
+    /// 想定電圧（V）。**DCは負値をとりうる。**
+    pub assumed_voltage: Option<i32>,
+    /// 引くと見込む皮相電力（VA）。
+    ///
+    /// **ワットではなくVAで持つ。**ブレーカーに効くのは皮相電力である（12.7）。
+    /// **電流は保存しない**——`A = VA ÷ V` で求める（不変条件2）。
+    pub assumed_va: Option<i32>,
     pub created_by: i32,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,

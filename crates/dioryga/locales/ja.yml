@@ -731,3 +731,35 @@ costs:
   error_item: 対象の指定が不正です
   error_cost_type: 費目を入力してください
   error_cycle: 課金周期の値が不正です
+
+milestones:
+  title: マイルストーン
+  lead: サービス開始・更新・保守・終了の計画と実績です。予定日は上書きせず、実績日を別に持ちます
+  milestone_type: 種別
+  planned_date: 予定日
+  actual_date: 実績日
+  actual_hint: 実績日を空にして完了にすると、今日の日付が入ります。予定日は書き換わりません
+  devices: 対象機器
+  device_hint: 増設・移設・撤去の対象です。承認・実行されるまで対象機器のステータスは plan のままです
+  change_type: 変更種別
+  delay: 遅れ
+  delayed: "%{days}日"
+  complete: 完了にする
+  cancel: 中止にする
+  add_device: 対象機器を結ぶ
+  new: マイルストーンを登録
+  error_type: 種別の値が不正です
+  error_change_type: 変更種別の値が不正です
+  error_duplicate: その機器は既にこのマイルストーンの対象です
+
+power:
+  title: 電力集計
+  lead: 什器ごとに、搭載されている機器の消費電力を合算します
+  v2_hint: v1は什器単位のみです。回路単位の集計・冗長喪失時の負荷・電流ベースの容量管理は、ケーブルの接続記録に依存するためv2になります
+  virtual_hint: 仮想マシンとコンテナは合算しません。電力を引いているのはホストであり、数えると二重になります
+  running: 稼働中の台数
+  watt: 稼働中の消費電力
+  planned: 予約中の台数
+  watt_with_plan: 予約を含めた消費電力
+  virtual: 仮想（数えない）
+  total: 合計

@@ -12,8 +12,10 @@ pub mod import;
 pub mod login;
 pub mod member;
 pub mod merge;
+pub mod milestone;
 pub mod network;
 pub mod part;
+pub mod power;
 pub mod project;
 pub mod rack;
 pub mod sbom;
@@ -143,6 +145,20 @@ pub fn router(state: AppState) -> Router {
         .route("/projects/{id}/software/components", get(component::search))
         // コスト・契約管理（設計書16.1のB領域、10.2、10.3）
         .route("/projects/{id}/costs", get(cost::dashboard))
+        // マイルストーン（10.4）と電力集計（12.5〜12.7）
+        .route(
+            "/projects/{id}/milestones",
+            get(milestone::list).post(milestone::create),
+        )
+        .route(
+            "/projects/{id}/milestones/complete",
+            post(milestone::complete),
+        )
+        .route(
+            "/projects/{id}/milestones/devices",
+            post(milestone::add_device),
+        )
+        .route("/projects/{id}/power", get(power::show))
         .route(
             "/projects/{id}/costs/maintenance-contracts",
             get(cost::contracts).post(cost::create_contract),

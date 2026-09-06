@@ -1,0 +1,80 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/projects/{{ project_id }}/devices">{{ project_name }}</a></p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{# 回路単位はv2。CABLE_CONNECTION に依存する（設計書16.7、12.7） #}
+<p class="hint">{{ t_v2_hint }}</p>
+{# 仮想マシンとコンテナはホストが電力を引く。数えると二重になる #}
+<p class="hint">{{ t_virtual_hint }}</p>
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="panels">
+  <div class="card">
+    <h2>{{ t_watt }}</h2>
+    <p class="metric">{{ total_watt }} <span class="unit">W</span></p>
+  </div>
+  <div class="card">
+    <h2>{{ t_watt_with_plan }}</h2>
+    <p class="metric">{{ total_with_plan }} <span class="unit">W</span></p>
+  </div>
+</div>
+
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_container }}</th>
+      <th>{{ t_type }}</th>
+      <th>{{ t_running }}</th>
+      <th>{{ t_watt }}</th>
+      {# 予約中はまだ引いていないが、引く予定である（設計書11.6） #}
+      <th>{{ t_planned }}</th>
+      <th>{{ t_watt_with_plan }}</th>
+      {# 数えていないことを示す。黙って落とさない #}
+      <th>{{ t_virtual }}</th>
+      <th>{{ t_actions }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.name }}</td>
+      <td>{{ row.container_type }}</td>
+      <td>{{ row.running }}</td>
+      <td>{{ row.watt }} W</td>
+      <td>{{ row.planned }}</td>
+      <td>{{ row.watt_with_plan }} W</td>
+      <td>{{ row.virtual_count }}</td>
+      <td class="actions">
+        <a href="/projects/{{ project_id }}/containers/{{ row.id }}">{{ t_detail }}</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr>
+      <th>{{ t_total }}</th>
+      <td></td>
+      <td></td>
+      <td>{{ total_watt }} W</td>
+      <td></td>
+      <td>{{ total_with_plan }} W</td>
+      <td></td>
+      <td></td>
+    </tr>
+  </tfoot>
+</table>
+</div>
+{% endif %}
+
+{% endblock %}

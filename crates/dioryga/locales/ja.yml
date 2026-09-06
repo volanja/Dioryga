@@ -598,3 +598,62 @@ vlans:
   error_tag: タグは1〜4094で入力してください
   error_zone: ゾーンの値が不正です
   warn_duplicate_tag: "タグ %{tag} は「%{name}」で既に使われています。登録は行いましたが確認してください。"
+
+network:
+  subnets: サブネット
+  subnets_lead: IPアドレスをまとめる単位です。プロジェクトごとに分かれているため、別のプロジェクトが同じアドレス帯を使っていても衝突しません
+  cidr: CIDR
+  cidr_hint: 192.168.1.0/24 のように書きます
+  zone_hint: 未設定ならVLAN側のゾーンを使います。両方あるときはこちらを優先します
+  zone_from_vlan: VLAN由来
+  used: 使用中
+  shared: 共有
+  new_subnet: サブネットを登録
+  ip_addresses: IPアドレス
+  ip_addresses_lead: このプロジェクトの機器に現在付いているIPアドレスの一覧です
+  address: アドレス
+  prefix: プレフィックス長
+  subnet: サブネット
+  no_ip: IPアドレスが登録されていません
+  interfaces: インターフェース
+  interfaces_lead: 各ポートがOSからどう見えていて、何のネットワークに繋がっていて、何の仕事をしているかを記録します
+  interface: インターフェース
+  interface_hint: ens1f0 / bond0 / bond0.100 / Eth1/1/1 / Vlan100 など、OSやスイッチ上での名前です
+  interface_type: 種別
+  port: 物理ポート
+  port_hint: Physical のときだけ指定できます。この機器に載っているNICのポートから選びます
+  aggregation: 束ね方
+  aggregation_hint: Bond のときだけ指定できます
+  members: 束ねる下位
+  member_hint: ボンドは複数の物理ポートを束ね、VLANサブインターフェースはボンドの上に載ります。どちらも同じ仕組みで表します
+  tagging: タグ
+  vlan_hint: アクセスポートは Untagged が1行、トランクポートはネイティブVLANの Untagged とタグVLANの Tagged が並びます。VLANはカタログで登録します
+  roles: 役割
+  role_hint: そのインターフェースが担う仕事です。ゾーン（ネットワーク側）とは別軸で、両者の食い違いの検出に使います
+  target: 対象
+  no_interface: インターフェースが登録されていません
+  add_interface: インターフェースを追加
+  add_vlan: VLANを載せる
+  add_role: 役割を付ける
+  add_ip: IPアドレスを付ける
+  add_member: 束ねる
+  close: 閉じる
+  error_cidr: CIDRは 192.168.1.0/24 の形で入力してください
+  error_subnet_duplicate: そのCIDRはこのプロジェクトに既に登録されています
+  error_name: インターフェース名を入力してください
+  error_type: 種別の値が不正です
+  error_port: 物理ポートの指定が不正です
+  error_port_unused: 物理ポートを指定できるのは Physical のインターフェースだけです
+  error_aggregation: 束ね方の値が不正です
+  error_aggregation_unused: 束ね方を指定できるのは Bond のインターフェースだけです
+  error_interface_duplicate: その名前のインターフェースはこの機器に既にあります
+  error_tagging: タグの値が不正です
+  error_vlan_duplicate: そのVLANは既に載っています
+  error_role: 役割を入力してください
+  error_role_duplicate: その役割は既に付いています
+  error_ip: IPアドレスの指定が不正です
+  error_prefix: プレフィックス長は0〜128で入力してください
+  error_ip_duplicate: そのサブネットに同じIPアドレスが既にあります
+  error_member_self: 自分自身を束ねることはできません
+  error_member_cycle: 束ねる関係が循環します
+  error_member_duplicate: そのインターフェースは既に束ねられています

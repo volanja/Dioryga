@@ -1,0 +1,93 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/projects/{{ project_id }}/devices">{{ project_name }}</a></p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+  <p class="head-actions">
+    <a class="button ghost" href="/projects/{{ project_id }}/network/ip-addresses">{{ t_ip_addresses }}</a>
+  </p>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_cidr }}</th>
+      <th>{{ t_vlan }}</th>
+      <th>{{ t_zone }}</th>
+      <th>{{ t_used }}</th>
+      <th>{{ t_description }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>
+        {{ row.cidr }}
+        {# 共有バックボーン等はプロジェクトを持たない（設計書14.1） #}
+        {% if row.shared %}<span class="badge">{{ t_shared }}</span>{% endif %}
+      </td>
+      <td>{{ row.vlan }}</td>
+      <td>
+        {{ row.zone }}
+        {# 両方あるときは SUBNET を優先する（設計書14.2）。由来を明示する #}
+        {% if row.zone_from_vlan %}<span class="badge">{{ t_from_vlan }}</span>{% endif %}
+      </td>
+      <td>{{ row.used }}</td>
+      <td>{{ row.description }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_new }}</h2>
+<div class="card">
+  <form method="post" action="/projects/{{ project_id }}/network/subnets" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="cidr">{{ t_cidr }}</label>
+    <input type="text" id="cidr" name="cidr" required>
+    <p class="hint">{{ t_cidr_hint }}</p>
+
+    {# VLANを伴わないサブネットがありうる（設計書14.2） #}
+    <label for="vlan_id">{{ t_vlan }}</label>
+    <select id="vlan_id" name="vlan_id">
+      <option value="">{{ t_unset }}</option>
+      {% for v in vlans %}
+      <option value="{{ v.value }}">{{ v.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="zone">{{ t_zone }}</label>
+    <select id="zone" name="zone">
+      <option value="">{{ t_unset }}</option>
+      {% for z in zones %}
+      <option value="{{ z }}">{{ z }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_zone_hint }}</p>
+
+    <label for="description">{{ t_description }}</label>
+    <input type="text" id="description" name="description">
+
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

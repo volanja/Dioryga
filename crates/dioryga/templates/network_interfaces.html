@@ -1,0 +1,230 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ hostname }} - {{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb">
+      <a href="/projects/{{ project_id }}/devices/{{ device_id }}">{{ t_back }}</a>
+    </p>
+    <h1>{{ hostname }} — {{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_name }}</th>
+      <th>{{ t_type }}</th>
+      {# 意味を持つ列だけを埋める（設計書8.5）。Physical と Bond で別 #}
+      <th>{{ t_port }}</th>
+      <th>{{ t_aggregation }}</th>
+      <th>{{ t_members }}</th>
+      <th>{{ t_vlans }}</th>
+      <th>{{ t_roles }}</th>
+      <th>{{ t_ips }}</th>
+      {% if can_edit %}<th>{{ t_actions }}</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.name }}</td>
+      <td>{{ row.interface_type }}</td>
+      <td>{{ row.port }}</td>
+      <td>{{ row.aggregation_mode }}</td>
+      <td>{{ row.members }}</td>
+      <td>{{ row.vlans }}</td>
+      <td>{{ row.roles }}</td>
+      <td class="mono">{{ row.ips }}</td>
+      {% if can_edit %}
+      <td class="actions">
+        {# 消さずに閉じる（設計書4章）。上に載っているものも一緒に閉じる #}
+        <form method="post" action="/projects/{{ project_id }}/devices/{{ device_id }}/interfaces/close" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <input type="hidden" name="target" value="interface">
+          <input type="hidden" name="id" value="{{ row.id }}">
+          <button type="submit" class="ghost">{{ t_close }}</button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_add }}</h2>
+<div class="card">
+  <form method="post" action="/projects/{{ project_id }}/devices/{{ device_id }}/interfaces" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="os_interface_name">{{ t_name }}</label>
+    <input type="text" id="os_interface_name" name="os_interface_name" required>
+    <p class="hint">{{ t_name_hint }}</p>
+
+    <label for="interface_type">{{ t_type }}</label>
+    <select id="interface_type" name="interface_type">
+      {% for t in interface_types %}
+      <option value="{{ t }}">{{ t }}</option>
+      {% endfor %}
+    </select>
+
+    {# 物理ポートを持てるのは Physical だけ（設計書8.5） #}
+    <label for="port">{{ t_port }}</label>
+    <select id="port" name="port">
+      <option value="">{{ t_unset }}</option>
+      {% for p in ports %}
+      <option value="{{ p.value }}">{{ p.label }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_port_hint }}</p>
+
+    {# aggregation_mode を持てるのは Bond だけ（設計書8.5） #}
+    <label for="aggregation_mode">{{ t_aggregation }}</label>
+    <select id="aggregation_mode" name="aggregation_mode">
+      <option value="">{{ t_unset }}</option>
+      {% for m in aggregation_modes %}
+      <option value="{{ m }}">{{ m }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_aggregation_hint }}</p>
+
+    <button type="submit">{{ t_add }}</button>
+  </form>
+</div>
+
+{% if !rows.is_empty() %}
+<div class="panels">
+  {# 束ねる（設計書8.5）。中間テーブルなので上下どちらの向きも作れる #}
+  <div class="card">
+    <h2>{{ t_add_member }}</h2>
+    <form method="post" action="/projects/{{ project_id }}/devices/{{ device_id }}/interfaces/members" class="form">
+      <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+      <label for="member_upper">{{ t_target }}</label>
+      <select id="member_upper" name="os_interface_id">
+        {% for c in candidates %}
+        <option value="{{ c.value }}">{{ c.label }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="member_lower">{{ t_members }}</label>
+      <select id="member_lower" name="lower_interface_id">
+        {% for c in candidates %}
+        <option value="{{ c.value }}">{{ c.label }}</option>
+        {% endfor %}
+      </select>
+      <p class="hint">{{ t_member_hint }}</p>
+
+      <button type="submit">{{ t_add_member }}</button>
+    </form>
+  </div>
+
+  {# ポートVLANとタグVLANを同じ形で扱う（設計書8.6） #}
+  <div class="card">
+    <h2>{{ t_add_vlan }}</h2>
+    {% if vlans.is_empty() %}
+    <p class="empty">{{ t_vlan_hint }}</p>
+    {% else %}
+    <form method="post" action="/projects/{{ project_id }}/devices/{{ device_id }}/interfaces/vlans" class="form">
+      <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+      <label for="vlan_target">{{ t_target }}</label>
+      <select id="vlan_target" name="os_interface_id">
+        {% for c in candidates %}
+        <option value="{{ c.value }}">{{ c.label }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="vlan_id">{{ t_vlans }}</label>
+      <select id="vlan_id" name="vlan_id">
+        {% for v in vlans %}
+        <option value="{{ v.value }}">{{ v.label }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="tagging_mode">{{ t_tagging }}</label>
+      <select id="tagging_mode" name="tagging_mode">
+        {% for m in tagging_modes %}
+        <option value="{{ m }}">{{ m }}</option>
+        {% endfor %}
+      </select>
+      <p class="hint">{{ t_vlan_hint }}</p>
+
+      <button type="submit">{{ t_add_vlan }}</button>
+    </form>
+    {% endif %}
+  </div>
+
+  {# 役割はホスト側の属性。ゾーンとは別軸（設計書8.5） #}
+  <div class="card">
+    <h2>{{ t_add_role }}</h2>
+    <form method="post" action="/projects/{{ project_id }}/devices/{{ device_id }}/interfaces/roles" class="form">
+      <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+      <label for="role_target">{{ t_target }}</label>
+      <select id="role_target" name="os_interface_id">
+        {% for c in candidates %}
+        <option value="{{ c.value }}">{{ c.label }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="role">{{ t_roles }}</label>
+      <input type="text" id="role" name="role" list="role-candidates" required>
+      <datalist id="role-candidates">
+        {% for r in roles %}
+        <option value="{{ r }}"></option>
+        {% endfor %}
+      </datalist>
+      <p class="hint">{{ t_role_hint }}</p>
+
+      <button type="submit">{{ t_add_role }}</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>{{ t_add_ip }}</h2>
+    <form method="post" action="/projects/{{ project_id }}/devices/{{ device_id }}/interfaces/ips" class="form">
+      <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+      <label for="ip_target">{{ t_target }}</label>
+      <select id="ip_target" name="os_interface_id">
+        {% for c in candidates %}
+        <option value="{{ c.value }}">{{ c.label }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="ip_address">{{ t_address }}</label>
+      <input type="text" id="ip_address" name="ip_address" required>
+
+      <label for="prefix_length">{{ t_prefix }}</label>
+      <input type="text" id="prefix_length" name="prefix_length" inputmode="numeric" required>
+
+      <label for="subnet_id">{{ t_subnet }}</label>
+      <select id="subnet_id" name="subnet_id">
+        <option value="">{{ t_unset }}</option>
+        {% for s in subnets %}
+        <option value="{{ s.value }}">{{ s.label }}</option>
+        {% endfor %}
+      </select>
+
+      <button type="submit">{{ t_add_ip }}</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% endblock %}

@@ -14,8 +14,8 @@
 | [public.chassis_model](public.chassis_model.md) | 11 | 筐体モデル。自然キーは `(vendor_id, model_name)`。**別ベンダーなら同じ型番を持てる**（6.2）。 | BASE TABLE |
 | [public.chassis_slot](public.chassis_slot.md) | 6 | 筐体モデルが持つスロット。**無条件の一覧である。**「4CPU構成でなければ使えない」といった<br />条件付き制約は表現しない（6.1で対応しないと決着済み）。<br /> | BASE TABLE |
 | [public.part_catalog](public.part_catalog.md) | 13 | 部品カタログ。**集計に使う値だけをカラム化する**ハイブリッド方針（6.4）。<br /> | BASE TABLE |
-| [public.part_port_slot](public.part_port_slot.md) | 10 | 部品が備えるポート（8.3、8.7）。 | BASE TABLE |
-| [public.configuration](public.configuration.md) | 7 | 筐体モデルに対する構成（6.2）。 | BASE TABLE |
+| [public.part_port_slot](public.part_port_slot.md) | 8 | 部品が備えるポート（8.3、8.7）。 | BASE TABLE |
+| [public.configuration](public.configuration.md) | 10 | 筐体モデルに対する構成（6.2）。 | BASE TABLE |
 | [public.configuration_part](public.configuration_part.md) | 6 | 構成に含まれる部品。同じ部品を複数行に分けず `quantity` で表す。 | BASE TABLE |
 | [public.cable_catalog](public.cable_catalog.md) | 10 | ケーブルのカタログ（8.3）。**v1では画面・取込の対象外**だが定義は持つ。 | BASE TABLE |
 | [public.cable_end_slot](public.cable_end_slot.md) | 7 | ケーブルの端。**端ごとに異なるコネクタを持てる**（8.7）。<br />NEMA 5-15P と C13、LC と SC のような非対称なケーブルを表すため両端を別レコードにしている。<br /> | BASE TABLE |
@@ -56,6 +56,7 @@
 | [public.sbom_import](public.sbom_import.md) | 8 | SBOMの取込記録（9.5）。**`superseded_at` は他の履歴テーブルの `to_date` と同じ役割**を果たす。<br />**取込は SOFTWARE_INSTANCE も VENDOR も自動生成しない**（9.6。資産管理の判断は人が行う）。<br /> | BASE TABLE |
 | [public.sbom_component_change](public.sbom_component_change.md) | 7 | 直前の取込との差分（9.5）。**SBOM取込の目的はこれを記録すること**であり、<br />コンポーネント1件ごとの集計は要件ではない（9.2）。構成に変化がなければ0件。<br /> | BASE TABLE |
 | [public.sbom_component_index](public.sbom_component_index.md) | 5 | 機器横断のコンポーネント検索用の索引（9.8）。**再構築可能な派生索引であり、真実の源は SBOM_SNAPSHOT。**<br />**`content_hash` 単位に張る（Device単位にしない）。**Device単位だと3,000万行になる。<br /> | BASE TABLE |
+| [public.port_power_rating](public.port_power_rating.md) | 7 | ポートが受け付ける給電方式と定格電圧（12.7）。**給電方式ごとに1行。**<br />交流と直流の双方を受けるPSUが実在するため、`PART_PORT_SLOT` の列にはできない。<br /> | BASE TABLE |
 
 ## Relations
 

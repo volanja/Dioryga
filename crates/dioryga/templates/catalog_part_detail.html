@@ -46,7 +46,7 @@
       <th>{{ t_port_label }}</th>
       <th>{{ t_connector_type }}</th>
       <th>{{ t_port_speed }}</th>
-      <th>{{ t_voltage }}</th>
+      <th>{{ t_power }}</th>
       {% if can_edit %}<th>{{ t_actions }}</th>{% endif %}
     </tr>
   </thead>
@@ -58,7 +58,7 @@
       <td>{{ p.connector_type }}</td>
       {# 意味を持つ列だけを見せる（設計書8.3、12.7） #}
       <td>{{ p.port_speed }}</td>
-      <td>{{ p.voltage }}</td>
+      <td>{{ p.power }}</td>
       {% if can_edit %}
       <td class="actions">
         <form method="post" action="/catalog/parts/{{ part_id }}/ports/remove" class="inline">
@@ -99,14 +99,80 @@
     <input type="text" id="port_speed" name="port_speed">
     <p class="hint">{{ t_port_speed_hint }}</p>
 
+    <button type="submit">{{ t_add_port }}</button>
+  </form>
+</div>
+{% endif %}
+
+{# 電源定格は子テーブルに持つ（設計書12.7）。1つのポートが交流と直流の
+   双方を受けうるため、方式ごとに1行になる #}
+<h2 class="section">{{ t_power }}</h2>
+<p class="hint">{{ t_power_hint }}</p>
+
+{% if ratings.is_empty() %}
+<p class="empty">{{ t_no_rating }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_port }}</th>
+      <th>{{ t_current_type }}</th>
+      <th>{{ t_voltage_min }}〜{{ t_voltage_max }}</th>
+      {% if can_edit %}<th>{{ t_actions }}</th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in ratings %}
+    <tr>
+      <td>{{ r.port_label }}</td>
+      <td>{{ r.current_type }}</td>
+      <td>{{ r.range }}</td>
+      {% if can_edit %}
+      <td class="actions">
+        <form method="post" action="/catalog/parts/{{ part_id }}/power-ratings/remove" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <input type="hidden" name="rating_id" value="{{ r.id }}">
+          <button type="submit" class="ghost">{{ t_remove }}</button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{# 足せる相手は Power のポートだけ。1本も無いなら form 自体を出さない #}
+{% if can_edit && !power_ports.is_empty() %}
+<h2 class="section">{{ t_add_rating }}</h2>
+<div class="card">
+  <form method="post" action="/catalog/parts/{{ part_id }}/power-ratings" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="part_port_slot_id">{{ t_port }}</label>
+    <select id="part_port_slot_id" name="part_port_slot_id">
+      {% for p in power_ports %}
+      <option value="{{ p.value }}">{{ p.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="current_type">{{ t_current_type }}</label>
+    <select id="current_type" name="current_type">
+      {% for c in current_types %}
+      <option value="{{ c }}">{{ c }}</option>
+      {% endfor %}
+    </select>
+
     <label for="voltage_min">{{ t_voltage_min }}</label>
-    <input type="text" id="voltage_min" name="voltage_min" inputmode="numeric">
+    <input type="text" id="voltage_min" name="voltage_min" inputmode="numeric" required>
 
     <label for="voltage_max">{{ t_voltage_max }}</label>
-    <input type="text" id="voltage_max" name="voltage_max" inputmode="numeric">
+    <input type="text" id="voltage_max" name="voltage_max" inputmode="numeric" required>
     <p class="hint">{{ t_voltage_hint }}</p>
 
-    <button type="submit">{{ t_add_port }}</button>
+    <button type="submit">{{ t_add_rating }}</button>
   </form>
 </div>
 {% endif %}

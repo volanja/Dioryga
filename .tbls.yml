@@ -131,6 +131,13 @@ comments:
       条件付き制約は表現しない（6.1で対応しないと決着済み）。
   - table: configuration
     tableComment: 筐体モデルに対する構成（6.2）。
+    columnComments:
+      current_type: |
+        その構成で**実際に使う**給電方式（12.8）。カタログでは決まらないためここに持つ
+      assumed_voltage: 想定電圧（V）。**DCは負値をとりうる**
+      assumed_va: |
+        引くと見込む皮相電力。**ワットではない**——ブレーカーに効くのは皮相電力（12.7）。
+        **電流は保存しない**（A = VA ÷ V で求める）
   - table: configuration_part
     tableComment: 構成に含まれる部品。同じ部品を複数行に分けず `quantity` で表す。
   - table: part_catalog
@@ -144,6 +151,15 @@ comments:
     tableComment: 部品が備えるポート（8.3、8.7）。
     columnComments:
       port_speed: port_kind=Network のときのみ意味を持つ
+  - table: port_power_rating
+    tableComment: |
+      ポートが受け付ける給電方式と定格電圧（12.7）。**給電方式ごとに1行。**
+      交流と直流の双方を受けるPSUが実在するため、`PART_PORT_SLOT` の列にはできない。
+    columnComments:
+      voltage_min: |
+        **DCは負値をとりうる。**絶対値ではなく符号を含めた大小で扱う
+        （-48V電源は -72 が下限、-40 が上限）
+      voltage_max: 同上
   - table: cable_catalog
     tableComment: ケーブルのカタログ（8.3）。**v1では画面・取込の対象外**だが定義は持つ。
     columnComments:

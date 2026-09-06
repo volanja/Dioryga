@@ -116,6 +116,14 @@ impl Audited for entity::part_port_slot::Model {
     }
 }
 
+impl Audited for entity::port_power_rating::Model {
+    const TABLE: &'static str = "port_power_rating";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
 impl Audited for entity::configuration::Model {
     const TABLE: &'static str = "configuration";
 

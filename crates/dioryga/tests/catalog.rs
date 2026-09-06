@@ -21,7 +21,7 @@ use dioryga::config::Config;
 use dioryga::server::{router, AppState};
 use entity::{
     app_user, chassis_model, chassis_slot, configuration, configuration_part, device, part_catalog,
-    part_port_slot, project, project_member, vendor,
+    part_port_slot, port_power_rating, project, project_member, vendor,
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
@@ -621,9 +621,9 @@ async fn ポートの列は種別ごとに意味を持つ(db: &DatabaseConnectio
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("Network のポートだけ"));
 
-    // Network に電圧は指定できない
+    // Network に電源定格は付けられない
     let (状態, token) = 認証済み(db, &user).await;
-    let (status, body) = ポートを送る(
+    let (status, _) = ポートを送る(
         状態,
         &token,
         p.id,
@@ -631,80 +631,300 @@ async fn ポートの列は種別ごとに意味を持つ(db: &DatabaseConnectio
             ("port_kind", "Network"),
             ("port_label", "Port1"),
             ("connector_type", "SFP28"),
-            ("voltage_min", "100"),
-            ("voltage_max", "240"),
         ],
     )
     .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let port = ポート一覧(db, p.id).await.remove(0);
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 定格を送る(状態, &token, p.id, port.id, "AC", "100", "240").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("Power のポートだけ"));
 
-    assert!(ポート一覧(db, p.id).await.is_empty());
+    assert!(定格一覧(db, port.id).await.is_empty());
 }
 
 /// **電圧は範囲で持つ。片方だけでは意味を成さない**（設計書12.7）。
 ///
 /// 「100-240V対応」と「200V専用」を区別するために範囲にしている。
 async fn 電圧は下限と上限の両方が要る(db: &DatabaseConnection) {
-    let user = メンバーの利用者(db, "voltage@example.com", "Operator").await;
-    let v = ベンダー(db, "Delta", user.id).await;
-    let p = 部品(db, v.id, "PSU", "PSU-800W", user.id).await;
+    let 場 = 電源ポート(db, "voltage@example.com").await;
 
-    let (状態, token) = 認証済み(db, &user).await;
-    let (status, body) = ポートを送る(
-        状態,
-        &token,
-        p.id,
-        &[
-            ("port_kind", "Power"),
-            ("port_label", "Inlet"),
-            ("connector_type", "IEC C14"),
-            ("voltage_min", "100"),
-        ],
-    )
-    .await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 定格を送る(状態, &token, 場.part_id, 場.port_id, "AC", "100", "").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("下限と上限の両方"));
 
     // 逆転していても拒否する
-    let (状態, token) = 認証済み(db, &user).await;
-    let (status, body) = ポートを送る(
-        状態,
-        &token,
-        p.id,
-        &[
-            ("port_kind", "Power"),
-            ("port_label", "Inlet"),
-            ("connector_type", "IEC C14"),
-            ("voltage_min", "240"),
-            ("voltage_max", "100"),
-        ],
-    )
-    .await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 定格を送る(状態, &token, 場.part_id, 場.port_id, "AC", "240", "100").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("下限が上限を超えています"));
 
     // 両方揃えば通る
-    let (状態, token) = 認証済み(db, &user).await;
-    let (status, _) = ポートを送る(
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 定格を送る(状態, &token, 場.part_id, 場.port_id, "AC", "100", "240").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let ratings = 定格一覧(db, 場.port_id).await;
+    assert_eq!(ratings.len(), 1);
+    assert_eq!(ratings[0].current_type, "AC");
+    assert_eq!(ratings[0].voltage_min, 100);
+    assert_eq!(ratings[0].voltage_max, 240);
+}
+
+// ---------------------------------------------------------------------------
+// 電源定格（設計書12.7）
+// ---------------------------------------------------------------------------
+
+/// **1つのポートが交流と直流の双方を持てること**（設計書12.7）。
+///
+/// **これが `PORT_POWER_RATING` を子テーブルにした理由そのものである。**
+/// Dellには`AC 100~240V`と`DC 240V`の双方を受けるPSUが実在する。列で持つ形では
+/// `current_type` を置く場所が無く、範囲も1つしか持てない。
+async fn 交流と直流の双方を持てる(db: &DatabaseConnection) {
+    let 場 = 電源ポート(db, "acdc@example.com").await;
+
+    for (kind, min, max) in [("AC", "100", "240"), ("DC", "240", "240")] {
+        let (状態, token) = 認証済み(db, &場.user).await;
+        let (status, _) = 定格を送る(状態, &token, 場.part_id, 場.port_id, kind, min, max).await;
+        assert_eq!(status, StatusCode::SEE_OTHER);
+    }
+
+    let ratings = 定格一覧(db, 場.port_id).await;
+    assert_eq!(ratings.len(), 2, "同じポートに2方式を持てていない");
+
+    // 画面にも両方出る
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &format!("/catalog/parts/{}", 場.part_id), &token).await;
+    assert!(body.contains("100〜240V"));
+    assert!(body.contains("240V"));
+}
+
+/// **直流の負電圧は符号を含めたまま扱うこと**（設計書12.7）。
+///
+/// Ciscoの`-48V`電源は許容範囲が`-40 to -72`であり、**絶対値が大きいほうが
+/// 上限ではない。**-72を下限、-40を上限として素直な大小で扱う。
+async fn 直流の負電圧は符号込みで扱う(db: &DatabaseConnection) {
+    let 場 = 電源ポート(db, "dc@example.com").await;
+
+    // 絶対値で見ていると「-72 > -40」と誤って弾く
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 定格を送る(状態, &token, 場.part_id, 場.port_id, "DC", "-72", "-40").await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "負の範囲が拒否された");
+
+    let ratings = 定格一覧(db, 場.port_id).await;
+    assert_eq!(ratings[0].voltage_min, -72);
+    assert_eq!(ratings[0].voltage_max, -40);
+}
+
+/// **方式ごとに1行**（設計書12.7）。同じポートに`AC`を2行持つ意味は無い。
+async fn 同じ方式の定格は重ねられない(db: &DatabaseConnection) {
+    let 場 = 電源ポート(db, "dup-rating@example.com").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 定格を送る(状態, &token, 場.part_id, 場.port_id, "AC", "100", "240").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 定格を送る(状態, &token, 場.part_id, 場.port_id, "AC", "200", "200").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("同じ給電方式の定格が既に"));
+
+    assert_eq!(定格一覧(db, 場.port_id).await.len(), 1);
+}
+
+/// 語彙外の給電方式は**既定へ寄せず拒否する**（Q-21）。
+async fn 語彙外の給電方式は拒否される(db: &DatabaseConnection) {
+    let 場 = 電源ポート(db, "kind@example.com").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) =
+        定格を送る(状態, &token, 場.part_id, 場.port_id, "AC/DC", "100", "240").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("給電方式の値が不正"));
+
+    assert!(定格一覧(db, 場.port_id).await.is_empty());
+}
+
+// ---------------------------------------------------------------------------
+// 想定消費電力（設計書12.8）
+// ---------------------------------------------------------------------------
+
+/// **3つ揃うか、3つとも空か**（設計書12.8）。
+///
+/// この3列は「何アンペア引く見込みか」と「PSUの対応範囲に収まっているか」に
+/// 答えるためのもので、欠けた組み合わせではどちらにも答えられない。
+async fn 想定消費電力は三つ揃うか空か(db: &DatabaseConnection) {
+    let 場 = 部品つき構成(db, "power-partial@example.com").await;
+
+    // 電圧だけ
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 電力を送る(状態, &token, 場.configuration_id, "", "200", "").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("3つとも入れるか"));
+
+    // 3つとも空は「未設定」として通る
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 電力を送る(状態, &token, 場.configuration_id, "", "", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let c = 構成を引く(db, 場.configuration_id).await;
+    assert!(c.current_type.is_none());
+    assert!(c.assumed_voltage.is_none());
+    assert!(c.assumed_va.is_none());
+}
+
+/// **電流は保存せず計算して見せる**（不変条件2、設計書12.7）。
+async fn 想定電流は計算して見せる(db: &DatabaseConnection) {
+    let 場 = 部品つき構成(db, "power-amp@example.com").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 電力を送る(状態, &token, 場.configuration_id, "AC", "200", "1500").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(
         状態,
+        &format!("/catalog/configurations/{}", 場.configuration_id),
         &token,
-        p.id,
+    )
+    .await;
+    assert!(body.contains("7.5A"), "VA ÷ V が表示されていない");
+
+    // **0Vは受け付けない。**`A = VA ÷ V` が定義できない
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 電力を送る(状態, &token, 場.configuration_id, "AC", "0", "1500").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("0は指定できません"));
+}
+
+/// **DC構成が往復すること**（設計書12.8）。負電圧でも電流は絶対値で出る。
+async fn 直流の構成が往復する(db: &DatabaseConnection) {
+    let 場 = 部品つき構成(db, "power-dc@example.com").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 電力を送る(状態, &token, 場.configuration_id, "DC", "-48", "480").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let c = 構成を引く(db, 場.configuration_id).await;
+    assert_eq!(c.current_type.as_deref(), Some("DC"));
+    assert_eq!(c.assumed_voltage, Some(-48));
+    assert_eq!(c.assumed_va, Some(480));
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(
+        状態,
+        &format!("/catalog/configurations/{}", 場.configuration_id),
+        &token,
+    )
+    .await;
+    assert!(body.contains("10.0A"), "負電圧で電流が出ていない");
+}
+
+/// **対応範囲から外れていても保存し、警告する**（設計書12.8、不変条件6）。
+///
+/// 実機が仕様の想定外であることはありうるし、誤って拒否すると事実を記録できない。
+async fn 対応範囲外は保存して警告する(db: &DatabaseConnection) {
+    let 場 = 電源つき構成(db, "power-range@example.com", &[("AC", 100, 240)]).await;
+
+    // AC 100〜240V のPSUに、DC -48V を宣言している
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 電力を送る(状態, &token, 場.configuration_id, "DC", "-48", "480").await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "警告ではなく拒否している");
+
+    let c = 構成を引く(db, 場.configuration_id).await;
+    assert_eq!(c.assumed_voltage, Some(-48), "保存されていない");
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(
+        状態,
+        &format!("/catalog/configurations/{}", 場.configuration_id),
+        &token,
+    )
+    .await;
+    assert!(body.contains("対応する範囲から外れて"));
+}
+
+/// **範囲に収まっていれば警告しないこと**（設計書12.8）。
+async fn 範囲に収まれば警告しない(db: &DatabaseConnection) {
+    // 交流と直流の双方を受けるPSU。**DCで宣言しても通る**
+    let 場 = 電源つき構成(
+        db,
+        "power-ok@example.com",
+        &[("AC", 100, 240), ("DC", -72, -40)],
+    )
+    .await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 電力を送る(状態, &token, 場.configuration_id, "DC", "-48", "480").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(
+        状態,
+        &format!("/catalog/configurations/{}", 場.configuration_id),
+        &token,
+    )
+    .await;
+    assert!(
+        !body.contains("対応する範囲から外れて"),
+        "-72 ≤ -48 ≤ -40 を絶対値で比べている"
+    );
+}
+
+/// **定格が1件も登録されていなければ判定しない**（設計書12.8）。
+///
+/// #53の取込が入るまでデータが無く、「登録されていない」を「違反」と扱うと
+/// **警告が常に出る状態になり、それは警告が無いのと同じ**である。
+async fn 定格が未登録なら検証しない(db: &DatabaseConnection) {
+    let 場 = 電源つき構成(db, "power-none@example.com", &[]).await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 電力を送る(状態, &token, 場.configuration_id, "DC", "-48", "480").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(
+        状態,
+        &format!("/catalog/configurations/{}", 場.configuration_id),
+        &token,
+    )
+    .await;
+    assert!(!body.contains("対応する範囲から外れて"));
+}
+
+/// 登録フォームからも入れられること（設計書12.8）。
+async fn 登録時にも消費電力を入れられる(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "power-new@example.com", "Operator").await;
+    let v = ベンダー(db, "HPE", user.id).await;
+    let m = 筐体モデル(db, v.id, "DL360 Gen10", user.id).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = 送信(
+        状態,
+        "/catalog/configurations",
+        &token,
         &[
-            ("port_kind", "Power"),
-            ("port_label", "Inlet"),
-            ("connector_type", "IEC C14"),
-            ("voltage_min", "100"),
-            ("voltage_max", "240"),
+            ("chassis_model_id", &m.id.to_string()),
+            ("name", "高性能Web構成"),
+            ("current_type", "AC"),
+            ("assumed_voltage", "200"),
+            ("assumed_va", "1500"),
         ],
     )
     .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
 
-    let ports = ポート一覧(db, p.id).await;
-    assert_eq!(ports.len(), 1);
-    assert_eq!(ports[0].voltage_min, Some(100));
-    assert_eq!(ports[0].voltage_max, Some(240));
+    let c = configuration::Entity::find()
+        .filter(configuration::Column::Name.eq("高性能Web構成"))
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(c.current_type.as_deref(), Some("AC"));
+    assert_eq!(c.assumed_va, Some(1500));
 }
 
 // ---------------------------------------------------------------------------
@@ -862,6 +1082,153 @@ async fn ポートを送る(
         fields,
     )
     .await
+}
+
+struct 電源の舞台 {
+    user: app_user::Model,
+    part_id: i32,
+    port_id: i32,
+}
+
+/// PSUと`port_kind=Power`のポートを1本用意する。
+async fn 電源ポート(db: &DatabaseConnection, email: &str) -> 電源の舞台 {
+    let user = メンバーの利用者(db, email, "Operator").await;
+    let v = ベンダー(db, "Delta", user.id).await;
+    let p = 部品(db, v.id, "PSU", "PSU-800W", user.id).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = ポートを送る(
+        状態,
+        &token,
+        p.id,
+        &[
+            ("port_kind", "Power"),
+            ("port_label", "Inlet"),
+            ("connector_type", "IEC C14"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let port = ポート一覧(db, p.id).await.remove(0);
+    電源の舞台 {
+        user,
+        part_id: p.id,
+        port_id: port.id,
+    }
+}
+
+/// PSUを1つ含む構成。`ratings` に渡した電源定格をそのPSUのポートに付ける。
+async fn 電源つき構成(
+    db: &DatabaseConnection,
+    email: &str,
+    ratings: &[(&str, i32, i32)],
+) -> 構成の舞台 {
+    let user = メンバーの利用者(db, email, "Operator").await;
+    let v = ベンダー(db, "HPE", user.id).await;
+    let m = 筐体モデル(db, v.id, "DL360 Gen10", user.id).await;
+    let c = 構成(db, m.id, "標準構成", user.id).await;
+    let psu = 部品(db, v.id, "PSU", "P38995-B21", user.id).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    部品を足す(状態, &token, c.id, psu.id, "2").await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    ポートを送る(
+        状態,
+        &token,
+        psu.id,
+        &[
+            ("port_kind", "Power"),
+            ("port_label", "Inlet"),
+            ("connector_type", "IEC C14"),
+        ],
+    )
+    .await;
+    let port = ポート一覧(db, psu.id).await.remove(0);
+
+    for (kind, min, max) in ratings {
+        let (状態, token) = 認証済み(db, &user).await;
+        let (status, _) = 定格を送る(
+            状態,
+            &token,
+            psu.id,
+            port.id,
+            kind,
+            &min.to_string(),
+            &max.to_string(),
+        )
+        .await;
+        assert_eq!(status, StatusCode::SEE_OTHER);
+    }
+
+    構成の舞台 {
+        user,
+        chassis_model_id: m.id,
+        configuration_id: c.id,
+        part_id: psu.id,
+    }
+}
+
+async fn 定格を送る(
+    state: AppState,
+    token: &str,
+    part_id: i32,
+    port_id: i32,
+    current_type: &str,
+    min: &str,
+    max: &str,
+) -> (StatusCode, String) {
+    送信(
+        state,
+        &format!("/catalog/parts/{part_id}/power-ratings"),
+        token,
+        &[
+            ("part_port_slot_id", &port_id.to_string()),
+            ("current_type", current_type),
+            ("voltage_min", min),
+            ("voltage_max", max),
+        ],
+    )
+    .await
+}
+
+async fn 電力を送る(
+    state: AppState,
+    token: &str,
+    configuration_id: i32,
+    current_type: &str,
+    voltage: &str,
+    va: &str,
+) -> (StatusCode, String) {
+    送信(
+        state,
+        &format!("/catalog/configurations/{configuration_id}/power"),
+        token,
+        &[
+            ("current_type", current_type),
+            ("assumed_voltage", voltage),
+            ("assumed_va", va),
+        ],
+    )
+    .await
+}
+
+async fn 定格一覧(db: &DatabaseConnection, port_id: i32) -> Vec<port_power_rating::Model> {
+    port_power_rating::Entity::find()
+        .filter(port_power_rating::Column::PartPortSlotId.eq(port_id))
+        .order_by_asc(port_power_rating::Column::Id)
+        .all(db)
+        .await
+        .unwrap()
+}
+
+async fn 構成を引く(db: &DatabaseConnection, id: i32) -> configuration::Model {
+    configuration::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap()
 }
 
 async fn ポート一覧(db: &DatabaseConnection, part_id: i32) -> Vec<part_port_slot::Model> {
@@ -1193,6 +1560,17 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 同一ベンダーの同じ型番は登録できない);
         全検証!(@one $用意, $属性, ポートの列は種別ごとに意味を持つ);
         全検証!(@one $用意, $属性, 電圧は下限と上限の両方が要る);
+        全検証!(@one $用意, $属性, 交流と直流の双方を持てる);
+        全検証!(@one $用意, $属性, 直流の負電圧は符号込みで扱う);
+        全検証!(@one $用意, $属性, 同じ方式の定格は重ねられない);
+        全検証!(@one $用意, $属性, 語彙外の給電方式は拒否される);
+        全検証!(@one $用意, $属性, 想定消費電力は三つ揃うか空か);
+        全検証!(@one $用意, $属性, 想定電流は計算して見せる);
+        全検証!(@one $用意, $属性, 直流の構成が往復する);
+        全検証!(@one $用意, $属性, 対応範囲外は保存して警告する);
+        全検証!(@one $用意, $属性, 範囲に収まれば警告しない);
+        全検証!(@one $用意, $属性, 定格が未登録なら検証しない);
+        全検証!(@one $用意, $属性, 登録時にも消費電力を入れられる);
         全検証!(@one $用意, $属性, 同じ部品は数量でまとめる);
         全検証!(@one $用意, $属性, スロット超過は警告に留まる);
         全検証!(@one $用意, $属性, スロット未登録なら警告を出さない);

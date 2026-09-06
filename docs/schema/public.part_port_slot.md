@@ -8,7 +8,7 @@
 
 | Name | Type | Default | Nullable | Children | Parents | Comment |
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
-| id | integer |  | false | [public.os_interface](public.os_interface.md) [public.cable_connection](public.cable_connection.md) |  |  |
+| id | integer |  | false | [public.os_interface](public.os_interface.md) [public.cable_connection](public.cable_connection.md) [public.port_power_rating](public.port_power_rating.md) |  |  |
 | part_catalog_id | integer |  | false |  | [public.part_catalog](public.part_catalog.md) |  |
 | port_kind | varchar |  | false |  |  |  |
 | port_label | varchar |  | false |  |  |  |
@@ -16,8 +16,6 @@
 | port_speed | varchar |  | true |  |  | port_kind=Network のときのみ意味を持つ |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
-| voltage_min | integer |  | true |  |  |  |
-| voltage_max | integer |  | true |  |  |  |
 
 ## Constraints
 

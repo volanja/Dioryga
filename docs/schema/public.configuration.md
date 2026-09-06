@@ -15,6 +15,9 @@
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
 | retired_at | timestamp with time zone |  | true |  |  |  |
+| current_type | varchar |  | true |  |  | その構成で**実際に使う**給電方式（12.8）。カタログでは決まらないためここに持つ<br /> |
+| assumed_voltage | integer |  | true |  |  | 想定電圧（V）。**DCは負値をとりうる** |
+| assumed_va | integer |  | true |  |  | 引くと見込む皮相電力。**ワットではない**——ブレーカーに効くのは皮相電力（12.7）。<br />**電流は保存しない**（A = VA ÷ V で求める）<br /> |
 
 ## Constraints
 

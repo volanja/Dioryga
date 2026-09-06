@@ -93,4 +93,48 @@
 </div>
 {% endif %}
 
+{# 想定消費電力（設計書12.8）。カタログではなく設計値なので人が入力する #}
+<h2 class="section">{{ t_power }}</h2>
+<p class="hint">{{ t_power_hint }}</p>
+
+{# 選んだPSUの対応範囲から外れていても保存はする（不変条件6） #}
+{% if let Some(message) = power_warning %}
+<p class="warn">{{ message }}</p>
+{% endif %}
+
+<div class="card">
+  {% if can_edit %}
+  <form method="post" action="/catalog/configurations/{{ configuration_id }}/power" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="current_type">{{ t_current_type }}</label>
+    <select id="current_type" name="current_type">
+      <option value="">{{ t_unset }}</option>
+      {% for c in current_types %}
+      <option value="{{ c }}"{% if current_type == *c %} selected{% endif %}>{{ c }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="assumed_voltage">{{ t_assumed_voltage }}</label>
+    <input type="text" id="assumed_voltage" name="assumed_voltage" inputmode="numeric"
+           value="{{ assumed_voltage }}">
+
+    <label for="assumed_va">{{ t_assumed_va }}</label>
+    <input type="text" id="assumed_va" name="assumed_va" inputmode="numeric"
+           value="{{ assumed_va }}">
+    <p class="hint">{{ t_assumed_va_hint }}</p>
+
+    <button type="submit">{{ t_save }}</button>
+  </form>
+  {% endif %}
+
+  {# 電流は保存せず計算して見せる（不変条件2、設計書12.7） #}
+  {% if let Some(a) = assumed_current %}
+  <dl>
+    <dt>A</dt>
+    <dd>{{ a }}</dd>
+  </dl>
+  {% endif %}
+</div>
+
 {% endblock %}

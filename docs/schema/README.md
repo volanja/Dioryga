@@ -17,7 +17,7 @@
 | [public.part_port_slot](public.part_port_slot.md) | 8 | 部品が備えるポート（8.3、8.7）。 | BASE TABLE |
 | [public.configuration](public.configuration.md) | 10 | 筐体モデルに対する構成（6.2）。 | BASE TABLE |
 | [public.configuration_part](public.configuration_part.md) | 6 | 構成に含まれる部品。同じ部品を複数行に分けず `quantity` で表す。 | BASE TABLE |
-| [public.cable_catalog](public.cable_catalog.md) | 10 | ケーブルのカタログ（8.3）。**v1では画面・取込の対象外**だが定義は持つ。 | BASE TABLE |
+| [public.cable_catalog](public.cable_catalog.md) | 13 | ケーブルのカタログ（8.3）。**v1では画面・取込の対象外**だが定義は持つ。 | BASE TABLE |
 | [public.cable_end_slot](public.cable_end_slot.md) | 7 | ケーブルの端。**端ごとに異なるコネクタを持てる**（8.7）。<br />NEMA 5-15P と C13、LC と SC のような非対称なケーブルを表すため両端を別レコードにしている。<br /> | BASE TABLE |
 | [public.software_catalog](public.software_catalog.md) | 12 | ソフトウェアのカタログ。**SBOM取込はこのテーブルを自動生成しない**（9.2）。<br />人が資産として登録したものだけを置く。<br /> | BASE TABLE |
 | [public.device](public.device.md) | 15 | 機器。**`in_stock` / `disposed` は `status` に持たない**（旧B-1）。<br />所在は DEVICE_ASSIGNMENT から導出する。状態を二重に持つと必ずずれる。<br /> | BASE TABLE |

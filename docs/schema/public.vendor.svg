@@ -199,48 +199,57 @@
 <!-- public.cable_catalog -->
 <g id="node4" class="node">
 <title>public.cable_catalog</title>
-<polygon fill="#efefef" stroke="none" points="821.22,-1304.6 821.22,-1340.2 1108.14,-1340.2 1108.14,-1304.6 821.22,-1304.6"/>
-<polygon fill="none" stroke="black" points="821.22,-1304.6 821.22,-1340.2 1108.14,-1340.2 1108.14,-1304.6 821.22,-1304.6"/>
-<text text-anchor="start" x="828.22" y="-1318" font-family="Arial Bold" font-size="18.00">public.cable_catalog</text>
-<text text-anchor="start" x="976.65" y="-1318" font-family="Arial" font-size="14.00">    </text>
-<text text-anchor="start" x="1007.77" y="-1318" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
-<polygon fill="none" stroke="black" points="821.22,-1273.8 821.22,-1304.6 1108.14,-1304.6 1108.14,-1273.8 821.22,-1273.8"/>
-<text text-anchor="start" x="828.22" y="-1286" font-family="Arial" font-size="14.00">id </text>
-<text text-anchor="start" x="843.01" y="-1286" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="821.22,-1243 821.22,-1273.8 1108.14,-1273.8 1108.14,-1243 821.22,-1243"/>
-<text text-anchor="start" x="828.22" y="-1255.2" font-family="Arial" font-size="14.00">cable_type </text>
-<text text-anchor="start" x="899.83" y="-1255.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="821.22,-1212.2 821.22,-1243 1108.14,-1243 1108.14,-1212.2 821.22,-1212.2"/>
-<text text-anchor="start" x="828.22" y="-1224.4" font-family="Arial" font-size="14.00">length_mm </text>
-<text text-anchor="start" x="901.37" y="-1224.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="821.22,-1181.4 821.22,-1212.2 1108.14,-1212.2 1108.14,-1181.4 821.22,-1181.4"/>
-<text text-anchor="start" x="828.22" y="-1193.6" font-family="Arial" font-size="14.00">color </text>
-<text text-anchor="start" x="862.46" y="-1193.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="821.22,-1150.6 821.22,-1181.4 1108.14,-1181.4 1108.14,-1150.6 821.22,-1150.6"/>
-<text text-anchor="start" x="828.22" y="-1162.8" font-family="Arial" font-size="14.00">vendor_id </text>
-<text text-anchor="start" x="893.6" y="-1162.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="821.22,-1119.8 821.22,-1150.6 1108.14,-1150.6 1108.14,-1119.8 821.22,-1119.8"/>
-<text text-anchor="start" x="828.22" y="-1132" font-family="Arial" font-size="14.00">part_number </text>
-<text text-anchor="start" x="911.49" y="-1132" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="821.22,-1089 821.22,-1119.8 1108.14,-1119.8 1108.14,-1089 821.22,-1089"/>
-<text text-anchor="start" x="828.22" y="-1101.2" font-family="Arial" font-size="14.00">created_by </text>
-<text text-anchor="start" x="901.38" y="-1101.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="821.22,-1058.2 821.22,-1089 1108.14,-1089 1108.14,-1058.2 821.22,-1058.2"/>
-<text text-anchor="start" x="828.22" y="-1070.4" font-family="Arial" font-size="14.00">created_at </text>
-<text text-anchor="start" x="898.27" y="-1070.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="821.22,-1027.4 821.22,-1058.2 1108.14,-1058.2 1108.14,-1027.4 821.22,-1027.4"/>
-<text text-anchor="start" x="828.22" y="-1039.6" font-family="Arial" font-size="14.00">updated_at </text>
-<text text-anchor="start" x="902.18" y="-1039.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="821.22,-996.6 821.22,-1027.4 1108.14,-1027.4 1108.14,-996.6 821.22,-996.6"/>
-<text text-anchor="start" x="828.22" y="-1008.8" font-family="Arial" font-size="14.00">retired_at </text>
-<text text-anchor="start" x="891.26" y="-1008.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="#efefef" stroke="none" points="821.22,-1350.8 821.22,-1386.4 1108.14,-1386.4 1108.14,-1350.8 821.22,-1350.8"/>
+<polygon fill="none" stroke="black" points="821.22,-1350.8 821.22,-1386.4 1108.14,-1386.4 1108.14,-1350.8 821.22,-1350.8"/>
+<text text-anchor="start" x="828.22" y="-1364.2" font-family="Arial Bold" font-size="18.00">public.cable_catalog</text>
+<text text-anchor="start" x="976.65" y="-1364.2" font-family="Arial" font-size="14.00">    </text>
+<text text-anchor="start" x="1007.77" y="-1364.2" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
+<polygon fill="none" stroke="black" points="821.22,-1320 821.22,-1350.8 1108.14,-1350.8 1108.14,-1320 821.22,-1320"/>
+<text text-anchor="start" x="828.22" y="-1332.2" font-family="Arial" font-size="14.00">id </text>
+<text text-anchor="start" x="843.01" y="-1332.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="821.22,-1289.2 821.22,-1320 1108.14,-1320 1108.14,-1289.2 821.22,-1289.2"/>
+<text text-anchor="start" x="828.22" y="-1301.4" font-family="Arial" font-size="14.00">cable_type </text>
+<text text-anchor="start" x="899.83" y="-1301.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="821.22,-1258.4 821.22,-1289.2 1108.14,-1289.2 1108.14,-1258.4 821.22,-1258.4"/>
+<text text-anchor="start" x="828.22" y="-1270.6" font-family="Arial" font-size="14.00">length_mm </text>
+<text text-anchor="start" x="901.37" y="-1270.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="821.22,-1227.6 821.22,-1258.4 1108.14,-1258.4 1108.14,-1227.6 821.22,-1227.6"/>
+<text text-anchor="start" x="828.22" y="-1239.8" font-family="Arial" font-size="14.00">color </text>
+<text text-anchor="start" x="862.46" y="-1239.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="821.22,-1196.8 821.22,-1227.6 1108.14,-1227.6 1108.14,-1196.8 821.22,-1196.8"/>
+<text text-anchor="start" x="828.22" y="-1209" font-family="Arial" font-size="14.00">vendor_id </text>
+<text text-anchor="start" x="893.6" y="-1209" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="821.22,-1166 821.22,-1196.8 1108.14,-1196.8 1108.14,-1166 821.22,-1166"/>
+<text text-anchor="start" x="828.22" y="-1178.2" font-family="Arial" font-size="14.00">part_number </text>
+<text text-anchor="start" x="911.49" y="-1178.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="821.22,-1135.2 821.22,-1166 1108.14,-1166 1108.14,-1135.2 821.22,-1135.2"/>
+<text text-anchor="start" x="828.22" y="-1147.4" font-family="Arial" font-size="14.00">created_by </text>
+<text text-anchor="start" x="901.38" y="-1147.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="821.22,-1104.4 821.22,-1135.2 1108.14,-1135.2 1108.14,-1104.4 821.22,-1104.4"/>
+<text text-anchor="start" x="828.22" y="-1116.6" font-family="Arial" font-size="14.00">created_at </text>
+<text text-anchor="start" x="898.27" y="-1116.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="821.22,-1073.6 821.22,-1104.4 1108.14,-1104.4 1108.14,-1073.6 821.22,-1073.6"/>
+<text text-anchor="start" x="828.22" y="-1085.8" font-family="Arial" font-size="14.00">updated_at </text>
+<text text-anchor="start" x="902.18" y="-1085.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="821.22,-1042.8 821.22,-1073.6 1108.14,-1073.6 1108.14,-1042.8 821.22,-1042.8"/>
+<text text-anchor="start" x="828.22" y="-1055" font-family="Arial" font-size="14.00">retired_at </text>
+<text text-anchor="start" x="891.26" y="-1055" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="821.22,-1012 821.22,-1042.8 1108.14,-1042.8 1108.14,-1012 821.22,-1012"/>
+<text text-anchor="start" x="828.22" y="-1024.2" font-family="Arial" font-size="14.00">cable_kind </text>
+<text text-anchor="start" x="899.05" y="-1024.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="821.22,-981.2 821.22,-1012 1108.14,-1012 1108.14,-981.2 821.22,-981.2"/>
+<text text-anchor="start" x="828.22" y="-993.4" font-family="Arial" font-size="14.00">rated_voltage </text>
+<text text-anchor="start" x="916.95" y="-993.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="821.22,-950.4 821.22,-981.2 1108.14,-981.2 1108.14,-950.4 821.22,-950.4"/>
+<text text-anchor="start" x="828.22" y="-962.6" font-family="Arial" font-size="14.00">rated_current_ma </text>
+<text text-anchor="start" x="942.62" y="-962.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
 </g>
 <!-- public.cable_catalog&#45;&gt;public.vendor -->
 <g id="edge3" class="edge">
 <title>public.cable_catalog:vendor_id&#45;&gt;public.vendor:id</title>
-<path fill="none" stroke="black" d="M1119.14,-1163.69C1164.3,-1141.07 1139.96,-958.47 1159.68,-907.2 1184.49,-842.72 1170.75,-774 1239.84,-774"/>
-<polygon fill="black" stroke="black" points="1119.21,-1163.68 1108.46,-1161.54 1114.01,-1164.88 1109.79,-1165.85 1109.79,-1165.85 1109.79,-1165.85 1114.01,-1164.88 1110.48,-1170.31 1119.21,-1163.68"/>
-<text text-anchor="start" x="1116.14" y="-1176" font-family="Arial" font-size="10.00">FOREIGN KEY (vendor_id) REFERENCES vendor(id)</text>
+<path fill="none" stroke="black" d="M1119.11,-1210.25C1173.61,-1187.32 1137.19,-968.27 1159.68,-907.2 1183.57,-842.37 1170.75,-774 1239.84,-774"/>
+<polygon fill="black" stroke="black" points="1119.29,-1210.22 1108.61,-1207.72 1114.05,-1211.24 1109.8,-1212.07 1109.8,-1212.07 1109.8,-1212.07 1114.05,-1211.24 1110.33,-1216.55 1119.29,-1210.22"/>
+<text text-anchor="start" x="1116.14" y="-1222.2" font-family="Arial" font-size="10.00">FOREIGN KEY (vendor_id) REFERENCES vendor(id)</text>
 </g>
 <!-- public.software_catalog -->
 <g id="node5" class="node">

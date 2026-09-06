@@ -2346,6 +2346,24 @@
           "name": "retired_at",
           "type": "timestamp with time zone",
           "nullable": true
+        },
+        {
+          "name": "cable_kind",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "Network / Power / Stack（8.7）。**ネットワークと電源はテーブルではなく\nここと画面で分ける。**接続グラフは流れているものによらず同じ形のため。\n**DB上はnullableだがアプリケーション層では必須**——SQLiteが後から\nNOT NULL を足す際に要求するDEFAULTが残り、種別未指定を黙って\nNetwork に分類してしまうため（8.6、24.3）\n"
+        },
+        {
+          "name": "rated_voltage",
+          "type": "integer",
+          "nullable": true,
+          "comment": "`cable_kind=Power` のときだけ意味を持つ（8.7）"
+        },
+        {
+          "name": "rated_current_ma",
+          "type": "integer",
+          "nullable": true,
+          "comment": "同上。**mAの整数**（24.2.1）。**形状が嵌合しても定格が足りなければ\n使えない**——同じC13に10A品と15A品がある\n"
         }
       ],
       "indexes": [

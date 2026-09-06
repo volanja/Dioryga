@@ -22,6 +22,7 @@ mod m20260905_000005_add_port_voltage;
 mod m20260905_000006_add_catalog_merge;
 mod m20260906_000001_create_port_power_rating;
 mod m20260906_000002_add_configuration_power;
+mod m20260906_000003_add_cable_rating;
 
 pub struct Migrator;
 
@@ -45,6 +46,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260905_000006_add_catalog_merge::Migration),
             Box::new(m20260906_000001_create_port_power_rating::Migration),
             Box::new(m20260906_000002_add_configuration_power::Migration),
+            Box::new(m20260906_000003_add_cable_rating::Migration),
         ]
     }
 }

@@ -166,6 +166,16 @@ comments:
       length_mm: |
         **ミリメートルの整数。**SQLiteに DECIMAL が無いため（24.2.1）。
         単位を列名に含めているのは1000倍の取り違えを防ぐため
+      cable_kind: |
+        Network / Power / Stack（8.7）。**ネットワークと電源はテーブルではなく
+        ここと画面で分ける。**接続グラフは流れているものによらず同じ形のため。
+        **DB上はnullableだがアプリケーション層では必須**——SQLiteが後から
+        NOT NULL を足す際に要求するDEFAULTが残り、種別未指定を黙って
+        Network に分類してしまうため（8.6、24.3）
+      rated_voltage: '`cable_kind=Power` のときだけ意味を持つ（8.7）'
+      rated_current_ma: |
+        同上。**mAの整数**（24.2.1）。**形状が嵌合しても定格が足りなければ
+        使えない**——同じC13に10A品と15A品がある
   - table: cable_end_slot
     tableComment: |
       ケーブルの端。**端ごとに異なるコネクタを持てる**（8.7）。

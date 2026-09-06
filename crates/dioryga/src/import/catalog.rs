@@ -24,12 +24,32 @@
 //!
 //! **黙って上書きさせない。**修正が必要な場合は新しいカタログ行を作る運用と
 //! する。取り返しのつかない変更を未然に防ぐのが2段階取込の狙いである。
+//!
+//! # ただし、子行が0件なら足す（23.4）
+//!
+//! 構成図パーサ（25章）は情報を段階的に供給する。**初回の取込にポート定義が
+//! 含まれていなかった部品は、「既存は触らない」をそのまま適用すると永久に
+//! 空のまま**になり、手入力に頼ることになる——10,000台規模でそれは実質
+//! 「入らない」を意味する（22.2）。
+//!
+//! **足すのは子行が1件も無いときだけ。**既にある定義には触れないため、
+//! **上書きは起こらない。**18.2が禁じているのはスペックの*編集*であり、
+//! 無かった定義が増えることは編集にあたらない。参照の有無は問わない。
+//!
+//! # 閉じた語彙と開いた語彙（8.6）
+//!
+//! 拒否するのは**閉じた語彙**——`port_kind` と `current_type`——だけである。
+//! `connector_type` と `port_speed` は `vocabularies.md` でも末尾が `...` の
+//! 開いた列挙であり、**閉じると「表に無いから取り込めない」が常態になる。**
+//! コネクタ形状も速度表記もベンダーと世代で増え続けるためで、正規化した
+//! 自由入力として受ける。
 
 use chrono::Utc;
 use entity::{
-    chassis_model, chassis_slot, configuration, configuration_part, part_catalog, vendor,
+    chassis_model, chassis_slot, configuration, configuration_part, part_catalog, part_port_slot,
+    port_power_rating, vendor,
 };
-use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, Set};
+use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -102,6 +122,42 @@ pub struct PartCatalogInput {
     pub capacity_gb: Option<i32>,
     #[serde(default)]
     pub spec_json: Option<serde_json::Value>,
+    /// ポート定義（8.3）。**スロットと同じ展開記法**（23.4）。
+    #[serde(default)]
+    pub ports: Vec<PortInput>,
+}
+
+/// ポートの展開記法（23.4）。`count` ＋ `label_format` か `labels`。
+#[derive(Debug, Deserialize)]
+pub struct PortInput {
+    /// **閉じた語彙**（8.6）。Network / Power / Stack
+    pub port_kind: String,
+    #[serde(default)]
+    pub count: Option<u32>,
+    #[serde(default)]
+    pub label_format: Option<String>,
+    #[serde(default)]
+    pub labels: Option<Vec<String>>,
+    /// **開いた語彙**（8.6）。正規化した自由入力として受ける
+    pub connector_type: String,
+    /// `port_kind=Network` のときだけ意味を持つ。
+    #[serde(default)]
+    pub port_speed: Option<String>,
+    /// `port_kind=Power` のときだけ意味を持つ（12.7）。
+    ///
+    /// **展開したポートすべてが同じ定格を持つ**（23.4）。同じ型番のインレットが
+    /// 2口あって片方だけ定格が違う、ということは起こらない。
+    #[serde(default)]
+    pub power_ratings: Vec<PowerRatingInput>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PowerRatingInput {
+    /// **閉じた語彙**（8.6）。AC / DC
+    pub current_type: String,
+    /// **DCは負値をとる。**符号を含めたまま持ち、絶対値で比べない（12.7）。
+    pub voltage_min: i32,
+    pub voltage_max: i32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -142,37 +198,177 @@ pub struct PartCatalogRef {
 
 impl SlotInput {
     /// ラベルの一覧へ展開する。
-    ///
-    /// `{n}` は1始まりの連番に置き換える。**0始まりにしない**のは、
-    /// 実機のラベル（DIMM1、Bay1）が1始まりであるため。
     pub fn expand(&self) -> Result<Vec<String>, String> {
-        match (&self.labels, self.count) {
-            (Some(labels), None) => {
-                if labels.is_empty() {
-                    return Err("labels が空です".to_owned());
-                }
-                Ok(labels.clone())
+        展開(
+            self.labels.as_deref(),
+            self.count,
+            self.label_format.as_deref(),
+            &self.slot_type,
+        )
+    }
+}
+
+impl PortInput {
+    /// ラベルの一覧へ展開する。**スロットと同じ記法**（23.4）。
+    pub fn expand(&self) -> Result<Vec<String>, String> {
+        展開(
+            self.labels.as_deref(),
+            self.count,
+            self.label_format.as_deref(),
+            &self.port_kind,
+        )
+    }
+}
+
+/// 展開記法の本体（23.4）。
+///
+/// `{n}` は1始まりの連番に置き換える。**0始まりにしない**のは、
+/// 実機のラベル（DIMM1、Bay1、Port1）が1始まりであるため。
+fn 展開(
+    labels: Option<&[String]>,
+    count: Option<u32>,
+    label_format: Option<&str>,
+    既定の接頭辞: &str,
+) -> Result<Vec<String>, String> {
+    match (labels, count) {
+        (Some(labels), None) => {
+            if labels.is_empty() {
+                return Err("labels が空です".to_owned());
             }
-            (None, Some(count)) => {
-                if count == 0 {
-                    return Err("count が 0 です".to_owned());
-                }
-                // 実機のスロット数として現実的な範囲を超えたら、記述の誤りを疑う
-                if count > 1024 {
-                    return Err(format!("count が大きすぎます（{count}）"));
-                }
-                let format = self
-                    .label_format
-                    .clone()
-                    .unwrap_or_else(|| format!("{}{{n}}", self.slot_type));
-                Ok((1..=count)
-                    .map(|n| format.replace("{n}", &n.to_string()))
-                    .collect())
+            Ok(labels.to_vec())
+        }
+        (None, Some(count)) => {
+            if count == 0 {
+                return Err("count が 0 です".to_owned());
             }
-            (Some(_), Some(_)) => Err("labels と count は同時に指定できません".to_owned()),
-            (None, None) => Err("labels か count のどちらかが要ります".to_owned()),
+            // 実機のスロット数として現実的な範囲を超えたら、記述の誤りを疑う
+            if count > 1024 {
+                return Err(format!("count が大きすぎます（{count}）"));
+            }
+            let format = label_format
+                .map(str::to_owned)
+                .unwrap_or_else(|| format!("{既定の接頭辞}{{n}}"));
+            Ok((1..=count)
+                .map(|n| format.replace("{n}", &n.to_string()))
+                .collect())
+        }
+        (Some(_), Some(_)) => Err("labels と count は同時に指定できません".to_owned()),
+        (None, None) => Err("labels か count のどちらかが要ります".to_owned()),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ポートの検証（設計書8.3、8.6、12.7）
+// ---------------------------------------------------------------------------
+
+/// 閉じた語彙（8.6）。**リスト外は拒否する。**
+const PORT_KINDS: &[&str] = &["Network", "Power", "Stack"];
+const CURRENT_TYPES: &[&str] = &["AC", "DC"];
+
+const NETWORK: &str = "Network";
+const POWER: &str = "Power";
+
+/// 検証を通ったポート1本ぶん。
+struct 展開後のポート {
+    port_kind: String,
+    port_label: String,
+    connector_type: String,
+    port_speed: Option<String>,
+    ratings: Vec<(String, i32, i32)>,
+}
+
+/// ポート定義を検証して展開する。
+///
+/// **エラーは取り込まない、警告は取り込むが記録する**（23.6）。ここで警告に
+/// なるのは「値そのものは読めるが、その `port_kind` では意味を持たない」場合で、
+/// **語彙外の値（拒否）とは別の話である。**
+fn ポートを検証する(
+    ports: &[PortInput],
+) -> Result<(Vec<展開後のポート>, Vec<String>), String> {
+    let mut 出力 = Vec::new();
+    let mut 警告 = Vec::new();
+
+    for p in ports {
+        // **閉じた語彙は既定へ寄せず拒否する**（8.6、Q-21）
+        if !PORT_KINDS.contains(&p.port_kind.as_str()) {
+            return Err(format!("port_kind「{}」は語彙にありません", p.port_kind));
+        }
+        let connector = crate::server::catalog::正規化(&p.connector_type);
+        if connector.is_empty() {
+            return Err(format!("{}: connector_type が空です", p.port_kind));
+        }
+
+        let labels = p.expand().map_err(|e| format!("{}: {e}", p.port_kind))?;
+
+        // **意味を持たない列は捨てるが、黙って捨てない**（23.6、12.7）
+        let port_speed = match p.port_speed.as_deref().map(crate::server::catalog::正規化) {
+            Some(s) if s.is_empty() => None,
+            Some(s) if p.port_kind == NETWORK => Some(s),
+            Some(s) => {
+                警告.push(format!(
+                    "port_speed「{s}」は port_kind={} では意味を持たないため無視しました",
+                    p.port_kind
+                ));
+                None
+            }
+            None => None,
+        };
+
+        let ratings = if p.power_ratings.is_empty() {
+            Vec::new()
+        } else if p.port_kind != POWER {
+            警告.push(format!(
+                "power_ratings は port_kind={} では意味を持たないため無視しました",
+                p.port_kind
+            ));
+            Vec::new()
+        } else {
+            定格を検証する(&p.power_ratings)?
+        };
+
+        for label in labels {
+            出力.push(展開後のポート {
+                port_kind: p.port_kind.clone(),
+                port_label: label,
+                connector_type: connector.clone(),
+                port_speed: port_speed.clone(),
+                // **展開したポートすべてが同じ定格を持つ**（23.4）
+                ratings: ratings.clone(),
+            });
         }
     }
+
+    Ok((出力, 警告))
+}
+
+fn 定格を検証する(ratings: &[PowerRatingInput]) -> Result<Vec<(String, i32, i32)>, String> {
+    let mut 出力: Vec<(String, i32, i32)> = Vec::new();
+
+    for r in ratings {
+        if !CURRENT_TYPES.contains(&r.current_type.as_str()) {
+            return Err(format!(
+                "current_type「{}」は語彙にありません",
+                r.current_type
+            ));
+        }
+        // **絶対値ではなく符号を含めた大小で見る**（12.7）。DCは -72 が下限
+        if r.voltage_min > r.voltage_max {
+            return Err(format!(
+                "{}: 電圧の下限（{}）が上限（{}）を超えています",
+                r.current_type, r.voltage_min, r.voltage_max
+            ));
+        }
+        // **方式ごとに1行**（12.7）。DBのUNIQUEに任せず、ここで理由を返す
+        if 出力.iter().any(|(k, _, _)| *k == r.current_type) {
+            return Err(format!(
+                "current_type「{}」が重複しています",
+                r.current_type
+            ));
+        }
+        出力.push((r.current_type.clone(), r.voltage_min, r.voltage_max));
+    }
+
+    Ok(出力)
 }
 
 // ---------------------------------------------------------------------------
@@ -255,13 +451,24 @@ pub async fn dry_run<C: ConnectionTrait>(
         }
 
         match 既存モデル(db, &m.vendor, &m.model_name).await? {
-            // **参照済みカタログの更新は常にエラー**（18.2）。
-            // 参照の有無を問わず、既存の型番への再取込は上書きになりうる
-            Some(_) => report.push(Entry::new(
-                Outcome::Unchanged,
-                target,
-                "既に登録されています（上書きしません）",
-            )),
+            // **既存のスペックは上書きしない**（18.2）。ただし子行が1件も無ければ
+            // 足す（23.4）——上書きではなく、無かった定義が増えるだけである
+            Some(existing) => {
+                let 既存の本数 = スロット数(db, existing.id).await?;
+                if 既存の本数 == 0 && ラベル数 > 0 {
+                    report.push(Entry::new(
+                        Outcome::Updated,
+                        target,
+                        format!("スロット {ラベル数} 本を追加します"),
+                    ));
+                } else {
+                    report.push(Entry::new(
+                        Outcome::Unchanged,
+                        target,
+                        "既に登録されています（上書きしません）",
+                    ));
+                }
+            }
             None => report.push(Entry::new(
                 Outcome::Created,
                 target,
@@ -280,15 +487,48 @@ pub async fn dry_run<C: ConnectionTrait>(
             ));
             continue;
         }
-        report.push(Entry::new(
-            if 既存部品(db, &p.vendor, &p.part_number).await?.is_some() {
-                Outcome::Unchanged
-            } else {
-                Outcome::Created
-            },
-            target,
-            "",
-        ));
+        // ポートの展開と語彙をここで確かめる。落ちるのは記述の誤り
+        let (ports, 警告) = match ポートを検証する(&p.ports) {
+            Ok(v) => v,
+            Err(e) => {
+                report.push(Entry::new(Outcome::Error, target, e));
+                continue;
+            }
+        };
+
+        match 既存部品(db, &p.vendor, &p.part_number).await? {
+            // 子行が1件も無ければ足す（23.4）
+            Some(existing) => {
+                let 既存の本数 = ポート数(db, existing.id).await?;
+                if 既存の本数 == 0 && !ports.is_empty() {
+                    report.push(Entry::new(
+                        Outcome::Updated,
+                        target.clone(),
+                        format!("ポート {} 本を追加します", ports.len()),
+                    ));
+                } else {
+                    report.push(Entry::new(
+                        Outcome::Unchanged,
+                        target.clone(),
+                        "既に登録されています（上書きしません）",
+                    ));
+                }
+            }
+            None => report.push(Entry::new(
+                Outcome::Created,
+                target.clone(),
+                if ports.is_empty() {
+                    String::new()
+                } else {
+                    format!("ポート {} 本", ports.len())
+                },
+            )),
+        }
+
+        // **取り込むが記録する**（23.6）。ポート自体は作る
+        for w in 警告 {
+            report.push(Entry::new(Outcome::Warning, target.clone(), w));
+        }
     }
 
     let 宣言済みモデル: Vec<(&str, &str)> = file
@@ -407,10 +647,11 @@ pub async fn apply(
     let ベンダーid = |name: &str| -> Option<i32> { vendor_ids.get(name).copied() };
 
     for m in &file.chassis_models {
-        if 既存モデル(tx.reader(), &m.vendor, &m.model_name)
-            .await?
-            .is_some()
-        {
+        // **既存でも子行が0件なら足す**（23.4）。上書きは起こらない
+        if let Some(existing) = 既存モデル(tx.reader(), &m.vendor, &m.model_name).await? {
+            if スロット数(tx.reader(), existing.id).await? == 0 {
+                スロットを足す(&tx, existing.id, &m.slots, now).await?;
+            }
             continue;
         }
         let vendor_id = match ベンダーid(&m.vendor) {
@@ -438,26 +679,15 @@ pub async fn apply(
             })
             .await?;
 
-        for slot in &m.slots {
-            for label in slot.expand().expect("ドライランで検証済み") {
-                tx.insert(chassis_slot::ActiveModel {
-                    chassis_model_id: Set(model.id),
-                    slot_type: Set(slot.slot_type.clone()),
-                    slot_label: Set(label),
-                    created_at: Set(now),
-                    updated_at: Set(now),
-                    ..Default::default()
-                })
-                .await?;
-            }
-        }
+        スロットを足す(&tx, model.id, &m.slots, now).await?;
     }
 
     for p in &file.part_catalogs {
-        if 既存部品(tx.reader(), &p.vendor, &p.part_number)
-            .await?
-            .is_some()
-        {
+        // **既存でも子行が0件なら足す**（23.4）
+        if let Some(existing) = 既存部品(tx.reader(), &p.vendor, &p.part_number).await? {
+            if ポート数(tx.reader(), existing.id).await? == 0 {
+                ポートを足す(&tx, existing.id, &p.ports, now).await?;
+            }
             continue;
         }
         let vendor_id = match ベンダーid(&p.vendor) {
@@ -470,24 +700,27 @@ pub async fn apply(
             }
         };
 
-        tx.insert(part_catalog::ActiveModel {
-            category: Set(p.category.clone()),
-            vendor_id: Set(vendor_id),
-            part_number: Set(p.part_number.clone()),
-            core_count: Set(p.core_count),
-            capacity_gb: Set(p.capacity_gb),
-            // JSONは文字列で持つ（24.2.3）
-            spec_json: Set(p
-                .spec_json
-                .as_ref()
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| "{}".to_owned())),
-            created_by: Set(actor),
-            created_at: Set(now),
-            updated_at: Set(now),
-            ..Default::default()
-        })
-        .await?;
+        let part = tx
+            .insert(part_catalog::ActiveModel {
+                category: Set(p.category.clone()),
+                vendor_id: Set(vendor_id),
+                part_number: Set(p.part_number.clone()),
+                core_count: Set(p.core_count),
+                capacity_gb: Set(p.capacity_gb),
+                // JSONは文字列で持つ（24.2.3）
+                spec_json: Set(p
+                    .spec_json
+                    .as_ref()
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "{}".to_owned())),
+                created_by: Set(actor),
+                created_at: Set(now),
+                updated_at: Set(now),
+                ..Default::default()
+            })
+            .await?;
+
+        ポートを足す(&tx, part.id, &p.ports, now).await?;
     }
 
     for c in &file.configurations {
@@ -539,6 +772,89 @@ pub async fn apply(
 // ---------------------------------------------------------------------------
 // 自然キーによる解決（設計書23.2）
 // ---------------------------------------------------------------------------
+
+/// スロットを書き込む。**呼ぶ側が「子行が0件か」を確かめている**（23.4）。
+async fn スロットを足す(
+    tx: &AuditedTx,
+    chassis_model_id: i32,
+    slots: &[SlotInput],
+    now: chrono::DateTime<Utc>,
+) -> Result<(), ImportError> {
+    for slot in slots {
+        for label in slot.expand().expect("ドライランで検証済み") {
+            tx.insert(chassis_slot::ActiveModel {
+                chassis_model_id: Set(chassis_model_id),
+                slot_type: Set(slot.slot_type.clone()),
+                slot_label: Set(label),
+                created_at: Set(now),
+                updated_at: Set(now),
+                ..Default::default()
+            })
+            .await?;
+        }
+    }
+    Ok(())
+}
+
+/// ポートと電源定格を書き込む（8.3、12.7）。
+///
+/// **意味を持たない列はドライランで落としてある**（23.6）。ここでは書くだけ。
+async fn ポートを足す(
+    tx: &AuditedTx,
+    part_catalog_id: i32,
+    ports: &[PortInput],
+    now: chrono::DateTime<Utc>,
+) -> Result<(), ImportError> {
+    let (展開済み, _) = ポートを検証する(ports).expect("ドライランで検証済み");
+
+    for port in 展開済み {
+        let slot = tx
+            .insert(part_port_slot::ActiveModel {
+                part_catalog_id: Set(part_catalog_id),
+                port_kind: Set(port.port_kind),
+                port_label: Set(port.port_label),
+                connector_type: Set(port.connector_type),
+                port_speed: Set(port.port_speed),
+                created_at: Set(now),
+                updated_at: Set(now),
+                ..Default::default()
+            })
+            .await?;
+
+        for (current_type, min, max) in port.ratings {
+            tx.insert(port_power_rating::ActiveModel {
+                part_port_slot_id: Set(slot.id),
+                current_type: Set(current_type),
+                voltage_min: Set(min),
+                voltage_max: Set(max),
+                created_at: Set(now),
+                updated_at: Set(now),
+                ..Default::default()
+            })
+            .await?;
+        }
+    }
+    Ok(())
+}
+
+async fn スロット数<C: ConnectionTrait>(
+    db: &C,
+    chassis_model_id: i32,
+) -> Result<usize, DbErr> {
+    Ok(chassis_slot::Entity::find()
+        .filter(chassis_slot::Column::ChassisModelId.eq(chassis_model_id))
+        .all(db)
+        .await?
+        .len())
+}
+
+async fn ポート数<C: ConnectionTrait>(db: &C, part_catalog_id: i32) -> Result<usize, DbErr> {
+    Ok(part_port_slot::Entity::find()
+        .filter(part_port_slot::Column::PartCatalogId.eq(part_catalog_id))
+        .all(db)
+        .await?
+        .len())
+}
 
 async fn 既存ベンダー<C: ConnectionTrait>(
     db: &C,

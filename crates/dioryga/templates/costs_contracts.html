@@ -1,0 +1,118 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb">
+      <a href="/projects/{{ project_id }}/costs">{{ t_back }}</a>
+    </p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_number }}</th>
+      <th>{{ t_vendor }}</th>
+      <th>{{ t_period }}</th>
+      <th>{{ t_amount }}</th>
+      {# 見積もり先と故障時連絡先は別（設計書10.2） #}
+      <th>{{ t_quote_contact }}</th>
+      <th>{{ t_failure_contact }}</th>
+      <th>{{ t_items }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.contract_number }}</td>
+      <td>{{ row.vendor }}</td>
+      <td>{{ row.period }}</td>
+      <td>{{ row.amount }} {{ currency }}</td>
+      <td>{{ row.quote_contact }}</td>
+      <td>{{ row.failure_contact }}</td>
+      <td>{{ row.items }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_new }}</h2>
+<div class="card">
+  <form method="post" action="/projects/{{ project_id }}/costs/maintenance-contracts" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="contract_number">{{ t_number }}</label>
+    <input type="text" id="contract_number" name="contract_number" required>
+
+    <label for="vendor_id">{{ t_vendor }}</label>
+    <select id="vendor_id" name="vendor_id">
+      {% for v in vendors %}
+      <option value="{{ v.value }}">{{ v.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="start_date">{{ t_start }}</label>
+    <input type="date" id="start_date" name="start_date" required>
+
+    <label for="end_date">{{ t_end }}</label>
+    <input type="date" id="end_date" name="end_date" required>
+
+    <label for="amount">{{ t_amount }}（{{ currency }}）</label>
+    <input type="text" id="amount" name="amount" inputmode="decimal" required>
+    <p class="hint">{{ t_amount_hint }}</p>
+
+    <label for="quote_contact">{{ t_quote_contact }}</label>
+    <input type="text" id="quote_contact" name="quote_contact">
+
+    <label for="failure_contact">{{ t_failure_contact }}</label>
+    <input type="text" id="failure_contact" name="failure_contact">
+    <p class="hint">{{ t_contact_hint }}</p>
+
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+</div>
+
+{# 1契約で複数品目をカバーできる（設計書10.2） #}
+{% if !rows.is_empty() && !devices.is_empty() %}
+<h2 class="section">{{ t_add_item }}</h2>
+<div class="card">
+  <form method="post" action="/projects/{{ project_id }}/costs/maintenance-contracts/items" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="maintenance_contract_id">{{ t_target }}</label>
+    <select id="maintenance_contract_id" name="maintenance_contract_id">
+      {% for row in rows %}
+      <option value="{{ row.id }}">{{ row.contract_number }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="device_id">{{ t_items }}</label>
+    <select id="device_id" name="device_id">
+      {% for d in devices %}
+      <option value="{{ d.value }}">{{ d.label }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_item_hint }}</p>
+
+    <button type="submit">{{ t_add_item }}</button>
+  </form>
+</div>
+{% endif %}
+{% endif %}
+
+{% endblock %}

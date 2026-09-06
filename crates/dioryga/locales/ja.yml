@@ -171,6 +171,15 @@ devices:
   location_unknown: 所在の記録がありません
   section_pending: 発注明細・ソフトウェア構成は、該当するテーブルの実装後に表示します
 
+  orders_hint: この機器の発注明細です。発注そのものの一覧画面は持たず、品目の側から見ます
+  order_number: 発注番号
+  order_number_hint: 新しい発注を作る
+  order_date: 発注日
+  unit_price: 単価
+  subtotal: 小計
+  add_order: 発注明細を足す
+  no_order: 発注明細がありません
+  error_order_number: 発注番号を入力してください
 import:
   title: 一括取込
   lead: ファイルを取り込みます。まず差分を確認し、それから反映します
@@ -657,3 +666,68 @@ network:
   error_member_self: 自分自身を束ねることはできません
   error_member_cycle: 束ねる関係が循環します
   error_member_duplicate: そのインターフェースは既に束ねられています
+
+costs:
+  title: 年間コスト
+  lead: 減価償却費・非資産計上品の即時費用・保守契約費用・定期費用を合算します。値は保存せず、開くたびに計算します
+  year: 対象年
+  total: 年間コスト
+  breakdown: 内訳
+  amount: 金額
+  depreciation: 減価償却費
+  immediate: 即時費用（非資産計上品）
+  contracts: 保守契約
+  recurring: 定期費用
+  fixed_assets: 固定資産
+  purchase_orders: 発注
+  excluded: 合算に含めなかったもの
+  excluded_lead: 計算できなかった行です。金額が小さいのが実態なのかデータ不備なのかを判別できるよう、黙って除外せずここに出します
+  kind: 種別
+  reason: 理由
+  no_excluded: 合算に含めなかったものはありません
+  excluded_declining: 定率法は償却率テーブルが未実装のため計算できません
+  excluded_currency: プロジェクトの通貨と異なるため合算できません
+  excluded_period: 期間が不正です（終了日が開始日より前）
+  excluded_life: 耐用年数が0以下です
+  excluded_negative: 金額が負です
+  contracts_lead: 保守契約と、その契約がカバーする機器を登録します。1つの契約で複数の機器をカバーできます
+  contract_number: 契約番号
+  period: 期間
+  start_date: 開始日
+  end_date: 終了日
+  quote_contact: 見積もり先
+  failure_contact: 故障時連絡先
+  contact_hint: 見積もりを取る先と、故障したときに連絡する先は別であることが多いため分けています
+  items: 対象機器
+  item: 対象
+  item_hint: 契約を選び、カバーする機器を1台ずつ足します
+  add_item: 対象機器を足す
+  new_contract: 保守契約を登録
+  assets_lead: 固定資産としての会計情報です。資産計上しない品目には登録しません
+  acquisition_cost: 取得価格
+  method: 償却方法
+  method_hint: 定率法も選べますが、償却率テーブルが未実装のため年間コストの合算には含めません。資産としては記録されます
+  useful_life: 耐用年数
+  acquisition_date: 取得日
+  this_year: 当年の償却費
+  new_asset: 固定資産を登録
+  recurring_lead: ラックレンタル等、購入ではなく継続課金される費用です
+  recurring_item_hint: プロジェクト全体に付くものと、特定の什器に付くものがあります
+  cost_type: 費目
+  cost_type_hint: RackRental など。自由に書けます
+  billing_cycle: 課金周期
+  cycle_hint: Annual も12ヶ月に均等分割してから按分します。保守契約と同じ按分方式に揃えています
+  end_hint: 空欄なら継続中として扱います
+  new_recurring: 定期費用を登録
+  amount_hint: 最小通貨単位の整数で保存します。円は小数点以下を持ちません
+  error_contract_number: 契約番号を入力してください
+  error_date: 日付は YYYY-MM-DD の形で入力してください
+  error_period: 終了日が開始日より前です
+  error_amount: 金額の形式が正しくありません。通貨の小数点以下の桁数を超える値は受け付けません
+  error_method: 償却方法の値が不正です
+  error_life: 耐用年数は1以上で入力してください
+  error_asset_duplicate: その機器には固定資産が既に登録されています
+  error_item_duplicate: その機器は既にこの契約の対象です
+  error_item: 対象の指定が不正です
+  error_cost_type: 費目を入力してください
+  error_cycle: 課金周期の値が不正です

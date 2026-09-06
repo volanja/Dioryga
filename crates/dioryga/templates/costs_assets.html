@@ -1,0 +1,92 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/projects/{{ project_id }}/costs">{{ t_back }}</a></p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_item }}</th>
+      <th>{{ t_cost }}</th>
+      <th>{{ t_method }}</th>
+      <th>{{ t_life }}</th>
+      <th>{{ t_date }}</th>
+      <th>{{ t_this_year }}（{{ year }}）</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    {# 計算できない行は理由を出す（設計書10.3）。黙って0にしない #}
+    <tr class="{% if row.excluded %}is-warn{% endif %}">
+      <td>{{ row.item }}</td>
+      <td>{{ row.acquisition_cost }} {{ currency }}</td>
+      <td>{{ row.method }}</td>
+      <td>{{ row.useful_life_years }}</td>
+      <td>{{ row.acquisition_date }}</td>
+      <td>
+        {% if row.excluded %}{{ row.this_year }}{% else %}{{ row.this_year }} {{ currency }}{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_new }}</h2>
+<div class="card">
+  {% if devices.is_empty() %}
+  <p class="empty">{{ t_empty }}</p>
+  {% else %}
+  <form method="post" action="/projects/{{ project_id }}/costs/fixed-assets" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="device_id">{{ t_target }}</label>
+    <select id="device_id" name="device_id">
+      {% for d in devices %}
+      <option value="{{ d.value }}">{{ d.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="acquisition_cost">{{ t_cost }}（{{ currency }}）</label>
+    <input type="text" id="acquisition_cost" name="acquisition_cost" inputmode="decimal" required>
+    <p class="hint">{{ t_amount_hint }}</p>
+
+    {# 定率法も選べる。計算しないだけで、資産は実在する（設計書10.3、Q-12） #}
+    <label for="depreciation_method">{{ t_method }}</label>
+    <select id="depreciation_method" name="depreciation_method">
+      {% for m in methods %}
+      <option value="{{ m }}">{{ m }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_method_hint }}</p>
+
+    <label for="useful_life_years">{{ t_life }}</label>
+    <input type="text" id="useful_life_years" name="useful_life_years" inputmode="numeric" required>
+
+    <label for="acquisition_date">{{ t_date }}</label>
+    <input type="date" id="acquisition_date" name="acquisition_date" required>
+
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

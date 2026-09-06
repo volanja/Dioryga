@@ -171,6 +171,15 @@ devices:
   location_unknown: No location on record
   section_pending: Purchase order lines and software inventory will appear once those tables are implemented
 
+  orders_hint: Purchase order lines for this device. There is no separate list of orders; they are seen from the item
+  order_number: Order number
+  order_number_hint: Create a new order
+  order_date: Order date
+  unit_price: Unit price
+  subtotal: Subtotal
+  add_order: Add order line
+  no_order: No order lines
+  error_order_number: Enter an order number
 import:
   title: Bulk import
   lead: Import a file. Review the differences first, then apply
@@ -657,3 +666,68 @@ network:
   error_member_self: An interface cannot group itself
   error_member_cycle: That would create a cycle
   error_member_duplicate: That interface is already grouped
+
+costs:
+  title: Annual cost
+  lead: Depreciation, immediate costs for non-capitalised items, maintenance contracts and recurring costs. Nothing is stored; it is computed each time you open the page
+  year: Year
+  total: Annual cost
+  breakdown: Breakdown
+  amount: Amount
+  depreciation: Depreciation
+  immediate: Immediate cost (not capitalised)
+  contracts: Maintenance contracts
+  recurring: Recurring costs
+  fixed_assets: Fixed assets
+  purchase_orders: Purchase orders
+  excluded: Not included in the total
+  excluded_lead: Rows that could not be computed. They are listed rather than silently dropped, so you can tell a small figure from missing data
+  kind: Kind
+  reason: Reason
+  no_excluded: Nothing was excluded
+  excluded_declining: Declining balance cannot be computed; the rate table is not implemented
+  excluded_currency: A different currency from the project, so it cannot be summed
+  excluded_period: Invalid period (the end date precedes the start date)
+  excluded_life: Useful life is 0 or less
+  excluded_negative: The amount is negative
+  contracts_lead: Maintenance contracts and the devices they cover. One contract can cover several devices
+  contract_number: Contract number
+  period: Period
+  start_date: Start date
+  end_date: End date
+  quote_contact: Quote contact
+  failure_contact: Failure contact
+  contact_hint: Where you request a quote and where you report a failure are often different, so they are kept apart
+  items: Covered devices
+  item: Target
+  item_hint: Pick a contract, then add the devices it covers one at a time
+  add_item: Add a covered device
+  new_contract: Register a maintenance contract
+  assets_lead: Accounting information for capitalised items. Items that are not capitalised are not registered here
+  acquisition_cost: Acquisition cost
+  method: Depreciation method
+  method_hint: Declining balance can be selected, but it is left out of the annual total because the rate table is not implemented. The asset itself is still recorded
+  useful_life: Useful life (years)
+  acquisition_date: Acquisition date
+  this_year: Depreciation this year
+  new_asset: Register a fixed asset
+  recurring_lead: Costs billed continuously rather than purchased, such as rack rental
+  recurring_item_hint: Some apply to the whole project, others to a particular container
+  cost_type: Cost type
+  cost_type_hint: Free text, e.g. RackRental
+  billing_cycle: Billing cycle
+  cycle_hint: Annual is also split evenly across 12 months before proration, matching how maintenance contracts are prorated
+  end_hint: Leave empty for an ongoing cost
+  new_recurring: Register a recurring cost
+  amount_hint: Stored as an integer in the smallest currency unit. The yen has no decimal places
+  error_contract_number: Enter a contract number
+  error_date: Enter the date as YYYY-MM-DD
+  error_period: The end date precedes the start date
+  error_amount: Invalid amount. More decimal places than the currency allows are not accepted
+  error_method: Invalid depreciation method
+  error_life: Useful life must be 1 or more
+  error_asset_duplicate: That device already has a fixed asset registered
+  error_item_duplicate: That device is already covered by this contract
+  error_item: Invalid target
+  error_cost_type: Enter a cost type
+  error_cycle: Invalid billing cycle

@@ -31,7 +31,7 @@
     {% for panel in panels %}
     <text x="{{ panel.x }}" y="14" class="rack-title">{{ panel.title }}</text>
 
-    {# U番号。下が1U（設計書12.8） #}
+    {# U番号。下が1U（設計書12.9） #}
     {% for tick in ticks %}
     <text x="{{ panel.x }}" y="{{ tick.y }}" class="rack-tick"
           dominant-baseline="hanging">{{ tick.label }}</text>
@@ -47,7 +47,7 @@
       <rect x="{{ panel.x + cell.x }}" y="{{ cell.y }}" width="{{ cell.w }}"
             height="{{ cell.h }}" class="rack-device"/>
       <text x="{{ panel.x + cell.x + 6 }}" y="{{ cell.y + 14 }}" class="rack-label">{{ cell.label }}</text>
-      {# 棚板の上の機器は帯の中に描く（設計書12.8）。帯からはみ出させない #}
+      {# 棚板の上の機器は帯の中に描く（設計書12.9）。帯からはみ出させない #}
       {% if !cell.shelf_label.is_empty() %}
       <text x="{{ panel.x + cell.x + cell.w - 6 }}" y="{{ cell.y + 15 }}" text-anchor="end"
             class="rack-shelf-item">{{ cell.shelf_label }}</text>
@@ -63,7 +63,7 @@
   <span class="legend-item">▸ {{ t_legend_shelf }}</span>
 </p>
 {% else %}
-{# 格子を持たない什器に格子を描かない（設計書12.8） #}
+{# 格子を持たない什器に格子を描かない（設計書12.9） #}
 <p class="empty">{{ t_no_grid }}</p>
 {% endif %}
 
@@ -86,7 +86,7 @@
 {% endif %}
 
 {% if !out_of_range.is_empty() %}
-{# 隠すと誤登録に気付けない（不変条件6、設計書12.8） #}
+{# 隠すと誤登録に気付けない（不変条件6、設計書12.9） #}
 <h2 class="section">{{ t_out_of_range }}</h2>
 <ul class="chips is-error">
   {% for item in out_of_range %}

@@ -1,4 +1,4 @@
-//! 什器・搭載位置・ラック図の結合テスト（設計書12章、12.8）。
+//! 什器・搭載位置・ラック図の結合テスト（設計書12章、12.9）。
 //!
 //! **図が出ることではなく、12.3の業務ルールが守られているか**を確かめる。
 //! 重複配置・半width・0Uサイドマウントの規則はDB制約で表現できないため、
@@ -216,7 +216,7 @@ async fn 収容能力の超過は警告に留まる(db: &DatabaseConnection) {
     assert!(現行の搭載(db, d.id).await.is_some(), "登録が拒否されている");
 }
 
-/// **範囲外の機器も図に出すこと**（不変条件6、設計書12.8）。
+/// **範囲外の機器も図に出すこと**（不変条件6、設計書12.9）。
 ///
 /// 隠すと誤登録に気付けない。
 async fn 範囲外の機器も図に出る(db: &DatabaseConnection) {
@@ -249,7 +249,7 @@ async fn サイドマウントに位置は指定できない(db: &DatabaseConnec
     assert!(現行の搭載(db, pdu.id).await.unwrap().position.is_none());
 }
 
-/// **0Uサイドマウントは格子の外に描くこと**（設計書12.8）。
+/// **0Uサイドマウントは格子の外に描くこと**（設計書12.9）。
 async fn サイドマウントは格子の外に出る(db: &DatabaseConnection) {
     let 場 = 舞台(db, "sidedraw@example.com").await;
     let pdu = 機器(db, &場, "pdu-02", 1, "RackSide", None, "running").await;
@@ -302,7 +302,7 @@ async fn 棚板の上には位置を指定できない(db: &DatabaseConnection) 
     );
 }
 
-/// **棚板の上の機器は棚板の帯の中に描くこと**（設計書12.8）。
+/// **棚板の上の機器は棚板の帯の中に描くこと**（設計書12.9）。
 async fn 棚板の上の機器が帯の中に出る(db: &DatabaseConnection) {
     let 場 = 舞台(db, "shelfdraw@example.com").await;
     let 棚板 = 機器(db, &場, "tray-02", 1, "RackU", None, "running").await;
@@ -317,7 +317,7 @@ async fn 棚板の上の機器が帯の中に出る(db: &DatabaseConnection) {
     assert!(body.contains("nas-02"));
 }
 
-/// **予約中の機器を区別して描くこと**（設計書11.6、12.8）。
+/// **予約中の機器を区別して描くこと**（設計書11.6、12.9）。
 ///
 /// 破線と淡色の両方を使い、凡例に文字のラベルも置く。
 async fn 予約中は区別して描かれる(db: &DatabaseConnection) {
@@ -330,11 +330,11 @@ async fn 予約中は区別して描かれる(db: &DatabaseConnection) {
 
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("is-planned"), "予約中の印が付いていない");
-    // **色や線種だけに意味を載せない**（12.8）
+    // **色や線種だけに意味を載せない**（12.9）
     assert!(body.contains("予約中"), "凡例に文字のラベルが無い");
 }
 
-/// **前面と背面を別の図として並べること**（設計書12.8）。
+/// **前面と背面を別の図として並べること**（設計書12.9）。
 async fn 前面と背面が別の図になる(db: &DatabaseConnection) {
     let 場 = 舞台(db, "panels@example.com").await;
     let f = 機器(db, &場, "front-02", 1, "RackU", None, "running").await;
@@ -430,7 +430,7 @@ async fn 閲覧者は搭載できない(db: &DatabaseConnection) {
     assert!(!body.contains("機器を搭載する"), "編集欄が出ている");
 }
 
-/// 机は格子を持たないこと（設計書12.8）。
+/// 机は格子を持たないこと（設計書12.9）。
 async fn 机には格子を描かない(db: &DatabaseConnection) {
     let (user, p) = 準備(db, "desk@example.com", "Operator").await;
     let desk = 什器(db, p.id, "作業机", "Desk", None, user.id).await;

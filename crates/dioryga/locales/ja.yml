@@ -110,6 +110,8 @@ projects:
   members_title: Administratorの割り当て
   members_lead: 不在時と引き継ぎに備え、正副の2名体制にできます
   secondary_hint: 副管理者は任意です。正管理者のみでも登録できます
+  no_candidate: 割り当てられる利用者がいません。システム管理者はプロジェクトの管理者になれないため（プロジェクトのデータに一切アクセスできません）、先に利用者を登録してください
+  go_users: ユーザー管理へ
   same_admin: 正管理者と副管理者に同じ利用者は指定できません
   secondary_without_primary: 副管理者だけを割り当てることはできません。先に正管理者を指定してください
   invalid_candidate: 割り当てできない利用者が含まれています

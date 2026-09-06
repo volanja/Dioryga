@@ -14,6 +14,14 @@
 <p class="error">{{ message }}</p>
 {% endif %}
 
+{# 候補が0件のときは、理由と次の一手を出す（#90）。
+   「正管理者のみでも登録できます」と書いてある以上、空のプルダウンは不具合に見える #}
+{% if candidates.is_empty() %}
+<div class="card">
+  <p class="empty">{{ t_no_candidate }}</p>
+  <p><a class="button" href="/admin/users">{{ t_go_users }}</a></p>
+</div>
+{% else %}
 <form class="card form" method="post" action="/admin/projects/{{ project_id }}/members">
   <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
 
@@ -45,5 +53,6 @@
 
   <button type="submit">{{ t_submit }}</button>
 </form>
+{% endif %}
 
 {% endblock %}

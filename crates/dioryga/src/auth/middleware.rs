@@ -123,17 +123,32 @@ async fn resolve(
 
 /// ② 認可：System Adminガード。
 ///
-/// `is_system_admin=true` の利用者による `/projects/**` へのアクセスを、
-/// **ロールの強弱に無関係に拒否する**（設計書3章）。
+/// `is_system_admin=true` の利用者による `/projects/**` と `/warehouses/**` への
+/// アクセスを、**ロールの強弱に無関係に拒否する**（設計書3章）。
+///
+/// # 倉庫を含める理由
+///
+/// **倉庫にある機器は、過去にプロジェクトへ属していた履歴を持ち続ける**（A-6）。
+/// 倉庫を通せばプロジェクト内データが見えるため、「倉庫はプロジェクト外」という
+/// 整理では逆転制約を守れない（16.1のC領域）。
+///
+/// ハンドラ側の [`authorization::require_warehouse_viewer`] も同じ判定を持つ。
+/// **二重にしているのは意図である**——3章が「認可チェックのロジックとは別立ての
+/// ガードを用意する」としているのは、片方の変更でもう片方が破れないようにするため。
 pub async fn system_admin_guard(request: Request, next: Next) -> Response {
     let path = request.uri().path();
 
-    if path == "/projects" || path.starts_with("/projects/") {
+    let 保護対象 = path == "/projects"
+        || path.starts_with("/projects/")
+        || path == "/warehouses"
+        || path.starts_with("/warehouses/");
+
+    if 保護対象 {
         if let Some(current) = request.extensions().get::<CurrentUser>() {
             if authorization::deny_system_admin(&current.user).is_err() {
                 return (
                     StatusCode::FORBIDDEN,
-                    "System Adminはプロジェクト内のデータにアクセスできません",
+                    "System Adminはプロジェクト内のデータと倉庫にアクセスできません",
                 )
                     .into_response();
             }

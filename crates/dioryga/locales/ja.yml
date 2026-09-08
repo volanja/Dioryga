@@ -778,3 +778,27 @@ dashboard:
   overdue: 期限超過
   no_due: 期限なし
   none: 該当するものはありません
+
+warehouses:
+  title: 倉庫
+  lead: プロジェクトに割り当てられていない機器とパーツの置き場です。プロジェクトを横断します
+  name: 倉庫名
+  address: 所在地
+  devices: 保管中の機器
+  devices_lead: この倉庫にある機器です。プロジェクトへの払い出しは変更管理チケットから行います
+  devices_empty: この倉庫に機器はありません
+  parts: 保管中のパーツ
+  parts_lead: この倉庫にあるスペア部品です
+  parts_empty: この倉庫にパーツはありません
+  serial: シリアル番号
+  asset: 資産番号
+  since: 入庫日
+  history: 所在の履歴
+  history_note: 倉庫にある機器は、所在の履歴を全期間ぶん表示します。払い出された後は、関わったプロジェクトからのみ辿れます
+  from: 開始
+  to: 終了
+  current: 現在
+  unknown: 参照先が見つかりません
+  edit: 更新する
+  new: 倉庫を登録
+  empty: 倉庫がありません

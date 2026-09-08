@@ -1,0 +1,46 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/warehouses">{{ warehouse_name }}</a></p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_hostname }}</th>
+      <th>{{ t_device_type }}</th>
+      <th>{{ t_status }}</th>
+      <th>{{ t_serial }}</th>
+      <th>{{ t_since }}</th>
+      <th>{{ t_actions }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.hostname }}</td>
+      <td>{{ row.device_type }}</td>
+      <td>{{ row.status }}</td>
+      <td>{{ row.serial_number }}</td>
+      <td>{{ row.since }}</td>
+      <td class="actions">
+        <a href="/warehouses/{{ warehouse_id }}/devices/{{ row.id }}">{{ t_detail }}</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% endblock %}

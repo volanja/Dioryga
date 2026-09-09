@@ -339,9 +339,21 @@ async fn as_ofが開始日になる(db: &DatabaseConnection) {
         .unwrap();
 
     let 履歴 = 所属の履歴(db, d.id).await;
-    assert_eq!(履歴[1].from_date, 基準);
+    assert_eq!(マイクロ秒(履歴[1].from_date), マイクロ秒(基準));
     // **前の行は同じ時刻で閉じる。**間に穴も重なりも作らない
-    assert_eq!(履歴[0].to_date, Some(基準));
+    assert_eq!(履歴[0].to_date.map(マイクロ秒), Some(マイクロ秒(基準)));
+}
+
+/// 時刻をマイクロ秒に丸める。
+///
+/// **PostgreSQLの `timestamptz` はマイクロ秒までしか持たない。**`Utc::now()` の
+/// ナノ秒は往復で落ちるため、そのまま突き合わせるとPostgreSQL側だけが落ちる
+/// （実際にCIで落ちた。SQLiteは文字列で保持するため通る）。
+///
+/// **丸めるのは検証側であって、保存する値ではない。**片方のDBの精度に
+/// 合わせて書き込む値を削ると、もう片方で持てるはずの情報を捨てることになる。
+fn マイクロ秒(t: chrono::DateTime<Utc>) -> i64 {
+    t.timestamp_micros()
 }
 
 /// **倉庫の什器には載せられないこと**（16.1のC領域）。

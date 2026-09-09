@@ -16,7 +16,7 @@ use chrono::Utc;
 use entity::{app_user, import_run};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
-use super::{catalog, file_hash, instances, ImportError, Outcome, Report};
+use super::{catalog, file_hash, instances, placement, ImportError, Outcome, Report};
 use crate::auth::authorization;
 
 /// 取込の対象と結果。
@@ -100,18 +100,10 @@ async fn instances_manifest(
     // **そのプロジェクトのOperator以上を要する**（23.5）。System Adminは入れない
     let actor = プロジェクトの取込者(db, as_user, project.id).await?;
 
-    let mut rows = Vec::new();
-    for file in &manifest.files {
-        if file.entity != "device" {
-            return Err(RunError::UnsupportedEntity(file.entity.clone()));
-        }
-        let csv_path = instances::resolve(path, &file.path);
-        let csv = std::fs::read_to_string(&csv_path).map_err(ImportError::Io)?;
-        rows.extend(instances::parse_devices(&csv)?);
-    }
+    let 束 = 読み分ける(path, &manifest.files)?;
 
     let match_on = manifest.match_on.device.clone();
-    let report = instances::dry_run(db, project.id, &rows, &match_on).await?;
+    let report = 通しでドライラン(db, project.id, &束, &match_on).await?;
 
     if !apply {
         return Ok(Executed {
@@ -142,12 +134,103 @@ async fn instances_manifest(
     .insert(db)
     .await?;
 
-    let report = instances::apply(db, project.id, &rows, &match_on, as_of, run.id).await?;
+    let report = 通しで反映(db, project.id, &束, &match_on, as_of, run.id).await?;
 
     Ok(Executed {
         report,
         import_run_id: Some(run.id),
     })
+}
+
+// ---------------------------------------------------------------------------
+// エンティティの振り分け（設計書23.5）
+// ---------------------------------------------------------------------------
+
+/// マニフェストが指す全ファイルを読み、エンティティごとにまとめたもの。
+#[derive(Default)]
+struct 束 {
+    devices: Vec<instances::DeviceRow>,
+    assignments: Vec<placement::AssignmentRow>,
+    mounts: Vec<placement::MountRow>,
+}
+
+/// マニフェストの `files` を読み分ける。
+///
+/// **`files` の順序は解釈しない**（23.5）。利用者に依存順を守らせると、
+/// 間違えたときのエラーが「参照先が無い」としか出ず、**原因が順序だと
+/// 気付けない。**エンティティごとに集めてから、こちらが依存順に処理する。
+fn 読み分ける(manifest_path: &Path, files: &[instances::FileRef]) -> Result<束, RunError> {
+    let mut out = 束::default();
+
+    for file in files {
+        let csv_path = instances::resolve(manifest_path, &file.path);
+        let csv = std::fs::read_to_string(&csv_path).map_err(ImportError::Io)?;
+
+        match file.entity.as_str() {
+            "device" => out.devices.extend(instances::parse_devices(&csv)?),
+            "device_assignment" => out.assignments.extend(placement::parse_assignments(&csv)?),
+            "device_mount" => out.mounts.extend(placement::parse_mounts(&csv)?),
+            other => return Err(RunError::UnsupportedEntity(other.to_owned())),
+        }
+    }
+
+    Ok(out)
+}
+
+/// 依存順にドライランし、レポートを1つに束ねる。
+///
+/// **機器 → 所属 → 搭載の順。**所属も搭載も既存の機器を指すため、機器を
+/// 先に見なければ「参照先が無い」ばかりが並ぶ。
+///
+/// **ドライランでは機器がまだ入っていない。**同じファイルで新規の機器と
+/// その配置を同時に書いた場合、配置側は「機器が見つかりません」になる。
+/// これは正しい——**取り込む前の事実に対して差分を出すのがドライランであり**、
+/// 先回りして「入る予定」を混ぜると、実行結果と食い違ったときに気付けない。
+async fn 通しでドライラン(
+    db: &DatabaseConnection,
+    project_id: i32,
+    束: &束,
+    match_on: &[String],
+) -> Result<Report, ImportError> {
+    let mut report = instances::dry_run(db, project_id, &束.devices, match_on).await?;
+    束ねる(
+        &mut report,
+        placement::assignments_dry_run(db, project_id, &束.assignments).await?,
+    );
+    束ねる(
+        &mut report,
+        placement::mounts_dry_run(db, project_id, &束.mounts).await?,
+    );
+    Ok(report)
+}
+
+/// 依存順に反映する。
+///
+/// **1つでもエラーがあれば手前で止まっている**（`has_error`）ため、ここに
+/// 来る時点で全エンティティが取り込める状態にある。
+async fn 通しで反映(
+    db: &DatabaseConnection,
+    project_id: i32,
+    束: &束,
+    match_on: &[String],
+    as_of: chrono::DateTime<Utc>,
+    import_run_id: i32,
+) -> Result<Report, ImportError> {
+    let mut report =
+        instances::apply(db, project_id, &束.devices, match_on, as_of, import_run_id).await?;
+    束ねる(
+        &mut report,
+        placement::assignments_apply(db, project_id, &束.assignments, as_of, import_run_id).await?,
+    );
+    束ねる(
+        &mut report,
+        placement::mounts_apply(db, project_id, &束.mounts, as_of, import_run_id).await?,
+    );
+    Ok(report)
+}
+
+fn 束ねる(into: &mut Report, other: Report) {
+    into.entries.extend(other.entries);
 }
 
 /// カタログYAMLを取り込む。

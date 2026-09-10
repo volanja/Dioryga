@@ -71,7 +71,7 @@ pub struct 機器キー {
 }
 
 impl 機器キー {
-    fn 表示名(&self) -> String {
+    pub(super) fn 表示名(&self) -> String {
         for candidate in [
             &self.hostname,
             &self.uid,
@@ -87,7 +87,7 @@ impl 機器キー {
     }
 }
 
-fn 空ならnone(value: &str) -> Option<&str> {
+pub(super) fn 空ならnone(value: &str) -> Option<&str> {
     match value.trim() {
         "" => None,
         v => Some(v),
@@ -175,7 +175,9 @@ pub fn parse_mounts(source: &str) -> Result<Vec<MountRow>, ImportError> {
     読み取る(source)
 }
 
-fn 読み取る<T: serde::de::DeserializeOwned>(source: &str) -> Result<Vec<T>, ImportError> {
+pub(super) fn 読み取る<T: serde::de::DeserializeOwned>(
+    source: &str,
+) -> Result<Vec<T>, ImportError> {
     let mut reader = csv::ReaderBuilder::new()
         .trim(csv::Trim::All)
         .from_reader(source.as_bytes());
@@ -198,7 +200,7 @@ fn 読み取る<T: serde::de::DeserializeOwned>(source: &str) -> Result<Vec<T>, 
 /// 機器を指すだけ**であり、新規作成しないため突合キーを選ぶ必要がない。
 ///
 /// **統合先を辿る**（23.9.4）。吸収された側の識別子で書かれていても着地する。
-async fn 解決する機器<C: ConnectionTrait>(
+pub(super) async fn 解決する機器<C: ConnectionTrait>(
     db: &C,
     候補: &[device::Model],
     key: &機器キー,
@@ -262,7 +264,7 @@ async fn 統合先を辿る<C: ConnectionTrait>(
 }
 
 /// このプロジェクトに属する（属したことがある）機器（23.5、A-6）。
-async fn このプロジェクトの機器<C: ConnectionTrait>(
+pub(super) async fn このプロジェクトの機器<C: ConnectionTrait>(
     db: &C,
     project_id: i32,
 ) -> Result<Vec<device::Model>, sea_orm::DbErr> {

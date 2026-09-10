@@ -462,9 +462,15 @@ struct Planned {
 }
 
 const DEVICE_TYPES: &[&str] = &["Physical", "Virtual", "Container", "Logical"];
-const STATUSES: &[&str] = &["running", "broken", "repair", "plan", "building"];
+/// **部品（`PART_INSTANCE`）も同じ語彙を持つ**ため、`parts.rs` と共有する。
+pub(super) const STATUSES: &[&str] = &["running", "broken", "repair", "plan", "building"];
 
-fn 語彙(value: &str, allowed: &[&'static str], default: &'static str) -> Result<String, String> {
+/// 閉じた語彙で検証する（8.6）。**語彙外は既定へ寄せず拒否し、空欄は既定にする。**
+pub(super) fn 語彙(
+    value: &str,
+    allowed: &[&'static str],
+    default: &'static str,
+) -> Result<String, String> {
     let value = value.trim();
     if value.is_empty() {
         return Ok(default.to_owned());

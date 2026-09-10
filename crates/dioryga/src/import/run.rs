@@ -16,7 +16,7 @@ use chrono::Utc;
 use entity::{app_user, import_run};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
-use super::{catalog, file_hash, instances, placement, ImportError, Outcome, Report};
+use super::{catalog, file_hash, instances, parts, placement, ImportError, Outcome, Report};
 use crate::auth::authorization;
 
 /// 取込の対象と結果。
@@ -152,6 +152,7 @@ struct 束 {
     devices: Vec<instances::DeviceRow>,
     assignments: Vec<placement::AssignmentRow>,
     mounts: Vec<placement::MountRow>,
+    parts: Vec<parts::PartRow>,
 }
 
 /// マニフェストの `files` を読み分ける。
@@ -170,6 +171,7 @@ fn 読み分ける(manifest_path: &Path, files: &[instances::FileRef]) -> Result
             "device" => out.devices.extend(instances::parse_devices(&csv)?),
             "device_assignment" => out.assignments.extend(placement::parse_assignments(&csv)?),
             "device_mount" => out.mounts.extend(placement::parse_mounts(&csv)?),
+            "part_instance" => out.parts.extend(parts::parse_parts(&csv)?),
             other => return Err(RunError::UnsupportedEntity(other.to_owned())),
         }
     }
@@ -179,7 +181,7 @@ fn 読み分ける(manifest_path: &Path, files: &[instances::FileRef]) -> Result
 
 /// 依存順にドライランし、レポートを1つに束ねる。
 ///
-/// **機器 → 所属 → 搭載の順。**所属も搭載も既存の機器を指すため、機器を
+/// **機器 → 所属 → 搭載 → 部品の順。**いずれも既存の機器を指すため、機器を
 /// 先に見なければ「参照先が無い」ばかりが並ぶ。
 ///
 /// **ドライランでは機器がまだ入っていない。**同じファイルで新規の機器と
@@ -200,6 +202,10 @@ async fn 通しでドライラン(
     束ねる(
         &mut report,
         placement::mounts_dry_run(db, project_id, &束.mounts).await?,
+    );
+    束ねる(
+        &mut report,
+        parts::dry_run(db, project_id, &束.parts).await?,
     );
     Ok(report)
 }
@@ -225,6 +231,10 @@ async fn 通しで反映(
     束ねる(
         &mut report,
         placement::mounts_apply(db, project_id, &束.mounts, as_of, import_run_id).await?,
+    );
+    束ねる(
+        &mut report,
+        parts::apply(db, project_id, &束.parts, as_of, import_run_id).await?,
     );
     Ok(report)
 }

@@ -298,8 +298,8 @@ struct 所属の計画 {
     閉じる: Option<device_assignment::Model>,
 }
 
-async fn 所属を計画する(
-    db: &DatabaseConnection,
+async fn 所属を計画する<C: ConnectionTrait>(
+    db: &C,
     project_id: i32,
     rows: &[AssignmentRow],
 ) -> Result<(Report, Vec<所属の計画>), ImportError> {
@@ -421,20 +421,21 @@ pub async fn assignments_dry_run(
     Ok(所属を計画する(db, project_id, rows).await?.0)
 }
 
-pub async fn assignments_apply(
-    db: &DatabaseConnection,
+/// 同じトランザクションの中で計画し、書き込む（23.6）。
+///
+/// **エラーの行は書かず、正しい行だけを書く。**取込全体の判定は呼び出し側が
+/// 行い、1件でもエラーがあればトランザクションごと捨てる。正しい行を書いて
+/// おくのは、**後のエンティティがそれを参照できるようにするため**である。
+pub async fn 所属を取り込む(
+    tx: &AuditedTx,
     project_id: i32,
     rows: &[AssignmentRow],
     as_of: DateTime<Utc>,
-    import_run_id: i32,
 ) -> Result<Report, ImportError> {
-    let (report, planned) = 所属を計画する(db, project_id, rows).await?;
-    if report.has_error() {
-        return Err(ImportError::HasErrors(report.count(Outcome::Error)));
-    }
-
-    // **行ごとの監査ログを書かない**（24.4）
-    let tx = AuditedTx::begin(db, Actor::Import { import_run_id }).await?;
+    // **トランザクションの中で読む。**同じ取込で先に書いたもの（機器など）が
+    // 見えるのはこの経路だけであり、SQLiteのインメモリでは外の接続で読むと
+    // 止まる（24.2.5）
+    let (report, planned) = 所属を計画する(tx.reader(), project_id, rows).await?;
 
     for p in planned {
         // **閉じて開く。**既存行を書き換えると、いつ移ったのかが失われる（4章）
@@ -455,6 +456,23 @@ pub async fn assignments_apply(
         .await?;
     }
 
+    Ok(report)
+}
+
+/// 単独で反映する。**エラーが1件でもあれば何も書かない。**
+pub async fn assignments_apply(
+    db: &DatabaseConnection,
+    project_id: i32,
+    rows: &[AssignmentRow],
+    as_of: DateTime<Utc>,
+    import_run_id: i32,
+) -> Result<Report, ImportError> {
+    let tx = AuditedTx::begin(db, Actor::Import { import_run_id }).await?;
+    let report = 所属を取り込む(&tx, project_id, rows, as_of).await?;
+    if report.has_error() {
+        tx.rollback().await?;
+        return Err(ImportError::HasErrors(report.count(Outcome::Error)));
+    }
     tx.commit().await?;
     Ok(report)
 }
@@ -473,8 +491,8 @@ struct 搭載の計画 {
     閉じる: Option<device_mount::Model>,
 }
 
-async fn 搭載を計画する(
-    db: &DatabaseConnection,
+async fn 搭載を計画する<C: ConnectionTrait>(
+    db: &C,
     project_id: i32,
     rows: &[MountRow],
 ) -> Result<(Report, Vec<搭載の計画>), ImportError> {
@@ -714,19 +732,21 @@ pub async fn mounts_dry_run(
     Ok(搭載を計画する(db, project_id, rows).await?.0)
 }
 
-pub async fn mounts_apply(
-    db: &DatabaseConnection,
+/// 同じトランザクションの中で計画し、書き込む（23.6）。
+///
+/// **エラーの行は書かず、正しい行だけを書く。**取込全体の判定は呼び出し側が
+/// 行い、1件でもエラーがあればトランザクションごと捨てる。正しい行を書いて
+/// おくのは、**後のエンティティがそれを参照できるようにするため**である。
+pub async fn 搭載を取り込む(
+    tx: &AuditedTx,
     project_id: i32,
     rows: &[MountRow],
     as_of: DateTime<Utc>,
-    import_run_id: i32,
 ) -> Result<Report, ImportError> {
-    let (report, planned) = 搭載を計画する(db, project_id, rows).await?;
-    if report.has_error() {
-        return Err(ImportError::HasErrors(report.count(Outcome::Error)));
-    }
-
-    let tx = AuditedTx::begin(db, Actor::Import { import_run_id }).await?;
+    // **トランザクションの中で読む。**同じ取込で先に書いたもの（機器など）が
+    // 見えるのはこの経路だけであり、SQLiteのインメモリでは外の接続で読むと
+    // 止まる（24.2.5）
+    let (report, planned) = 搭載を計画する(tx.reader(), project_id, rows).await?;
 
     for p in planned {
         // **閉じて開く**（4章）
@@ -750,6 +770,23 @@ pub async fn mounts_apply(
         .await?;
     }
 
+    Ok(report)
+}
+
+/// 単独で反映する。**エラーが1件でもあれば何も書かない。**
+pub async fn mounts_apply(
+    db: &DatabaseConnection,
+    project_id: i32,
+    rows: &[MountRow],
+    as_of: DateTime<Utc>,
+    import_run_id: i32,
+) -> Result<Report, ImportError> {
+    let tx = AuditedTx::begin(db, Actor::Import { import_run_id }).await?;
+    let report = 搭載を取り込む(&tx, project_id, rows, as_of).await?;
+    if report.has_error() {
+        tx.rollback().await?;
+        return Err(ImportError::HasErrors(report.count(Outcome::Error)));
+    }
     tx.commit().await?;
     Ok(report)
 }

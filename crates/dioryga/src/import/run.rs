@@ -18,6 +18,7 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, Qu
 
 use super::{catalog, file_hash, instances, parts, placement, ImportError, Outcome, Report};
 use crate::auth::authorization;
+use crate::repository::AuditedTx;
 
 /// 取込の対象と結果。
 pub struct Executed {
@@ -101,40 +102,69 @@ async fn instances_manifest(
     let actor = プロジェクトの取込者(db, as_user, project.id).await?;
 
     let 束 = 読み分ける(path, &manifest.files)?;
-
     let match_on = manifest.match_on.device.clone();
-    let report = 通しでドライラン(db, project.id, &束, &match_on).await?;
+
+    let now = Utc::now();
+    // **履歴行の from_date は as_of を使う**（23.1）
+    let as_of = manifest.as_of.unwrap_or(now);
+
+    // **マニフェスト全体を1つのトランザクションで流す**（23.6）。
+    //
+    // 以前はドライランを「取込前のDB」に対して行っていた。すると同じ
+    // ファイルで作る機器を配置が見つけられずエラーになり、**エラーのある
+    // ドライランは反映できないため、初回取込が1回では通らなかった。**
+    // `files` を依存順に並べ替えている（23.5）のは、まさにこの参照を
+    // 成り立たせるためであり、ドライランもそれに従う必要がある。
+    //
+    // ドライランは同じ処理を流してから捨てる。**見せた差分と反映の結果が
+    // 同じ経路から出る**ため、食い違わない。
+    let (tx, run) = AuditedTx::begin_import(
+        db,
+        import_run::ActiveModel {
+            project_id: Set(Some(project.id)),
+            kind: Set("instances".to_owned()),
+            file_hash: Set(file_hash(bytes)),
+            as_of: Set(as_of),
+            created_count: Set(0),
+            updated_count: Set(0),
+            warning_count: Set(0),
+            imported_by: Set(actor.id),
+            imported_at: Set(now),
+            ..Default::default()
+        },
+    )
+    .await?;
+
+    let report = match 通しで取り込む(&tx, project.id, &束, &match_on, as_of).await {
+        Ok(r) => r,
+        Err(e) => {
+            tx.rollback().await?;
+            return Err(e.into());
+        }
+    };
 
     if !apply {
+        // **ドライランは何も残さない。**IMPORT_RUN も一緒に消える
+        tx.rollback().await?;
         return Ok(Executed {
             report,
             import_run_id: None,
         });
     }
     if report.has_error() {
+        // **部分的に入れない。**どこまで入ったのかを利用者が把握できない
+        tx.rollback().await?;
         return Err(ImportError::HasErrors(report.count(Outcome::Error)).into());
     }
 
-    let now = Utc::now();
-    // **履歴行の from_date は as_of を使う**（23.1）
-    let as_of = manifest.as_of.unwrap_or(now);
-
-    let run = import_run::ActiveModel {
-        project_id: Set(Some(project.id)),
-        kind: Set("instances".to_owned()),
-        file_hash: Set(file_hash(bytes)),
-        as_of: Set(as_of),
-        created_count: Set(report.count(Outcome::Created) as i32),
-        updated_count: Set(report.count(Outcome::Updated) as i32),
-        warning_count: Set(report.count(Outcome::Warning) as i32),
-        imported_by: Set(actor.id),
-        imported_at: Set(now),
-        ..Default::default()
-    }
-    .insert(db)
+    tx.record_import_counts(
+        &run,
+        report.count(Outcome::Created) as i32,
+        report.count(Outcome::Updated) as i32,
+        report.count(Outcome::Warning) as i32,
+    )
     .await?;
-
-    let report = 通しで反映(db, project.id, &束, &match_on, as_of, run.id).await?;
+    tx.commit().await?;
 
     Ok(Executed {
         report,
@@ -179,62 +209,29 @@ fn 読み分ける(manifest_path: &Path, files: &[instances::FileRef]) -> Result
     Ok(out)
 }
 
-/// 依存順にドライランし、レポートを1つに束ねる。
+/// 依存順に、同じトランザクションの中で流す。
 ///
-/// **機器 → 所属 → 搭載 → 部品の順。**いずれも既存の機器を指すため、機器を
-/// 先に見なければ「参照先が無い」ばかりが並ぶ。
-///
-/// **ドライランでは機器がまだ入っていない。**同じファイルで新規の機器と
-/// その配置を同時に書いた場合、配置側は「機器が見つかりません」になる。
-/// これは正しい——**取り込む前の事実に対して差分を出すのがドライランであり**、
-/// 先回りして「入る予定」を混ぜると、実行結果と食い違ったときに気付けない。
-async fn 通しでドライラン(
-    db: &DatabaseConnection,
-    project_id: i32,
-    束: &束,
-    match_on: &[String],
-) -> Result<Report, ImportError> {
-    let mut report = instances::dry_run(db, project_id, &束.devices, match_on).await?;
-    束ねる(
-        &mut report,
-        placement::assignments_dry_run(db, project_id, &束.assignments).await?,
-    );
-    束ねる(
-        &mut report,
-        placement::mounts_dry_run(db, project_id, &束.mounts).await?,
-    );
-    束ねる(
-        &mut report,
-        parts::dry_run(db, project_id, &束.parts).await?,
-    );
-    Ok(report)
-}
-
-/// 依存順に反映する。
-///
-/// **1つでもエラーがあれば手前で止まっている**（`has_error`）ため、ここに
-/// 来る時点で全エンティティが取り込める状態にある。
-async fn 通しで反映(
-    db: &DatabaseConnection,
+/// **機器 → 所属 → 搭載 → 部品の順。**後のエンティティは前のエンティティが
+/// 書いた行を、同じトランザクションの中で参照する。
+async fn 通しで取り込む(
+    tx: &AuditedTx,
     project_id: i32,
     束: &束,
     match_on: &[String],
     as_of: chrono::DateTime<Utc>,
-    import_run_id: i32,
 ) -> Result<Report, ImportError> {
-    let mut report =
-        instances::apply(db, project_id, &束.devices, match_on, as_of, import_run_id).await?;
+    let mut report = instances::取り込む(tx, project_id, &束.devices, match_on, as_of).await?;
     束ねる(
         &mut report,
-        placement::assignments_apply(db, project_id, &束.assignments, as_of, import_run_id).await?,
+        placement::所属を取り込む(tx, project_id, &束.assignments, as_of).await?,
     );
     束ねる(
         &mut report,
-        placement::mounts_apply(db, project_id, &束.mounts, as_of, import_run_id).await?,
+        placement::搭載を取り込む(tx, project_id, &束.mounts, as_of).await?,
     );
     束ねる(
         &mut report,
-        parts::apply(db, project_id, &束.parts, as_of, import_run_id).await?,
+        parts::取り込む(tx, project_id, &束.parts, as_of).await?,
     );
     Ok(report)
 }

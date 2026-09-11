@@ -483,8 +483,8 @@ pub(super) fn 語彙(
 }
 
 /// 現在の事実と突き合わせ、差分レポートと反映計画を作る。
-async fn 計画する(
-    db: &DatabaseConnection,
+async fn 計画する<C: ConnectionTrait>(
+    db: &C,
     project_id: i32,
     rows: &[DeviceRow],
     match_on: &[String],
@@ -657,22 +657,23 @@ pub async fn dry_run(
 ///
 /// **履歴行の `from_date` は `as_of` を使う**（23.1）。過去のデータを遡って
 /// 登録する場合にマニフェストで指定できる。
-pub async fn apply(
-    db: &DatabaseConnection,
+/// 同じトランザクションの中で計画し、書き込む（23.6）。
+///
+/// **エラーの行は書かず、正しい行だけを書く。**取込全体の判定は呼び出し側が
+/// 行い、1件でもエラーがあればトランザクションごと捨てる。正しい行を書いて
+/// おくのは、**後のエンティティがそれを参照できるようにするため**である。
+pub async fn 取り込む(
+    tx: &AuditedTx,
     project_id: i32,
     rows: &[DeviceRow],
     match_on: &[String],
     as_of: DateTime<Utc>,
-    import_run_id: i32,
 ) -> Result<Report, ImportError> {
-    let (report, planned) = 計画する(db, project_id, rows, match_on).await?;
-    if report.has_error() {
-        return Err(ImportError::HasErrors(report.count(Outcome::Error)));
-    }
-
+    // **トランザクションの中で読む。**同じ取込で先に書いたもの（機器など）が
+    // 見えるのはこの経路だけであり、SQLiteのインメモリでは外の接続で読むと
+    // 止まる（24.2.5）
+    let (report, planned) = 計画する(tx.reader(), project_id, rows, match_on).await?;
     let now = Utc::now();
-    // **行ごとの監査ログを書かない**（24.4）。追跡は IMPORT_RUN が担う
-    let tx = AuditedTx::begin(db, Actor::Import { import_run_id }).await?;
 
     for p in planned {
         let device_id = match &p.existing {
@@ -741,6 +742,24 @@ pub async fn apply(
         }
     }
 
+    Ok(report)
+}
+
+/// 単独で反映する。**エラーが1件でもあれば何も書かない。**
+pub async fn apply(
+    db: &DatabaseConnection,
+    project_id: i32,
+    rows: &[DeviceRow],
+    match_on: &[String],
+    as_of: DateTime<Utc>,
+    import_run_id: i32,
+) -> Result<Report, ImportError> {
+    let tx = AuditedTx::begin(db, Actor::Import { import_run_id }).await?;
+    let report = 取り込む(&tx, project_id, rows, match_on, as_of).await?;
+    if report.has_error() {
+        tx.rollback().await?;
+        return Err(ImportError::HasErrors(report.count(Outcome::Error)));
+    }
     tx.commit().await?;
     Ok(report)
 }

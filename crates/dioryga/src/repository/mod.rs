@@ -73,6 +73,53 @@ impl AuditedTx {
         })
     }
 
+    /// 取込を1つのトランザクションとして始める（設計書23.6、24.4）。
+    ///
+    /// **`IMPORT_RUN` を同じトランザクションの中で先に作り、以後の主体を
+    /// その取込にする。**マニフェストは複数のエンティティにまたがり、後の
+    /// エンティティが前のエンティティを参照する（機器とその搭載など）。
+    /// **全体を1つのトランザクションに収めて初めて、**ドライランが同じファイルで
+    /// 作るものを参照でき、反映が途中で止まったときに何も残らない。
+    ///
+    /// ドライランはこのトランザクションを `rollback` する。`IMPORT_RUN` も
+    /// 一緒に消えるため、**取り込んでいない取込の記録は残らない。**
+    ///
+    /// `IMPORT_RUN` を監査ログを経ずに書くのは、取込による変更の追跡を
+    /// **この行自体が担う**ためである（24.4）。取込の主体は行ごとの監査ログを
+    /// 書かないので、経由しても何も記録されない。
+    pub async fn begin_import(
+        db: &DatabaseConnection,
+        run: entity::import_run::ActiveModel,
+    ) -> Result<(Self, entity::import_run::Model), DbErr> {
+        let txn = db.begin().await?;
+        let run = run.insert(&txn).await?;
+        let tx = Self {
+            txn,
+            actor: Actor::Import {
+                import_run_id: run.id,
+            },
+        };
+        Ok((tx, run))
+    }
+
+    /// 取込の件数を `IMPORT_RUN` に書く。**反映の最後、コミットの直前に呼ぶ。**
+    ///
+    /// 件数は全エンティティを流し終えるまで決まらないため、先に作った行を
+    /// 後から埋める。書き込み経路は [`Self::begin_import`] と同じ理由で直接。
+    pub async fn record_import_counts(
+        &self,
+        run: &entity::import_run::Model,
+        created: i32,
+        updated: i32,
+        warning: i32,
+    ) -> Result<entity::import_run::Model, DbErr> {
+        let mut active: entity::import_run::ActiveModel = run.clone().into();
+        active.created_count = sea_orm::Set(created);
+        active.updated_count = sea_orm::Set(updated);
+        active.warning_count = sea_orm::Set(warning);
+        active.update(&self.txn).await
+    }
+
     /// 読み取り用のコネクション。
     ///
     /// **書き込みには使わないこと。**書き込みは本構造体のメソッドを通す

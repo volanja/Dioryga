@@ -89,6 +89,36 @@ pub async fn dry_run<C: ConnectionTrait>(
         ));
     }
 
+    for v in &file.vlans {
+        let target = format!("VLAN {} {}", v.vlan_tag, v.name);
+        if let Err(理由) = dioryga_catalog_format::vlanを検証する(v) {
+            report.push(Entry::new(Outcome::Error, target, 理由));
+            continue;
+        }
+
+        let 既存 = 既存vlan(db, v.vlan_tag, &v.name).await?;
+        if 既存.is_some() {
+            report.push(Entry::new(Outcome::Unchanged, target, ""));
+            continue;
+        }
+
+        // **同じタグの別名は禁じない**（8.5）。拠点が違えば同じタグが別物として
+        // 存在する。ただし取り違えが起きやすいので警告する（不変条件6）
+        let 同タグ = entity::vlan::Entity::find()
+            .filter(entity::vlan::Column::VlanTag.eq(v.vlan_tag))
+            .filter(entity::vlan::Column::RetiredAt.is_null())
+            .one(db)
+            .await?;
+        match 同タグ {
+            Some(他) => report.push(Entry::new(
+                Outcome::Warning,
+                target,
+                format!("タグ{}は「{}」でも使われています", v.vlan_tag, 他.name),
+            )),
+            None => report.push(Entry::new(Outcome::Created, target, "")),
+        }
+    }
+
     // ファイル内で定義されたベンダーも参照先として認める。
     // **同じファイルで定義したものを参照できないと、初回取込が成立しない。**
     let 宣言済みベンダー: Vec<&str> = file.vendors.iter().map(|v| v.name.as_str()).collect();
@@ -316,6 +346,26 @@ pub async fn apply(
     }
 
     // ファイルで宣言されていないベンダーは既存から引く
+    for v in &file.vlans {
+        // 検証は dry_run が済ませている（エラーがあればここへ来ない）
+        let zone = dioryga_catalog_format::vlanを検証する(v).unwrap_or(None);
+        if 既存vlan(tx.reader(), v.vlan_tag, &v.name).await?.is_some() {
+            continue;
+        }
+        tx.insert(entity::vlan::ActiveModel {
+            vlan_tag: Set(v.vlan_tag),
+            name: Set(dioryga_catalog_format::正規化(&v.name)),
+            zone: Set(zone),
+            description: Set(dioryga_catalog_format::正規化(&v.description)),
+            retired_at: Set(None),
+            created_by: Set(actor),
+            created_at: Set(now),
+            updated_at: Set(now),
+            ..Default::default()
+        })
+        .await?;
+    }
+
     let ベンダーid = |name: &str| -> Option<i32> { vendor_ids.get(name).copied() };
 
     for m in &file.chassis_models {
@@ -526,6 +576,19 @@ async fn ポート数<C: ConnectionTrait>(db: &C, part_catalog_id: i32) -> Resul
         .all(db)
         .await?
         .len())
+}
+
+/// タグと名前でVLANを引く（8.5）。**タグだけでは一意にならない。**
+async fn 既存vlan<C: ConnectionTrait>(
+    db: &C,
+    vlan_tag: i32,
+    name: &str,
+) -> Result<Option<entity::vlan::Model>, DbErr> {
+    entity::vlan::Entity::find()
+        .filter(entity::vlan::Column::VlanTag.eq(vlan_tag))
+        .filter(entity::vlan::Column::Name.eq(dioryga_catalog_format::正規化(name)))
+        .one(db)
+        .await
 }
 
 async fn 既存ベンダー<C: ConnectionTrait>(

@@ -304,7 +304,7 @@ pub async fn create_subnet(
 /// **正しさの検査ではなく、書き間違いを弾くだけ。**アドレス計算はv1で扱わない
 /// （14.2の空きIP算出はv2）。ここで厳密なパースを持ち込むと、IPv6や特殊な
 /// 表記で正当な入力を拒否する側の誤りが増える。
-fn cidrとして読める(value: &str) -> bool {
+pub(crate) fn cidrとして読める(value: &str) -> bool {
     let Some((addr, prefix)) = value.split_once('/') else {
         return false;
     };

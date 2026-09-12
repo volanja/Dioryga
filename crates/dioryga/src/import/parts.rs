@@ -361,7 +361,7 @@ async fn 解決するスロット<C: ConnectionTrait>(
 }
 
 /// このプロジェクトの機器に一度でも載ったことがある部品（23.5、A-6）。
-async fn このプロジェクトに関わった部品<C: ConnectionTrait>(
+pub(super) async fn このプロジェクトに関わった部品<C: ConnectionTrait>(
     db: &C,
     機器: &[device::Model],
 ) -> Result<Vec<part_instance::Model>, sea_orm::DbErr> {

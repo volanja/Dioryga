@@ -281,6 +281,83 @@ web01,bond0,100,web,Tagged
     );
 }
 
+/// **費用を同じマニフェストで取り込めること**（23.5、#103）。
+///
+/// 発注・固定資産・保守契約は、いずれも**同じファイルで作られる機器を指す。**
+/// 費用が機器より先に処理されると「参照先が無い」で落ちる。
+async fn 費用をまとめて取り込める(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "費用一式").await;
+    ベンダー(db, "Fujitsu").await;
+
+    let dir = 取込ファイル(
+        &場,
+        &[
+            (
+                "device",
+                "devices.csv",
+                "uid,external_id,hostname,serial_number,asset_number,device_type,power_watt,status\n\
+                 ,,web01,SN-COST-1,,Physical,400,running\n",
+            ),
+            (
+                "purchase_order",
+                "orders.csv",
+                "order_number,order_date,vendor,item_type,item_hostname,item_serial_number,quantity,unit_price\n\
+                 PO-1,2026-04-01,Fujitsu,Device,web01,,1,1200000\n",
+            ),
+            (
+                "fixed_asset",
+                "assets.csv",
+                "item_type,item_hostname,item_serial_number,acquisition_cost,depreciation_method,useful_life_years,acquisition_date\n\
+                 Device,web01,,1200000,straight_line,5,2026-04-01\n",
+            ),
+            (
+                "maintenance_contract",
+                "contracts.csv",
+                "contract_number,vendor,start_date,end_date,amount,quote_contact,failure_contact,item_type,item_hostname,item_serial_number\n\
+                 CT-1,Fujitsu,2026-04-01,2027-03-31,240000,q@example.com,f@example.com,Device,web01,\n",
+            ),
+        ],
+    );
+
+    let 下見 = run::run(db, &dir.join("manifest.yaml"), &場.email, false)
+        .await
+        .unwrap();
+    assert!(
+        !下見.report.has_error(),
+        "ドライランでエラーになっています: {}\n{:?}",
+        下見.report,
+        下見.report.errors().collect::<Vec<_>>()
+    );
+
+    run::run(db, &dir.join("manifest.yaml"), &場.email, true)
+        .await
+        .unwrap();
+
+    let asset = entity::fixed_asset::Entity::find()
+        .one(db)
+        .await
+        .unwrap()
+        .expect("固定資産が入っていません");
+    assert_eq!(asset.acquisition_cost, 1_200_000);
+
+    let item = entity::purchase_order_item::Entity::find()
+        .one(db)
+        .await
+        .unwrap()
+        .expect("発注明細が入っていません");
+    // **同じファイルで作られた機器を指せていること**
+    assert_eq!(item.item_id, asset.item_id);
+
+    assert_eq!(
+        entity::maintenance_contract_item::Entity::find()
+            .count(db)
+            .await
+            .unwrap(),
+        1,
+        "保守契約の品目が入っていません"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // 用意
 // ---------------------------------------------------------------------------
@@ -396,12 +473,28 @@ async fn vlan(db: &DatabaseConnection, _project_id: i32, tag: i32, name: &str) -
     .id
 }
 
+async fn ベンダー(db: &DatabaseConnection, name: &str) -> i32 {
+    let u = app_user::Entity::find().one(db).await.unwrap().unwrap();
+    entity::vendor::ActiveModel {
+        name: Set(name.to_owned()),
+        created_by: Set(u.id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap()
+    .id
+}
+
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, 同じ取込で作る機器を配置できる);
         全検証!(@one $用意, $属性, ドライランと反映の件数が一致する);
         全検証!(@one $用意, $属性, エラーがあれば何も残らない);
         全検証!(@one $用意, $属性, ネットワークをまとめて取り込める);
+        全検証!(@one $用意, $属性, 費用をまとめて取り込める);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

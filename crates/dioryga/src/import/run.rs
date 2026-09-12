@@ -17,7 +17,7 @@ use entity::{app_user, import_run};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
 use super::{
-    catalog, file_hash, instances, network, parts, placement, ImportError, Outcome, Report,
+    catalog, costs, file_hash, instances, network, parts, placement, ImportError, Outcome, Report,
 };
 use crate::auth::authorization;
 use crate::repository::AuditedTx;
@@ -137,7 +137,16 @@ async fn instances_manifest(
     )
     .await?;
 
-    let report = match 通しで取り込む(&tx, project.id, &束, &match_on, as_of, actor.id).await
+    let report = match 通しで取り込む(
+        &tx,
+        project.id,
+        &束,
+        &match_on,
+        as_of,
+        actor.id,
+        &project.currency,
+    )
+    .await
     {
         Ok(r) => r,
         Err(e) => {
@@ -191,6 +200,9 @@ struct 束 {
     stacks: Vec<network::StackRow>,
     interface_vlans: Vec<network::InterfaceVlanRow>,
     ips: Vec<network::IpRow>,
+    purchase_orders: Vec<costs::PurchaseOrderRow>,
+    fixed_assets: Vec<costs::FixedAssetRow>,
+    contracts: Vec<costs::MaintenanceContractRow>,
 }
 
 /// マニフェストの `files` を読み分ける。
@@ -217,6 +229,13 @@ fn 読み分ける(manifest_path: &Path, files: &[instances::FileRef]) -> Result
                 .interface_vlans
                 .extend(network::parse_interface_vlans(&csv)?),
             "ip_address" => out.ips.extend(network::parse_ips(&csv)?),
+            "purchase_order" => out
+                .purchase_orders
+                .extend(costs::parse_purchase_orders(&csv)?),
+            "fixed_asset" => out.fixed_assets.extend(costs::parse_fixed_assets(&csv)?),
+            "maintenance_contract" => out
+                .contracts
+                .extend(costs::parse_maintenance_contracts(&csv)?),
             other => return Err(RunError::UnsupportedEntity(other.to_owned())),
         }
     }
@@ -227,7 +246,7 @@ fn 読み分ける(manifest_path: &Path, files: &[instances::FileRef]) -> Result
 /// 依存順に、同じトランザクションの中で流す。
 ///
 /// **機器 → 所属 → 搭載 → 部品 → サブネット → インタフェース → 束ね →
-/// VLAN → IPアドレスの順。**後のエンティティは前のエンティティが書いた行を、
+/// VLAN → IPアドレス → 費用の順。**後のエンティティは前のエンティティが書いた行を、
 /// 同じトランザクションの中で参照する。
 async fn 通しで取り込む(
     tx: &AuditedTx,
@@ -236,6 +255,7 @@ async fn 通しで取り込む(
     match_on: &[String],
     as_of: chrono::DateTime<Utc>,
     actor: i32,
+    currency: &str,
 ) -> Result<Report, ImportError> {
     let mut report = instances::取り込む(tx, project_id, &束.devices, match_on, as_of).await?;
     束ねる(
@@ -276,6 +296,19 @@ async fn 通しで取り込む(
     束ねる(
         &mut report,
         network::ipアドレスを取り込む(tx, project_id, &束.ips, as_of).await?,
+    );
+    // **費用は最後。**発注も資産も契約も、機器と部品を指す（23.5）
+    束ねる(
+        &mut report,
+        costs::発注を取り込む(tx, project_id, &束.purchase_orders, currency).await?,
+    );
+    束ねる(
+        &mut report,
+        costs::固定資産を取り込む(tx, project_id, &束.fixed_assets, currency).await?,
+    );
+    束ねる(
+        &mut report,
+        costs::保守契約を取り込む(tx, project_id, &束.contracts, currency).await?,
     );
     Ok(report)
 }

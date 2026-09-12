@@ -42,15 +42,13 @@ use std::collections::HashMap;
 
 use chrono::{NaiveDate, Utc};
 use entity::{
-    device, fixed_asset, maintenance_contract, maintenance_contract_item, part_instance,
-    purchase_order, purchase_order_item, vendor,
+    fixed_asset, maintenance_contract, maintenance_contract_item, part_instance, purchase_order,
+    purchase_order_item, vendor,
 };
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
 
-use super::placement::{
-    このプロジェクトの機器, 機器キー, 空ならnone, 解決する機器, 読み取る
-};
+use super::placement::{機器の索引, 機器キー, 空ならnone, 読み取る};
 use super::{Entry, ImportError, Outcome, Report};
 use crate::cost::DEPRECIATION_METHODS;
 use crate::currency;
@@ -183,14 +181,11 @@ pub async fn 発注を取り込む(
         };
 
         let (item_type, item_id) = match 品目を引く(
-            tx,
             &対象,
             &row.item_type,
             &row.item_hostname,
             &row.item_serial_number,
-        )
-        .await?
-        {
+        ) {
             Ok(v) => v,
             Err(理由) => {
                 report.push(Entry::new(Outcome::Error, target, 理由));
@@ -329,14 +324,11 @@ pub async fn 固定資産を取り込む(
         }
 
         let (item_type, item_id) = match 品目を引く(
-            tx,
             &対象,
             &row.item_type,
             &row.item_hostname,
             &row.item_serial_number,
-        )
-        .await?
-        {
+        ) {
             Ok(v) => v,
             Err(理由) => {
                 report.push(Entry::new(Outcome::Error, target, 理由));
@@ -472,14 +464,11 @@ pub async fn 保守契約を取り込む(
         };
 
         let (item_type, item_id) = match 品目を引く(
-            tx,
             &対象,
             &row.item_type,
             &row.item_hostname,
             &row.item_serial_number,
-        )
-        .await?
-        {
+        ) {
             Ok(v) => v,
             Err(理由) => {
                 report.push(Entry::new(Outcome::Error, target, 理由));
@@ -568,13 +557,21 @@ pub async fn 保守契約を取り込む(
 
 /// 品目として指せるもの（23.5）。**型ごとに見る列が変わる。**
 struct 対象の索引 {
-    機器: Vec<device::Model>,
-    部品: Vec<part_instance::Model>,
+    機器: 機器の索引,
+    /// シリアル番号で引く（23.5）。**行ごとに走査しない**（#111）。
+    部品: HashMap<String, Vec<part_instance::Model>>,
 }
 
 async fn 対象の索引(tx: &AuditedTx, project_id: i32) -> Result<対象の索引, ImportError> {
-    let 機器 = このプロジェクトの機器(tx.reader(), project_id).await?;
-    let 部品 = super::parts::このプロジェクトに関わった部品(tx.reader(), &機器).await?;
+    let 機器 = 機器の索引::作る(tx.reader(), project_id).await?;
+    let mut 部品: HashMap<String, Vec<part_instance::Model>> = HashMap::new();
+    for p in super::parts::このプロジェクトに関わった部品(tx.reader(), &機器.ids()).await?
+    {
+        let Some(serial) = p.serial_number.clone() else {
+            continue;
+        };
+        部品.entry(serial).or_default().push(p);
+    }
     Ok(対象の索引 { 機器, 部品 })
 }
 
@@ -582,13 +579,12 @@ async fn 対象の索引(tx: &AuditedTx, project_id: i32) -> Result<対象の索
 ///
 /// **`Device` は23.2の解決順序、`PartInstance` はシリアル番号。**型ごとに
 /// 取込の識別方式を作り直さずに済むよう、既にあるものを通す。
-async fn 品目を引く(
-    tx: &AuditedTx,
+fn 品目を引く(
     対象: &対象の索引,
     item_type: &str,
     hostname: &str,
     serial: &str,
-) -> Result<Result<(String, i32), String>, ImportError> {
+) -> Result<(String, i32), String> {
     match item_type.trim() {
         DEVICE => {
             let key = 機器キー {
@@ -596,23 +592,18 @@ async fn 品目を引く(
                 serial_number: serial.to_owned(),
                 ..Default::default()
             };
-            Ok(match 解決する機器(tx.reader(), &対象.機器, &key).await? {
+            match 対象.機器.引く(&key) {
                 Ok(d) => Ok((DEVICE.to_owned(), d.id)),
                 Err(理由) => Err(理由),
-            })
+            }
         }
         PART_INSTANCE => {
             let Some(serial) = 空ならnone(serial) else {
-                return Ok(Err(
-                    "item_type=PartInstance には item_serial_number が要ります".to_owned(),
-                ));
+                return Err("item_type=PartInstance には item_serial_number が要ります".to_owned());
             };
-            let 一致: Vec<&part_instance::Model> = 対象
-                .部品
-                .iter()
-                .filter(|p| p.serial_number.as_deref() == Some(serial))
-                .collect();
-            Ok(match 一致.len() {
+            let 空: Vec<part_instance::Model> = Vec::new();
+            let 一致 = 対象.部品.get(serial).unwrap_or(&空);
+            match 一致.len() {
                 1 => Ok((PART_INSTANCE.to_owned(), 一致[0].id)),
                 0 => Err(format!(
                     "シリアル「{serial}」の部品が、このプロジェクトの機器に載ったことがありません"
@@ -620,13 +611,13 @@ async fn 品目を引く(
                 n => Err(format!(
                     "シリアル「{serial}」の部品が{n}件あります。突合できません"
                 )),
-            })
+            }
         }
         // **ソフトウェアは対象外。**`SOFTWARE_INSTANCE` を指す発注もありうるが、
         // 9章の取込はv1のスコープ外であり、指す先が入っていない
-        other => Ok(Err(format!(
+        other => Err(format!(
             "item_type「{other}」は扱えません。Device / PartInstance のいずれかです"
-        ))),
+        )),
     }
 }
 

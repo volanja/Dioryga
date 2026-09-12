@@ -40,9 +40,7 @@ use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
 
 use super::instances::語彙;
-use super::placement::{
-    このプロジェクトの機器, 機器キー, 空ならnone, 解決する機器, 読み取る
-};
+use super::placement::{機器の索引, 機器キー, 空ならnone, 読み取る};
 use super::{Entry, ImportError, Outcome, Report};
 use crate::repository::AuditedTx;
 use crate::server::network::cidrとして読める;
@@ -228,7 +226,7 @@ pub async fn インタフェースを取り込む(
     as_of: DateTime<Utc>,
 ) -> Result<Report, ImportError> {
     let mut report = Report::default();
-    let 機器 = このプロジェクトの機器(tx.reader(), project_id).await?;
+    let 索引 = 機器の索引::作る(tx.reader(), project_id).await?;
 
     for row in rows {
         let name = row.os_interface_name.trim().to_owned();
@@ -243,7 +241,7 @@ pub async fn インタフェースを取り込む(
             continue;
         }
 
-        let d = match 機器を引く(tx, &機器, &row.hostname).await? {
+        let d = match 機器を引く(&索引, &row.hostname) {
             Ok(d) => d,
             Err(理由) => {
                 report.push(Entry::new(Outcome::Error, target, 理由));
@@ -450,7 +448,7 @@ pub async fn 束ねを取り込む(
     as_of: DateTime<Utc>,
 ) -> Result<Report, ImportError> {
     let mut report = Report::default();
-    let 機器 = このプロジェクトの機器(tx.reader(), project_id).await?;
+    let 索引 = 機器の索引::作る(tx.reader(), project_id).await?;
 
     for row in rows {
         let target = format!(
@@ -460,7 +458,7 @@ pub async fn 束ねを取り込む(
             row.lower_interface.trim()
         );
 
-        let d = match 機器を引く(tx, &機器, &row.hostname).await? {
+        let d = match 機器を引く(&索引, &row.hostname) {
             Ok(d) => d,
             Err(理由) => {
                 report.push(Entry::new(Outcome::Error, target, 理由));
@@ -567,7 +565,7 @@ pub async fn インタフェースのvlanを取り込む(
     as_of: DateTime<Utc>,
 ) -> Result<Report, ImportError> {
     let mut report = Report::default();
-    let 機器 = このプロジェクトの機器(tx.reader(), project_id).await?;
+    let 索引 = 機器の索引::作る(tx.reader(), project_id).await?;
 
     for row in rows {
         let target = format!(
@@ -577,7 +575,7 @@ pub async fn インタフェースのvlanを取り込む(
             row.vlan_tag.trim()
         );
 
-        let d = match 機器を引く(tx, &機器, &row.hostname).await? {
+        let d = match 機器を引く(&索引, &row.hostname) {
             Ok(d) => d,
             Err(理由) => {
                 report.push(Entry::new(Outcome::Error, target, 理由));
@@ -668,7 +666,7 @@ pub async fn ipアドレスを取り込む(
     as_of: DateTime<Utc>,
 ) -> Result<Report, ImportError> {
     let mut report = Report::default();
-    let 機器 = このプロジェクトの機器(tx.reader(), project_id).await?;
+    let 索引 = 機器の索引::作る(tx.reader(), project_id).await?;
     // **ファイル内の重複を先に見る。**DBの部分一意インデックスに当たる前に、
     // どの行同士がぶつかっているかを示す（14.2）
     let mut 既出: HashMap<(i32, String), usize> = HashMap::new();
@@ -681,7 +679,7 @@ pub async fn ipアドレスを取り込む(
             row.os_interface_name.trim()
         );
 
-        let d = match 機器を引く(tx, &機器, &row.hostname).await? {
+        let d = match 機器を引く(&索引, &row.hostname) {
             Ok(d) => d,
             Err(理由) => {
                 report.push(Entry::new(Outcome::Error, target, 理由));
@@ -801,16 +799,12 @@ pub async fn ipアドレスを取り込む(
 // 参照の解決
 // ---------------------------------------------------------------------------
 
-async fn 機器を引く(
-    tx: &AuditedTx,
-    候補: &[device::Model],
-    hostname: &str,
-) -> Result<Result<device::Model, String>, ImportError> {
+fn 機器を引く(索引: &機器の索引, hostname: &str) -> Result<device::Model, String> {
     let key = 機器キー {
         hostname: hostname.to_owned(),
         ..Default::default()
     };
-    Ok(解決する機器(tx.reader(), 候補, &key).await?)
+    索引.引く(&key)
 }
 
 async fn 現在のインタフェース(

@@ -21,6 +21,7 @@
 //! 持つため情報が増えない。追跡は `IMPORT_RUN` が担う。
 
 pub mod catalog;
+pub mod costs;
 pub mod instances;
 pub mod network;
 pub mod parts;

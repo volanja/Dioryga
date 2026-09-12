@@ -29,12 +29,10 @@ use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 use entity::{chassis_model, configuration, device, device_assignment, project, vendor};
-use sea_orm::sea_query::{Expr, Query as SeaQuery};
-use sea_orm::{
-    ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, ExprTrait, QueryFilter, Set,
-};
+use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
 
+use super::placement::機器の索引;
 use super::{Entry, ImportError, Outcome, Report};
 use crate::repository::{Actor, AuditedTx};
 
@@ -173,13 +171,19 @@ enum Matched {
 /// 1行を既存の機器に突き合わせる。
 ///
 /// 解決順序は23.2の通り。**④へ落ちる前に23.9.1の重複検査を行う。**
+///
+/// **候補は索引で引く**（#111）。以前は行ごとに候補を読み直したうえで線形走査
+/// しており、10,000台の再取込に267秒かかっていた（#22の実測）。
 async fn 突合<C: ConnectionTrait>(
     db: &C,
-    project_id: i32,
+    索引: &機器の索引,
     row: &DeviceRow,
     match_on: &[String],
 ) -> Result<Result<Matched, String>, sea_orm::DbErr> {
     // ① uid
+    //
+    // **ここだけはプロジェクトの外も探す。**書き出したファイルを編集して戻す
+    // 運用では、移管された機器の uid が書かれていることがある
     if let Some(uid) = DeviceRow::空ならnone(&row.uid) {
         let found = device::Entity::find()
             .filter(device::Column::Uid.eq(uid.as_str()))
@@ -192,17 +196,13 @@ async fn 突合<C: ConnectionTrait>(
         });
     }
 
-    let 候補 = このプロジェクトの機器(db, project_id).await?;
-
     // ② external_id
     if let Some(external_id) = DeviceRow::空ならnone(&row.external_id) {
-        if let Some(d) = 候補
-            .iter()
-            .find(|d| d.external_id.as_deref() == Some(external_id.as_str()))
-        {
-            return Ok(Ok(Matched::Existing(Box::new(
-                統合先を辿る(db, d.clone()).await?,
-            ))));
+        let 一致 = 索引.該当("external_id", &external_id);
+        if 一致.len() == 1 {
+            if let Some(d) = 索引.機器(一致[0]) {
+                return Ok(Ok(Matched::Existing(Box::new(d))));
+            }
         }
     }
 
@@ -214,17 +214,15 @@ async fn 突合<C: ConnectionTrait>(
         let Some(value) = DeviceRow::空ならnone(&value) else {
             continue;
         };
-        let 一致: Vec<&device::Model> = 候補
-            .iter()
-            .filter(|d| 機器の値(d, key).as_deref() == Some(value.as_str()))
-            .collect();
+        let 一致 = 索引.該当(key, &value);
 
         match 一致.len() {
             0 => {}
             1 => {
-                return Ok(Ok(Matched::Existing(Box::new(
-                    統合先を辿る(db, 一致[0].clone()).await?,
-                ))))
+                return Ok(match 索引.機器(一致[0]) {
+                    Some(d) => Ok(Matched::Existing(Box::new(d))),
+                    None => Err(format!("{key}「{value}」の機器を読み出せません")),
+                })
             }
             n => {
                 return Ok(Err(format!(
@@ -235,7 +233,7 @@ async fn 突合<C: ConnectionTrait>(
     }
 
     // ④ 新規作成の前に、重複を疑う（23.9.1）
-    if let Some(理由) = 重複の疑い(&候補, row) {
+    if let Some(理由) = 重複の疑い(索引, row) {
         return Ok(Err(理由));
     }
 
@@ -247,47 +245,25 @@ async fn 突合<C: ConnectionTrait>(
 /// 突合できなかったのに、識別子のいずれかが既存機器と一致する場合はエラーとする。
 /// 利用者はドライランの指摘を見て、`uid` を書く／`external_id` を設定する／
 /// 別機器であることを確認する、のいずれかを選べる。
-fn 重複の疑い(候補: &[device::Model], row: &DeviceRow) -> Option<String> {
-    /// 「この列の値」を、CSVの行と既存の機器の双方から取り出す組。
-    type 識別子 = (
-        &'static str,
-        Option<String>,
-        fn(&device::Model) -> Option<String>,
-    );
-
-    let 検査: [識別子; 4] = [
-        (
-            "serial_number",
-            DeviceRow::空ならnone(&row.serial_number),
-            |d| d.serial_number.clone(),
-        ),
-        (
-            "asset_number",
-            DeviceRow::空ならnone(&row.asset_number),
-            |d| d.asset_number.clone(),
-        ),
-        (
-            "external_id",
-            DeviceRow::空ならnone(&row.external_id),
-            |d| d.external_id.clone(),
-        ),
-        ("hostname", DeviceRow::空ならnone(&row.hostname), |d| {
-            Some(d.hostname.clone())
-        }),
+fn 重複の疑い(索引: &機器の索引, row: &DeviceRow) -> Option<String> {
+    let 検査 = [
+        ("serial_number", DeviceRow::空ならnone(&row.serial_number)),
+        ("asset_number", DeviceRow::空ならnone(&row.asset_number)),
+        ("external_id", DeviceRow::空ならnone(&row.external_id)),
+        ("hostname", DeviceRow::空ならnone(&row.hostname)),
     ];
 
-    for (label, value, 取り出す) in 検査 {
+    for (label, value) in 検査 {
         let Some(value) = value else { continue };
-        if let Some(既存) = 候補
-            .iter()
-            .find(|d| 取り出す(d).as_deref() == Some(value.as_str()))
-        {
-            return Some(format!(
-                "{label}「{value}」が既存の機器（{}）と一致しますが、突合できませんでした。\
-                 同一の機器なら uid か external_id を指定してください",
-                既存.hostname
-            ));
-        }
+        let Some(&id) = 索引.該当(label, &value).first() else {
+            continue;
+        };
+        let 既存 = 索引.機器(id)?;
+        return Some(format!(
+            "{label}「{value}」が既存の機器（{}）と一致しますが、突合できませんでした。\
+             同一の機器なら uid か external_id を指定してください",
+            既存.hostname
+        ));
     }
     None
 }
@@ -321,34 +297,6 @@ fn 行の値(row: &DeviceRow, key: &str) -> Option<String> {
         "external_id" => Some(row.external_id.clone()),
         _ => None,
     }
-}
-
-fn 機器の値(d: &device::Model, key: &str) -> Option<String> {
-    match key {
-        "serial_number" => d.serial_number.clone(),
-        "asset_number" => d.asset_number.clone(),
-        "hostname" => Some(d.hostname.clone()),
-        "external_id" => d.external_id.clone(),
-        _ => None,
-    }
-}
-
-/// このプロジェクトに属する（属したことがある）機器（A-6と同じ判定）。
-async fn このプロジェクトの機器<C: ConnectionTrait>(
-    db: &C,
-    project_id: i32,
-) -> Result<Vec<device::Model>, sea_orm::DbErr> {
-    let 所属したことがある = SeaQuery::select()
-        .column(device_assignment::Column::DeviceId)
-        .from(device_assignment::Entity)
-        .and_where(Expr::col(device_assignment::Column::LocationType).eq(PROJECT))
-        .and_where(Expr::col(device_assignment::Column::LocationId).eq(project_id))
-        .to_owned();
-
-    device::Entity::find()
-        .filter(device::Column::Id.in_subquery(所属したことがある))
-        .all(db)
-        .await
 }
 
 // ---------------------------------------------------------------------------
@@ -492,6 +440,10 @@ async fn 計画する<C: ConnectionTrait>(
     let mut report = Report::default();
     let mut planned = Vec::new();
 
+    // **索引は取込のはじめに1度だけ作る**（#111）。行ごとに候補を読み直すと、
+    // 行数×台数で伸びる
+    let 索引 = 機器の索引::作る(db, project_id).await?;
+
     // **ファイル内の重複を先に見る。**DBと突き合わせる前に弾かないと、
     // 同じ機器を2回作るか、2行目が1行目を上書きする
     let mut 出現済み: HashMap<String, usize> = HashMap::new();
@@ -563,7 +515,7 @@ async fn 計画する<C: ConnectionTrait>(
             }
         };
 
-        let matched = match 突合(db, project_id, row, match_on).await? {
+        let matched = match 突合(db, &索引, row, match_on).await? {
             Ok(m) => m,
             Err(e) => {
                 report.push(Entry::new(Outcome::Error, target, e));

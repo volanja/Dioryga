@@ -39,9 +39,7 @@ use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, Que
 use serde::Deserialize;
 
 use super::instances::{語彙, STATUSES};
-use super::placement::{
-    このプロジェクトの機器, 機器キー, 空ならnone, 解決する機器, 読み取る
-};
+use super::placement::{機器の索引, 機器キー, 空ならnone, 読み取る};
 use super::{Entry, ImportError, Outcome, Report};
 use crate::repository::{Actor, AuditedTx};
 
@@ -114,8 +112,8 @@ async fn 計画する<C: ConnectionTrait>(
     project_id: i32,
     rows: &[PartRow],
 ) -> Result<(Report, Vec<部品の計画>), ImportError> {
-    let 機器 = このプロジェクトの機器(db, project_id).await?;
-    let 候補 = このプロジェクトに関わった部品(db, &機器).await?;
+    let 索引 = 機器の索引::作る(db, project_id).await?;
+    let 候補 = このプロジェクトに関わった部品(db, &索引.ids()).await?;
     let 倉庫: HashMap<String, i32> = warehouse::Entity::find()
         .all(db)
         .await?
@@ -174,7 +172,7 @@ async fn 計画する<C: ConnectionTrait>(
                     hostname: row.location_hostname.clone(),
                     ..Default::default()
                 };
-                let d = match 解決する機器(db, &機器, &key).await? {
+                let d = match 索引.引く(&key) {
                     Ok(d) => d,
                     Err(理由) => {
                         report.push(Entry::new(Outcome::Error, 表示, 理由));
@@ -363,16 +361,15 @@ async fn 解決するスロット<C: ConnectionTrait>(
 /// このプロジェクトの機器に一度でも載ったことがある部品（23.5、A-6）。
 pub(super) async fn このプロジェクトに関わった部品<C: ConnectionTrait>(
     db: &C,
-    機器: &[device::Model],
+    機器id: &[i32],
 ) -> Result<Vec<part_instance::Model>, sea_orm::DbErr> {
-    if 機器.is_empty() {
+    if 機器id.is_empty() {
         return Ok(Vec::new());
     }
-    let 機器id: Vec<i32> = 機器.iter().map(|d| d.id).collect();
 
     let mut ids: Vec<i32> = part_instance_location::Entity::find()
         .filter(part_instance_location::Column::LocationType.eq(DEVICE))
-        .filter(part_instance_location::Column::LocationId.is_in(機器id))
+        .filter(part_instance_location::Column::LocationId.is_in(機器id.to_vec()))
         .all(db)
         .await?
         .into_iter()

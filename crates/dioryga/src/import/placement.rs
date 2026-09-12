@@ -193,74 +193,176 @@ pub(super) fn 読み取る<T: serde::de::DeserializeOwned>(
 // 機器の解決
 // ---------------------------------------------------------------------------
 
-/// 自然キーから機器を引く（23.2）。
+/// 機器を自然キーで引くための索引（#111）。
 ///
-/// **`uid` → `external_id` → `serial_number` → `hostname` の順。**機器CSVの
-/// 突合（`instances.rs`）と違い `match_on` は見ない——配置のCSVは**既にある
-/// 機器を指すだけ**であり、新規作成しないため突合キーを選ぶ必要がない。
+/// # 行ごとに走査しない
 ///
-/// **統合先を辿る**（23.9.4）。吸収された側の識別子で書かれていても着地する。
-pub(super) async fn 解決する機器<C: ConnectionTrait>(
-    db: &C,
-    候補: &[device::Model],
-    key: &機器キー,
-) -> Result<Result<device::Model, String>, sea_orm::DbErr> {
-    type 引く = (&'static str, fn(&device::Model) -> Option<String>);
-    let 順序: [(Option<&str>, 引く); 4] = [
-        (空ならnone(&key.uid), ("uid", |d| Some(d.uid.clone()))),
-        (
-            空ならnone(&key.external_id),
-            ("external_id", |d| d.external_id.clone()),
-        ),
-        (
-            空ならnone(&key.serial_number),
-            ("serial_number", |d| d.serial_number.clone()),
-        ),
-        (
-            空ならnone(&key.hostname),
-            ("hostname", |d| Some(d.hostname.clone())),
-        ),
-    ];
-
-    for (value, (列, 取り出す)) in 順序 {
-        let Some(value) = value else { continue };
-        let 一致: Vec<&device::Model> = 候補
-            .iter()
-            .filter(|d| 取り出す(d).as_deref() == Some(value))
-            .collect();
-
-        return Ok(match 一致.len() {
-            1 => Ok(統合先を辿る(db, 一致[0].clone()).await?),
-            0 => Err(format!(
-                "{列}「{value}」の機器がこのプロジェクトにありません"
-            )),
-            // **黙って1台目を選ばない。**どれを指しているか決められない
-            n => Err(format!(
-                "{列}「{value}」に{n}台が該当します。uid で指定してください"
-            )),
-        });
-    }
-
-    Ok(Err("機器を特定する列が空です".to_owned()))
+/// **候補を行ごとに線形走査すると、行数×台数で伸びる。**#22の実測では、
+/// 10,000台の再取込でドライランに267秒かかっていた（初回は3.5秒）。初回が
+/// 速いのは候補が空だからで、**既存に当たる取込ほど遅くなる。**23.1が
+/// 「1行直して再取込」を前提に宣言的な形式を選んだ以上、そこが遅くては困る。
+///
+/// 列ごとのHashMapに変え、**統合先も取込の最初にまとめて解決する。**行ごとの
+/// DB問い合わせが無くなる。
+///
+/// # 何件該当したかを保つ
+///
+/// 値ごとに `Vec<i32>` を持つ。**「1件」と「複数件」を区別できなくなると、
+/// 黙って1台目を選ぶことになる**（23.2）。
+pub(super) struct 機器の索引 {
+    列: HashMap<&'static str, HashMap<String, Vec<i32>>>,
+    行: HashMap<i32, device::Model>,
+    /// 統合で吸収された機器の、最終的な着地先（23.9.4）。
+    統合先: HashMap<i32, i32>,
 }
 
-/// 統合で吸収された機器を辿る（設計書23.9.4）。
-async fn 統合先を辿る<C: ConnectionTrait>(
-    db: &C,
-    mut d: device::Model,
-) -> Result<device::Model, sea_orm::DbErr> {
-    // **鎖が閉じている場合に止まらなくならないよう、上限を置く。**
-    // `dioryga check` が循環を検出する（24.5）が、取込がその前に回りうる
-    for _ in 0..16 {
-        let Some(next) = d.merged_into_device_id else {
-            return Ok(d);
-        };
-        let Some(found) = device::Entity::find_by_id(next).one(db).await? else {
-            return Ok(d);
-        };
-        d = found;
+/// 索引を張る列。突合（23.2）と重複の疑い（23.9.1）が使うものすべて。
+const 索引する列: [&str; 5] = [
+    "uid",
+    "external_id",
+    "serial_number",
+    "asset_number",
+    "hostname",
+];
+
+pub(super) fn 機器の値(d: &device::Model, 列: &str) -> Option<String> {
+    match 列 {
+        "uid" => Some(d.uid.clone()),
+        "external_id" => d.external_id.clone(),
+        "serial_number" => d.serial_number.clone(),
+        "asset_number" => d.asset_number.clone(),
+        "hostname" => Some(d.hostname.clone()),
+        _ => None,
     }
-    Ok(d)
+}
+
+impl 機器の索引 {
+    pub(super) async fn 作る<C: ConnectionTrait>(
+        db: &C,
+        project_id: i32,
+    ) -> Result<Self, sea_orm::DbErr> {
+        let 候補 = このプロジェクトの機器(db, project_id).await?;
+
+        let mut 行: HashMap<i32, device::Model> = HashMap::new();
+        let mut 列: HashMap<&'static str, HashMap<String, Vec<i32>>> = HashMap::new();
+        for 名 in 索引する列 {
+            列.insert(名, HashMap::new());
+        }
+        for d in &候補 {
+            for 名 in 索引する列 {
+                let Some(v) = 機器の値(d, 名) else {
+                    continue;
+                };
+                if v.trim().is_empty() {
+                    continue;
+                }
+                列.get_mut(名)
+                    .expect("索引する列は先に用意している")
+                    .entry(v)
+                    .or_default()
+                    .push(d.id);
+            }
+            行.insert(d.id, d.clone());
+        }
+
+        // **統合先が候補の外にあることがある。**辿れるところまでまとめて読む
+        for _ in 0..16 {
+            let 不足: Vec<i32> = 行
+                .values()
+                .filter_map(|d| d.merged_into_device_id)
+                .filter(|id| !行.contains_key(id))
+                .collect();
+            if 不足.is_empty() {
+                break;
+            }
+            for d in device::Entity::find()
+                .filter(device::Column::Id.is_in(不足))
+                .all(db)
+                .await?
+            {
+                行.insert(d.id, d);
+            }
+        }
+
+        let ids: Vec<i32> = 行.keys().copied().collect();
+        let mut 統合先 = HashMap::new();
+        for id in ids {
+            統合先.insert(id, 辿り着く先(&行, id));
+        }
+
+        Ok(Self {
+            列, 行, 統合先
+        })
+    }
+
+    /// この値に該当する機器のID。**件数をそのまま返す**（23.2）。
+    pub(super) fn 該当(&self, 列: &str, value: &str) -> &[i32] {
+        self.列
+            .get(列)
+            .and_then(|m| m.get(value))
+            .map(|v| v.as_slice())
+            .unwrap_or(&[])
+    }
+
+    /// 統合先まで辿った機器（23.9.4）。
+    pub(super) fn 機器(&self, id: i32) -> Option<device::Model> {
+        let 先 = self.統合先.get(&id).copied().unwrap_or(id);
+        self.行.get(&先).cloned()
+    }
+
+    /// 候補に入っている機器のID。
+    pub(super) fn ids(&self) -> Vec<i32> {
+        self.行.keys().copied().collect()
+    }
+
+    /// 自然キーから機器を引く（23.2）。
+    ///
+    /// **`uid` → `external_id` → `serial_number` → `hostname` の順。**機器CSVの
+    /// 突合（`instances.rs`）と違い `match_on` は見ない——配置のCSVは**既にある
+    /// 機器を指すだけ**であり、新規作成しないため突合キーを選ぶ必要がない。
+    ///
+    /// **統合先を辿る**（23.9.4）。吸収された側の識別子で書かれていても着地する。
+    pub(super) fn 引く(&self, key: &機器キー) -> Result<device::Model, String> {
+        let 順序 = [
+            ("uid", 空ならnone(&key.uid)),
+            ("external_id", 空ならnone(&key.external_id)),
+            ("serial_number", 空ならnone(&key.serial_number)),
+            ("hostname", 空ならnone(&key.hostname)),
+        ];
+
+        for (列, value) in 順序 {
+            let Some(value) = value else { continue };
+            let 一致 = self.該当(列, value);
+            return match 一致.len() {
+                1 => self
+                    .機器(一致[0])
+                    .ok_or_else(|| format!("{列}「{value}」の機器を読み出せません")),
+                0 => Err(format!(
+                    "{列}「{value}」の機器がこのプロジェクトにありません"
+                )),
+                // **黙って1台目を選ばない。**どれを指しているか決められない
+                n => Err(format!(
+                    "{列}「{value}」に{n}台が該当します。uid で指定してください"
+                )),
+            };
+        }
+
+        Err("機器を特定する列が空です".to_owned())
+    }
+}
+
+/// 統合の鎖を辿った先のID。
+///
+/// **鎖が閉じている場合に止まらなくならないよう、上限を置く。**
+/// `dioryga check` が循環を検出する（24.5）が、取込がその前に回りうる。
+fn 辿り着く先(行: &HashMap<i32, device::Model>, mut id: i32) -> i32 {
+    for _ in 0..16 {
+        match 行.get(&id).and_then(|d| d.merged_into_device_id) {
+            Some(next) if 行.contains_key(&next) => id = next,
+            _ => return id,
+        }
+    }
+    id
 }
 
 /// このプロジェクトに属する（属したことがある）機器（23.5、A-6）。
@@ -303,7 +405,7 @@ async fn 所属を計画する<C: ConnectionTrait>(
     project_id: i32,
     rows: &[AssignmentRow],
 ) -> Result<(Report, Vec<所属の計画>), ImportError> {
-    let 候補 = このプロジェクトの機器(db, project_id).await?;
+    let 索引 = 機器の索引::作る(db, project_id).await?;
     let 倉庫 = 倉庫の索引(db).await?;
 
     let mut report = Report::default();
@@ -313,7 +415,7 @@ async fn 所属を計画する<C: ConnectionTrait>(
         let key = row.key();
         let 表示 = key.表示名();
 
-        let d = match 解決する機器(db, &候補, &key).await? {
+        let d = match 索引.引く(&key) {
             Ok(d) => d,
             Err(理由) => {
                 report.push(Entry::new(Outcome::Error, 表示, 理由));
@@ -496,7 +598,7 @@ async fn 搭載を計画する<C: ConnectionTrait>(
     project_id: i32,
     rows: &[MountRow],
 ) -> Result<(Report, Vec<搭載の計画>), ImportError> {
-    let 候補 = このプロジェクトの機器(db, project_id).await?;
+    let 索引 = 機器の索引::作る(db, project_id).await?;
     let 什器 = 什器の索引(db, project_id).await?;
 
     let mut report = Report::default();
@@ -506,7 +608,7 @@ async fn 搭載を計画する<C: ConnectionTrait>(
         let key = row.key();
         let 表示 = key.表示名();
 
-        let d = match 解決する機器(db, &候補, &key).await? {
+        let d = match 索引.引く(&key) {
             Ok(d) => d,
             Err(理由) => {
                 report.push(Entry::new(Outcome::Error, 表示, 理由));
@@ -541,7 +643,7 @@ async fn 搭載を計画する<C: ConnectionTrait>(
                         hostname: host.to_owned(),
                         ..Default::default()
                     };
-                    match 解決する機器(db, &候補, &key).await? {
+                    match 索引.引く(&key) {
                         Ok(h) if h.id == d.id => {
                             // **自分の上には載れない。**辿ると止まらなくなる
                             report.push(Entry::new(

@@ -16,7 +16,9 @@ use chrono::Utc;
 use entity::{app_user, import_run};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
-use super::{catalog, file_hash, instances, parts, placement, ImportError, Outcome, Report};
+use super::{
+    catalog, file_hash, instances, network, parts, placement, ImportError, Outcome, Report,
+};
 use crate::auth::authorization;
 use crate::repository::AuditedTx;
 
@@ -135,7 +137,8 @@ async fn instances_manifest(
     )
     .await?;
 
-    let report = match 通しで取り込む(&tx, project.id, &束, &match_on, as_of).await {
+    let report = match 通しで取り込む(&tx, project.id, &束, &match_on, as_of, actor.id).await
+    {
         Ok(r) => r,
         Err(e) => {
             tx.rollback().await?;
@@ -183,6 +186,11 @@ struct 束 {
     assignments: Vec<placement::AssignmentRow>,
     mounts: Vec<placement::MountRow>,
     parts: Vec<parts::PartRow>,
+    subnets: Vec<network::SubnetRow>,
+    interfaces: Vec<network::InterfaceRow>,
+    stacks: Vec<network::StackRow>,
+    interface_vlans: Vec<network::InterfaceVlanRow>,
+    ips: Vec<network::IpRow>,
 }
 
 /// マニフェストの `files` を読み分ける。
@@ -202,6 +210,13 @@ fn 読み分ける(manifest_path: &Path, files: &[instances::FileRef]) -> Result
             "device_assignment" => out.assignments.extend(placement::parse_assignments(&csv)?),
             "device_mount" => out.mounts.extend(placement::parse_mounts(&csv)?),
             "part_instance" => out.parts.extend(parts::parse_parts(&csv)?),
+            "subnet" => out.subnets.extend(network::parse_subnets(&csv)?),
+            "os_interface" => out.interfaces.extend(network::parse_interfaces(&csv)?),
+            "interface_stack" => out.stacks.extend(network::parse_stacks(&csv)?),
+            "interface_vlan" => out
+                .interface_vlans
+                .extend(network::parse_interface_vlans(&csv)?),
+            "ip_address" => out.ips.extend(network::parse_ips(&csv)?),
             other => return Err(RunError::UnsupportedEntity(other.to_owned())),
         }
     }
@@ -211,14 +226,16 @@ fn 読み分ける(manifest_path: &Path, files: &[instances::FileRef]) -> Result
 
 /// 依存順に、同じトランザクションの中で流す。
 ///
-/// **機器 → 所属 → 搭載 → 部品の順。**後のエンティティは前のエンティティが
-/// 書いた行を、同じトランザクションの中で参照する。
+/// **機器 → 所属 → 搭載 → 部品 → サブネット → インタフェース → 束ね →
+/// VLAN → IPアドレスの順。**後のエンティティは前のエンティティが書いた行を、
+/// 同じトランザクションの中で参照する。
 async fn 通しで取り込む(
     tx: &AuditedTx,
     project_id: i32,
     束: &束,
     match_on: &[String],
     as_of: chrono::DateTime<Utc>,
+    actor: i32,
 ) -> Result<Report, ImportError> {
     let mut report = instances::取り込む(tx, project_id, &束.devices, match_on, as_of).await?;
     束ねる(
@@ -232,6 +249,33 @@ async fn 通しで取り込む(
     束ねる(
         &mut report,
         parts::取り込む(tx, project_id, &束.parts, as_of).await?,
+    );
+    // **サブネットはインタフェースより先。**IPアドレスが参照する
+    束ねる(
+        &mut report,
+        network::サブネットを取り込む(tx, project_id, &束.subnets, actor).await?,
+    );
+    束ねる(
+        &mut report,
+        network::インタフェースを取り込む(tx, project_id, &束.interfaces, as_of).await?,
+    );
+    束ねる(
+        &mut report,
+        network::束ねを取り込む(tx, project_id, &束.stacks, as_of).await?,
+    );
+    束ねる(
+        &mut report,
+        network::インタフェースのvlanを取り込む(
+            tx,
+            project_id,
+            &束.interface_vlans,
+            as_of,
+        )
+        .await?,
+    );
+    束ねる(
+        &mut report,
+        network::ipアドレスを取り込む(tx, project_id, &束.ips, as_of).await?,
     );
     Ok(report)
 }

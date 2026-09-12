@@ -6,7 +6,7 @@ use chrono::Utc;
 use dioryga::import::{catalog, Outcome};
 use entity::{
     app_user, chassis_model, chassis_slot, configuration_part, part_catalog, part_port_slot,
-    port_power_rating, vendor,
+    port_power_rating, vendor, vlan,
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
@@ -555,6 +555,84 @@ async fn 件数(db: &DatabaseConnection) -> usize {
             .len()
 }
 
+// ---------------------------------------------------------------------------
+// VLAN（設計書23.5、8.5）
+// ---------------------------------------------------------------------------
+
+const VLAN定義: &str = r#"
+format_version: 1
+kind: catalog
+vlans:
+  - { vlan_tag: 100, name: web, zone: DMZ, description: 公開系 }
+"#;
+
+/// **VLANをカタログYAMLから取り込めること**（23.5）。
+///
+/// VLANはプロジェクトを横断するマスタなので、インスタンスCSVではなく
+/// カタログ側に置く。
+async fn vlanを取り込める(db: &DatabaseConnection) {
+    let user = 利用者(db, "vlan@example.com").await;
+    let file = catalog::parse(VLAN定義).unwrap();
+
+    let report = catalog::dry_run(db, &file).await.unwrap();
+    assert_eq!(report.count(Outcome::Created), 1, "{report}");
+
+    catalog::apply(db, &file, user.id, 1).await.unwrap();
+    let v = vlan::Entity::find().one(db).await.unwrap().unwrap();
+    assert_eq!(v.vlan_tag, 100);
+    assert_eq!(v.zone.as_deref(), Some("DMZ"));
+
+    // 2回目は何も足さない（23.1）
+    let report = catalog::apply(db, &file, user.id, 2).await.unwrap();
+    assert_eq!(report.count(Outcome::Unchanged), 1, "{report}");
+    assert_eq!(vlan::Entity::find().all(db).await.unwrap().len(), 1);
+}
+
+/// **同じタグの別名は禁じず、警告に留めること**（8.5、不変条件6）。
+///
+/// VLANタグはL2ドメインごとに独立しており、**拠点が違えば同じ100番が
+/// 別物として存在する。**禁止すると複数拠点を1つの台帳で扱えなくなる。
+async fn 同じタグの別名は警告(db: &DatabaseConnection) {
+    let user = 利用者(db, "vlan-dup@example.com").await;
+    catalog::apply(db, &catalog::parse(VLAN定義).unwrap(), user.id, 1)
+        .await
+        .unwrap();
+
+    let 別拠点 = catalog::parse(
+        r#"
+format_version: 1
+kind: catalog
+vlans:
+  - { vlan_tag: 100, name: 大阪web }
+"#,
+    )
+    .unwrap();
+
+    let report = catalog::dry_run(db, &別拠点).await.unwrap();
+    assert_eq!(report.count(Outcome::Warning), 1, "{report}");
+    assert!(!report.has_error(), "警告で止めてはなりません");
+
+    catalog::apply(db, &別拠点, user.id, 2).await.unwrap();
+    assert_eq!(vlan::Entity::find().all(db).await.unwrap().len(), 2);
+}
+
+/// **802.1Qの範囲外は拒否すること。**0と4095は予約されており実機に入らない。
+async fn vlanタグの範囲外は拒否(db: &DatabaseConnection) {
+    let file = catalog::parse(
+        r#"
+format_version: 1
+kind: catalog
+vlans:
+  - { vlan_tag: 4095, name: よくない }
+"#,
+    )
+    .unwrap();
+
+    let report = catalog::dry_run(db, &file).await.unwrap();
+    assert_eq!(report.count(Outcome::Error), 1, "{report}");
+    assert_eq!(vlan::Entity::find().all(db).await.unwrap().len(), 0);
+}
+
 async fn 利用者(db: &DatabaseConnection, email: &str) -> app_user::Model {
     app_user::ActiveModel {
         name: Set("取込担当".to_owned()),
@@ -595,6 +673,9 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 方式の重複はエラー);
         全検証!(@one $用意, $属性, ポートの無い既存部品には後から足せる);
         全検証!(@one $用意, $属性, ポートのある部品は上書きしない);
+        全検証!(@one $用意, $属性, vlanを取り込める);
+        全検証!(@one $用意, $属性, 同じタグの別名は警告);
+        全検証!(@one $用意, $属性, vlanタグの範囲外は拒否);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

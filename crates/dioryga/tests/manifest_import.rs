@@ -182,6 +182,105 @@ async fn エラーがあれば何も残らない(db: &DatabaseConnection) {
     );
 }
 
+/// **ネットワークを同じマニフェストで取り込めること**（23.5、#102）。
+///
+/// 機器・サブネット・インタフェース・束ね・IPアドレスが**互いを参照する。**
+/// 依存順（機器 → サブネット → インタフェース → 束ね → IP）に処理されて
+/// いなければ、どこかが「参照先が無い」で落ちる。
+async fn ネットワークをまとめて取り込める(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "網一式").await;
+    // VLANはカタログ側の担当なので、ここでは先に用意しておく（23.5）
+    let vlan_id = vlan(db, 場.project.id, 100, "web").await;
+
+    let dir = 取込ファイル(
+        &場,
+        &[
+            (
+                "device",
+                "devices.csv",
+                "uid,external_id,hostname,serial_number,asset_number,device_type,power_watt,status
+                 ,,web01,SN-NW-1,,Physical,400,running
+",
+            ),
+            (
+                "subnet",
+                "subnets.csv",
+                "cidr,vlan_tag,vlan_name,zone,description
+10.0.1.0/24,100,web,DMZ,
+",
+            ),
+            (
+                "os_interface",
+                "interfaces.csv",
+                "hostname,os_interface_name,interface_type,aggregation_mode
+                 web01,ens1f0,Physical,
+                 web01,bond0,Bond,LACP
+",
+            ),
+            (
+                "interface_stack",
+                "bonds.csv",
+                "hostname,upper_interface,lower_interface
+web01,bond0,ens1f0
+",
+            ),
+            (
+                "interface_vlan",
+                "interface-vlans.csv",
+                "hostname,os_interface_name,vlan_tag,vlan_name,tagging_mode
+web01,bond0,100,web,Tagged
+",
+            ),
+            (
+                "ip_address",
+                "ips.csv",
+                "hostname,os_interface_name,ip_address,prefix_length,subnet_cidr
+                 web01,bond0,10.0.1.10,24,10.0.1.0/24
+",
+            ),
+        ],
+    );
+
+    let 下見 = run::run(db, &dir.join("manifest.yaml"), &場.email, false)
+        .await
+        .unwrap();
+    assert!(
+        !下見.report.has_error(),
+        "ドライランでエラーになっています: {}\n{:?}",
+        下見.report,
+        下見.report.errors().collect::<Vec<_>>()
+    );
+
+    run::run(db, &dir.join("manifest.yaml"), &場.email, true)
+        .await
+        .unwrap();
+
+    let ip = entity::ip_address::Entity::find()
+        .filter(entity::ip_address::Column::ToDate.is_null())
+        .one(db)
+        .await
+        .unwrap()
+        .expect("IPアドレスが入っていません");
+    assert_eq!(ip.ip_address, "10.0.1.10");
+    assert!(ip.subnet_id.is_some(), "サブネットに紐づいていません");
+
+    let iv = entity::interface_vlan::Entity::find()
+        .one(db)
+        .await
+        .unwrap()
+        .expect("VLANの結びが入っていません");
+    assert_eq!(iv.vlan_id, vlan_id);
+
+    assert_eq!(
+        entity::interface_stack::Entity::find()
+            .count(db)
+            .await
+            .unwrap(),
+        1,
+        "束ねが入っていません"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // 用意
 // ---------------------------------------------------------------------------
@@ -278,11 +377,31 @@ fn 取込ファイル(場: &舞台情報, files: &[(&str, &str, &str)]) -> PathB
     dir
 }
 
+async fn vlan(db: &DatabaseConnection, _project_id: i32, tag: i32, name: &str) -> i32 {
+    let u = app_user::Entity::find().one(db).await.unwrap().unwrap();
+    entity::vlan::ActiveModel {
+        vlan_tag: Set(tag),
+        name: Set(name.to_owned()),
+        zone: Set(None),
+        description: Set(String::new()),
+        retired_at: Set(None),
+        created_by: Set(u.id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap()
+    .id
+}
+
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, 同じ取込で作る機器を配置できる);
         全検証!(@one $用意, $属性, ドライランと反映の件数が一致する);
         全検証!(@one $用意, $属性, エラーがあれば何も残らない);
+        全検証!(@one $用意, $属性, ネットワークをまとめて取り込める);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

@@ -22,6 +22,7 @@
 
 pub mod catalog;
 pub mod instances;
+pub mod network;
 pub mod parts;
 pub mod placement;
 pub mod run;

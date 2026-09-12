@@ -77,6 +77,22 @@ pub struct CatalogFile {
     pub part_catalogs: Vec<PartCatalogInput>,
     #[serde(default)]
     pub configurations: Vec<ConfigurationInput>,
+    /// VLAN（8.5）。**プロジェクトを横断するマスタなのでカタログ側に置く**
+    /// （23.5）。インスタンスCSVに置くと「1ファイルは1プロジェクトに閉じる」
+    /// が崩れ、あるプロジェクトの取込が他プロジェクトの見るVLANを書き換える。
+    #[serde(default)]
+    pub vlans: Vec<VlanInput>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct VlanInput {
+    pub vlan_tag: i32,
+    pub name: String,
+    /// DMZ / WAN / LAN / Management / Isolated。**未設定を許す。**
+    #[serde(default)]
+    pub zone: String,
+    #[serde(default)]
+    pub description: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -262,6 +278,13 @@ fn 展開(
 
 /// 閉じた語彙（8.6）。**リスト外は拒否する。**
 const PORT_KINDS: &[&str] = &["Network", "Power", "Stack"];
+/// セキュリティ境界（8.5）。**閉じた語彙**——`vocabularies.md` の列挙が閉じており、
+/// 表に無い値を受けると `dioryga check` の「役割とゾーンの不整合」が判定できない。
+const ZONES: &[&str] = &["DMZ", "WAN", "LAN", "Management", "Isolated"];
+
+/// IEEE 802.1Q。**0と4095は予約されている。**
+const VLANタグの下限: i32 = 1;
+const VLANタグの上限: i32 = 4094;
 const CURRENT_TYPES: &[&str] = &["AC", "DC"];
 
 const NETWORK: &str = "Network";
@@ -375,6 +398,30 @@ fn 定格を検証する(ratings: &[PowerRatingInput]) -> Result<Vec<(String, i3
 // ---------------------------------------------------------------------------
 
 /// 解析して形式を確かめる。
+/// VLANの行を検証し、正規化した `zone` を返す。
+///
+/// **同じタグが複数あることは禁じない**（8.5）。VLANタグはL2ドメインごとに
+/// 独立しており、**拠点が違えば同じ `VLAN 100` が別物として存在する。**
+/// 一意にすると複数拠点を1つの台帳で扱えなくなる。取り違えの警告は
+/// DBを見る側（本体）が出す。
+pub fn vlanを検証する(v: &VlanInput) -> Result<Option<String>, String> {
+    if !(VLANタグの下限..=VLANタグの上限).contains(&v.vlan_tag) {
+        return Err(format!(
+            "vlan_tag「{}」は{VLANタグの下限}〜{VLANタグの上限}の範囲外です",
+            v.vlan_tag
+        ));
+    }
+    if 正規化(&v.name).is_empty() {
+        return Err("name が空です".to_owned());
+    }
+    match v.zone.trim() {
+        "" => Ok(None),
+        z if ZONES.contains(&z) => Ok(Some(z.to_owned())),
+        // **閉じた語彙は既定へ寄せず拒否する**（8.6）
+        z => Err(format!("zone「{z}」は使えません（{}）", ZONES.join(" / "))),
+    }
+}
+
 pub fn parse(source: &str) -> Result<CatalogFile, FormatError> {
     let file: CatalogFile = serde_yaml_ng::from_str(source)?;
 
@@ -427,6 +474,39 @@ mod tests {
 
     fn スロット(yaml: &str) -> SlotInput {
         serde_yaml_ng::from_str(yaml).unwrap()
+    }
+
+    fn vlan(yaml: &str) -> VlanInput {
+        serde_yaml_ng::from_str(yaml).unwrap()
+    }
+
+    #[test]
+    fn vlanのタグは802_1qの範囲に限る() {
+        // **0と4095は予約されている。**実機に設定できない値を受けない
+        assert!(vlanを検証する(&vlan("{ vlan_tag: 0, name: a }")).is_err());
+        assert!(vlanを検証する(&vlan("{ vlan_tag: 4095, name: a }")).is_err());
+        assert!(vlanを検証する(&vlan("{ vlan_tag: 1, name: a }")).is_ok());
+        assert!(vlanを検証する(&vlan("{ vlan_tag: 4094, name: a }")).is_ok());
+    }
+
+    #[test]
+    fn vlanのゾーンは閉じた語彙() {
+        // 未設定は許し、表に無い値は**既定へ寄せず拒否する**（8.6）
+        assert_eq!(
+            vlanを検証する(&vlan("{ vlan_tag: 100, name: a }")).unwrap(),
+            None
+        );
+        assert_eq!(
+            vlanを検証する(&vlan("{ vlan_tag: 100, name: a, zone: DMZ }")).unwrap(),
+            Some("DMZ".to_owned())
+        );
+        assert!(vlanを検証する(&vlan("{ vlan_tag: 100, name: a, zone: まんなか }")).is_err());
+    }
+
+    #[test]
+    fn vlanの名前は必須() {
+        // 同じタグが複数ありうる以上、名前が無いと区別が付かない（8.5）
+        assert!(vlanを検証する(&vlan("{ vlan_tag: 100, name: \"  \" }")).is_err());
     }
 
     #[test]

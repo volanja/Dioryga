@@ -144,7 +144,7 @@ async fn 一覧を描く(
     }
 
     render(&SoftwarePage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "catalog"),
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "software"),
         t_apply: rust_i18n::t!("catalog.apply", locale = l).to_string(),
         t_title: rust_i18n::t!("software.title", locale = l).to_string(),
         t_lead: rust_i18n::t!("software.lead", locale = l).to_string(),

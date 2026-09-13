@@ -239,6 +239,8 @@ pub fn router(state: AppState) -> Router {
             post(work_order::transition),
         )
         // 共有カタログ領域（設計書16.1のD領域、18章）。プロジェクトを横断する
+        // 入口。7種の登録数を並べる（#118）
+        .route("/catalog", get(catalog::index))
         .route(
             "/catalog/vendors",
             get(catalog::vendors).post(catalog::save_vendor),

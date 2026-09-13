@@ -130,7 +130,7 @@ async fn 一覧を描く(
     }
 
     render(&VlansPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "catalog"),
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "vlans"),
         t_apply: rust_i18n::t!("catalog.apply", locale = l).to_string(),
         t_title: rust_i18n::t!("vlans.title", locale = l).to_string(),
         t_lead: rust_i18n::t!("vlans.lead", locale = l).to_string(),

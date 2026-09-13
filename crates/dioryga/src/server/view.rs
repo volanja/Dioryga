@@ -63,6 +63,13 @@ pub struct Chrome {
     pub user_name: String,
     /// 現在選択中のナビ項目。`users` / `projects` / `warehouses` / `catalog` / `account`。
     pub nav: &'static str,
+    /// 共有カタログの下位メニューで、現在の画面にあたる項目（#118）。
+    /// `vendors` / `chassis_models` / `parts` / `configurations` / `cables` /
+    /// `software` / `vlans` / `merge`。ダッシュボードとカタログ以外では空。
+    ///
+    /// **詳細画面では親の一覧の項目を指す。**どこにいるか分かることが目的であり、
+    /// 詳細に入った途端にメニューの印が消えると迷う。
+    pub sub: &'static str,
     /// フォームのhidden fieldへ埋め込むCSRFトークン（設計書20.5）。
     pub csrf_token: String,
     pub is_system_admin: bool,
@@ -71,6 +78,7 @@ pub struct Chrome {
     pub t_nav_projects: String,
     pub t_nav_warehouses: String,
     pub t_nav_catalog: String,
+    pub t_nav_vendors: String,
     pub t_nav_chassis_models: String,
     pub t_nav_parts: String,
     pub t_nav_configurations: String,
@@ -90,6 +98,7 @@ impl Chrome {
             app_name: rust_i18n::t!("app.name", locale = l).to_string(),
             user_name: user.name.clone(),
             nav,
+            sub: "",
             csrf_token,
             is_system_admin: user.is_system_admin,
             t_logout: rust_i18n::t!("common.logout", locale = l).to_string(),
@@ -97,6 +106,7 @@ impl Chrome {
             t_nav_projects: rust_i18n::t!("nav.projects", locale = l).to_string(),
             t_nav_warehouses: rust_i18n::t!("warehouses.title", locale = l).to_string(),
             t_nav_catalog: rust_i18n::t!("catalog.nav", locale = l).to_string(),
+            t_nav_vendors: rust_i18n::t!("catalog.vendors", locale = l).to_string(),
             t_nav_chassis_models: rust_i18n::t!("catalog.chassis_models", locale = l).to_string(),
             t_nav_parts: rust_i18n::t!("parts.title", locale = l).to_string(),
             t_nav_configurations: rust_i18n::t!("catalog.configurations", locale = l).to_string(),
@@ -105,6 +115,14 @@ impl Chrome {
             t_nav_vlans: rust_i18n::t!("vlans.title", locale = l).to_string(),
             t_nav_merge: rust_i18n::t!("merge.title", locale = l).to_string(),
             t_nav_account: rust_i18n::t!("nav.account", locale = l).to_string(),
+        }
+    }
+
+    /// 共有カタログの画面。`sub` は下位メニューのどの項目にいるか（空ならダッシュボード）。
+    pub fn catalog(user: &entity::app_user::Model, csrf_token: String, sub: &'static str) -> Self {
+        Self {
+            sub,
+            ..Self::new(user, csrf_token, "catalog")
         }
     }
 

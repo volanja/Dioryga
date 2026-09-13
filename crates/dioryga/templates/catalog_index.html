@@ -1,0 +1,23 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{# 有効と廃番を並べる（設計書16.1のD領域）。一覧は既定で廃番を隠すため、ここでしか量が見えない #}
+<div class="panels">
+  {% for card in cards %}
+  <div class="card">
+    <h2><a href="{{ card.href }}">{{ card.label }}</a></h2>
+    <p class="metric"><a href="{{ card.href }}" id="count-{{ card.kind }}">{{ card.total }}</a>{% if !t_unit.is_empty() %}<span class="unit">{{ t_unit }}</span>{% endif %}</p>
+    <p class="muted" id="retired-{{ card.kind }}">{{ card.t_retired }}</p>
+  </div>
+  {% endfor %}
+</div>
+
+{% endblock %}

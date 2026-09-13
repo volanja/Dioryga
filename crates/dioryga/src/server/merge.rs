@@ -108,7 +108,7 @@ async fn 描く(
         .is_ok();
 
     render(&MergePage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "catalog"),
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "merge"),
         t_title: rust_i18n::t!("merge.title", locale = l).to_string(),
         t_lead: rust_i18n::t!("merge.lead", locale = l).to_string(),
         t_admin_hint: rust_i18n::t!("merge.admin_hint", locale = l).to_string(),

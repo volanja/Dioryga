@@ -365,6 +365,13 @@ textarea {
    出ていた。集計画面で最初に読む数字が本文と同じ字送りでは読めない */
 .metric { margin: 0; font-size: 28px; font-weight: 600; line-height: 1.2; }
 .metric .unit { font-size: 14px; font-weight: 400; color: var(--muted); }
+/* カードの見出し・件数のリンク（カタログのダッシュボード）。**色を指定しないと
+   ブラウザ既定の青・紫になり、ダークモードで読めない。**本文と同じ色にし、
+   押せることは下線で示す */
+.panels h2 a,
+.metric a { color: var(--text); text-decoration: none; }
+.panels h2 a:hover,
+.metric a:hover { text-decoration: underline; }
 
 /* 主でない補足。行の中で主題と区別する */
 .muted { color: var(--muted); font-size: 12px; }

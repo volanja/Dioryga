@@ -14,7 +14,7 @@
   {% for card in cards %}
   <div class="card">
     <h2><a href="{{ card.href }}">{{ card.label }}</a></h2>
-    <p class="metric"><a href="{{ card.href }}" id="count-{{ card.kind }}">{{ card.total }}</a>{{ t_unit }}</p>
+    <p class="metric"><a href="{{ card.href }}" id="count-{{ card.kind }}">{{ card.total }}</a>{% if !t_unit.is_empty() %}<span class="unit">{{ t_unit }}</span>{% endif %}</p>
     <p class="muted" id="retired-{{ card.kind }}">{{ card.t_retired }}</p>
   </div>
   {% endfor %}

@@ -63,8 +63,25 @@ jobs:
 
       - uses: taiki-e/install-action@cargo-llvm-cov
 
-      - name: cargo llvm-cov
-        run: cargo llvm-cov --workspace --locked --lcov --output-path lcov.info
+      # **SQLite側とPostgreSQL側を同じ計装ビルドで流し、1つのカバレッジにする。**
+      #
+      # 別ジョブのままだと、PostgreSQL側が通る経路が数字に現れない。後から
+      # LCOVを合算する形では行カバレッジしか合わず、region は片側だけになる。
+      # 計装ビルドも1本で済む。
+      #
+      # 引き換えに、**PostgreSQLコンテナの失敗がこのジョブの失敗になる。**
+      - name: テスト（SQLite）
+        run: cargo llvm-cov --no-report --workspace --locked
+
+      # testcontainers-rs がコンテナを起動する。ubuntuランナーには
+      # Dockerが用意されているため追加の準備は要らない。
+      - name: テスト（PostgreSQL、--ignored）
+        run: cargo llvm-cov --no-report --workspace --locked -- --ignored
+
+      - name: カバレッジを出力する
+        run: |
+          cargo llvm-cov report --lcov --output-path lcov.info
+          cargo llvm-cov report --json --summary-only --output-path coverage-summary.json
 
       # 設計書2章の通り、カバレッジ100%は目標として掲げるが閾値による
       # 失敗判定はまだ入れない。まず計測できる状態にする。
@@ -73,25 +90,10 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-lcov
-          path: lcov.info
-
-  postgres:
-    name: DB連携テスト（PostgreSQL）
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          save-if: ${{ github.ref == env.SAVE_CACHE_ON }}
-
-      # testcontainers-rs がコンテナを起動する。ubuntuランナーには
-      # Dockerが用意されているため追加の準備は要らない。
-      # SQLite側のテストは test ジョブが実行するため、ここでは
-      # --ignored（PostgreSQL側）のみを対象とする。
-      - name: cargo test -- --ignored
-        run: cargo test --locked -- --ignored
+          name: coverage
+          path: |
+            lcov.info
+            coverage-summary.json
 
   schema-docs:
     name: スキーマドキュメントの検査

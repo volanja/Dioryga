@@ -47,18 +47,21 @@
       {{ chrome.t_nav_warehouses }}
     </a>
     {# 共有カタログはプロジェクトを横断する（設計書18章）。System Adminは入れない #}
-    <a href="/catalog/vendors" class="{% if chrome.nav == "catalog" %}current{% endif %}">
+    {# 下位の項目にいるときは親を光らせない。印が2つ付くとどちらにいるのか分からない #}
+    <a href="/catalog" class="{% if chrome.nav == "catalog" && chrome.sub.is_empty() %}current{% endif %}">
       {{ chrome.t_nav_catalog }}
     </a>
     {% if chrome.nav == "catalog" %}
     {# カタログの中は7種類ある（設計書16.1のD領域）。開いているときだけ並べる #}
-    <a href="/catalog/chassis-models" class="sub">{{ chrome.t_nav_chassis_models }}</a>
-    <a href="/catalog/parts" class="sub">{{ chrome.t_nav_parts }}</a>
-    <a href="/catalog/configurations" class="sub">{{ chrome.t_nav_configurations }}</a>
-    <a href="/catalog/cables" class="sub">{{ chrome.t_nav_cables }}</a>
-    <a href="/catalog/software" class="sub">{{ chrome.t_nav_software }}</a>
-    <a href="/catalog/vlans" class="sub">{{ chrome.t_nav_vlans }}</a>
-    <a href="/catalog/merge" class="sub">{{ chrome.t_nav_merge }}</a>
+    {# **今いる画面に印を付ける**（#118）。詳細画面では親の一覧に付く（Chrome.sub） #}
+    <a href="/catalog/vendors" class="sub{% if chrome.sub == "vendors" %} current{% endif %}">{{ chrome.t_nav_vendors }}</a>
+    <a href="/catalog/chassis-models" class="sub{% if chrome.sub == "chassis_models" %} current{% endif %}">{{ chrome.t_nav_chassis_models }}</a>
+    <a href="/catalog/parts" class="sub{% if chrome.sub == "parts" %} current{% endif %}">{{ chrome.t_nav_parts }}</a>
+    <a href="/catalog/configurations" class="sub{% if chrome.sub == "configurations" %} current{% endif %}">{{ chrome.t_nav_configurations }}</a>
+    <a href="/catalog/cables" class="sub{% if chrome.sub == "cables" %} current{% endif %}">{{ chrome.t_nav_cables }}</a>
+    <a href="/catalog/software" class="sub{% if chrome.sub == "software" %} current{% endif %}">{{ chrome.t_nav_software }}</a>
+    <a href="/catalog/vlans" class="sub{% if chrome.sub == "vlans" %} current{% endif %}">{{ chrome.t_nav_vlans }}</a>
+    <a href="/catalog/merge" class="sub{% if chrome.sub == "merge" %} current{% endif %}">{{ chrome.t_nav_merge }}</a>
     {% endif %}
     {% endif %}
     <a href="/account/password" class="{% if chrome.nav == "account" %}current{% endif %}">

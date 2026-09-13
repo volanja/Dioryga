@@ -40,10 +40,12 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::{Extension, Form};
 use chrono::Utc;
 use entity::{
-    chassis_model, chassis_slot, configuration, configuration_part, device, part_catalog,
-    part_port_slot, port_power_rating, vendor,
+    cable_catalog, chassis_model, chassis_slot, configuration, configuration_part, device,
+    part_catalog, part_port_slot, port_power_rating, software_catalog, vendor, vlan,
 };
-use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, Set};
+use sea_orm::{
+    ColumnTrait, ConnectionTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set,
+};
 use serde::Deserialize;
 
 use crate::auth::authorization;
@@ -227,6 +229,117 @@ pub(crate) struct Labeled {
 }
 
 // ---------------------------------------------------------------------------
+// ダッシュボード（#118）
+// ---------------------------------------------------------------------------
+
+/// カタログ1種の登録数。
+struct CountCard {
+    /// テストと一覧へのリンクで使う識別子（`Chrome.sub` と同じ語）
+    kind: &'static str,
+    label: String,
+    href: &'static str,
+    /// **統合で吸収された行を除いた全件**（23.9.4）。一覧の件数と合わせる
+    total: u64,
+    /// 「うち廃番 N」
+    t_retired: String,
+}
+
+#[derive(askama::Template)]
+#[template(path = "catalog_index.html")]
+struct IndexPage {
+    chrome: Chrome,
+    t_title: String,
+    t_lead: String,
+    t_unit: String,
+    cards: Vec<CountCard>,
+}
+
+/// 全件と、そのうちの廃番の数。
+///
+/// **有効と廃番を並べて出す**（設計書16.1のD領域）。一覧は既定で廃番を隠す
+/// （18.5）ため、一覧を開いても廃番の溜まり具合は分からない。
+macro_rules! 件数 {
+    ($db:expr, $m:ident, $基準:expr) => {{
+        let 基準 = $基準;
+        let 全件 = 基準.clone().count($db).await;
+        let 廃番 = 基準
+            .filter($m::Column::RetiredAt.is_not_null())
+            .count($db)
+            .await;
+        match (全件, 廃番) {
+            (Ok(a), Ok(b)) => (a, b),
+            (Err(e), _) | (_, Err(e)) => return Err(AppError::Internal(anyhow::anyhow!(e))),
+        }
+    }};
+}
+
+pub async fn index(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+) -> AppResult<Response> {
+    let l = 入場(&state, &current)?;
+    let db = &state.db;
+
+    let vendors = 件数!(
+        db,
+        vendor,
+        vendor::Entity::find().filter(vendor::Column::MergedIntoVendorId.is_null())
+    );
+    let chassis_models = 件数!(db, chassis_model, chassis_model::Entity::find());
+    let parts = 件数!(
+        db,
+        part_catalog,
+        part_catalog::Entity::find()
+            .filter(part_catalog::Column::MergedIntoPartCatalogId.is_null())
+    );
+    let configurations = 件数!(db, configuration, configuration::Entity::find());
+    let cables = 件数!(db, cable_catalog, cable_catalog::Entity::find());
+    let software = 件数!(db, software_catalog, software_catalog::Entity::find());
+    let vlans = 件数!(db, vlan, vlan::Entity::find());
+
+    // 並びはメニューと同じにする。見比べたときに位置で対応が取れる
+    let 並び = [
+        ("vendors", "catalog.vendors", "/catalog/vendors", vendors),
+        (
+            "chassis_models",
+            "catalog.chassis_models",
+            "/catalog/chassis-models",
+            chassis_models,
+        ),
+        ("parts", "parts.title", "/catalog/parts", parts),
+        (
+            "configurations",
+            "catalog.configurations",
+            "/catalog/configurations",
+            configurations,
+        ),
+        ("cables", "cables.title", "/catalog/cables", cables),
+        ("software", "software.title", "/catalog/software", software),
+        ("vlans", "vlans.title", "/catalog/vlans", vlans),
+    ];
+    let cards = 並び
+        .into_iter()
+        .map(|(kind, key, href, (total, retired))| CountCard {
+            kind,
+            label: rust_i18n::t!(key, locale = l).to_string(),
+            href,
+            total,
+            t_retired: rust_i18n::t!("catalog.retired_count", locale = l, count = retired)
+                .to_string(),
+        })
+        .collect();
+
+    render(&IndexPage {
+        // ダッシュボードでは下位の項目に印を付けない
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), ""),
+        t_title: rust_i18n::t!("catalog.nav", locale = l).to_string(),
+        t_lead: rust_i18n::t!("catalog.dashboard_lead", locale = l).to_string(),
+        t_unit: rust_i18n::t!("catalog.count_unit", locale = l).to_string(),
+        cards,
+    })
+}
+
+// ---------------------------------------------------------------------------
 // Vendor（設計書18.3）
 // ---------------------------------------------------------------------------
 
@@ -268,7 +381,7 @@ async fn ベンダーを描く(
         .collect();
 
     render(&VendorsPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "catalog"),
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "vendors"),
         t_apply: rust_i18n::t!("catalog.apply", locale = l).to_string(),
         t_title: rust_i18n::t!("catalog.vendors", locale = l).to_string(),
         t_lead: rust_i18n::t!("catalog.vendors_lead", locale = l).to_string(),
@@ -424,7 +537,7 @@ async fn 筐体型を描く(
     }
 
     render(&ChassisModelsPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "catalog"),
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "chassis_models"),
         t_apply: rust_i18n::t!("catalog.apply", locale = l).to_string(),
         t_detail: rust_i18n::t!("devices.detail", locale = l).to_string(),
         t_title: rust_i18n::t!("catalog.chassis_models", locale = l).to_string(),
@@ -616,7 +729,7 @@ async fn 構成を描く(
     }
 
     render(&ConfigurationsPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "catalog"),
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "configurations"),
         t_apply: rust_i18n::t!("catalog.apply", locale = l).to_string(),
         t_detail: rust_i18n::t!("devices.detail", locale = l).to_string(),
         t_title: rust_i18n::t!("catalog.configurations", locale = l).to_string(),
@@ -875,7 +988,7 @@ async fn 筐体型の詳細を描く(
         .collect();
 
     render(&ChassisModelDetailPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "catalog"),
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "chassis_models"),
         chassis_model_id: id,
         t_back: rust_i18n::t!("catalog.back_models", locale = l).to_string(),
         t_basic: rust_i18n::t!("devices.basic", locale = l).to_string(),
@@ -1096,7 +1209,7 @@ async fn 構成の詳細を描く(
     }
 
     render(&ConfigurationDetailPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "catalog"),
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "configurations"),
         configuration_id: id,
         t_back: rust_i18n::t!("catalog.back_configurations", locale = l).to_string(),
         t_basic: rust_i18n::t!("devices.basic", locale = l).to_string(),

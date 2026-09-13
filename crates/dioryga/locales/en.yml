@@ -361,6 +361,9 @@ rack:
 
 catalog:
   nav: Catalog
+  dashboard_lead: Number of entries in the masters shared across projects. Select a count to open its list
+  count_unit: ""
+  retired_count: "%{count} retired"
   vendors: Vendors
   vendors_lead: The master that prevents naming drift. A model cannot be registered for a vendor that is not listed here
   vendor: Vendor

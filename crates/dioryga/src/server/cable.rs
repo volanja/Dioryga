@@ -177,7 +177,7 @@ async fn 一覧を描く(
     let is_power = kind == POWER;
 
     render(&CablesPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "catalog"),
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "cables"),
         t_apply: rust_i18n::t!("catalog.apply", locale = l).to_string(),
         t_detail: rust_i18n::t!("devices.detail", locale = l).to_string(),
         t_title: rust_i18n::t!("cables.title", locale = l).to_string(),
@@ -466,7 +466,7 @@ async fn 詳細を描く(
         .collect();
 
     render(&CableDetailPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "catalog"),
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "cables"),
         cable_id: id,
         t_back: rust_i18n::t!("cables.back", locale = l).to_string(),
         t_basic: rust_i18n::t!("devices.basic", locale = l).to_string(),

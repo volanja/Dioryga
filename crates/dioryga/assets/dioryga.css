@@ -162,6 +162,8 @@ button:hover { filter: brightness(1.08); }
 /* カタログの下位項目。開いているときだけ並ぶ（設計書16.1のD領域） */
 .sidenav a.sub { padding-left: 26px; font-size: 13px; color: var(--muted); }
 .sidenav a.sub:hover { color: var(--text); }
+/* 下位の項目も、今いる画面は色を戻して印を残す（#118） */
+.sidenav a.sub.current { color: var(--text); }
 
 .content { flex: 1 1 auto; min-width: 0; padding: 24px; }
 

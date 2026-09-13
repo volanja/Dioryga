@@ -1535,6 +1535,96 @@ async fn 利用者(db: &DatabaseConnection, email: &str) -> app_user::Model {
     .unwrap()
 }
 
+// ---------------------------------------------------------------------------
+// ダッシュボードとメニュー（#118）
+// ---------------------------------------------------------------------------
+
+/// **有効と廃番を並べて数え、統合で吸収された行は数えないこと**（16.1のD領域）。
+///
+/// 吸収された行は一覧に出さない（23.9.4）ので、数えると一覧の件数と合わない。
+async fn ダッシュボードは廃番を分けて数える(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "dash@example.com", "Viewer").await;
+
+    let 残す = ベンダー(db, "HPE", user.id).await;
+    let 廃番 = ベンダー(db, "Old Vendor", user.id).await;
+    let mut a: vendor::ActiveModel = 廃番.into();
+    a.retired_at = Set(Some(Utc::now()));
+    a.update(db).await.unwrap();
+    let 吸収 = ベンダー(db, "H.P.E.", user.id).await;
+    let mut a: vendor::ActiveModel = 吸収.into();
+    a.merged_into_vendor_id = Set(Some(残す.id));
+    a.merged_at = Set(Some(Utc::now()));
+    a.update(db).await.unwrap();
+
+    部品(db, 残す.id, "CPU", "P-1", user.id).await;
+    let p = 部品(db, 残す.id, "CPU", "P-2", user.id).await;
+    let mut a: part_catalog::ActiveModel = p.into();
+    a.retired_at = Set(Some(Utc::now()));
+    a.update(db).await.unwrap();
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 取得(状態, "/catalog", &token).await;
+    assert_eq!(status, StatusCode::OK);
+
+    // ベンダーは3行あるが、吸収された1行を除いて2件、うち廃番1
+    assert!(body.contains(r#"id="count-vendors">2<"#), "{body}");
+    assert!(
+        body.contains(r#"id="retired-vendors">うち廃番 1<"#),
+        "{body}"
+    );
+    assert!(body.contains(r#"id="count-parts">2<"#), "{body}");
+    assert!(body.contains(r#"id="retired-parts">うち廃番 1<"#), "{body}");
+    // 登録の無いカタログも0件として並ぶ
+    assert!(body.contains(r#"id="count-vlans">0<"#), "{body}");
+    // 件数から一覧へ移れる
+    assert!(
+        body.contains(r#"href="/catalog/parts" id="count-parts""#),
+        "{body}"
+    );
+}
+
+/// **メニューが今いる画面を示すこと**（#118）。
+///
+/// 詳細画面でも親の一覧の項目に印が付く。下位の項目にいるときは「共有カタログ」
+/// に印を付けない（印が2つあるとどちらにいるのか読めない）。
+async fn メニューは今いる画面を示す(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "nav@example.com", "Viewer").await;
+    let v = ベンダー(db, "HPE", user.id).await;
+    let p = 部品(db, v.id, "CPU", "P-1", user.id).await;
+
+    // ダッシュボード：親だけ
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, body) = 取得(状態, "/catalog", &token).await;
+    assert!(
+        body.contains(r#"href="/catalog" class="current""#),
+        "{body}"
+    );
+    assert!(!body.contains("sub current"), "{body}");
+
+    // 一覧：該当する項目だけ。ベンダーがメニューに並ぶ
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, body) = 取得(状態, "/catalog/vendors", &token).await;
+    assert!(
+        body.contains(r#"href="/catalog/vendors" class="sub current""#),
+        "{body}"
+    );
+    assert!(
+        !body.contains(r#"href="/catalog" class="current""#),
+        "{body}"
+    );
+    assert_eq!(body.matches("sub current").count(), 1, "{body}");
+
+    // 詳細：親の一覧の項目
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 取得(状態, &format!("/catalog/parts/{}", p.id), &token).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains(r#"href="/catalog/parts" class="sub current""#),
+        "{body}"
+    );
+    assert_eq!(body.matches("sub current").count(), 1, "{body}");
+}
+
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, 操作者はカタログを編集できる);
@@ -1576,6 +1666,8 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, スロット未登録なら警告を出さない);
         全検証!(@one $用意, $属性, 本数に収まれば警告を出さない);
         全検証!(@one $用意, $属性, スロットを登録できる);
+        全検証!(@one $用意, $属性, ダッシュボードは廃番を分けて数える);
+        全検証!(@one $用意, $属性, メニューは今いる画面を示す);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

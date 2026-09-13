@@ -239,7 +239,7 @@ async fn 一覧を描く(
     }
 
     render(&PartsPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "catalog"),
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "parts"),
         t_apply: rust_i18n::t!("catalog.apply", locale = l).to_string(),
         t_title: rust_i18n::t!("parts.title", locale = l).to_string(),
         t_lead: rust_i18n::t!("parts.lead", locale = l).to_string(),
@@ -472,7 +472,7 @@ async fn 詳細を描く(
     }
 
     render(&PartDetailPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "catalog"),
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "parts"),
         part_id,
         t_back: rust_i18n::t!("parts.back", locale = l).to_string(),
         t_basic: rust_i18n::t!("devices.basic", locale = l).to_string(),

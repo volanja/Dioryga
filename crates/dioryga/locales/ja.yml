@@ -361,6 +361,9 @@ rack:
 
 catalog:
   nav: 共有カタログ
+  dashboard_lead: プロジェクトをまたいで使うマスタの登録数です。件数を押すと一覧を開きます
+  count_unit: 件
+  retired_count: うち廃番 %{count}
   vendors: ベンダー
   vendors_lead: 表記ゆれを防ぐためのマスタです。ここに無いベンダーは型番も登録できません
   vendor: ベンダー

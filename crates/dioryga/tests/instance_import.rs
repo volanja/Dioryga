@@ -244,6 +244,41 @@ async fn ファイル内の重複はエラー(db: &DatabaseConnection) {
     let report = instances::dry_run(db, p.id, &rows, &[]).await.unwrap();
     assert!(report.has_error());
     assert!(report.errors().any(|e| e.detail.contains("重複しています")));
+
+    // **1行につき判定は1つ**（#108）。重複した行を「新規」としても数えると、
+    // ドライランの件数が行数と合わなくなる（23.6）
+    let p = プロジェクト(db, "行内重複の件数").await;
+    let rows = instances::parse_devices(&csv(&[
+        ",EX-1,web01,SN-1,,Physical,,",
+        ",EX-1,web02,SN-1,,Physical,,",
+    ]))
+    .unwrap();
+
+    let report = instances::dry_run(db, p.id, &rows, &[]).await.unwrap();
+    assert_eq!(
+        report.entries.len(),
+        rows.len(),
+        "レポートの項目数が行数と一致しません: {:?}",
+        report.entries
+    );
+    assert_eq!(
+        report.count(Outcome::Error),
+        1,
+        "識別子が2つ重複しても、エラーは1件のはずです"
+    );
+    assert_eq!(
+        report.count(Outcome::Created),
+        1,
+        "重複した行が新規として数えられています"
+    );
+
+    let エラー = report.errors().next().unwrap();
+    assert!(
+        エラー.detail.contains("external_id「EX-1」")
+            && エラー.detail.contains("serial_number「SN-1」"),
+        "重複した識別子がまとめて示されていません: {}",
+        エラー.detail
+    );
 }
 
 // ---------------------------------------------------------------------------

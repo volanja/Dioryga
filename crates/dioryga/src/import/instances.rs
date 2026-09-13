@@ -456,22 +456,31 @@ async fn 計画する<C: ConnectionTrait>(
             continue;
         }
 
-        for key in ["uid", "external_id", "serial_number"] {
-            let Some(value) = 行の値(row, key).or_else(|| Some(row.uid.clone())) else {
-                continue;
-            };
+        // **1行につき判定は1つ**（#108）。重複した識別子はまとめて1件のエラーにし、
+        // その行はここで打ち切る。打ち切らないと同じ行が「新規」としても数えられ、
+        // ドライランの件数が行数と合わなくなる（23.6）
+        let 識別子 = [
+            ("uid", row.uid.as_str()),
+            ("external_id", row.external_id.as_str()),
+            ("serial_number", row.serial_number.as_str()),
+        ];
+        let mut 重複 = Vec::new();
+        for (key, value) in 識別子 {
             let value = value.trim();
             if value.is_empty() {
                 continue;
             }
-            let 鍵 = format!("{key}={value}");
-            if let Some(前) = 出現済み.insert(鍵, i) {
-                report.push(Entry::new(
-                    Outcome::Error,
-                    target.clone(),
-                    format!("{key}「{value}」が{}行目と重複しています", 前 + 2),
-                ));
+            if let Some(前) = 出現済み.insert(format!("{key}={value}"), i) {
+                重複.push(format!("{key}「{value}」が{}行目", 前 + 2));
             }
+        }
+        if !重複.is_empty() {
+            report.push(Entry::new(
+                Outcome::Error,
+                target,
+                format!("{}と重複しています", 重複.join("、")),
+            ));
+            continue;
         }
 
         let device_type = match 語彙(&row.device_type, DEVICE_TYPES, "Physical") {

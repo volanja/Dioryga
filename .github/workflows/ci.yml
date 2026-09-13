@@ -54,6 +54,14 @@ jobs:
   test:
     name: テスト＋カバレッジ
     runs-on: ubuntu-latest
+    # **octocov を動かすこのジョブにだけ権限を足す**（ワークフロー全体は contents: read）。
+    permissions:
+      # バッジSVGを main へpushする（PRIVATEのため外部バッジサービスが使えない）
+      contents: write
+      # PRコメント
+      pull-requests: write
+      # testExecutionTime の取得
+      actions: read
     steps:
       - uses: actions/checkout@v4
 
@@ -94,6 +102,25 @@ jobs:
           path: |
             lcov.info
             coverage-summary.json
+
+      # **分岐カバレッジは stable では出ない**（nightly の計装が要る）。代わりに
+      # region と関数のカバレッジを、octocov のカスタムメトリクスとして載せる。
+      # LCOV からは行カバレッジしか読めないため、llvm-cov の要約を整形して渡す
+      - name: カスタムメトリクスを作る
+        run: |
+          jq '{
+            key: "llvm_cov",
+            name: "llvm-cov（region・関数）",
+            metrics: [
+              {key: "regions", name: "Region", value: (.data[0].totals.regions.percent * 100 | round / 100), unit: "%"},
+              {key: "functions", name: "関数", value: (.data[0].totals.functions.percent * 100 | round / 100), unit: "%"}
+            ]
+          }' coverage-summary.json > octocov-llvm-cov.json
+
+      # 閾値は置いていないため、このステップでジョブは落ちない（.octocov.yml）
+      - uses: k1LoW/octocov-action@v1
+        env:
+          OCTOCOV_CUSTOM_METRICS_LLVM_COV: octocov-llvm-cov.json
 
   schema-docs:
     name: スキーマドキュメントの検査

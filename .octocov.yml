@@ -1,0 +1,45 @@
+# octocov の設定。**計測はしない。**CIの「テスト＋カバレッジ」ジョブが出した
+# レポートを読んで、PRコメント・ジョブサマリ・バッジにするだけである。
+#
+# 閾値（coverage.acceptable / testExecutionTime.acceptable / acceptables）は
+# **まだ置かない。**実測値を見てから決める。先に数字を置くと、通すために
+# 調整することになる。
+
+coverage:
+  # SQLite側とPostgreSQL側を合算した行カバレッジ（CIで出力する）
+  paths:
+    - lcov.info
+  badge:
+    path: docs/badges/coverage.svg
+
+# テストのステップだけを測る。ビルド時間やキャッシュの復元を含めない
+testExecutionTime:
+  steps:
+    - テスト（SQLite）
+    - テスト（PostgreSQL、--ignored）
+
+# **前回比の置き場所は GitHub Actions の artifact に限る。**外部のデータストアは
+# 使わない。比較の基準は main の実行が作る
+report:
+  if: is_default_branch
+  datastores:
+    - artifact://${GITHUB_REPOSITORY}
+
+diff:
+  if: is_pull_request
+  datastores:
+    - artifact://${GITHUB_REPOSITORY}
+
+comment:
+  if: is_pull_request
+  deletePrevious: true
+
+summary:
+  if: true
+
+# **PRIVATEリポジトリなので、外部のバッジサービスが使えない。**生成したSVGを
+# main へpushし、READMEから相対パスで参照する。
+# `[skip ci]` を付け、バッジの更新でCIが回らないようにする
+push:
+  if: is_default_branch
+  message: "カバレッジバッジを更新する [skip ci]"

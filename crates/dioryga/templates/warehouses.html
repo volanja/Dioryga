@@ -32,8 +32,9 @@
     <tr>
       <td>{{ row.name }}</td>
       <td>{{ row.address }}</td>
-      <td><a href="/warehouses/{{ row.id }}/devices">{{ row.devices }}</a></td>
-      <td><a href="/warehouses/{{ row.id }}/parts">{{ row.parts }}</a></td>
+      {# 件数は本文と同じ色にする。操作のリンクと同じ色だと数字として読みにくい #}
+      <td><a class="count" href="/warehouses/{{ row.id }}/devices">{{ row.devices }}</a></td>
+      <td><a class="count" href="/warehouses/{{ row.id }}/parts">{{ row.parts }}</a></td>
       <td class="actions">
         <a href="/warehouses/{{ row.id }}/devices">{{ t_open }}</a>
       </td>

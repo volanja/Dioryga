@@ -13,6 +13,9 @@
   --hover: #f0f0f6;
   --accent: #5b5bd6;
   --danger: #c8322f;
+  /* リンク。背景（surface / bg / 行ホバー）に対してWCAGの目安4.5:1を満たす
+     （ライト 4.73〜5.37、ダーク 4.82〜6.28） */
+  --link: #5b5bd6;
 
   --radius: 10px;
   --gap: 16px;
@@ -29,6 +32,7 @@
     --hover: #2e2e44;
     --accent: #9192f7;
     --danger: #f08a87;
+    --link: #9192f7;
   }
 }
 
@@ -119,6 +123,14 @@ button:hover { filter: brightness(1.08); }
 }
 
 .hint { color: var(--muted); font-size: 12px; margin-top: -8px; margin-bottom: var(--gap); }
+
+/* **リンクの既定色**（#127）。指定が無いとブラウザ既定の青・紫になり、ダークモードの
+   背景に対してコントラスト比が1.3〜1.6しかなく読めない。文脈ごとに足していくと
+   漏れる（倉庫一覧の件数、統合先へのリンク等で実際に漏れていた）ため、既定を置く。
+   訪問済みも同じ色にする。文脈ごとの指定（.sidenav a、td.actions a 等）は後に
+   書いてあるので、そちらが優先される */
+a, a:visited { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
 
 /* ------------------------------------------------------------------ *
  * ログイン後の画面（app_layout）
@@ -258,6 +270,10 @@ td.actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 td.actions a { color: var(--accent); font-size: 13px; text-decoration: none; }
 td.actions a:hover { text-decoration: underline; }
 td.actions button.ghost { padding: 4px 10px; font-weight: 500; }
+/* 表の中の件数リンク（倉庫一覧の機器数・部品数）。操作のリンクと同じ色だと
+   数字として読みにくいため、本文と同じ色にする。押せることはホバーの下線で示す
+   （カタログのダッシュボードの件数と同じ扱い） */
+td a.count { color: var(--text); font-weight: 600; }
 
 .empty { color: var(--muted); font-size: 14px; }
 
@@ -365,9 +381,8 @@ textarea {
    出ていた。集計画面で最初に読む数字が本文と同じ字送りでは読めない */
 .metric { margin: 0; font-size: 28px; font-weight: 600; line-height: 1.2; }
 .metric .unit { font-size: 14px; font-weight: 400; color: var(--muted); }
-/* カードの見出し・件数のリンク（カタログのダッシュボード）。**色を指定しないと
-   ブラウザ既定の青・紫になり、ダークモードで読めない。**本文と同じ色にし、
-   押せることは下線で示す */
+/* カードの見出し・件数のリンク（カタログのダッシュボード）。大きな数字がリンク色
+   だと集計値として読みにくいため、本文と同じ色にし、押せることは下線で示す */
 .panels h2 a,
 .metric a { color: var(--text); text-decoration: none; }
 .panels h2 a:hover,

@@ -180,6 +180,33 @@ mod tests {
         assert_eq!(Locale::from_headers(&HeaderMap::new()), Locale::Ja);
     }
 
+    /// **リンクの既定色を消さないこと**（#127）。
+    ///
+    /// 消すと、文脈ごとの指定から漏れたリンクがブラウザ既定の青に戻り、
+    /// ダークモードで読めなくなる。見た目の不具合は結合テストでは落ちない。
+    #[test]
+    fn リンクの既定色がライトとダークの両方にある() {
+        let file = Assets::get("dioryga.css").expect("CSSが埋め込まれていません");
+        let css = std::str::from_utf8(&file.data).unwrap();
+
+        assert!(
+            css.contains("a, a:visited { color: var(--link)"),
+            "リンクの既定色の指定がありません"
+        );
+        let dark = css
+            .split("@media (prefers-color-scheme: dark)")
+            .nth(1)
+            .expect("ダークモードの指定がありません");
+        assert!(
+            css.split("@media").next().unwrap().contains("--link:"),
+            "ライトの --link がありません"
+        );
+        assert!(
+            dark.split('}').next().unwrap().contains("--link:"),
+            "ダークの --link がありません"
+        );
+    }
+
     #[test]
     fn 静的アセットが埋め込まれている() {
         assert!(

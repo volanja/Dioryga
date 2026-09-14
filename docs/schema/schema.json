@@ -17,9 +17,14 @@
           "nullable": false
         },
         {
-          "name": "email",
+          "name": "username",
           "type": "varchar",
           "nullable": false
+        },
+        {
+          "name": "email",
+          "type": "varchar",
+          "nullable": true
         },
         {
           "name": "password_hash",
@@ -78,6 +83,14 @@
           ]
         },
         {
+          "name": "app_user_username_key",
+          "def": "CREATE UNIQUE INDEX app_user_username_key ON public.app_user USING btree (username)",
+          "table": "public.app_user",
+          "columns": [
+            "username"
+          ]
+        },
+        {
           "name": "app_user_email_key",
           "def": "CREATE UNIQUE INDEX app_user_email_key ON public.app_user USING btree (email)",
           "table": "public.app_user",
@@ -95,16 +108,6 @@
           "referenced_table": "",
           "columns": [
             "created_at"
-          ]
-        },
-        {
-          "name": "app_user_email_not_null",
-          "type": "n",
-          "def": "NOT NULL email",
-          "table": "public.app_user",
-          "referenced_table": "",
-          "columns": [
-            "email"
           ]
         },
         {
@@ -178,6 +181,16 @@
           ]
         },
         {
+          "name": "app_user_username_not_null",
+          "type": "n",
+          "def": "NOT NULL username",
+          "table": "public.app_user",
+          "referenced_table": "",
+          "columns": [
+            "username"
+          ]
+        },
+        {
           "name": "app_user_pkey",
           "type": "PRIMARY KEY",
           "def": "PRIMARY KEY (id)",
@@ -185,6 +198,16 @@
           "referenced_table": "",
           "columns": [
             "id"
+          ]
+        },
+        {
+          "name": "app_user_username_key",
+          "type": "UNIQUE",
+          "def": "UNIQUE (username)",
+          "table": "public.app_user",
+          "referenced_table": "",
+          "columns": [
+            "username"
           ]
         },
         {
@@ -758,7 +781,7 @@
           "nullable": false
         },
         {
-          "name": "email",
+          "name": "username",
           "type": "varchar",
           "nullable": false
         },
@@ -788,11 +811,11 @@
           ]
         },
         {
-          "name": "idx_login_attempt_email_attempted_at",
-          "def": "CREATE INDEX idx_login_attempt_email_attempted_at ON public.login_attempt USING btree (email, attempted_at)",
+          "name": "idx_login_attempt_username_attempted_at",
+          "def": "CREATE INDEX idx_login_attempt_username_attempted_at ON public.login_attempt USING btree (username, attempted_at)",
           "table": "public.login_attempt",
           "columns": [
-            "email",
+            "username",
             "attempted_at"
           ]
         },
@@ -815,16 +838,6 @@
           "referenced_table": "",
           "columns": [
             "attempted_at"
-          ]
-        },
-        {
-          "name": "login_attempt_email_not_null",
-          "type": "n",
-          "def": "NOT NULL email",
-          "table": "public.login_attempt",
-          "referenced_table": "",
-          "columns": [
-            "email"
           ]
         },
         {
@@ -855,6 +868,16 @@
           "referenced_table": "",
           "columns": [
             "succeeded"
+          ]
+        },
+        {
+          "name": "login_attempt_username_not_null",
+          "type": "n",
+          "def": "NOT NULL username",
+          "table": "public.login_attempt",
+          "referenced_table": "",
+          "columns": [
+            "username"
           ]
         },
         {

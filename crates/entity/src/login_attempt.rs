@@ -8,8 +8,9 @@ use serde::{Deserialize, Serialize};
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
-    /// 存在しないユーザーへの試行も記録するため、`app_user` へのFKにはしない。
-    pub email: String,
+    /// 正規化したユーザー名（設計書20.6）。存在しないユーザーへの試行も記録するため、
+    /// `app_user` へのFKにはしない。
+    pub username: String,
     pub ip_address: String,
     pub succeeded: bool,
     pub attempted_at: DateTimeUtc,

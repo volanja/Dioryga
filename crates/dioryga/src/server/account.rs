@@ -108,7 +108,7 @@ pub async fn submit(
 
     if let Err(e) = state
         .passwords
-        .check_policy(&form.new_password, &user.email, &user.name)
+        .check_policy(&form.new_password, &user.username, &user.name)
     {
         return render(&再表示(e.to_string()));
     }

@@ -29,6 +29,7 @@ use serde::Deserialize;
 use crate::auth::middleware::CurrentUser;
 use crate::auth::password;
 use crate::auth::session;
+use crate::auth::username;
 use crate::error::{AppError, AppResult};
 use crate::repository::{Actor, AuditedTx};
 use crate::server::view::{render, Chrome, Locale};
@@ -41,6 +42,8 @@ use crate::server::AppState;
 struct UserRow {
     id: i32,
     name: String,
+    username: String,
+    /// 任意。未登録なら空（設計書20.1）
     email: String,
     role: String,
     last_login: String,
@@ -50,7 +53,7 @@ struct UserRow {
 
 /// 発行した一時パスワード。**この応答にしか現れない**（設計書20.7）。
 struct Issued {
-    email: String,
+    username: String,
     password: String,
 }
 
@@ -67,6 +70,7 @@ struct UsersPage {
     t_status_active: String,
     t_status_disabled: String,
     t_name: String,
+    t_username: String,
     t_email: String,
     t_role: String,
     t_last_login: String,
@@ -94,7 +98,10 @@ struct UserFormPage {
     t_lead: String,
     t_back: String,
     t_name: String,
+    t_username: String,
+    t_username_hint: String,
     t_email: String,
+    t_email_hint: String,
     t_locale: String,
     t_is_system_admin: String,
     t_system_admin_hint: String,
@@ -102,6 +109,7 @@ struct UserFormPage {
     /// 送信先。新規と編集でテンプレートを共用するために持たせる。
     action: String,
     name: String,
+    username: String,
     email: String,
     locale_value: String,
     is_system_admin: bool,
@@ -201,7 +209,8 @@ async fn build_list(
             disabled: user.disabled_at.is_some(),
             id: user.id,
             name: user.name,
-            email: user.email,
+            username: user.username,
+            email: user.email.unwrap_or_default(),
         })
         .collect();
 
@@ -216,6 +225,7 @@ async fn build_list(
         t_status_active: rust_i18n::t!("users.status_active", locale = l).to_string(),
         t_status_disabled: rust_i18n::t!("users.status_disabled", locale = l).to_string(),
         t_name: rust_i18n::t!("users.name", locale = l).to_string(),
+        t_username: rust_i18n::t!("users.username", locale = l).to_string(),
         t_email: rust_i18n::t!("users.email", locale = l).to_string(),
         t_role: rust_i18n::t!("users.role", locale = l).to_string(),
         t_last_login: rust_i18n::t!("users.last_login", locale = l).to_string(),
@@ -236,7 +246,7 @@ async fn build_list(
     })
 }
 
-/// 表示名またはメールアドレスの部分一致で絞り込む。
+/// 表示名・ユーザー名・メールアドレスの部分一致で絞り込む。
 ///
 /// **`LOWER()` を両側に掛けている。**PostgreSQLの `LIKE` は大文字小文字を区別し、
 /// SQLiteのそれはASCIIに限り区別しない。素directに書くとDBによって結果が変わる。
@@ -259,6 +269,11 @@ async fn 検索<C: ConnectionTrait>(
         query = query.filter(
             Expr::expr(Func::lower(Expr::col(app_user::Column::Name)))
                 .like(LikeExpr::new(&pattern).escape('\\'))
+                .or(
+                    Expr::expr(Func::lower(Expr::col(app_user::Column::Username)))
+                        .like(LikeExpr::new(&pattern).escape('\\')),
+                )
+                // 未登録（NULL）のメールアドレスは一致しない
                 .or(Expr::expr(Func::lower(Expr::col(app_user::Column::Email)))
                     .like(LikeExpr::new(&pattern).escape('\\'))),
         );
@@ -288,6 +303,10 @@ fn escape_like(value: &str) -> String {
 #[derive(Debug, Deserialize)]
 pub struct UserForm {
     pub name: String,
+    #[serde(default)]
+    pub username: String,
+    /// 任意（設計書20.1）
+    #[serde(default)]
     pub email: String,
     #[serde(default)]
     pub locale: Option<String>,
@@ -315,6 +334,7 @@ pub async fn new_form(Extension(current): Extension<CurrentUser>) -> AppResult<R
         &current,
         String::new(),
         String::new(),
+        String::new(),
         false,
         None,
     ))
@@ -323,6 +343,7 @@ pub async fn new_form(Extension(current): Extension<CurrentUser>) -> AppResult<R
 fn 登録画面(
     current: &CurrentUser,
     name: String,
+    username: String,
     email: String,
     is_system_admin: bool,
     error: Option<String>,
@@ -334,13 +355,17 @@ fn 登録画面(
         t_lead: rust_i18n::t!("users.new_lead", locale = l).to_string(),
         t_back: rust_i18n::t!("common.back", locale = l).to_string(),
         t_name: rust_i18n::t!("users.name", locale = l).to_string(),
+        t_username: rust_i18n::t!("users.username", locale = l).to_string(),
+        t_username_hint: rust_i18n::t!("users.username_hint", locale = l).to_string(),
         t_email: rust_i18n::t!("users.email", locale = l).to_string(),
+        t_email_hint: rust_i18n::t!("users.email_hint", locale = l).to_string(),
         t_locale: rust_i18n::t!("users.locale", locale = l).to_string(),
         t_is_system_admin: rust_i18n::t!("users.is_system_admin", locale = l).to_string(),
         t_system_admin_hint: rust_i18n::t!("users.system_admin_hint", locale = l).to_string(),
         t_submit: rust_i18n::t!("common.create", locale = l).to_string(),
         action: "/admin/users".to_owned(),
         name,
+        username,
         email,
         locale_value: "ja".to_owned(),
         is_system_admin,
@@ -360,13 +385,14 @@ pub async fn create(
 ) -> AppResult<Response> {
     let l = Locale::parse(&current.user.locale).as_str();
     let name = form.name.trim().to_owned();
-    let email = form.email.trim().to_lowercase();
+    let email = username::任意のメールアドレス(&form.email);
 
     let 再表示 = |message: String| {
         登録画面(
             &current,
             name.clone(),
-            email.clone(),
+            form.username.trim().to_owned(),
+            email.clone().unwrap_or_default(),
             form.is_system_admin(),
             Some(message),
         )
@@ -377,22 +403,23 @@ pub async fn create(
             rust_i18n::t!("users.name_required", locale = l).to_string(),
         ));
     }
-    if email.is_empty() {
+    // ログインID（設計書20.1）。規則に合わなければ理由を出して戻す
+    let username = match username::検証する(&form.username) {
+        Ok(v) => v,
+        Err(e) => return render(&再表示(e.to_string())),
+    };
+    if 使われている(&state, app_user::Column::Username, &username, None).await? {
         return render(&再表示(
-            rust_i18n::t!("users.email_required", locale = l).to_string(),
+            rust_i18n::t!("users.duplicate_username", locale = l).to_string(),
         ));
     }
-
-    let 既存 = app_user::Entity::find()
-        .filter(app_user::Column::Email.eq(&email))
-        .one(&state.db)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
-
-    if 既存.is_some() {
-        return render(&再表示(
-            rust_i18n::t!("users.duplicate_email", locale = l).to_string(),
-        ));
+    // メールアドレスは任意だが、値がある場合は一意（20.1）
+    if let Some(email) = &email {
+        if 使われている(&state, app_user::Column::Email, email, None).await? {
+            return render(&再表示(
+                rust_i18n::t!("users.duplicate_email", locale = l).to_string(),
+            ));
+        }
     }
 
     let temporary = password::generate_temporary().map_err(|e| AppError::Internal(e.into()))?;
@@ -408,7 +435,8 @@ pub async fn create(
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     tx.insert(app_user::ActiveModel {
         name: Set(name),
-        email: Set(email.clone()),
+        username: Set(username.clone()),
+        email: Set(email),
         password_hash: Set(hash),
         // 本人が最初のログインで自分のパスワードに変える（設計書20.6）
         must_change_password: Set(true),
@@ -432,7 +460,7 @@ pub async fn create(
         &ListQuery::default(),
         None,
         Some(Issued {
-            email,
+            username,
             password: temporary,
         }),
     )
@@ -461,14 +489,18 @@ fn 編集画面(
         t_lead: rust_i18n::t!("users.edit_lead", locale = l).to_string(),
         t_back: rust_i18n::t!("common.back", locale = l).to_string(),
         t_name: rust_i18n::t!("users.name", locale = l).to_string(),
+        t_username: rust_i18n::t!("users.username", locale = l).to_string(),
+        t_username_hint: rust_i18n::t!("users.username_hint", locale = l).to_string(),
         t_email: rust_i18n::t!("users.email", locale = l).to_string(),
+        t_email_hint: rust_i18n::t!("users.email_hint", locale = l).to_string(),
         t_locale: rust_i18n::t!("users.locale", locale = l).to_string(),
         t_is_system_admin: rust_i18n::t!("users.is_system_admin", locale = l).to_string(),
         t_system_admin_hint: rust_i18n::t!("users.system_admin_hint", locale = l).to_string(),
         t_submit: rust_i18n::t!("common.save", locale = l).to_string(),
         action: format!("/admin/users/{}", target.id),
         name: target.name.clone(),
-        email: target.email.clone(),
+        username: target.username.clone(),
+        email: target.email.clone().unwrap_or_default(),
         locale_value: target.locale.clone(),
         is_system_admin: target.is_system_admin,
         error,
@@ -485,7 +517,7 @@ pub async fn update(
     let target = 対象(&state, id).await?;
 
     let name = form.name.trim().to_owned();
-    let email = form.email.trim().to_lowercase();
+    let email = username::任意のメールアドレス(&form.email);
 
     if name.is_empty() {
         return render(&編集画面(
@@ -494,21 +526,27 @@ pub async fn update(
             Some(rust_i18n::t!("users.name_required", locale = l).to_string()),
         ));
     }
-    if email.is_empty() {
+    let username = match username::検証する(&form.username) {
+        Ok(v) => v,
+        Err(e) => return render(&編集画面(&current, &target, Some(e.to_string()))),
+    };
+    // 自分以外と重複しないこと（設計書20.1）
+    if 使われている(
+        &state,
+        app_user::Column::Username,
+        &username,
+        Some(target.id),
+    )
+    .await?
+    {
         return render(&編集画面(
             &current,
             &target,
-            Some(rust_i18n::t!("users.email_required", locale = l).to_string()),
+            Some(rust_i18n::t!("users.duplicate_username", locale = l).to_string()),
         ));
     }
-
-    if email != target.email {
-        let 衝突 = app_user::Entity::find()
-            .filter(app_user::Column::Email.eq(&email))
-            .one(&state.db)
-            .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
-        if 衝突.is_some() {
+    if let Some(email) = &email {
+        if 使われている(&state, app_user::Column::Email, email, Some(target.id)).await? {
             return render(&編集画面(
                 &current,
                 &target,
@@ -531,6 +569,7 @@ pub async fn update(
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     let mut active: app_user::ActiveModel = target.clone().into();
     active.name = Set(name);
+    active.username = Set(username);
     active.email = Set(email);
     active.locale = Set(form.locale());
     active.is_system_admin = Set(form.is_system_admin());
@@ -635,7 +674,7 @@ pub async fn reset_password(
         &ListQuery::default(),
         None,
         Some(Issued {
-            email: target.email,
+            username: target.username,
             password: temporary,
         }),
     )
@@ -646,6 +685,27 @@ pub async fn reset_password(
 // ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
+
+/// この値を、`除く` 以外の利用者が既に使っているか。
+///
+/// ユーザー名とメールアドレスの一意性（設計書20.1）を、DBの一意制約違反で
+/// 500にする前に画面で伝えるために確かめる。
+async fn 使われている(
+    state: &AppState,
+    column: app_user::Column,
+    value: &str,
+    除く: Option<i32>,
+) -> AppResult<bool> {
+    let mut query = app_user::Entity::find().filter(column.eq(value));
+    if let Some(id) = 除く {
+        query = query.filter(app_user::Column::Id.ne(id));
+    }
+    Ok(query
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .is_some())
+}
 
 async fn 対象(state: &AppState, id: i32) -> AppResult<app_user::Model> {
     app_user::Entity::find_by_id(id)

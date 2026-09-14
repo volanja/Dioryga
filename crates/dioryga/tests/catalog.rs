@@ -66,7 +66,8 @@ async fn 閲覧者はカタログを編集できない(db: &DatabaseConnection) 
 async fn システム管理者はカタログに入れない(db: &DatabaseConnection) {
     let sa = app_user::ActiveModel {
         name: Set("システム管理者".to_owned()),
-        email: Set("sa@example.com".to_owned()),
+        username: Set(("sa@example.com".to_owned()).replace('@', "_")),
+        email: Set(Some("sa@example.com".to_owned())),
         password_hash: Set("$argon2id$dummy".to_owned()),
         must_change_password: Set(false),
         is_system_admin: Set(true),
@@ -1519,7 +1520,8 @@ async fn 分解(res: Response<Body>) -> (StatusCode, String) {
 async fn 利用者(db: &DatabaseConnection, email: &str) -> app_user::Model {
     app_user::ActiveModel {
         name: Set(email.to_owned()),
-        email: Set(email.to_owned()),
+        username: Set((email.to_owned()).replace('@', "_")),
+        email: Set(Some(email.to_owned())),
         password_hash: Set("$argon2id$dummy".to_owned()),
         must_change_password: Set(false),
         is_system_admin: Set(false),

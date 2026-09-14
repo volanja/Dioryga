@@ -20,9 +20,14 @@
   <label for="name">{{ t_name }}</label>
   <input type="text" id="name" name="name" value="{{ name }}" required>
 
+  <label for="username">{{ t_username }}</label>
+  <input type="text" id="username" name="username" value="{{ username }}"
+         autocomplete="off" autocapitalize="none" spellcheck="false" required>
+  <p class="hint">{{ t_username_hint }}</p>
+
   <label for="email">{{ t_email }}</label>
-  <input type="email" id="email" name="email" value="{{ email }}"
-         autocomplete="off" required>
+  <input type="email" id="email" name="email" value="{{ email }}" autocomplete="off">
+  <p class="hint">{{ t_email_hint }}</p>
 
   <label for="locale">{{ t_locale }}</label>
   <select id="locale" name="locale">

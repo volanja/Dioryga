@@ -6,7 +6,7 @@ app:
 login:
   title: Sign in
   lead: Sign in with your account
-  email: Email
+  username: Username
   password: Password
   submit: Sign in
 
@@ -16,7 +16,10 @@ setup:
   token: Setup token
   token_hint: The value printed to standard output when the server started
   name: Display name
+  username: Username
+  username_hint: Used to sign in. 2 to 32 lowercase letters, digits, dots, underscores or hyphens
   email: Email
+  email_hint: Optional
   password: Password
   submit: Create
 
@@ -28,7 +31,7 @@ nav:
 common:
   logout: Sign out
   search: Search
-  keyword: Search by name or email
+  keyword: Search by name, username or email
   back: Back to list
   save: Save
   create: Create
@@ -39,7 +42,10 @@ users:
   lead: Register, edit and disable users
   new: New user
   name: Display name
+  username: Username
+  username_hint: Used to sign in. 2 to 32 lowercase letters, digits, dots, underscores or hyphens
   email: Email
+  email_hint: Optional. If given, it must not be used by another user
   locale: Language
   role: Role
   role_system_admin: System Admin
@@ -65,7 +71,7 @@ users:
   issued: "Temporary password issued for: "
   issued_hint: This value is shown only here. Pass it to the person through another channel. They will be asked to change it at their next sign-in
   name_required: Enter a display name
-  email_required: Enter an email address
+  duplicate_username: That username is already in use
   duplicate_email: That email address is already in use
   cannot_disable_self: You cannot disable your own account
   cannot_demote_self: You cannot remove your own System Admin role
@@ -295,7 +301,7 @@ members:
   lead: Decide who can do what in this project
   admin_note: Administrators (primary and secondary) are assigned by the System Admin and cannot be changed here
   name: Name
-  email: Email
+  username: Username
   administrator: Administrator
   operator: Operator
   approver: Approver

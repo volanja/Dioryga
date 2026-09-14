@@ -79,7 +79,11 @@ async fn フォームから利用者を登録できる(db: &DatabaseConnection) 
         状態,
         "/admin/users",
         &token,
-        &[("name", "新入 太郎"), ("email", "newcomer@example.com")],
+        &[
+            ("name", "新入 太郎"),
+            ("username", "newcomer"),
+            ("email", "newcomer@example.com"),
+        ],
     )
     .await;
 
@@ -111,7 +115,11 @@ async fn 一時パスワードは応答にだけ現れる(db: &DatabaseConnectio
         状態,
         "/admin/users",
         &token,
-        &[("name", "一時"), ("email", "temp@example.com")],
+        &[
+            ("name", "一時"),
+            ("username", "temp"),
+            ("email", "temp@example.com"),
+        ],
     )
     .await;
 
@@ -142,7 +150,11 @@ async fn 重複したメールアドレスは拒否される(db: &DatabaseConnec
         状態,
         "/admin/users",
         &token,
-        &[("name", "重複"), ("email", "dup@example.com")],
+        &[
+            ("name", "重複"),
+            ("username", "dup"),
+            ("email", "dup@example.com"),
+        ],
     )
     .await;
 
@@ -155,6 +167,92 @@ async fn 重複したメールアドレスは拒否される(db: &DatabaseConnec
         .await
         .unwrap();
     assert_eq!(件数, 1, "重複した利用者が作られています");
+}
+
+/// **同じユーザー名は、大文字小文字が違っても登録できないこと**（設計書20.1）。
+async fn 重複したユーザー名は拒否される(db: &DatabaseConnection) {
+    let admin = 利用者(db, "dupname-admin@example.com", true).await;
+    let _ = 利用者(db, "taken@example.com", false).await;
+    let (状態, token) = 認証済み(db, &admin).await;
+
+    // 既存の利用者のユーザー名は taken_example.com。大文字で送っても同じとみなす
+    let (status, body) = 送信(
+        状態,
+        "/admin/users",
+        &token,
+        &[("name", "重複"), ("username", "TAKEN_example.com")],
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains("このユーザー名は既に使われています"),
+        "{body}"
+    );
+    let 件数 = app_user::Entity::find()
+        .filter(app_user::Column::Username.eq("taken_example.com"))
+        .count(db)
+        .await
+        .unwrap();
+    assert_eq!(件数, 1);
+}
+
+/// **メールアドレス無しで登録でき、ユーザー名は小文字で保存されること**（設計書20.1）。
+async fn メールアドレス無しで登録できる(db: &DatabaseConnection) {
+    let admin = 利用者(db, "noemail-admin@example.com", true).await;
+    let (状態, token) = 認証済み(db, &admin).await;
+
+    let (status, _) = 送信(
+        状態,
+        "/admin/users",
+        &token,
+        &[
+            ("name", "穂高 古城"),
+            ("username", "Hotaka.Kojo"),
+            ("email", ""),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let created = app_user::Entity::find()
+        .filter(app_user::Column::Username.eq("hotaka.kojo"))
+        .one(db)
+        .await
+        .unwrap()
+        .expect("利用者が作られていません");
+    assert_eq!(
+        created.email, None,
+        "空欄のメールアドレスが保存されています"
+    );
+}
+
+/// **規則に合わないユーザー名は登録できないこと**（設計書20.1）。
+async fn 規則外のユーザー名は拒否される(db: &DatabaseConnection) {
+    let admin = 利用者(db, "invalidname-admin@example.com", true).await;
+
+    for 誤り in ["t", "槍ヶ岳", "_hakuba", "hakuba web"] {
+        let (状態, token) = 認証済み(db, &admin).await;
+        let (status, body) = 送信(
+            状態,
+            "/admin/users",
+            &token,
+            &[("name", "規則外"), ("username", 誤り)],
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(
+            body.contains("ユーザー名"),
+            "「{誤り}」の理由が出ていません: {body}"
+        );
+    }
+
+    let 件数 = app_user::Entity::find()
+        .filter(app_user::Column::Name.eq("規則外"))
+        .count(db)
+        .await
+        .unwrap();
+    assert_eq!(件数, 0, "規則外のユーザー名で作成されています");
 }
 
 // ---------------------------------------------------------------------------
@@ -291,6 +389,7 @@ async fn 自分自身は降格できない(db: &DatabaseConnection) {
         &token,
         &[
             ("name", "最後の管理者"),
+            ("username", "only-admin"),
             ("email", "only-admin@example.com"),
         ],
     )
@@ -317,6 +416,7 @@ async fn 他人にsystem_admin権限を与えられる(db: &DatabaseConnection) 
         &token,
         &[
             ("name", "昇格"),
+            ("username", "promoted"),
             ("email", "promoted@example.com"),
             ("is_system_admin", "on"),
         ],
@@ -429,7 +529,11 @@ async fn 変更が監査ログに残る(db: &DatabaseConnection) {
         状態,
         "/admin/users",
         &token,
-        &[("name", "監査"), ("email", "audited@example.com")],
+        &[
+            ("name", "監査"),
+            ("username", "audited"),
+            ("email", "audited@example.com"),
+        ],
     )
     .await;
 
@@ -567,7 +671,8 @@ fn 一時パスワードを取り出す(body: &str) -> String {
 async fn 利用者(db: &DatabaseConnection, email: &str, system_admin: bool) -> app_user::Model {
     app_user::ActiveModel {
         name: Set(format!("検証 {email}")),
-        email: Set(email.to_owned()),
+        username: Set((email.to_owned()).replace('@', "_")),
+        email: Set(Some(email.to_owned())),
         password_hash: Set("$argon2id$dummy".to_owned()),
         must_change_password: Set(false),
         is_system_admin: Set(system_admin),
@@ -597,6 +702,9 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, フォームから利用者を登録できる);
         全検証!(@one $用意, $属性, 一時パスワードは応答にだけ現れる);
         全検証!(@one $用意, $属性, 重複したメールアドレスは拒否される);
+        全検証!(@one $用意, $属性, 重複したユーザー名は拒否される);
+        全検証!(@one $用意, $属性, メールアドレス無しで登録できる);
+        全検証!(@one $用意, $属性, 規則外のユーザー名は拒否される);
         全検証!(@one $用意, $属性, 検索とフィルタが効く);
         全検証!(@one $用意, $属性, ワイルドカードは打ち消される);
         全検証!(@one $用意, $属性, 無効化しても行は残る);

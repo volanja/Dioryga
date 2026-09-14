@@ -25,7 +25,7 @@
 //! # 使い方
 //!
 //! ```bash
-//! DIORYGA_DEV_AUTOLOGIN=利用者のメールアドレス cargo run --features dev-autologin
+//! DIORYGA_DEV_AUTOLOGIN=利用者のユーザー名 cargo run --features dev-autologin
 //! ```
 //!
 //! 環境変数を設定しなければ、機能を有効にしたビルドでも自動ログインしない。
@@ -50,7 +50,7 @@ use tokio::sync::Mutex;
 use crate::auth::{cookie, session};
 use crate::server::AppState;
 
-/// 自動ログインする利用者のメールアドレスを指定する環境変数。
+/// 自動ログインする利用者のユーザー名を指定する環境変数。
 pub const ENV_VAR: &str = "DIORYGA_DEV_AUTOLOGIN";
 
 /// **CIが、配布物のバイナリに含まれていないことを検査する目印。**
@@ -69,33 +69,34 @@ pub struct DevAutologin {
 impl DevAutologin {
     /// 環境変数が設定されていれば、自動ログインを始める。
     pub async fn from_env(state: &AppState) -> anyhow::Result<Option<Self>> {
-        let Ok(email) = std::env::var(ENV_VAR) else {
+        let Ok(username) = std::env::var(ENV_VAR) else {
             return Ok(None);
         };
-        let email = email.trim();
-        if email.is_empty() {
+        let username = username.trim();
+        if username.is_empty() {
             return Ok(None);
         }
-        Self::start(state, email).await.map(Some)
+        Self::start(state, username).await.map(Some)
     }
 
     /// 指定した利用者として自動ログインを始める。
     ///
     /// **利用者が存在しない・無効化されている場合は起動を止める。**黙って
     /// ログイン画面に落ちると、指定を誤ったことに気付けない。
-    pub async fn start(state: &AppState, email: &str) -> anyhow::Result<Self> {
+    pub async fn start(state: &AppState, username: &str) -> anyhow::Result<Self> {
+        let username = crate::auth::username::正規化する(username);
         let user = app_user::Entity::find()
-            .filter(app_user::Column::Email.eq(email))
+            .filter(app_user::Column::Username.eq(&username))
             .one(&state.db)
             .await?
-            .ok_or_else(|| anyhow::anyhow!("{ENV_VAR} の利用者「{email}」が見つかりません"))?;
+            .ok_or_else(|| anyhow::anyhow!("{ENV_VAR} の利用者「{username}」が見つかりません"))?;
         if user.disabled_at.is_some() {
-            anyhow::bail!("{ENV_VAR} の利用者「{email}」は無効化されています");
+            anyhow::bail!("{ENV_VAR} の利用者「{username}」は無効化されています");
         }
 
         tracing::warn!(
             marker = MARKER,
-            email,
+            username,
             "開発専用の自動ログインが有効です。有効なCookieを持たないリクエストは、すべてこの利用者として扱います"
         );
 

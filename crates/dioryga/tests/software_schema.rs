@@ -518,7 +518,8 @@ async fn 機器(db: &DatabaseConnection, hostname: &str) -> device::Model {
 
 async fn 利用者(db: &DatabaseConnection, email: &str) -> app_user::Model {
     app_user::ActiveModel {
-        email: Set(email.to_owned()),
+        username: Set((email.to_owned()).replace('@', "_")),
+        email: Set(Some(email.to_owned())),
         name: Set(email.to_owned()),
         password_hash: Set("x".to_owned()),
         is_system_admin: Set(false),

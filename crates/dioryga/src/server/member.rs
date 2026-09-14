@@ -46,8 +46,10 @@ const 編集できるロール: &[&str] = &[OPERATOR, APPROVER, VIEWER];
 
 struct MemberRow {
     user_id: i32,
+    /// 表示名（設計書20.1）
     name: String,
-    email: String,
+    /// 同じ表示名の人を見分けるためのログインID
+    username: String,
     operator: bool,
     approver: bool,
     viewer: bool,
@@ -72,7 +74,7 @@ struct MembersPage {
     t_lead: String,
     t_admin_note: String,
     t_name: String,
-    t_email: String,
+    t_username: String,
     t_admin: String,
     t_operator: String,
     t_approver: String,
@@ -129,7 +131,7 @@ async fn 描く(
         t_lead: rust_i18n::t!("members.lead", locale = l).to_string(),
         t_admin_note: rust_i18n::t!("members.admin_note", locale = l).to_string(),
         t_name: rust_i18n::t!("members.name", locale = l).to_string(),
-        t_email: rust_i18n::t!("members.email", locale = l).to_string(),
+        t_username: rust_i18n::t!("members.username", locale = l).to_string(),
         t_admin: rust_i18n::t!("members.administrator", locale = l).to_string(),
         t_operator: rust_i18n::t!("members.operator", locale = l).to_string(),
         t_approver: rust_i18n::t!("members.approver", locale = l).to_string(),
@@ -294,7 +296,7 @@ async fn 一覧<C: ConnectionTrait>(db: &C, project_id: i32) -> AppResult<Vec<Me
                 disabled: u.disabled_at.is_some(),
                 user_id: u.id,
                 name: u.name,
-                email: u.email,
+                username: u.username,
             }
         })
         .collect())
@@ -320,7 +322,7 @@ async fn 追加候補<C: ConnectionTrait>(
         .filter(|u| !既存.iter().any(|r| r.user_id == u.id))
         .map(|u| Candidate {
             id: u.id,
-            label: format!("{}（{}）", u.name, u.email),
+            label: format!("{}（{}）", u.name, u.username),
         })
         .collect())
 }

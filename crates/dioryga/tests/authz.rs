@@ -473,7 +473,8 @@ async fn セッション(db: &DatabaseConnection, user_id: i32, state: &AppState
 async fn 利用者(db: &DatabaseConnection, email: &str, system_admin: bool) -> app_user::Model {
     app_user::ActiveModel {
         name: Set("検証用".to_owned()),
-        email: Set(email.to_owned()),
+        username: Set((email.to_owned()).replace('@', "_")),
+        email: Set(Some(email.to_owned())),
         password_hash: Set("dummy".to_owned()),
         must_change_password: Set(false),
         is_system_admin: Set(system_admin),

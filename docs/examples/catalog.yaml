@@ -1,7 +1,7 @@
 # カタログの取込例（設計書23.4）。
 #
-#   dioryga import docs/examples/catalog.yaml --as-user you@example.com
-#   dioryga import docs/examples/catalog.yaml --as-user you@example.com --apply
+#   dioryga import docs/examples/catalog.yaml --as-user you
+#   dioryga import docs/examples/catalog.yaml --as-user you --apply
 #
 # 既定はドライラン。差分を確認してから --apply を付ける。
 format_version: 1

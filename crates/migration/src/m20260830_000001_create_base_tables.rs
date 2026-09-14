@@ -22,7 +22,11 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(pk_auto(AppUser::Id))
                     .col(string(AppUser::Name))
-                    .col(string(AppUser::Email).unique_key())
+                    // ログインID。小文字にそろえて保存する（設計書20.1）
+                    .col(string(AppUser::Username).unique_key())
+                    // 任意。ログインIDではないが、値がある場合は一意（20.1）。
+                    // 一意制約は両DBともNULLどうしを重複とみなさない
+                    .col(string_null(AppUser::Email).unique_key())
                     .col(string(AppUser::PasswordHash))
                     .col(boolean(AppUser::MustChangePassword).default(false))
                     .col(boolean(AppUser::IsSystemAdmin).default(false))
@@ -141,7 +145,7 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(pk_auto(LoginAttempt::Id))
                     // 存在しないユーザーへの試行も記録するためFKにしない（設計書20.4）
-                    .col(string(LoginAttempt::Email))
+                    .col(string(LoginAttempt::Username))
                     .col(string(LoginAttempt::IpAddress))
                     .col(boolean(LoginAttempt::Succeeded))
                     .col(timestamp_with_time_zone(LoginAttempt::AttemptedAt))
@@ -149,13 +153,13 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // レート制限はメールアドレス単位とIP単位の双方で数える（設計書20.6）
+        // レート制限はアカウント（ユーザー名）単位とIP単位を別々に数える（設計書20.6）
         manager
             .create_index(
                 Index::create()
-                    .name("idx_login_attempt_email_attempted_at")
+                    .name("idx_login_attempt_username_attempted_at")
                     .table(LoginAttempt::Table)
-                    .col(LoginAttempt::Email)
+                    .col(LoginAttempt::Username)
                     .col(LoginAttempt::AttemptedAt)
                     .to_owned(),
             )
@@ -249,6 +253,7 @@ enum AppUser {
     Table,
     Id,
     Name,
+    Username,
     Email,
     PasswordHash,
     MustChangePassword,
@@ -305,7 +310,7 @@ enum Session {
 enum LoginAttempt {
     Table,
     Id,
-    Email,
+    Username,
     IpAddress,
     Succeeded,
     AttemptedAt,

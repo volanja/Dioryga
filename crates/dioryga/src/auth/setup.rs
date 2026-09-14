@@ -24,6 +24,7 @@ use sea_orm::{DatabaseConnection, EntityTrait, PaginatorTrait, Set};
 use tokio::sync::RwLock;
 
 use crate::auth::password::{PasswordError, PasswordService};
+use crate::auth::username::{self, UsernameError};
 use crate::repository::{Actor, AuditedTx};
 
 #[derive(Debug, thiserror::Error)]
@@ -36,6 +37,9 @@ pub enum SetupError {
 
     #[error(transparent)]
     Password(#[from] PasswordError),
+
+    #[error(transparent)]
+    Username(#[from] UsernameError),
 
     #[error(transparent)]
     Db(#[from] sea_orm::DbErr),
@@ -116,19 +120,36 @@ fn generate_token() -> Result<String, SetupError> {
 /// 最初のSystem Adminを作成する。
 ///
 /// トークンの照合に成功した場合のみ作成し、成功したらトークンを破棄する。
+// 引数はセットアップ画面の入力（トークン・表示名・ユーザー名・メールアドレス・
+// パスワード）と共有の状態であり、呼び出し元は画面の1箇所だけ。束ねる型を
+// 作っても、その1箇所で詰め直すだけになる
+#[allow(clippy::too_many_arguments)]
 pub async fn create_first_admin(
     db: &DatabaseConnection,
     state: &SetupState,
     passwords: &PasswordService,
     token: &str,
     name: &str,
-    email: &str,
+    username: &str,
+    email: Option<&str>,
     password: &str,
 ) -> Result<app_user::Model, SetupError> {
     state.verify(token).await?;
-    passwords.check_policy(password, email, name)?;
+    // ログインIDはユーザー名。メールアドレスは任意（設計書20.1）
+    let username = username::検証する(username)?;
+    let email = email.and_then(username::任意のメールアドレス);
+    passwords.check_policy(password, &username, name)?;
 
-    let user = create_system_admin(db, passwords, name, email, password, false).await?;
+    let user = create_system_admin(
+        db,
+        passwords,
+        name,
+        &username,
+        email.as_deref(),
+        password,
+        false,
+    )
+    .await?;
 
     // 作成できた時点でトークンを無効化する。以降 /setup は開かない。
     state.complete().await;
@@ -144,7 +165,8 @@ pub async fn create_system_admin(
     db: &DatabaseConnection,
     passwords: &PasswordService,
     name: &str,
-    email: &str,
+    username: &str,
+    email: Option<&str>,
     password: &str,
     must_change_password: bool,
 ) -> Result<app_user::Model, SetupError> {
@@ -155,7 +177,8 @@ pub async fn create_system_admin(
     let user = tx
         .insert(app_user::ActiveModel {
             name: Set(name.to_owned()),
-            email: Set(email.to_owned()),
+            username: Set(username.to_owned()),
+            email: Set(email.map(str::to_owned)),
             password_hash: Set(hash),
             must_change_password: Set(must_change_password),
             is_system_admin: Set(true),

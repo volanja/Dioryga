@@ -57,8 +57,9 @@
 ### app_user（設計書の `USER`）(5章, 20章, 24.2.4)
 | カラム | 型 | 備考 |
 |---|---|---|
-| name | string | |
-| email | string | UNIQUE、ログインIDを兼ねる |
+| name | string | 表示名。画面のヘッダー・一覧に出す |
+| username | string | UNIQUE、**ログインID**。ASCII英小文字・数字と `.` `_` `-`、2〜32文字、先頭は英数字。**小文字で保存し比較する**（大文字小文字を区別しない） |
+| email | string | nullable、UNIQUE（値がある場合）。ログインIDではない |
 | password_hash | string | Argon2idのPHC文字列 |
 | must_change_password | boolean | 初期パスワード・リセット直後はtrue |
 | is_system_admin | boolean | プロジェクトロールとは別軸 |
@@ -99,7 +100,7 @@
 ### LOGIN_ATTEMPT (20.4)
 | カラム | 型 | 備考 |
 |---|---|---|
-| email | string | **FKにしない**（存在しないユーザーへの試行も記録するため） |
+| username | string | 正規化（小文字化）したユーザー名。**FKにしない**（存在しないユーザーへの試行も記録するため） |
 | ip_address | string | |
 | succeeded | boolean | |
 | attempted_at | datetime | |

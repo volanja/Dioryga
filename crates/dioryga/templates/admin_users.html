@@ -17,7 +17,7 @@
 {% if let Some(issued) = issued %}
 {# 一時パスワードはこの応答にしか現れない（設計書20.7）。DBには平文を持たない #}
 <div class="issued">
-  <p class="issued-head">{{ t_issued }}<strong>{{ issued.email }}</strong></p>
+  <p class="issued-head">{{ t_issued }}<strong>{{ issued.username }}</strong></p>
   <p class="issued-value">{{ issued.password }}</p>
   <p class="issued-hint">{{ t_issued_hint }}</p>
 </div>
@@ -42,6 +42,7 @@
   <thead>
     <tr>
       <th>{{ t_name }}</th>
+      <th>{{ t_username }}</th>
       <th>{{ t_email }}</th>
       <th>{{ t_role }}</th>
       <th>{{ t_last_login }}</th>
@@ -53,6 +54,7 @@
     {% for row in rows %}
     <tr class="{% if row.disabled %}is-disabled{% endif %}">
       <td>{{ row.name }}</td>
+      <td>{{ row.username }}</td>
       <td>{{ row.email }}</td>
       <td>{{ row.role }}</td>
       <td>{{ row.last_login }}</td>

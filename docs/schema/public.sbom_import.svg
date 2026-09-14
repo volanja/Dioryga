@@ -208,49 +208,52 @@
 <!-- public.app_user -->
 <g id="node6" class="node">
 <title>public.app_user</title>
-<polygon fill="#efefef" stroke="none" points="1180.93,-505.2 1180.93,-540.8 1443.15,-540.8 1443.15,-505.2 1180.93,-505.2"/>
-<polygon fill="none" stroke="black" points="1180.93,-505.2 1180.93,-540.8 1443.15,-540.8 1443.15,-505.2 1180.93,-505.2"/>
-<text text-anchor="start" x="1192.56" y="-518.6" font-family="Arial Bold" font-size="18.00">public.app_user</text>
-<text text-anchor="start" x="1307.03" y="-518.6" font-family="Arial" font-size="14.00">    </text>
-<text text-anchor="start" x="1338.15" y="-518.6" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
-<polygon fill="none" stroke="black" points="1180.93,-474.4 1180.93,-505.2 1443.15,-505.2 1443.15,-474.4 1180.93,-474.4"/>
-<text text-anchor="start" x="1187.93" y="-486.6" font-family="Arial" font-size="14.00">id </text>
-<text text-anchor="start" x="1202.71" y="-486.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="1180.93,-443.6 1180.93,-474.4 1443.15,-474.4 1443.15,-443.6 1180.93,-443.6"/>
-<text text-anchor="start" x="1187.93" y="-455.8" font-family="Arial" font-size="14.00">name </text>
-<text text-anchor="start" x="1226.84" y="-455.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="1180.93,-412.8 1180.93,-443.6 1443.15,-443.6 1443.15,-412.8 1180.93,-412.8"/>
-<text text-anchor="start" x="1187.93" y="-425" font-family="Arial" font-size="14.00">email </text>
-<text text-anchor="start" x="1225.27" y="-425" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="1180.93,-382 1180.93,-412.8 1443.15,-412.8 1443.15,-382 1180.93,-382"/>
-<text text-anchor="start" x="1187.93" y="-394.2" font-family="Arial" font-size="14.00">password_hash </text>
-<text text-anchor="start" x="1289.88" y="-394.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="1180.93,-351.2 1180.93,-382 1443.15,-382 1443.15,-351.2 1180.93,-351.2"/>
-<text text-anchor="start" x="1187.93" y="-363.4" font-family="Arial" font-size="14.00">must_change_password </text>
-<text text-anchor="start" x="1343.58" y="-363.4" font-family="Arial" font-size="14.00" fill="#666666">[boolean]</text>
-<polygon fill="none" stroke="black" points="1180.93,-320.4 1180.93,-351.2 1443.15,-351.2 1443.15,-320.4 1180.93,-320.4"/>
-<text text-anchor="start" x="1187.93" y="-332.6" font-family="Arial" font-size="14.00">is_system_admin </text>
-<text text-anchor="start" x="1299.97" y="-332.6" font-family="Arial" font-size="14.00" fill="#666666">[boolean]</text>
-<polygon fill="none" stroke="black" points="1180.93,-289.6 1180.93,-320.4 1443.15,-320.4 1443.15,-289.6 1180.93,-289.6"/>
-<text text-anchor="start" x="1187.93" y="-301.8" font-family="Arial" font-size="14.00">locale </text>
-<text text-anchor="start" x="1228.4" y="-301.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="1180.93,-258.8 1180.93,-289.6 1443.15,-289.6 1443.15,-258.8 1180.93,-258.8"/>
-<text text-anchor="start" x="1187.93" y="-271" font-family="Arial" font-size="14.00">last_login_at </text>
-<text text-anchor="start" x="1270.43" y="-271" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="1180.93,-228 1180.93,-258.8 1443.15,-258.8 1443.15,-228 1180.93,-228"/>
-<text text-anchor="start" x="1187.93" y="-240.2" font-family="Arial" font-size="14.00">disabled_at </text>
-<text text-anchor="start" x="1263.43" y="-240.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="1180.93,-197.2 1180.93,-228 1443.15,-228 1443.15,-197.2 1180.93,-197.2"/>
-<text text-anchor="start" x="1187.93" y="-209.4" font-family="Arial" font-size="14.00">created_at </text>
-<text text-anchor="start" x="1257.98" y="-209.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="1180.93,-166.4 1180.93,-197.2 1443.15,-197.2 1443.15,-166.4 1180.93,-166.4"/>
-<text text-anchor="start" x="1187.93" y="-178.6" font-family="Arial" font-size="14.00">updated_at </text>
-<text text-anchor="start" x="1261.89" y="-178.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="#efefef" stroke="none" points="1180.93,-520.6 1180.93,-556.2 1443.15,-556.2 1443.15,-520.6 1180.93,-520.6"/>
+<polygon fill="none" stroke="black" points="1180.93,-520.6 1180.93,-556.2 1443.15,-556.2 1443.15,-520.6 1180.93,-520.6"/>
+<text text-anchor="start" x="1192.56" y="-534" font-family="Arial Bold" font-size="18.00">public.app_user</text>
+<text text-anchor="start" x="1307.03" y="-534" font-family="Arial" font-size="14.00">    </text>
+<text text-anchor="start" x="1338.15" y="-534" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
+<polygon fill="none" stroke="black" points="1180.93,-489.8 1180.93,-520.6 1443.15,-520.6 1443.15,-489.8 1180.93,-489.8"/>
+<text text-anchor="start" x="1187.93" y="-502" font-family="Arial" font-size="14.00">id </text>
+<text text-anchor="start" x="1202.71" y="-502" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="1180.93,-459 1180.93,-489.8 1443.15,-489.8 1443.15,-459 1180.93,-459"/>
+<text text-anchor="start" x="1187.93" y="-471.2" font-family="Arial" font-size="14.00">name </text>
+<text text-anchor="start" x="1226.84" y="-471.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="1180.93,-428.2 1180.93,-459 1443.15,-459 1443.15,-428.2 1180.93,-428.2"/>
+<text text-anchor="start" x="1187.93" y="-440.4" font-family="Arial" font-size="14.00">username </text>
+<text text-anchor="start" x="1254.07" y="-440.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="1180.93,-397.4 1180.93,-428.2 1443.15,-428.2 1443.15,-397.4 1180.93,-397.4"/>
+<text text-anchor="start" x="1187.93" y="-409.6" font-family="Arial" font-size="14.00">email </text>
+<text text-anchor="start" x="1225.27" y="-409.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="1180.93,-366.6 1180.93,-397.4 1443.15,-397.4 1443.15,-366.6 1180.93,-366.6"/>
+<text text-anchor="start" x="1187.93" y="-378.8" font-family="Arial" font-size="14.00">password_hash </text>
+<text text-anchor="start" x="1289.88" y="-378.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="1180.93,-335.8 1180.93,-366.6 1443.15,-366.6 1443.15,-335.8 1180.93,-335.8"/>
+<text text-anchor="start" x="1187.93" y="-348" font-family="Arial" font-size="14.00">must_change_password </text>
+<text text-anchor="start" x="1343.58" y="-348" font-family="Arial" font-size="14.00" fill="#666666">[boolean]</text>
+<polygon fill="none" stroke="black" points="1180.93,-305 1180.93,-335.8 1443.15,-335.8 1443.15,-305 1180.93,-305"/>
+<text text-anchor="start" x="1187.93" y="-317.2" font-family="Arial" font-size="14.00">is_system_admin </text>
+<text text-anchor="start" x="1299.97" y="-317.2" font-family="Arial" font-size="14.00" fill="#666666">[boolean]</text>
+<polygon fill="none" stroke="black" points="1180.93,-274.2 1180.93,-305 1443.15,-305 1443.15,-274.2 1180.93,-274.2"/>
+<text text-anchor="start" x="1187.93" y="-286.4" font-family="Arial" font-size="14.00">locale </text>
+<text text-anchor="start" x="1228.4" y="-286.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="1180.93,-243.4 1180.93,-274.2 1443.15,-274.2 1443.15,-243.4 1180.93,-243.4"/>
+<text text-anchor="start" x="1187.93" y="-255.6" font-family="Arial" font-size="14.00">last_login_at </text>
+<text text-anchor="start" x="1270.43" y="-255.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="1180.93,-212.6 1180.93,-243.4 1443.15,-243.4 1443.15,-212.6 1180.93,-212.6"/>
+<text text-anchor="start" x="1187.93" y="-224.8" font-family="Arial" font-size="14.00">disabled_at </text>
+<text text-anchor="start" x="1263.43" y="-224.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="1180.93,-181.8 1180.93,-212.6 1443.15,-212.6 1443.15,-181.8 1180.93,-181.8"/>
+<text text-anchor="start" x="1187.93" y="-194" font-family="Arial" font-size="14.00">created_at </text>
+<text text-anchor="start" x="1257.98" y="-194" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="1180.93,-151 1180.93,-181.8 1443.15,-181.8 1443.15,-151 1180.93,-151"/>
+<text text-anchor="start" x="1187.93" y="-163.2" font-family="Arial" font-size="14.00">updated_at </text>
+<text text-anchor="start" x="1261.89" y="-163.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.sbom_import&#45;&gt;public.app_user -->
 <g id="edge5" class="edge">
 <title>public.sbom_import:imported_by&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M899.34,-866.28C1019.19,-863.4 1057.97,-809.43 1129.04,-707.2 1185.69,-625.72 1080.69,-489.8 1179.93,-489.8"/>
+<path fill="none" stroke="black" d="M899.33,-866.28C1019.14,-863.37 1057.11,-808.82 1129.04,-707.2 1182.53,-631.63 1087.34,-505.2 1179.93,-505.2"/>
 <polygon fill="black" stroke="black" points="899.37,-866.28 889.31,-861.9 894.03,-866.34 889.7,-866.39 889.7,-866.39 889.7,-866.39 894.03,-866.34 889.42,-870.9 899.37,-866.28"/>
 <text text-anchor="start" x="896.03" y="-876.4" font-family="Arial" font-size="10.00">FOREIGN KEY (imported_by) REFERENCES app_user(id)</text>
 </g>

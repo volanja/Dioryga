@@ -21,8 +21,8 @@
 <text text-anchor="start" x="53.2" y="-181.6" font-family="Arial" font-size="14.00">id </text>
 <text text-anchor="start" x="67.99" y="-181.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
 <polygon fill="none" stroke="black" points="46.2,-138.6 46.2,-169.4 334.16,-169.4 334.16,-138.6 46.2,-138.6"/>
-<text text-anchor="start" x="53.2" y="-150.8" font-family="Arial" font-size="14.00">email </text>
-<text text-anchor="start" x="90.54" y="-150.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<text text-anchor="start" x="53.2" y="-150.8" font-family="Arial" font-size="14.00">username </text>
+<text text-anchor="start" x="119.34" y="-150.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 <polygon fill="none" stroke="black" points="46.2,-107.8 46.2,-138.6 334.16,-138.6 334.16,-107.8 46.2,-107.8"/>
 <text text-anchor="start" x="53.2" y="-120" font-family="Arial" font-size="14.00">ip_address </text>
 <text text-anchor="start" x="125.58" y="-120" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>

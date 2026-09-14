@@ -619,7 +619,8 @@ async fn 分解(res: Response<Body>) -> (StatusCode, String) {
 async fn 利用者(db: &DatabaseConnection, email: &str, system_admin: bool) -> app_user::Model {
     app_user::ActiveModel {
         name: Set(format!("検証 {email}")),
-        email: Set(email.to_owned()),
+        username: Set((email.to_owned()).replace('@', "_")),
+        email: Set(Some(email.to_owned())),
         password_hash: Set("$argon2id$dummy".to_owned()),
         must_change_password: Set(false),
         is_system_admin: Set(system_admin),

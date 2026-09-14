@@ -12,7 +12,7 @@ use std::net::SocketAddr;
 
 use crate::auth::middleware::CurrentUser;
 use crate::auth::rate_limit::{self, Decision};
-use crate::auth::{cookie, session};
+use crate::auth::{cookie, session, username};
 use crate::error::{AppError, AppResult};
 use crate::server::view::{render, Locale};
 use crate::server::AppState;
@@ -24,40 +24,40 @@ struct LoginPage {
     app_name: String,
     t_title: String,
     t_lead: String,
-    t_email: String,
+    t_username: String,
     t_password: String,
     t_submit: String,
     error: Option<String>,
-    email: String,
+    username: String,
 }
 
 impl LoginPage {
-    fn new(locale: Locale, error: Option<String>, email: String) -> Self {
+    fn new(locale: Locale, error: Option<String>, username: String) -> Self {
         let l = locale.as_str();
         Self {
             locale: l,
             app_name: rust_i18n::t!("app.name", locale = l).to_string(),
             t_title: rust_i18n::t!("login.title", locale = l).to_string(),
             t_lead: rust_i18n::t!("login.lead", locale = l).to_string(),
-            t_email: rust_i18n::t!("login.email", locale = l).to_string(),
+            t_username: rust_i18n::t!("login.username", locale = l).to_string(),
             t_password: rust_i18n::t!("login.password", locale = l).to_string(),
             t_submit: rust_i18n::t!("login.submit", locale = l).to_string(),
             error,
-            email,
+            username,
         }
     }
 }
 
 /// ログイン失敗時に返す文言。
 ///
-/// **メールアドレスが存在しない場合と、パスワードが誤っている場合とで同一にする**
+/// **ユーザー名が存在しない場合と、パスワードが誤っている場合とで同一にする**
 /// （設計書20.6）。文言が違うと、アカウントの存在有無を判別できてしまう。
 /// 無効化された利用者も同じ文言で拒否する。
-const LOGIN_FAILED: &str = "メールアドレスまたはパスワードが正しくありません";
+const LOGIN_FAILED: &str = "ユーザー名またはパスワードが正しくありません";
 
 #[derive(Debug, Deserialize)]
 pub struct LoginForm {
-    pub email: String,
+    pub username: String,
     pub password: String,
 }
 
@@ -80,21 +80,26 @@ pub async fn submit(
         .and_then(|v| v.to_str().ok())
         .unwrap_or_default();
 
-    // レート制限。恒久ロックではなく一時停止（設計書20.6）
-    if rate_limit::check(&state.db, &form.email, &ip, now)
+    // **検証はせず、そろえるだけ。**大文字で入力しても同じ利用者として引き、
+    // 同じアカウントとして数える。形式の誤りも「存在しない」と同じ扱いにする（20.6）
+    let key = username::正規化する(&form.username);
+
+    // レート制限。恒久ロックではなく待ち時間（設計書20.6）
+    let decision = rate_limit::check(&state.db, &key, &ip, now)
         .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-        == Decision::Throttled
-    {
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    if let Decision::Throttled { retry_after_secs } = decision {
         return render(&LoginPage::new(
             locale,
-            Some("試行回数が上限に達しました。しばらく待ってから再度お試しください".to_owned()),
-            form.email,
+            Some(format!(
+                "ログインの試行が続いています。{retry_after_secs}秒後に再度お試しください"
+            )),
+            form.username,
         ));
     }
 
     let found = app_user::Entity::find()
-        .filter(app_user::Column::Email.eq(&form.email))
+        .filter(app_user::Column::Username.eq(&key))
         .one(&state.db)
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
@@ -103,22 +108,22 @@ pub async fn submit(
     // これを省くと「存在しなければ即座に返る」ことから存在有無が判別できる。
     let Some(user) = found else {
         let _ = state.passwords.verify_dummy(&form.password).await;
-        record(&state, &form.email, &ip, false, now).await?;
+        record(&state, &key, &ip, false, now).await?;
         return render(&LoginPage::new(
             locale,
             Some(LOGIN_FAILED.to_owned()),
-            form.email,
+            form.username,
         ));
     };
 
     // 無効化された利用者も、存在しない場合と同じ扱いにする
     if user.disabled_at.is_some() {
         let _ = state.passwords.verify_dummy(&form.password).await;
-        record(&state, &form.email, &ip, false, now).await?;
+        record(&state, &key, &ip, false, now).await?;
         return render(&LoginPage::new(
             locale,
             Some(LOGIN_FAILED.to_owned()),
-            form.email,
+            form.username,
         ));
     }
 
@@ -129,11 +134,11 @@ pub async fn submit(
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
     let Some(verified) = verified else {
-        record(&state, &form.email, &ip, false, now).await?;
+        record(&state, &key, &ip, false, now).await?;
         return render(&LoginPage::new(
             locale,
             Some(LOGIN_FAILED.to_owned()),
-            form.email,
+            form.username,
         ));
     };
 
@@ -153,7 +158,7 @@ pub async fn submit(
     active.last_login_at = Set(Some(now));
     let _ = active.update(&state.db).await;
 
-    record(&state, &form.email, &ip, true, now).await?;
+    record(&state, &key, &ip, true, now).await?;
 
     // ログイン成功時は必ず新しいセッションを発行する（セッション固定攻撃の防止）
     let (_, token) = session::create(
@@ -211,12 +216,12 @@ pub async fn logout(
 
 async fn record(
     state: &AppState,
-    email: &str,
+    username: &str,
     ip: &str,
     succeeded: bool,
     now: chrono::DateTime<Utc>,
 ) -> AppResult<()> {
-    rate_limit::record(&state.db, email, ip, succeeded, now)
+    rate_limit::record(&state.db, username, ip, succeeded, now)
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))
 }

@@ -3,6 +3,9 @@
 pub mod authorization;
 pub mod cookie;
 pub mod csrf;
+/// 開発専用。**`dev-autologin` 機能を有効にしたビルドにしか存在しない**（#128）。
+#[cfg(feature = "dev-autologin")]
+pub mod dev_autologin;
 pub mod middleware;
 pub mod password;
 pub mod rate_limit;

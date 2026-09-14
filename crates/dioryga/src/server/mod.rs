@@ -385,13 +385,24 @@ pub async fn serve(config: Config) -> anyhow::Result<()> {
         staged: import::StagedUploads::default(),
     };
 
+    #[cfg(not(feature = "dev-autologin"))]
+    let app = router(state);
+
+    // 開発専用の自動ログイン（#128）。**機能を有効にしたビルドにしか入らない。**
+    // 最も外側に置く——認証より先に Cookie を整える必要がある
+    #[cfg(feature = "dev-autologin")]
+    let app = match crate::auth::dev_autologin::DevAutologin::from_env(&state).await? {
+        Some(autologin) => autologin.apply(router(state)),
+        None => router(state),
+    };
+
     let listener = TcpListener::bind(bind).await?;
     tracing::info!(%bind, "サーバを起動しました");
 
     // ログイン試行の記録にクライアントIPが要るため ConnectInfo を有効にする
     axum::serve(
         listener,
-        router(state).into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
     )
     .with_graceful_shutdown(shutdown_signal())
     .await?;

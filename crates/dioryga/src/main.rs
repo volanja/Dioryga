@@ -28,7 +28,11 @@ async fn main() -> anyhow::Result<()> {
             db::migrate(&conn).await
         }
 
-        Command::Admin(AdminCommand::Create { email }) => admin::create(&config, &email).await,
+        Command::Admin(AdminCommand::Create {
+            email,
+            name,
+            password_stdin,
+        }) => admin::create(&config, &email, name.as_deref(), password_stdin).await,
         Command::Admin(AdminCommand::ResetPassword { email }) => {
             admin::reset_password(&config, &email).await
         }

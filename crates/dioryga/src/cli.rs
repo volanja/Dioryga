@@ -75,9 +75,27 @@ pub enum AdminCommand {
     /// System Adminを作成する。
     ///
     /// 初回セットアップ画面が使えない場合の復旧経路（設計書20.8）。
+    ///
+    /// 対話なしで実行するには `--name` と `--password-stdin` を指定し、
+    /// パスワードを標準入力から渡す（#129）。
+    ///
+    /// ```bash
+    /// printf '%s\n' "$PASSWORD" | dioryga admin create --email admin@example.invalid --name 管理者 --password-stdin
+    /// ```
     Create {
         #[arg(long)]
         email: String,
+
+        /// 表示名。省略すると対話で聞く。
+        #[arg(long)]
+        name: Option<String>,
+
+        /// パスワードを標準入力の1行目から読む。
+        ///
+        /// **コマンドライン引数では受け取らない。**シェルの履歴やプロセス一覧に
+        /// 平文が残る。標準入力はパスワードで使うため、`--name` も必要になる。
+        #[arg(long, requires = "name")]
+        password_stdin: bool,
     },
 
     /// ユーザーのパスワードをリセットする。
@@ -157,5 +175,81 @@ mod tests {
     #[test]
     fn 取込者の指定がなければ受け付けない() {
         assert!(Cli::try_parse_from(["dioryga", "import", "catalog.yaml"]).is_err());
+    }
+
+    /// 引数を付けなければ、従来どおり対話で聞く（#129）。
+    #[test]
+    fn 管理者作成は引数なしなら対話になる() {
+        let cli =
+            Cli::try_parse_from(["dioryga", "admin", "create", "--email", "a@example.invalid"])
+                .unwrap();
+        match cli.command {
+            Some(Command::Admin(AdminCommand::Create {
+                name,
+                password_stdin,
+                ..
+            })) => {
+                assert!(name.is_none());
+                assert!(!password_stdin);
+            }
+            other => panic!("admin createとして解釈されませんでした: {other:?}"),
+        }
+    }
+
+    /// **標準入力はパスワードで使うため、表示名は引数で要る**（#129）。
+    ///
+    /// 受け付けると、表示名を対話で聞こうとして標準入力を読み、パスワードを
+    /// 表示名として登録してしまう。
+    #[test]
+    fn 標準入力のパスワードには表示名の指定が要る() {
+        assert!(Cli::try_parse_from([
+            "dioryga",
+            "admin",
+            "create",
+            "--email",
+            "a@example.invalid",
+            "--password-stdin",
+        ])
+        .is_err());
+
+        let cli = Cli::try_parse_from([
+            "dioryga",
+            "admin",
+            "create",
+            "--email",
+            "a@example.invalid",
+            "--name",
+            "槍ヶ岳 大川",
+            "--password-stdin",
+        ])
+        .unwrap();
+        match cli.command {
+            Some(Command::Admin(AdminCommand::Create {
+                name,
+                password_stdin,
+                ..
+            })) => {
+                assert_eq!(name.as_deref(), Some("槍ヶ岳 大川"));
+                assert!(password_stdin);
+            }
+            other => panic!("admin createとして解釈されませんでした: {other:?}"),
+        }
+    }
+
+    /// **パスワードを引数で受け取る経路を作らない**（#129）。
+    #[test]
+    fn パスワードを引数では受け取らない() {
+        assert!(Cli::try_parse_from([
+            "dioryga",
+            "admin",
+            "create",
+            "--email",
+            "a@example.invalid",
+            "--name",
+            "槍ヶ岳 大川",
+            "--password",
+            "Tanigawa-Bridge-7391",
+        ])
+        .is_err());
     }
 }

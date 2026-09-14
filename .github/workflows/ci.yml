@@ -48,8 +48,10 @@ jobs:
       - name: cargo fmt
         run: cargo fmt --all -- --check
 
+      # 開発専用の機能（dev-autologin、#128）も検査の対象に含める。
+      # 付けないと、機能の中のコードが一度も lint されない
       - name: cargo clippy
-        run: cargo clippy --all-targets --locked -- -D warnings
+        run: cargo clippy --all-targets --locked --features dioryga/dev-autologin -- -D warnings
 
   test:
     name: テスト＋カバレッジ
@@ -78,13 +80,18 @@ jobs:
       # 計装ビルドも1本で済む。
       #
       # 引き換えに、**PostgreSQLコンテナの失敗がこのジョブの失敗になる。**
+      #
+      # 開発専用の自動ログイン（dev-autologin、#128）のテストも流す。機能を
+      # 付けないとテストごとコンパイルされない。**2つのステップで機能を揃える**
+      # ——揃えないと計装ビルドが2本になる。機能は自動ログインの入口を足すだけで、
+      # 使わない限り他のテストの挙動は変わらない
       - name: テスト（SQLite）
-        run: cargo llvm-cov --no-report --workspace --locked
+        run: cargo llvm-cov --no-report --workspace --locked --features dioryga/dev-autologin
 
       # testcontainers-rs がコンテナを起動する。ubuntuランナーには
       # Dockerが用意されているため追加の準備は要らない。
       - name: テスト（PostgreSQL、--ignored）
-        run: cargo llvm-cov --no-report --workspace --locked -- --ignored
+        run: cargo llvm-cov --no-report --workspace --locked --features dioryga/dev-autologin -- --ignored
 
       - name: カバレッジを出力する
         run: |
@@ -213,6 +220,19 @@ jobs:
       - name: cargo build --profile ci
         run: cargo build --profile ci --locked
 
+      # **開発専用の自動ログインが入っていないこと**（#128）。認証を迂回する入口で
+      # あり、機能フラグの付け忘れ・付け間違いに気付けるよう毎回確かめる。
+      # 目印は src/auth/dev_autologin.rs の MARKER
+      - name: 自動ログインが含まれていないこと
+        shell: pwsh
+        run: |
+          $bytes = [System.IO.File]::ReadAllBytes("target\ci\dioryga.exe")
+          $text = [System.Text.Encoding]::ASCII.GetString($bytes)
+          if ($text.Contains("DIORYGA-DEV-AUTOLOGIN-ENABLED")) {
+            throw "開発専用の自動ログインがバイナリに含まれています"
+          }
+          Write-Host "含まれていません"
+
       # 設計書2章：単一バイナリがWindows上で実際にサーバプロセスとして
       # 直接実行される形態のため、パス区切り・ファイルロック・静的アセット
       # 展開といったWindows固有の問題はLinux/Mac上のテストでは検出できない。
@@ -292,3 +312,13 @@ jobs:
       # 配布物としての最終ビルド確認（設計書2章）。
       - name: cargo build --release
         run: cargo build --release --locked
+
+      # **配布物に開発専用の自動ログインが入っていないこと**（#128）。
+      # 目印は src/auth/dev_autologin.rs の MARKER
+      - name: 自動ログインが含まれていないこと
+        run: |
+          if grep -a -q "DIORYGA-DEV-AUTOLOGIN-ENABLED" target/release/dioryga; then
+            echo "::error::開発専用の自動ログインが配布物に含まれています"
+            exit 1
+          fi
+          echo "含まれていません"

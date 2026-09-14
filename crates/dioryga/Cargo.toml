@@ -15,6 +15,12 @@ path = "src/lib.rs"
 name = "dioryga"
 path = "src/main.rs"
 
+[features]
+# **開発専用の自動ログイン**（#128、src/auth/dev_autologin.rs）。既定で無効。
+# 認証を迂回する入口なので、**配布物のビルドでは絶対に有効にしない。**
+# CIが配布物に含まれていないことを検査している。
+dev-autologin = []
+
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true

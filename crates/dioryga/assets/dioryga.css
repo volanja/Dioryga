@@ -270,6 +270,10 @@ td.actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 td.actions a { color: var(--accent); font-size: 13px; text-decoration: none; }
 td.actions a:hover { text-decoration: underline; }
 td.actions button.ghost { padding: 4px 10px; font-weight: 500; }
+/* 表の中の件数リンク（倉庫一覧の機器数・部品数）。操作のリンクと同じ色だと
+   数字として読みにくいため、本文と同じ色にする。押せることはホバーの下線で示す
+   （カタログのダッシュボードの件数と同じ扱い） */
+td a.count { color: var(--text); font-weight: 600; }
 
 .empty { color: var(--muted); font-size: 14px; }
 

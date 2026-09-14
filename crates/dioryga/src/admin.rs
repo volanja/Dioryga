@@ -4,7 +4,12 @@
 //! 実行できる、という点を権限の根拠としている。
 //!
 //! パスワードはコマンドライン引数では受け取らない。引数に書くとシェルの履歴や
-//! プロセス一覧に平文が残るため、対話的なプロンプトで入力させる。
+//! プロセス一覧に平文が残るため、**対話的なプロンプトか、標準入力**で受け取る。
+//!
+//! 標準入力（`--password-stdin`）は、構築手順や動作確認用データの投入を
+//! スクリプトにするための経路である（#129）。
+
+use std::io::BufRead;
 
 use chrono::Utc;
 use entity::app_user;
@@ -18,21 +23,34 @@ use crate::db;
 use crate::repository::{Actor, AuditedTx};
 
 /// System Adminを作成する。
-pub async fn create(config: &Config, email: &str) -> anyhow::Result<()> {
+///
+/// `name` を省略すると表示名を対話で聞く。`password_stdin` なら標準入力の
+/// 1行目をパスワードとし、そうでなければ対話で2回聞く。
+pub async fn create(
+    config: &Config,
+    email: &str,
+    name: Option<&str>,
+    password_stdin: bool,
+) -> anyhow::Result<()> {
     let conn = db::connect(&config.database).await?;
     let passwords = PasswordService::new(config.password.clone())?;
 
+    // **入力を求める前に確かめる。**パスワードまで入れさせてから断らない
     if 既に存在する(&conn, email).await? {
         anyhow::bail!("このメールアドレスの利用者は既に存在します: {email}");
     }
 
-    let name = prompt("表示名: ")?;
-    let password = prompt_password_twice()?;
+    let name = match name {
+        Some(name) => name.trim().to_owned(),
+        None => prompt("表示名: ")?,
+    };
+    let password = if password_stdin {
+        標準入力のパスワード(std::io::stdin().lock())?
+    } else {
+        prompt_password_twice()?
+    };
 
-    passwords.check_policy(&password, email, &name)?;
-
-    let user =
-        setup::create_system_admin(&conn, &passwords, &name, email, &password, false).await?;
+    let user = 作成する(&conn, &passwords, email, &name, &password).await?;
 
     println!(
         "System Adminを作成しました（id={}, email={}）",
@@ -89,6 +107,44 @@ pub async fn reset_password(config: &Config, email: &str) -> anyhow::Result<()> 
     Ok(())
 }
 
+/// System Adminを作成する本体。**対話でも標準入力でも、ここを通る。**
+///
+/// 入力の受け取り方によって検査が変わらないようにする（重複・表示名・
+/// パスワードポリシー）。
+pub async fn 作成する(
+    db: &DatabaseConnection,
+    passwords: &PasswordService,
+    email: &str,
+    name: &str,
+    password: &str,
+) -> anyhow::Result<app_user::Model> {
+    if 既に存在する(db, email).await? {
+        anyhow::bail!("このメールアドレスの利用者は既に存在します: {email}");
+    }
+    if name.trim().is_empty() {
+        anyhow::bail!("表示名が空です");
+    }
+    passwords.check_policy(password, email, name)?;
+
+    Ok(setup::create_system_admin(db, passwords, name, email, password, false).await?)
+}
+
+/// 標準入力の1行目をパスワードとして読む。
+///
+/// **末尾の改行だけを取り除く。**前後の空白はパスワードの一部でありうるので
+/// `trim` しない。`printf '%s\n'` でも `echo` でも、Windowsの CRLF でも同じ値になる。
+pub fn 標準入力のパスワード(mut reader: impl BufRead) -> anyhow::Result<String> {
+    let mut line = String::new();
+    reader.read_line(&mut line)?;
+
+    let password = line.strip_suffix('\n').unwrap_or(&line);
+    let password = password.strip_suffix('\r').unwrap_or(password);
+    if password.is_empty() {
+        anyhow::bail!("標準入力からパスワードを読めませんでした（空です）");
+    }
+    Ok(password.to_owned())
+}
+
 async fn 既に存在する(db: &DatabaseConnection, email: &str) -> Result<bool, sea_orm::DbErr> {
     Ok(app_user::Entity::find()
         .filter(app_user::Column::Email.eq(email))
@@ -120,3 +176,58 @@ fn prompt_password_twice() -> anyhow::Result<String> {
 }
 
 // 一時パスワードの生成そのものは `auth::password` 側で検証している。
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn 読む(input: &str) -> anyhow::Result<String> {
+        標準入力のパスワード(input.as_bytes())
+    }
+
+    #[test]
+    fn 末尾の改行を取り除く() {
+        assert_eq!(
+            読む("Tanigawa-Bridge-7391\n").unwrap(),
+            "Tanigawa-Bridge-7391"
+        );
+    }
+
+    #[test]
+    fn crlfでも同じ値になる() {
+        assert_eq!(
+            読む("Tanigawa-Bridge-7391\r\n").unwrap(),
+            "Tanigawa-Bridge-7391"
+        );
+    }
+
+    #[test]
+    fn 改行が無くても読める() {
+        assert_eq!(
+            読む("Tanigawa-Bridge-7391").unwrap(),
+            "Tanigawa-Bridge-7391"
+        );
+    }
+
+    /// **前後の空白はパスワードの一部として残す。**`trim` すると、空白を含む
+    /// パスワードで作った管理者が、画面からログインできなくなる。
+    #[test]
+    fn 前後の空白は残す() {
+        assert_eq!(読む("  滝見 石垣  \n").unwrap(), "  滝見 石垣  ");
+    }
+
+    #[test]
+    fn 読むのは1行目だけ() {
+        assert_eq!(
+            読む("first-line-pass\nsecond\n").unwrap(),
+            "first-line-pass"
+        );
+    }
+
+    #[test]
+    fn 空なら拒否する() {
+        assert!(読む("").is_err());
+        assert!(読む("\n").is_err());
+        assert!(読む("\r\n").is_err());
+    }
+}

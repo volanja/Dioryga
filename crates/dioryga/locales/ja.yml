@@ -6,7 +6,7 @@ app:
 login:
   title: ログイン
   lead: アカウントでサインインしてください
-  email: メールアドレス
+  username: ユーザー名
   password: パスワード
   submit: ログイン
 
@@ -16,7 +16,10 @@ setup:
   token: セットアップトークン
   token_hint: サーバーの起動時に標準出力へ表示された値です
   name: 表示名
+  username: ユーザー名
+  username_hint: ログインに使います。英小文字・数字と . _ - の2〜32文字
   email: メールアドレス
+  email_hint: 任意です
   password: パスワード
   submit: 作成する
 
@@ -28,7 +31,7 @@ nav:
 common:
   logout: ログアウト
   search: 検索
-  keyword: 表示名・メールアドレスで検索
+  keyword: 表示名・ユーザー名・メールアドレスで検索
   back: 一覧へ戻る
   save: 保存する
   create: 作成する
@@ -39,7 +42,10 @@ users:
   lead: 利用者の登録・編集・無効化を行います
   new: 新規登録
   name: 表示名
+  username: ユーザー名
+  username_hint: ログインに使います。英小文字・数字と . _ - の2〜32文字
   email: メールアドレス
+  email_hint: 任意です。登録する場合は他の利用者と重複できません
   locale: 表示言語
   role: 権限
   role_system_admin: System Admin
@@ -65,7 +71,7 @@ users:
   issued: 一時パスワードを発行しました：
   issued_hint: この値はこの画面にしか表示されません。口頭等の別経路で本人へ伝えてください。本人は次回ログイン時にパスワードの変更を求められます
   name_required: 表示名を入力してください
-  email_required: メールアドレスを入力してください
+  duplicate_username: このユーザー名は既に使われています
   duplicate_email: このメールアドレスは既に使われています
   cannot_disable_self: 自分自身は無効化できません
   cannot_demote_self: 自分自身のSystem Admin権限は外せません
@@ -295,7 +301,7 @@ members:
   lead: このプロジェクトで誰が何をできるかを設定します
   admin_note: 管理者（正・副）の割り当ては System Admin が行います。ここでは変更できません
   name: 氏名
-  email: メールアドレス
+  username: ユーザー名
   administrator: 管理者
   operator: 操作者
   approver: 承認者

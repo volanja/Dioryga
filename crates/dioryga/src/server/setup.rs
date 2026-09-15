@@ -23,7 +23,10 @@ struct SetupPage {
     t_token: String,
     t_token_hint: String,
     t_name: String,
+    t_username: String,
+    t_username_hint: String,
     t_email: String,
+    t_email_hint: String,
     t_password: String,
     t_submit: String,
     error: Option<String>,
@@ -40,7 +43,10 @@ impl SetupPage {
             t_token: rust_i18n::t!("setup.token", locale = l).to_string(),
             t_token_hint: rust_i18n::t!("setup.token_hint", locale = l).to_string(),
             t_name: rust_i18n::t!("setup.name", locale = l).to_string(),
+            t_username: rust_i18n::t!("setup.username", locale = l).to_string(),
+            t_username_hint: rust_i18n::t!("setup.username_hint", locale = l).to_string(),
             t_email: rust_i18n::t!("setup.email", locale = l).to_string(),
+            t_email_hint: rust_i18n::t!("setup.email_hint", locale = l).to_string(),
             t_password: rust_i18n::t!("setup.password", locale = l).to_string(),
             t_submit: rust_i18n::t!("setup.submit", locale = l).to_string(),
             error,
@@ -52,6 +58,9 @@ impl SetupPage {
 pub struct SetupForm {
     pub token: String,
     pub name: String,
+    pub username: String,
+    /// 任意（設計書20.1）。空欄なら送られないこともある
+    #[serde(default)]
     pub email: String,
     pub password: String,
 }
@@ -82,7 +91,8 @@ pub async fn submit(
         &state.passwords,
         &form.token,
         &form.name,
-        &form.email,
+        &form.username,
+        Some(form.email.as_str()),
         &form.password,
     )
     .await;
@@ -96,6 +106,7 @@ pub async fn submit(
             render(&SetupPage::new(locale, Some(e.to_string())))
         }
         Err(setup::SetupError::Password(e)) => render(&SetupPage::new(locale, Some(e.to_string()))),
+        Err(setup::SetupError::Username(e)) => render(&SetupPage::new(locale, Some(e.to_string()))),
         Err(other) => Err(AppError::Internal(anyhow::anyhow!(other))),
     }
 }
@@ -132,9 +143,11 @@ mod tests {
     #[test]
     fn フォームの項目が揃っている() {
         // 項目名はテンプレート（P3-4）と対応する必要がある
-        let json = r#"{"token":"t","name":"n","email":"e","password":"p"}"#;
+        let json = r#"{"token":"t","name":"n","username":"u","password":"p"}"#;
         let form: SetupForm = serde_json::from_str(json).unwrap();
         assert_eq!(form.token, "t");
-        assert_eq!(form.email, "e");
+        assert_eq!(form.username, "u");
+        // メールアドレスは任意（設計書20.1）
+        assert_eq!(form.email, "");
     }
 }

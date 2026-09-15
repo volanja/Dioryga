@@ -11,7 +11,7 @@ app_user への外部キーを持たない（20.4）。
 | Name | Type | Default | Nullable | Children | Parents | Comment |
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
 | id | integer |  | false |  |  |  |
-| email | varchar |  | false |  |  |  |
+| username | varchar |  | false |  |  |  |
 | ip_address | varchar |  | false |  |  |  |
 | succeeded | boolean |  | false |  |  |  |
 | attempted_at | timestamp with time zone |  | false |  |  |  |
@@ -21,10 +21,10 @@ app_user への外部キーを持たない（20.4）。
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
 | login_attempt_attempted_at_not_null | n | NOT NULL attempted_at |
-| login_attempt_email_not_null | n | NOT NULL email |
 | login_attempt_id_not_null | n | NOT NULL id |
 | login_attempt_ip_address_not_null | n | NOT NULL ip_address |
 | login_attempt_succeeded_not_null | n | NOT NULL succeeded |
+| login_attempt_username_not_null | n | NOT NULL username |
 | login_attempt_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 
 ## Indexes
@@ -32,7 +32,7 @@ app_user への外部キーを持たない（20.4）。
 | Name | Definition |
 | ---- | ---------- |
 | login_attempt_pkey | CREATE UNIQUE INDEX login_attempt_pkey ON public.login_attempt USING btree (id) |
-| idx_login_attempt_email_attempted_at | CREATE INDEX idx_login_attempt_email_attempted_at ON public.login_attempt USING btree (email, attempted_at) |
+| idx_login_attempt_username_attempted_at | CREATE INDEX idx_login_attempt_username_attempted_at ON public.login_attempt USING btree (username, attempted_at) |
 | idx_login_attempt_ip_attempted_at | CREATE INDEX idx_login_attempt_ip_attempted_at ON public.login_attempt USING btree (ip_address, attempted_at) |
 
 ## Relations

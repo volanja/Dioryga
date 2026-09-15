@@ -757,7 +757,7 @@ async fn 候補(state: &AppState) -> AppResult<Vec<Candidate>> {
     Ok(users
         .into_iter()
         .map(|u| Candidate {
-            label: format!("{} <{}>", u.name, u.email),
+            label: format!("{}（{}）", u.name, u.username),
             id: u.id,
         })
         .collect())

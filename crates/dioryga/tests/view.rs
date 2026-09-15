@@ -73,13 +73,13 @@ async fn 表示言語が切り替わる(db: &DatabaseConnection) {
     let _ = 利用者(db).await;
 
     let (_, 日本語) = 本文(db, "/login", "ja").await;
-    assert!(日本語.contains("メールアドレス"));
+    assert!(日本語.contains("ユーザー名"));
     assert!(日本語.contains(r#"lang="ja""#));
 
     let (_, 英語) = 本文(db, "/login", "en-US,en;q=0.9").await;
-    assert!(英語.contains("Email"));
+    assert!(英語.contains("Username"));
     assert!(英語.contains(r#"lang="en""#));
-    assert!(!英語.contains("メールアドレス"));
+    assert!(!英語.contains("ユーザー名"));
 }
 
 /// **翻訳キーがそのまま画面に出ていないこと。**
@@ -91,7 +91,7 @@ async fn 翻訳キーが露出しない(db: &DatabaseConnection) {
 
     for lang in ["ja", "en"] {
         let (_, body) = 本文(db, "/login", lang).await;
-        for キー in ["login.title", "login.email", "app.name"] {
+        for キー in ["login.title", "login.username", "app.name"] {
             assert!(
                 !body.contains(キー),
                 "翻訳されず「{キー}」がそのまま出ています（lang={lang}）"
@@ -139,7 +139,8 @@ async fn セットアップ画面が描画される(db: &DatabaseConnection) {
 async fn 利用者(db: &DatabaseConnection) -> app_user::Model {
     app_user::ActiveModel {
         name: Set("検証用".to_owned()),
-        email: Set("view@example.com".to_owned()),
+        username: Set(("view@example.com".to_owned()).replace('@', "_")),
+        email: Set(Some("view@example.com".to_owned())),
         password_hash: Set("dummy".to_owned()),
         must_change_password: Set(false),
         is_system_admin: Set(false),

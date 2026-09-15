@@ -41,7 +41,7 @@ pub enum PasswordError {
     #[error("よく使われるパスワードは使用できません")]
     TooCommon,
 
-    #[error("メールアドレスや名前を含むパスワードは使用できません")]
+    #[error("ユーザー名や表示名を含むパスワードは使用できません")]
     ContainsIdentity,
 
     #[error("パスワードの処理に失敗しました: {0}")]
@@ -220,7 +220,7 @@ impl PasswordService {
     pub fn check_policy(
         &self,
         password: &str,
-        email: &str,
+        username: &str,
         name: &str,
     ) -> Result<(), PasswordError> {
         let length = password.chars().count();
@@ -240,8 +240,7 @@ impl PasswordService {
             return Err(PasswordError::TooCommon);
         }
 
-        let local_part = email.split('@').next().unwrap_or(email);
-        if !local_part.is_empty() && lower.contains(&local_part.to_lowercase()) {
+        if !username.is_empty() && lower.contains(&username.to_lowercase()) {
             return Err(PasswordError::ContainsIdentity);
         }
         if !name.is_empty() && lower.contains(&name.to_lowercase()) {
@@ -342,7 +341,7 @@ mod tests {
     #[test]
     fn 短すぎるパスワードは拒否される() {
         let svc = service();
-        let 結果 = svc.check_policy("short", "user@example.com", "利用者");
+        let 結果 = svc.check_policy("short", "user", "利用者");
         assert!(matches!(結果, Err(PasswordError::TooShort { .. })));
     }
 
@@ -351,7 +350,7 @@ mod tests {
         // 小文字のみでも、十分な長さがあれば通す（設計書20.3）
         let svc = service();
         assert!(svc
-            .check_policy("correcthorsebatterystaple", "user@example.com", "利用者")
+            .check_policy("correcthorsebatterystaple", "user", "利用者")
             .is_ok());
     }
 
@@ -359,7 +358,7 @@ mod tests {
     fn よくあるパスワードは拒否される() {
         let svc = service();
         assert!(matches!(
-            svc.check_policy("password1234", "user@example.com", "利用者"),
+            svc.check_policy("password1234", "user", "利用者"),
             Err(PasswordError::TooCommon)
         ));
     }
@@ -378,14 +377,14 @@ mod tests {
     }
 
     #[test]
-    fn メールアドレスや名前を含むと拒否される() {
+    fn ユーザー名や表示名を含むと拒否される() {
         let svc = service();
         assert!(matches!(
-            svc.check_policy("tanaka-no-password", "tanaka@example.com", "田中"),
+            svc.check_policy("tanaka-no-password", "tanaka", "田中"),
             Err(PasswordError::ContainsIdentity)
         ));
         assert!(matches!(
-            svc.check_policy("dioryga-tanaka-2026", "user@example.com", "tanaka"),
+            svc.check_policy("dioryga-tanaka-2026", "user", "tanaka"),
             Err(PasswordError::ContainsIdentity)
         ));
     }
@@ -395,7 +394,7 @@ mod tests {
         let svc = service();
         let 長い = "あ".repeat(300);
         assert!(matches!(
-            svc.check_policy(&長い, "user@example.com", "利用者"),
+            svc.check_policy(&長い, "user", "利用者"),
             Err(PasswordError::TooLong { .. })
         ));
     }
@@ -414,8 +413,7 @@ mod tests {
         let svc = service();
         let temporary = generate_temporary().unwrap();
         assert!(
-            svc.check_policy(&temporary, "user@example.com", "利用者")
-                .is_ok(),
+            svc.check_policy(&temporary, "user", "利用者").is_ok(),
             "生成した一時パスワードがポリシーに反しています: {temporary}"
         );
     }

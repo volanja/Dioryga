@@ -483,7 +483,8 @@ async fn プロジェクト(db: &DatabaseConnection, name: &str) -> project::Mod
 async fn 利用者(db: &DatabaseConnection, email: &str) -> i32 {
     entity::app_user::ActiveModel {
         name: Set("配置".to_owned()),
-        email: Set(email.to_owned()),
+        username: Set((email.to_owned()).replace('@', "_")),
+        email: Set(Some(email.to_owned())),
         password_hash: Set("$argon2id$dummy".to_owned()),
         must_change_password: Set(false),
         is_system_admin: Set(false),

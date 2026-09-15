@@ -4,7 +4,7 @@
 
 | Name | Columns | Comment | Type |
 | ---- | ------- | ------- | ---- |
-| [public.app_user](public.app_user.md) | 11 | 利用者。設計書の `USER`。`user` はPostgreSQLの予約語のため物理名を変えている（24.2.4）。<br />物理削除はせず `disabled_at` で無効化する（20.11）。AUDIT_LOG等から参照されるため。<br /> | BASE TABLE |
+| [public.app_user](public.app_user.md) | 12 | 利用者。設計書の `USER`。`user` はPostgreSQLの予約語のため物理名を変えている（24.2.4）。<br />物理削除はせず `disabled_at` で無効化する（20.11）。AUDIT_LOG等から参照されるため。<br /> | BASE TABLE |
 | [public.project](public.project.md) | 10 | プロジェクト。**サービスの開始日・終了日と進行状態を持たない**（5.1）。<br />それらは MILESTONE から導出する。ここに日付を持つと「予定と実績の差」が失われる。<br /> | BASE TABLE |
 | [public.project_member](public.project_member.md) | 7 | 利用者とプロジェクトの対応。粒度は `(user_id, project_id, role)`。<br />**同一利用者が同一プロジェクトで複数ロールを兼務できる**（5章）。<br /> | BASE TABLE |
 | [public.session](public.session.md) | 9 | セッション。生のトークンは保存せずハッシュのみを持つ（20.5）。 | BASE TABLE |

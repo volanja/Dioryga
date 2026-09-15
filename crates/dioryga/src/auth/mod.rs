@@ -11,6 +11,7 @@ pub mod password;
 pub mod rate_limit;
 pub mod session;
 pub mod setup;
+pub mod username;
 
 /// 秘密の値どうしを定数時間で比較する。
 ///

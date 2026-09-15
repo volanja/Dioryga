@@ -94,7 +94,8 @@ async fn 正しいトークンで管理者を作成できる(db: &DatabaseConnec
         &state.passwords,
         &token,
         "最初の管理者",
-        "first@example.com",
+        "first",
+        Some("first@example.com"),
         "correcthorsebatterystaple",
     )
     .await
@@ -117,7 +118,8 @@ async fn 誤ったトークンでは作成できない(db: &DatabaseConnection) 
         &state.passwords,
         "でたらめなトークン",
         "侵入者",
-        "intruder@example.com",
+        "intruder",
+        Some("intruder@example.com"),
         "correcthorsebatterystaple",
     )
     .await;
@@ -141,13 +143,63 @@ async fn 弱いパスワードでは作成できない(db: &DatabaseConnection) 
         &state.passwords,
         &token,
         "管理者",
-        "weak@example.com",
+        "weak",
+        Some("weak@example.com"),
         "short",
     )
     .await;
 
     assert!(matches!(結果, Err(setup::SetupError::Password(_))));
     assert_eq!(app_user::Entity::find().all(db).await.unwrap().len(), 0);
+}
+
+/// **規則に合わないユーザー名では作成しないこと**（設計書20.1）。
+///
+/// 最初の管理者だけ規則の外で作れる、という抜け道にしない。
+async fn 規則外のユーザー名では作成できない(db: &DatabaseConnection) {
+    let (state, token) = 状態(db).await;
+    let token = token.unwrap();
+
+    let 結果 = setup::create_first_admin(
+        db,
+        &state.setup,
+        &state.passwords,
+        &token,
+        "管理者",
+        "槍ヶ岳",
+        None,
+        "correcthorsebatterystaple",
+    )
+    .await;
+
+    assert!(matches!(結果, Err(setup::SetupError::Username(_))));
+    assert_eq!(app_user::Entity::find().all(db).await.unwrap().len(), 0);
+    assert!(
+        state.setup.is_pending().await,
+        "失敗でトークンが失効しています"
+    );
+}
+
+/// **メールアドレス無しで作成でき、ユーザー名は小文字で保存されること**（設計書20.1）。
+async fn メールアドレス無しで作成できる(db: &DatabaseConnection) {
+    let (state, token) = 状態(db).await;
+    let token = token.unwrap();
+
+    let user = setup::create_first_admin(
+        db,
+        &state.setup,
+        &state.passwords,
+        &token,
+        "管理者",
+        "Hotaka",
+        Some("  "),
+        "correcthorsebatterystaple",
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(user.username, "hotaka");
+    assert_eq!(user.email, None, "空欄のメールアドレスが保存されています");
 }
 
 /// 作成後は /setup が404を返すこと。
@@ -161,7 +213,8 @@ async fn 作成後はセットアップ画面が閉じる(db: &DatabaseConnectio
         &state.passwords,
         &token,
         "管理者",
-        "closed@example.com",
+        "closed",
+        Some("closed@example.com"),
         "correcthorsebatterystaple",
     )
     .await
@@ -191,7 +244,8 @@ async fn 監査ログの主体は作成された当人になる(db: &DatabaseCon
         &state.passwords,
         &token,
         "管理者",
-        "audit-setup@example.com",
+        "audit-setup",
+        Some("audit-setup@example.com"),
         "correcthorsebatterystaple",
     )
     .await
@@ -215,7 +269,8 @@ async fn 利用者が居ればセットアップは開かない(db: &DatabaseCon
         &state.passwords,
         &token,
         "管理者",
-        "existing@example.com",
+        "existing",
+        Some("existing@example.com"),
         "correcthorsebatterystaple",
     )
     .await
@@ -276,6 +331,20 @@ macro_rules! 全検証 {
         async fn 弱いパスワードでは作成できない() {
             let db = $用意().await;
             super::弱いパスワードでは作成できない(&db.conn).await;
+        }
+
+        #[tokio::test]
+        #[$属性]
+        async fn 規則外のユーザー名では作成できない() {
+            let db = $用意().await;
+            super::規則外のユーザー名では作成できない(&db.conn).await;
+        }
+
+        #[tokio::test]
+        #[$属性]
+        async fn メールアドレス無しで作成できる() {
+            let db = $用意().await;
+            super::メールアドレス無しで作成できる(&db.conn).await;
         }
 
         #[tokio::test]

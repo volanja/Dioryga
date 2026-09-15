@@ -371,12 +371,13 @@ async fn catalog_file(
 }
 
 /// 取込を行う利用者を解決し、権限を確かめる（設計書18.1）。
-async fn 取込者(db: &DatabaseConnection, email: &str) -> Result<app_user::Model, RunError> {
+async fn 取込者(db: &DatabaseConnection, username: &str) -> Result<app_user::Model, RunError> {
+    // ログインIDはユーザー名（設計書20.1）
     let user = app_user::Entity::find()
-        .filter(app_user::Column::Email.eq(email))
+        .filter(app_user::Column::Username.eq(crate::auth::username::正規化する(username)))
         .one(db)
         .await?
-        .ok_or_else(|| RunError::UnknownUser(email.to_owned()))?;
+        .ok_or_else(|| RunError::UnknownUser(username.to_owned()))?;
 
     // カタログの作成・編集は「いずれか1つ以上のプロジェクトでOperator以上」。
     // **System Adminは含まれない**（3章）
@@ -393,14 +394,14 @@ async fn 取込者(db: &DatabaseConnection, email: &str) -> Result<app_user::Mod
 /// `deny_system_admin` を通しているため、ここで特別扱いする必要はない。
 async fn プロジェクトの取込者(
     db: &DatabaseConnection,
-    email: &str,
+    username: &str,
     project_id: i32,
 ) -> Result<app_user::Model, RunError> {
     let user = app_user::Entity::find()
-        .filter(app_user::Column::Email.eq(email))
+        .filter(app_user::Column::Username.eq(crate::auth::username::正規化する(username)))
         .one(db)
         .await?
-        .ok_or_else(|| RunError::UnknownUser(email.to_owned()))?;
+        .ok_or_else(|| RunError::UnknownUser(username.to_owned()))?;
 
     authorization::require_project_editor(db, &user, project_id)
         .await

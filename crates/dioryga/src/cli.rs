@@ -52,7 +52,7 @@ pub enum Command {
         #[arg(long)]
         apply: bool,
 
-        /// 取込を行う利用者のメールアドレス。`created_by` と
+        /// 取込を行う利用者のユーザー名。`created_by` と
         /// `IMPORT_RUN.imported_by` に記録する。
         #[arg(long)]
         as_user: String,
@@ -80,11 +80,16 @@ pub enum AdminCommand {
     /// パスワードを標準入力から渡す（#129）。
     ///
     /// ```bash
-    /// printf '%s\n' "$PASSWORD" | dioryga admin create --email admin@example.invalid --name 管理者 --password-stdin
+    /// printf '%s\n' "$PASSWORD" | dioryga admin create --username admin --name 管理者 --password-stdin
     /// ```
     Create {
+        /// ログインID。英小文字・数字と . _ -、2〜32文字（設計書20.1）。
         #[arg(long)]
-        email: String,
+        username: String,
+
+        /// メールアドレス。**任意**（ログインIDではない）。
+        #[arg(long)]
+        email: Option<String>,
 
         /// 表示名。省略すると対話で聞く。
         #[arg(long)]
@@ -100,8 +105,9 @@ pub enum AdminCommand {
 
     /// ユーザーのパスワードをリセットする。
     ResetPassword {
+        /// 対象のユーザー名。
         #[arg(long)]
-        email: String,
+        username: String,
     },
 }
 
@@ -180,9 +186,8 @@ mod tests {
     /// 引数を付けなければ、従来どおり対話で聞く（#129）。
     #[test]
     fn 管理者作成は引数なしなら対話になる() {
-        let cli =
-            Cli::try_parse_from(["dioryga", "admin", "create", "--email", "a@example.invalid"])
-                .unwrap();
+        let cli = Cli::try_parse_from(["dioryga", "admin", "create", "--username", "yarigatake"])
+            .unwrap();
         match cli.command {
             Some(Command::Admin(AdminCommand::Create {
                 name,
@@ -206,8 +211,8 @@ mod tests {
             "dioryga",
             "admin",
             "create",
-            "--email",
-            "a@example.invalid",
+            "--username",
+            "yarigatake",
             "--password-stdin",
         ])
         .is_err());
@@ -216,8 +221,8 @@ mod tests {
             "dioryga",
             "admin",
             "create",
-            "--email",
-            "a@example.invalid",
+            "--username",
+            "yarigatake",
             "--name",
             "槍ヶ岳 大川",
             "--password-stdin",
@@ -236,6 +241,40 @@ mod tests {
         }
     }
 
+    /// **メールアドレスは任意、ユーザー名は必須**（設計書20.1、#136）。
+    #[test]
+    fn 管理者作成はユーザー名が必須でメールアドレスは任意() {
+        assert!(Cli::try_parse_from(["dioryga", "admin", "create"]).is_err());
+        assert!(Cli::try_parse_from([
+            "dioryga",
+            "admin",
+            "create",
+            "--email",
+            "a@example.invalid"
+        ])
+        .is_err());
+
+        let cli = Cli::try_parse_from([
+            "dioryga",
+            "admin",
+            "create",
+            "--username",
+            "yarigatake",
+            "--email",
+            "yarigatake@example.invalid",
+        ])
+        .unwrap();
+        match cli.command {
+            Some(Command::Admin(AdminCommand::Create {
+                username, email, ..
+            })) => {
+                assert_eq!(username, "yarigatake");
+                assert_eq!(email.as_deref(), Some("yarigatake@example.invalid"));
+            }
+            other => panic!("admin createとして解釈されませんでした: {other:?}"),
+        }
+    }
+
     /// **パスワードを引数で受け取る経路を作らない**（#129）。
     #[test]
     fn パスワードを引数では受け取らない() {
@@ -243,8 +282,8 @@ mod tests {
             "dioryga",
             "admin",
             "create",
-            "--email",
-            "a@example.invalid",
+            "--username",
+            "yarigatake",
             "--name",
             "槍ヶ岳 大川",
             "--password",

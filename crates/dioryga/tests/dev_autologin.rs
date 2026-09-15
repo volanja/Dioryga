@@ -37,7 +37,7 @@ use tower::ServiceExt;
 async fn cookieが無くても指定した利用者として通る(db: &DatabaseConnection) {
     利用者(db, "yarigatake@example.invalid", "槍ヶ岳 大川", false).await;
     let state = 状態(db).await;
-    let app = 自動ログイン(&state, "yarigatake@example.invalid").await;
+    let app = 自動ログイン(&state, "yarigatake_example.invalid").await;
 
     let (status, body, _) = 取得(app, "/projects", None).await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -54,7 +54,7 @@ async fn cookieが無くても指定した利用者として通る(db: &Database
 async fn フォームを送れてログアウト後も作り直される(db: &DatabaseConnection) {
     利用者(db, "hotaka@example.invalid", "穂高 古城", false).await;
     let state = 状態(db).await;
-    let app = 自動ログイン(&state, "hotaka@example.invalid").await;
+    let app = 自動ログイン(&state, "hotaka_example.invalid").await;
 
     let (_, body, _) = 取得(app.clone(), "/projects", None).await;
     let csrf = csrfトークン(&body);
@@ -74,7 +74,7 @@ async fn 有効なcookieがあればその利用者を優先する(db: &Database
     利用者(db, "hakuba@example.invalid", "白馬 石垣", false).await;
     let 別 = 利用者(db, "tateyama@example.invalid", "立山 滝見", false).await;
     let state = 状態(db).await;
-    let app = 自動ログイン(&state, "hakuba@example.invalid").await;
+    let app = 自動ログイン(&state, "hakuba_example.invalid").await;
 
     let (_, token) = session::create(
         db,
@@ -101,12 +101,12 @@ async fn 有効なcookieがあればその利用者を優先する(db: &Database
 /// 黙ってログイン画面に落ちると、指定を誤ったことに気付けない。
 async fn 指定を誤ったら起動を止める(db: &DatabaseConnection) {
     let state = 状態(db).await;
-    assert!(DevAutologin::start(&state, "nobody@example.invalid")
+    assert!(DevAutologin::start(&state, "nobody_example.invalid")
         .await
         .is_err());
 
     利用者(db, "yatsugatake@example.invalid", "八ヶ岳 天守", true).await;
-    assert!(DevAutologin::start(&state, "yatsugatake@example.invalid")
+    assert!(DevAutologin::start(&state, "yatsugatake_example.invalid")
         .await
         .is_err());
 }
@@ -196,7 +196,8 @@ async fn 利用者(
 ) -> app_user::Model {
     app_user::ActiveModel {
         name: Set(name.to_owned()),
-        email: Set(email.to_owned()),
+        username: Set((email.to_owned()).replace('@', "_")),
+        email: Set(Some(email.to_owned())),
         password_hash: Set("$argon2id$dummy".to_owned()),
         must_change_password: Set(false),
         is_system_admin: Set(false),

@@ -8,9 +8,15 @@ use serde::{Deserialize, Serialize};
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
+    /// 表示名。画面のヘッダー・一覧に出すのはこちら（設計書20.1）。
     pub name: String,
+    /// **ログインID。**ASCII英小文字・数字と `.` `_` `-`、2〜32文字。小文字で保存する
+    /// （設計書20.1、`auth::username`）。
     #[sea_orm(unique)]
-    pub email: String,
+    pub username: String,
+    /// 任意。**ログインIDではない。**値がある場合は一意（設計書20.1）。
+    #[sea_orm(unique)]
+    pub email: Option<String>,
     pub password_hash: String,
     pub must_change_password: bool,
     /// プロジェクトロールとは別軸で扱う（設計書4章）。

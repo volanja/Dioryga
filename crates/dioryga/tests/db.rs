@@ -55,7 +55,8 @@ async fn メールアドレスが重複できない(db: &DatabaseConnection) {
     利用者を作る(db, "dup@example.com", Utc::now()).await;
     let 二人目 = app_user::ActiveModel {
         name: Set("二人目".to_owned()),
-        email: Set("dup@example.com".to_owned()),
+        username: Set(("dup@example.com".to_owned()).replace('@', "_")),
+        email: Set(Some("dup@example.com".to_owned())),
         password_hash: Set("dummy".to_owned()),
         must_change_password: Set(false),
         is_system_admin: Set(false),
@@ -127,7 +128,8 @@ async fn 利用者を作る(
 ) -> app_user::Model {
     app_user::ActiveModel {
         name: Set("検証用".to_owned()),
-        email: Set(email.to_owned()),
+        username: Set((email.to_owned()).replace('@', "_")),
+        email: Set(Some(email.to_owned())),
         password_hash: Set("dummy".to_owned()),
         must_change_password: Set(false),
         is_system_admin: Set(false),

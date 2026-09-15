@@ -18,6 +18,7 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use crate::auth::password::{self, PasswordService};
 use crate::auth::session;
 use crate::auth::setup;
+use crate::auth::username;
 use crate::config::Config;
 use crate::db;
 use crate::repository::{Actor, AuditedTx};
@@ -26,9 +27,12 @@ use crate::repository::{Actor, AuditedTx};
 ///
 /// `name` を省略すると表示名を対話で聞く。`password_stdin` なら標準入力の
 /// 1行目をパスワードとし、そうでなければ対話で2回聞く。
+///
+/// ログインIDはユーザー名で、メールアドレスは任意（設計書20.1、#136）。
 pub async fn create(
     config: &Config,
-    email: &str,
+    username: &str,
+    email: Option<&str>,
     name: Option<&str>,
     password_stdin: bool,
 ) -> anyhow::Result<()> {
@@ -36,8 +40,9 @@ pub async fn create(
     let passwords = PasswordService::new(config.password.clone())?;
 
     // **入力を求める前に確かめる。**パスワードまで入れさせてから断らない
-    if 既に存在する(&conn, email).await? {
-        anyhow::bail!("このメールアドレスの利用者は既に存在します: {email}");
+    let username = username::検証する(username)?;
+    if 使われている(&conn, app_user::Column::Username, &username).await? {
+        anyhow::bail!("このユーザー名の利用者は既に存在します: {username}");
     }
 
     let name = match name {
@@ -50,11 +55,11 @@ pub async fn create(
         prompt_password_twice()?
     };
 
-    let user = 作成する(&conn, &passwords, email, &name, &password).await?;
+    let user = 作成する(&conn, &passwords, &username, email, &name, &password).await?;
 
     println!(
-        "System Adminを作成しました（id={}, email={}）",
-        user.id, user.email
+        "System Adminを作成しました（id={}, username={}）",
+        user.id, user.username
     );
     Ok(())
 }
@@ -64,16 +69,17 @@ pub async fn create(
 /// 設計書20.7の通り、**一時パスワードを生成して一度だけ表示する。**
 /// 平文はDBに保存せず、対象の利用者は次回ログイン時に変更を強制される。
 /// あわせて対象利用者の既存セッションをすべて失効させる。
-pub async fn reset_password(config: &Config, email: &str) -> anyhow::Result<()> {
+pub async fn reset_password(config: &Config, username: &str) -> anyhow::Result<()> {
     let conn = db::connect(&config.database).await?;
     let passwords = PasswordService::new(config.password.clone())?;
+    let username = username::正規化する(username);
 
     let Some(user) = app_user::Entity::find()
-        .filter(app_user::Column::Email.eq(email))
+        .filter(app_user::Column::Username.eq(&username))
         .one(&conn)
         .await?
     else {
-        anyhow::bail!("該当する利用者が見つかりません: {email}");
+        anyhow::bail!("該当する利用者が見つかりません: {username}");
     };
 
     let temporary = password::generate_temporary()?;
@@ -93,7 +99,7 @@ pub async fn reset_password(config: &Config, email: &str) -> anyhow::Result<()> 
     let 失効数 = session::revoke_all_except(&conn, user.id, None, now).await?;
 
     println!();
-    println!("  {email} の一時パスワードを発行しました。");
+    println!("  {username} の一時パスワードを発行しました。");
     println!();
     println!("      {temporary}");
     println!();
@@ -109,24 +115,42 @@ pub async fn reset_password(config: &Config, email: &str) -> anyhow::Result<()> 
 
 /// System Adminを作成する本体。**対話でも標準入力でも、ここを通る。**
 ///
-/// 入力の受け取り方によって検査が変わらないようにする（重複・表示名・
-/// パスワードポリシー）。
+/// 入力の受け取り方によって検査が変わらないようにする（ユーザー名の規則と重複・
+/// メールアドレスの重複・表示名・パスワードポリシー）。
 pub async fn 作成する(
     db: &DatabaseConnection,
     passwords: &PasswordService,
-    email: &str,
+    username: &str,
+    email: Option<&str>,
     name: &str,
     password: &str,
 ) -> anyhow::Result<app_user::Model> {
-    if 既に存在する(db, email).await? {
-        anyhow::bail!("このメールアドレスの利用者は既に存在します: {email}");
+    let username = username::検証する(username)?;
+    if 使われている(db, app_user::Column::Username, &username).await? {
+        anyhow::bail!("このユーザー名の利用者は既に存在します: {username}");
+    }
+    // メールアドレスは任意だが、値がある場合は一意（設計書20.1）
+    let email = email.and_then(username::任意のメールアドレス);
+    if let Some(email) = &email {
+        if 使われている(db, app_user::Column::Email, email).await? {
+            anyhow::bail!("このメールアドレスは既に使われています: {email}");
+        }
     }
     if name.trim().is_empty() {
         anyhow::bail!("表示名が空です");
     }
-    passwords.check_policy(password, email, name)?;
+    passwords.check_policy(password, &username, name)?;
 
-    Ok(setup::create_system_admin(db, passwords, name, email, password, false).await?)
+    Ok(setup::create_system_admin(
+        db,
+        passwords,
+        name,
+        &username,
+        email.as_deref(),
+        password,
+        false,
+    )
+    .await?)
 }
 
 /// 標準入力の1行目をパスワードとして読む。
@@ -145,9 +169,13 @@ pub fn 標準入力のパスワード(mut reader: impl BufRead) -> anyhow::Resul
     Ok(password.to_owned())
 }
 
-async fn 既に存在する(db: &DatabaseConnection, email: &str) -> Result<bool, sea_orm::DbErr> {
+async fn 使われている(
+    db: &DatabaseConnection,
+    column: app_user::Column,
+    value: &str,
+) -> Result<bool, sea_orm::DbErr> {
     Ok(app_user::Entity::find()
-        .filter(app_user::Column::Email.eq(email))
+        .filter(column.eq(value))
         .one(db)
         .await?
         .is_some())

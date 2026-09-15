@@ -469,7 +469,8 @@ async fn 舞台(db: &DatabaseConnection, name: &str, currency: &str) -> 舞台�
 
     let u = app_user::ActiveModel {
         name: Set("費用".to_owned()),
-        email: Set(format!("{}@example.com", uuid::Uuid::new_v4())),
+        username: Set((format!("{}@example.com", uuid::Uuid::new_v4())).replace('@', "_")),
+        email: Set(Some(format!("{}@example.com", uuid::Uuid::new_v4()))),
         password_hash: Set("$argon2id$dummy".to_owned()),
         must_change_password: Set(false),
         is_system_admin: Set(false),

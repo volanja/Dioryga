@@ -29,12 +29,22 @@ async fn main() -> anyhow::Result<()> {
         }
 
         Command::Admin(AdminCommand::Create {
+            username,
             email,
             name,
             password_stdin,
-        }) => admin::create(&config, &email, name.as_deref(), password_stdin).await,
-        Command::Admin(AdminCommand::ResetPassword { email }) => {
-            admin::reset_password(&config, &email).await
+        }) => {
+            admin::create(
+                &config,
+                &username,
+                email.as_deref(),
+                name.as_deref(),
+                password_stdin,
+            )
+            .await
+        }
+        Command::Admin(AdminCommand::ResetPassword { username }) => {
+            admin::reset_password(&config, &username).await
         }
 
         Command::Check => Err(cli::not_implemented("check", "設計書24.5")),

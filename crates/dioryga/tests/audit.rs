@@ -134,7 +134,8 @@ async fn 一括取込では監査ログを書かない(db: &DatabaseConnection) 
 fn 新規利用者(email: &str) -> app_user::ActiveModel {
     app_user::ActiveModel {
         name: Set("検証用".to_owned()),
-        email: Set(email.to_owned()),
+        username: Set((email.to_owned()).replace('@', "_")),
+        email: Set(Some(email.to_owned())),
         password_hash: Set("$argon2id$v=19$m=19456,t=2,p=1$abc$def".to_owned()),
         must_change_password: Set(false),
         is_system_admin: Set(true),

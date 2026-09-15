@@ -348,7 +348,8 @@ async fn 舞台の役つき(db: &DatabaseConnection, email: &str, role: &str) ->
 async fn 利用者(db: &DatabaseConnection, email: &str) -> app_user::Model {
     app_user::ActiveModel {
         name: Set(email.to_owned()),
-        email: Set(email.to_owned()),
+        username: Set((email.to_owned()).replace('@', "_")),
+        email: Set(Some(email.to_owned())),
         password_hash: Set("$argon2id$dummy".to_owned()),
         must_change_password: Set(false),
         is_system_admin: Set(false),

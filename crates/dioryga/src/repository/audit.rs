@@ -466,7 +466,8 @@ mod tests {
         entity::app_user::Model {
             id: 1,
             name: "検証用".to_owned(),
-            email: "masked@example.com".to_owned(),
+            username: "masked".to_owned(),
+            email: Some("masked@example.com".to_owned()),
             password_hash: "$argon2id$v=19$m=19456,t=2,p=1$abc$def".to_owned(),
             must_change_password: false,
             is_system_admin: false,

@@ -52,9 +52,14 @@ async fn 同じ取込で作る機器を配置できる(db: &DatabaseConnection) 
         ],
     );
 
-    let 下見 = run::run(db, &dir.join("manifest.yaml"), &場.email, false)
-        .await
-        .unwrap();
+    let 下見 = run::run(
+        db,
+        &dir.join("manifest.yaml"),
+        &場.email.replace('@', "_"),
+        false,
+    )
+    .await
+    .unwrap();
     assert!(
         !下見.report.has_error(),
         "ドライランでエラーになっています: {}\n{:?}",
@@ -67,9 +72,14 @@ async fn 同じ取込で作る機器を配置できる(db: &DatabaseConnection) 
     assert_eq!(device::Entity::find().count(db).await.unwrap(), 0);
     assert_eq!(import_run::Entity::find().count(db).await.unwrap(), 0);
 
-    let 実行 = run::run(db, &dir.join("manifest.yaml"), &場.email, true)
-        .await
-        .unwrap();
+    let 実行 = run::run(
+        db,
+        &dir.join("manifest.yaml"),
+        &場.email.replace('@', "_"),
+        true,
+    )
+    .await
+    .unwrap();
     assert!(実行.import_run_id.is_some());
 
     let d = device::Entity::find()
@@ -113,12 +123,22 @@ async fn ドライランと反映の件数が一致する(db: &DatabaseConnectio
         ],
     );
 
-    let 下見 = run::run(db, &dir.join("manifest.yaml"), &場.email, false)
-        .await
-        .unwrap();
-    let 実行 = run::run(db, &dir.join("manifest.yaml"), &場.email, true)
-        .await
-        .unwrap();
+    let 下見 = run::run(
+        db,
+        &dir.join("manifest.yaml"),
+        &場.email.replace('@', "_"),
+        false,
+    )
+    .await
+    .unwrap();
+    let 実行 = run::run(
+        db,
+        &dir.join("manifest.yaml"),
+        &場.email.replace('@', "_"),
+        true,
+    )
+    .await
+    .unwrap();
 
     for o in [
         Outcome::Created,
@@ -162,12 +182,23 @@ async fn エラーがあれば何も残らない(db: &DatabaseConnection) {
         ],
     );
 
-    let 下見 = run::run(db, &dir.join("manifest.yaml"), &場.email, false)
-        .await
-        .unwrap();
+    let 下見 = run::run(
+        db,
+        &dir.join("manifest.yaml"),
+        &場.email.replace('@', "_"),
+        false,
+    )
+    .await
+    .unwrap();
     assert_eq!(下見.report.count(Outcome::Error), 1, "{}", 下見.report);
 
-    let 実行 = run::run(db, &dir.join("manifest.yaml"), &場.email, true).await;
+    let 実行 = run::run(
+        db,
+        &dir.join("manifest.yaml"),
+        &場.email.replace('@', "_"),
+        true,
+    )
+    .await;
     assert!(実行.is_err(), "エラーがあるのに反映しています");
 
     assert_eq!(
@@ -241,9 +272,14 @@ web01,bond0,100,web,Tagged
         ],
     );
 
-    let 下見 = run::run(db, &dir.join("manifest.yaml"), &場.email, false)
-        .await
-        .unwrap();
+    let 下見 = run::run(
+        db,
+        &dir.join("manifest.yaml"),
+        &場.email.replace('@', "_"),
+        false,
+    )
+    .await
+    .unwrap();
     assert!(
         !下見.report.has_error(),
         "ドライランでエラーになっています: {}\n{:?}",
@@ -251,9 +287,14 @@ web01,bond0,100,web,Tagged
         下見.report.errors().collect::<Vec<_>>()
     );
 
-    run::run(db, &dir.join("manifest.yaml"), &場.email, true)
-        .await
-        .unwrap();
+    run::run(
+        db,
+        &dir.join("manifest.yaml"),
+        &場.email.replace('@', "_"),
+        true,
+    )
+    .await
+    .unwrap();
 
     let ip = entity::ip_address::Entity::find()
         .filter(entity::ip_address::Column::ToDate.is_null())
@@ -319,9 +360,14 @@ async fn 費用をまとめて取り込める(db: &DatabaseConnection) {
         ],
     );
 
-    let 下見 = run::run(db, &dir.join("manifest.yaml"), &場.email, false)
-        .await
-        .unwrap();
+    let 下見 = run::run(
+        db,
+        &dir.join("manifest.yaml"),
+        &場.email.replace('@', "_"),
+        false,
+    )
+    .await
+    .unwrap();
     assert!(
         !下見.report.has_error(),
         "ドライランでエラーになっています: {}\n{:?}",
@@ -329,9 +375,14 @@ async fn 費用をまとめて取り込める(db: &DatabaseConnection) {
         下見.report.errors().collect::<Vec<_>>()
     );
 
-    run::run(db, &dir.join("manifest.yaml"), &場.email, true)
-        .await
-        .unwrap();
+    run::run(
+        db,
+        &dir.join("manifest.yaml"),
+        &場.email.replace('@', "_"),
+        true,
+    )
+    .await
+    .unwrap();
 
     let asset = entity::fixed_asset::Entity::find()
         .one(db)
@@ -387,7 +438,8 @@ async fn 舞台(db: &DatabaseConnection, name: &str) -> 舞台情報 {
     let email = format!("{}@example.com", uuid::Uuid::new_v4());
     let u = app_user::ActiveModel {
         name: Set("取込者".to_owned()),
-        email: Set(email.clone()),
+        username: Set((email.clone()).replace('@', "_")),
+        email: Set(Some(email.clone())),
         password_hash: Set("$argon2id$dummy".to_owned()),
         must_change_password: Set(false),
         is_system_admin: Set(false),

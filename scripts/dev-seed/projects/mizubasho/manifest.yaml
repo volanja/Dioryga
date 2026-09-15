@@ -1,0 +1,9 @@
+# 動作確認用データ：ミズバショウ移設（#131）
+format_version: 1
+kind: instances
+project: "MIZUBASHO-01"
+as_of: 2026-05-01T00:00:00+09:00
+match_on:
+  device: [serial_number]
+files:
+  - { entity: device, path: devices.csv }

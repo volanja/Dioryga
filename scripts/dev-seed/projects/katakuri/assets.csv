@@ -1,0 +1,3 @@
+item_type,item_hostname,item_serial_number,acquisition_cost,depreciation_method,useful_life_years,acquisition_date
+Device,katakuri-web01,,850000,straight_line,5,2026-04-01
+Device,katakuri-web02,,850000,straight_line,5,2026-04-01

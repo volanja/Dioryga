@@ -1,0 +1,3 @@
+hostname,upper_interface,lower_interface
+katakuri-web01,bond0,ens1f0
+katakuri-web01,bond0,ens1f1

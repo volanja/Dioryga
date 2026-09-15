@@ -1,0 +1,6 @@
+hostname,os_interface_name,interface_type,aggregation_mode
+katakuri-web01,ens1f0,Physical,
+katakuri-web01,ens1f1,Physical,
+katakuri-web01,bond0,Bond,LACP
+katakuri-web02,ens1f0,Physical,
+katakuri-app01,ens1f0,Physical,

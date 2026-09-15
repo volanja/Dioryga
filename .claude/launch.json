@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dioryga-dev",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["scripts/dev-seed.py", "--serve"],
+      "port": 8080
+    }
+  ]
+}

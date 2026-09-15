@@ -158,7 +158,9 @@ Planned / Approved / Executing --> Aborted : 中止
 
 | 対象 | 値 |
 |---|---|
-| `IMPORT_RUN.kind` | `catalog` / `instances` |
+| `IMPORT_RUN.kind` | `catalog` / `instances` / `organization` |
+| 組織データの利用者CSVの `status` | `active` / `disabled`（空欄は変えない） |
+| 組織データのメンバーCSVの `remove` | `true` / `false`（空欄は `false`） |
 
 ## 機器認証情報 — **v2以降**
 

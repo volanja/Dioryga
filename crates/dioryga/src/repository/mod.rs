@@ -206,6 +206,81 @@ impl AuditedTx {
         Ok(())
     }
 
+    // -----------------------------------------------------------------------
+    // 取込の中でも行ごとに監査ログを残す書き込み（設計書23.8、24.4の例外）
+    // -----------------------------------------------------------------------
+
+    /// 行を追加し、**主体によらず**監査ログに `insert` として記録する。
+    ///
+    /// 組織データの取込（利用者の追加・役割の付与）で使う。24.4は取込で行ごとの
+    /// 監査ログを書かないとしたが、その理由（件数が大きい・履歴テーブル自体が
+    /// 記録になる）は利用者とメンバーには当てはまらない。**誰がいつ権限を
+    /// 付与したかは監査ログにしか残らない。**
+    ///
+    /// `by` は取込を行った利用者。取込の主体であれば `import_run_id` も残る。
+    pub async fn insert_recorded<A>(
+        &self,
+        model: A,
+        by: i32,
+    ) -> Result<<A::Entity as EntityTrait>::Model, DbErr>
+    where
+        A: ActiveModelTrait + ActiveModelBehavior + Send,
+        <A::Entity as EntityTrait>::Model: IntoActiveModel<A> + Audited,
+    {
+        let inserted = model.insert(&self.txn).await?;
+        let after = to_masked_json(&inserted).map_err(to_db_err)?;
+        self.write_audit_as(
+            by,
+            <<A::Entity as EntityTrait>::Model as Audited>::TABLE,
+            inserted.audit_id(),
+            "insert",
+            None,
+            Some(after),
+        )
+        .await?;
+        Ok(inserted)
+    }
+
+    /// 行を更新し、**主体によらず**監査ログに `update` として記録する。
+    pub async fn update_recorded<A>(
+        &self,
+        before: &<A::Entity as EntityTrait>::Model,
+        model: A,
+        by: i32,
+    ) -> Result<<A::Entity as EntityTrait>::Model, DbErr>
+    where
+        A: ActiveModelTrait + ActiveModelBehavior + Send,
+        <A::Entity as EntityTrait>::Model: IntoActiveModel<A> + Audited,
+    {
+        let before_json = to_masked_json(before).map_err(to_db_err)?;
+        let updated = model.update(&self.txn).await?;
+        let after_json = to_masked_json(&updated).map_err(to_db_err)?;
+        self.write_audit_as(
+            by,
+            <<A::Entity as EntityTrait>::Model as Audited>::TABLE,
+            updated.audit_id(),
+            "update",
+            Some(before_json),
+            Some(after_json),
+        )
+        .await?;
+        Ok(updated)
+    }
+
+    /// 行を削除し、**主体によらず**監査ログに `delete` として記録する。
+    pub async fn delete_recorded<M>(&self, model: M, by: i32) -> Result<(), DbErr>
+    where
+        M: ModelTrait + Audited + IntoActiveModel<<M::Entity as EntityTrait>::ActiveModel>,
+        <M::Entity as EntityTrait>::ActiveModel: ActiveModelBehavior + Send,
+    {
+        let before = to_masked_json(&model).map_err(to_db_err)?;
+        let table = M::TABLE;
+        let id = model.audit_id();
+        model.delete(&self.txn).await?;
+        self.write_audit_as(by, table, id, "delete", Some(before), None)
+            .await
+    }
+
     async fn write_audit(
         &self,
         table_name: &str,
@@ -225,6 +300,27 @@ impl AuditedTx {
             Actor::Import { .. } => unreachable!("records_audit() で除外済み"),
         };
 
+        self.write_audit_as(
+            user_id,
+            table_name,
+            record_id,
+            action,
+            before_json,
+            after_json,
+        )
+        .await
+    }
+
+    /// 監査ログを1行書く。**主体の判定はしない**（呼び出し側が決める）。
+    async fn write_audit_as(
+        &self,
+        user_id: i32,
+        table_name: &str,
+        record_id: i32,
+        action: &str,
+        before_json: Option<String>,
+        after_json: Option<String>,
+    ) -> Result<(), DbErr> {
         entity::audit_log::ActiveModel {
             user_id: sea_orm::Set(user_id),
             table_name: sea_orm::Set(table_name.to_owned()),

@@ -399,7 +399,7 @@ WORK_ORDERの`status`は、紐づく**全**WORK_ORDER_APPROVALが`approved`に�
 **DBトリガーではなくアプリケーション層（リポジトリ層）で、本来の変更と同一トランザクション内に書き込む。**
 
 ### IMPORT_RUN (23.7)
-`project_id`(FK nullable、カタログ取込はnull), `kind`(catalog/instances), `file_hash`, `as_of`, `created_count`, `updated_count`, `warning_count`, `imported_by`(FK User), `imported_at`
+`project_id`(FK nullable、カタログ取込はnull), `kind`(catalog/instances/organization。組織データの取込もnull), `file_hash`, `as_of`, `created_count`, `updated_count`, `warning_count`, `imported_by`(FK User), `imported_at`
 
 ---
 

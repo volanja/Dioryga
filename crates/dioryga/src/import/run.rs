@@ -17,7 +17,8 @@ use entity::{app_user, import_run};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
 use super::{
-    catalog, costs, file_hash, instances, network, parts, placement, ImportError, Outcome, Report,
+    catalog, costs, file_hash, instances, network, organization, parts, placement, ImportError,
+    Outcome, Report,
 };
 use crate::auth::authorization;
 use crate::repository::AuditedTx;
@@ -39,6 +40,9 @@ pub enum RunError {
 
     #[error("この利用者はこのプロジェクトへ取り込めません（Operator以上が要ります）")]
     NotProjectEditor,
+
+    #[error("組織データの取込はSystem Adminだけが行えます（設計書23.8）")]
+    NotSystemAdmin,
 
     #[error("{0}")]
     Unresolved(String),
@@ -75,9 +79,12 @@ pub async fn run(
     match kind.kind.as_str() {
         "catalog" => catalog_file(db, &bytes, &source, as_user, apply).await,
         "instances" => instances_manifest(db, path, &bytes, &source, as_user, apply).await,
+        organization::KIND => {
+            organization_manifest(db, path, &bytes, &source, as_user, apply).await
+        }
         other => Err(ImportError::UnexpectedKind {
             found: other.to_owned(),
-            expected: "catalog または instances".to_owned(),
+            expected: "catalog / instances / organization".to_owned(),
         }
         .into()),
     }
@@ -137,7 +144,7 @@ async fn instances_manifest(
     )
     .await?;
 
-    let report = match 通しで取り込む(
+    let 結果 = 通しで取り込む(
         &tx,
         project.id,
         &束,
@@ -146,8 +153,58 @@ async fn instances_manifest(
         actor.id,
         &project.currency,
     )
-    .await
-    {
+    .await;
+
+    締める(tx, &run, 結果, apply).await
+}
+
+/// 組織データのマニフェストを取り込む（設計書23.8）。
+///
+/// **System Adminだけが流せる。**プロジェクトに属さず、`as_of` も持たない
+/// （利用者・メンバー・倉庫・プロジェクトは履歴テーブルではない）。
+async fn organization_manifest(
+    db: &DatabaseConnection,
+    path: &Path,
+    bytes: &[u8],
+    source: &str,
+    as_user: &str,
+    apply: bool,
+) -> Result<Executed, RunError> {
+    let manifest = organization::parse_manifest(source)?;
+    let actor = 組織の取込者(db, as_user).await?;
+    let 束 = 組織を読み分ける(path, &manifest.files)?;
+
+    let now = Utc::now();
+    // 利用者の追加・役割の付与は、この取込の中でも行ごとに監査ログを残す（23.8）
+    let (tx, run) = AuditedTx::begin_import(
+        db,
+        import_run::ActiveModel {
+            project_id: Set(None),
+            kind: Set(organization::KIND.to_owned()),
+            file_hash: Set(file_hash(bytes)),
+            as_of: Set(now),
+            created_count: Set(0),
+            updated_count: Set(0),
+            warning_count: Set(0),
+            imported_by: Set(actor.id),
+            imported_at: Set(now),
+            ..Default::default()
+        },
+    )
+    .await?;
+
+    let 結果 = organization::取り込む(&tx, &束, actor.id).await;
+    締める(tx, &run, 結果, apply).await
+}
+
+/// マニフェスト全体を流した結果で、捨てるか反映するかを決める（23.6）。
+async fn 締める(
+    tx: AuditedTx,
+    run: &import_run::Model,
+    結果: Result<Report, ImportError>,
+    apply: bool,
+) -> Result<Executed, RunError> {
+    let report = match 結果 {
         Ok(r) => r,
         Err(e) => {
             tx.rollback().await?;
@@ -170,7 +227,7 @@ async fn instances_manifest(
     }
 
     tx.record_import_counts(
-        &run,
+        run,
         report.count(Outcome::Created) as i32,
         report.count(Outcome::Updated) as i32,
         report.count(Outcome::Warning) as i32,
@@ -240,6 +297,26 @@ fn 読み分ける(manifest_path: &Path, files: &[instances::FileRef]) -> Result
         }
     }
 
+    Ok(out)
+}
+
+/// 組織データのマニフェストの `files` を読み分ける。順序は解釈しない（23.5と同じ）。
+fn 組織を読み分ける(
+    manifest_path: &Path,
+    files: &[instances::FileRef],
+) -> Result<organization::組織の束, RunError> {
+    let mut out = organization::組織の束::default();
+    for file in files {
+        let csv_path = instances::resolve(manifest_path, &file.path);
+        let csv = std::fs::read_to_string(&csv_path).map_err(ImportError::Io)?;
+        match file.entity.as_str() {
+            "user" => out.users.extend(organization::parse_users(&csv)?),
+            "warehouse" => out.warehouses.extend(organization::parse_warehouses(&csv)?),
+            "project" => out.projects.extend(organization::parse_projects(&csv)?),
+            "project_member" => out.members.extend(organization::parse_members(&csv)?),
+            other => return Err(RunError::UnsupportedEntity(other.to_owned())),
+        }
+    }
     Ok(out)
 }
 
@@ -385,6 +462,23 @@ async fn 取込者(db: &DatabaseConnection, username: &str) -> Result<app_user::
         .await
         .map_err(|_| RunError::NotPermitted)?;
 
+    Ok(user)
+}
+
+/// 組織データを取り込む利用者を解決し、**System Adminであること**を確かめる（23.8）。
+async fn 組織の取込者(
+    db: &DatabaseConnection,
+    username: &str,
+) -> Result<app_user::Model, RunError> {
+    let user = app_user::Entity::find()
+        .filter(app_user::Column::Username.eq(crate::auth::username::正規化する(username)))
+        .one(db)
+        .await?
+        .ok_or_else(|| RunError::UnknownUser(username.to_owned()))?;
+
+    if !user.is_system_admin || user.disabled_at.is_some() {
+        return Err(RunError::NotSystemAdmin);
+    }
     Ok(user)
 }
 

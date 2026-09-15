@@ -1,0 +1,8 @@
+project,username,role,admin_rank,remove
+KATAKURI-01,yarigatake,Administrator,Primary,
+KATAKURI-01,hotaka,Administrator,Secondary,
+KATAKURI-01,hotaka,Operator,,
+KATAKURI-01,tateyama,Viewer,,
+MIZUBASHO-01,hotaka,Administrator,Primary,
+MIZUBASHO-01,hakuba,Approver,,
+MIZUBASHO-01,yarigatake,Operator,,

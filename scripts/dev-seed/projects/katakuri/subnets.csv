@@ -1,0 +1,3 @@
+cidr,vlan_tag,vlan_name,zone,description
+10.10.1.0/24,100,web,,公開系
+10.10.2.0/24,200,app,,業務系

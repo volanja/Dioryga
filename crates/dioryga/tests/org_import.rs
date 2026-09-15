@@ -85,7 +85,8 @@ async fn 組織データを取り込める(db: &DatabaseConnection) {
         .await
         .expect("小文字で保存されていません");
     assert_eq!(yari.password_hash, "", "パスワードが設定されています");
-    assert!(yari.must_change_password);
+    // 変更の強制はリセットが立てる。空のハッシュのままではログインできない（23.8）
+    assert!(!yari.must_change_password);
     assert!(!yari.is_system_admin);
     assert_eq!(yari.email.as_deref(), Some("yarigatake@example.invalid"));
     assert_eq!(利用者を引く(db, "hotaka").await.unwrap().locale, "en");

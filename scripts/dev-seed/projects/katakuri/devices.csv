@@ -1,0 +1,6 @@
+uid,external_id,hostname,serial_number,asset_number,device_type,configuration_vendor,configuration_model,configuration_name,power_watt,status
+,KT-0001,katakuri-web01,HM22-0001,A-1001,Physical,ハイマツ電機,HM-2200,標準構成,450,running
+,KT-0002,katakuri-web02,HM22-0002,A-1002,Physical,ハイマツ電機,HM-2200,標準構成,450,running
+,KT-0003,katakuri-app01,HM22-0003,A-1003,Physical,ハイマツ電機,HM-2200,標準構成,450,building
+,KT-0004,katakuri-db01,HM22-0004,,Physical,ハイマツ電機,HM-2200,標準構成,450,plan
+,KT-0101,katakuri-vm01,,,Virtual,,,,0,running

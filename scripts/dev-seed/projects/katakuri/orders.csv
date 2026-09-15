@@ -1,0 +1,3 @@
+order_number,order_date,vendor,item_type,item_hostname,item_serial_number,quantity,unit_price
+PO-KT-2026-001,2026-04-01,ハイマツ電機,Device,katakuri-web01,,1,850000
+PO-KT-2026-001,2026-04-01,ハイマツ電機,Device,katakuri-web02,,1,850000

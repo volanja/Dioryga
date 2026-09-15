@@ -1,0 +1,3 @@
+hostname,os_interface_name,vlan_tag,vlan_name,tagging_mode
+katakuri-web01,bond0,100,web,Untagged
+katakuri-app01,ens1f0,200,app,Untagged

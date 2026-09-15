@@ -1,0 +1,3 @@
+uid,external_id,hostname,serial_number,asset_number,device_type,configuration_vendor,configuration_model,configuration_name,power_watt,status
+,MZ-0001,mizubasho-web01,HM22-0101,,Physical,ハイマツ電機,HM-2200,標準構成,450,running
+,MZ-0002,mizubasho-sw01,KS48-0001,,Physical,,,,120,running

@@ -1,0 +1,3 @@
+contract_number,vendor,start_date,end_date,amount,quote_contact,failure_contact,item_type,item_hostname,item_serial_number
+MC-KT-2026-01,ハイマツ電機,2026-04-01,2026-11-30,240000,見積窓口（架空）,障害窓口（架空）,Device,katakuri-web01,
+MC-KT-2026-01,ハイマツ電機,2026-04-01,2026-11-30,240000,見積窓口（架空）,障害窓口（架空）,Device,katakuri-web02,

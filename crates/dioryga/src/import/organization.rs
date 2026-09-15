@@ -313,7 +313,12 @@ async fn 利用者を取り込む(
                     email: Set(email),
                     // **パスワード未設定。**管理者がリセットするまでログインできない（23.8）
                     password_hash: Set(String::new()),
-                    must_change_password: Set(true),
+                    // **変更の強制はリセットが立てる。**ここで立てても意味が無い——
+                    // 空のハッシュでは誰もログインできず、ログインできるようにする
+                    // 唯一の経路（admin reset-password）が一時パスワードと同時に立てる。
+                    // 立てておくと、開発専用の自動ログイン（#128）で全画面がパスワード
+                    // 変更へ飛ばされ、取り込んだ利用者として画面を確かめられない（#131）
+                    must_change_password: Set(false),
                     is_system_admin: Set(false),
                     locale: Set(locale.unwrap_or_else(|| "ja".to_owned())),
                     last_login_at: Set(None),

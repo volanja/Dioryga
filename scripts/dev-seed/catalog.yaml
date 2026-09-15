@@ -1,0 +1,69 @@
+# 動作確認用データのカタログ（#131）。名前はすべて架空。
+format_version: 1
+kind: catalog
+
+vendors:
+  - name: ハイマツ電機
+  - name: コマクサ通信
+
+chassis_models:
+  - vendor: ハイマツ電機
+    model_name: HM-2200
+    device_category: Server
+    height_u: 2
+    mount_form: RackU
+    rack_width: Full
+    slots:
+      - { slot_type: CPU_SOCKET, count: 2,  label_format: "CPU{n}" }
+      - { slot_type: DIMM,       count: 16, label_format: "DIMM{n}" }
+      - { slot_type: DRIVE_BAY,  count: 8,  label_format: "Bay{n}" }
+      - { slot_type: PCIE,       count: 2,  label_format: "PCIe{n}" }
+      - { slot_type: PSU_BAY,    count: 2,  label_format: "PSU{n}" }
+  - vendor: コマクサ通信
+    model_name: KS-4800
+    device_category: Switch
+    height_u: 1
+    mount_form: RackU
+    rack_width: Full
+
+part_catalogs:
+  - &cpu
+    vendor: ハイマツ電機
+    part_number: HM-CPU-24C
+    category: CPU
+    core_count: 24
+  - &dimm
+    vendor: ハイマツ電機
+    part_number: HM-DIMM-64G
+    category: Memory
+    capacity_gb: 64
+  - &nic
+    vendor: コマクサ通信
+    part_number: KS-NIC-25G2
+    category: NIC
+    ports:
+      - { port_kind: Network, count: 2, label_format: "Port{n}", connector_type: SFP28ケージ, port_speed: 25G }
+  - &psu
+    vendor: ハイマツ電機
+    part_number: HM-PSU-800
+    category: PSU
+    ports:
+      - port_kind: Power
+        count: 1
+        label_format: "Inlet{n}"
+        connector_type: "IEC C14"
+        power_ratings:
+          - { current_type: AC, voltage_min: 100, voltage_max: 240 }
+
+configurations:
+  - chassis_model: { vendor: ハイマツ電機, model_name: HM-2200 }
+    name: 標準構成
+    parts:
+      - { part: *cpu,  quantity: 2 }
+      - { part: *dimm, quantity: 8 }
+      - { part: *nic,  quantity: 1 }
+      - { part: *psu,  quantity: 2 }
+
+vlans:
+  - { vlan_tag: 100, name: web, zone: DMZ, description: 公開系 }
+  - { vlan_tag: 200, name: app, zone: DMZ, description: 業務系 }

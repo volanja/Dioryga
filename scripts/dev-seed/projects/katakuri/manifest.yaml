@@ -1,0 +1,18 @@
+# 動作確認用データ：カタクリ基盤更改（#131）
+format_version: 1
+kind: instances
+project: "KATAKURI-01"
+as_of: 2026-04-01T00:00:00+09:00
+match_on:
+  device: [serial_number]
+files:
+  - { entity: device,               path: devices.csv }
+  - { entity: part_instance,        path: parts.csv }
+  - { entity: subnet,               path: subnets.csv }
+  - { entity: os_interface,         path: interfaces.csv }
+  - { entity: interface_stack,      path: bonds.csv }
+  - { entity: interface_vlan,       path: interface-vlans.csv }
+  - { entity: ip_address,           path: ips.csv }
+  - { entity: purchase_order,       path: orders.csv }
+  - { entity: fixed_asset,          path: assets.csv }
+  - { entity: maintenance_contract, path: contracts.csv }

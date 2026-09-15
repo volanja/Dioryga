@@ -1,0 +1,4 @@
+hostname,os_interface_name,ip_address,prefix_length,subnet_cidr
+katakuri-web01,bond0,10.10.1.11,24,10.10.1.0/24
+katakuri-web02,ens1f0,10.10.1.12,24,10.10.1.0/24
+katakuri-app01,ens1f0,10.10.2.21,24,10.10.2.0/24

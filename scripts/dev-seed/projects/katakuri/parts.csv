@@ -1,0 +1,3 @@
+serial_number,part_vendor,part_number,status,location_type,location_hostname,location_name,chassis_slot
+HMD-0001,ハイマツ電機,HM-DIMM-64G,running,Device,katakuri-web01,,DIMM1
+HMD-0002,ハイマツ電機,HM-DIMM-64G,running,Device,katakuri-web01,,DIMM2

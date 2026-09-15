@@ -13,3 +13,6 @@
 /.run
 
 .env
+
+# Claude Code の手元用設定。PCのパスや許可したコマンドが書き込まれる（.claude/launch.json は管理する）
+.claude/settings.local.json

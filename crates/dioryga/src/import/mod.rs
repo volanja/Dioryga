@@ -24,6 +24,7 @@ pub mod catalog;
 pub mod costs;
 pub mod instances;
 pub mod network;
+pub mod organization;
 pub mod parts;
 pub mod placement;
 pub mod run;

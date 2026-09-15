@@ -1,0 +1,6 @@
+username,name,email,locale,status
+yarigatake,槍ヶ岳 大川,yarigatake@example.invalid,ja,active
+hotaka,穂高 古城,,ja,
+hakuba,白馬 石垣,hakuba@example.invalid,en,
+tateyama,立山 滝見,,ja,
+yatsugatake,八ヶ岳 天守,,ja,disabled

@@ -1,0 +1,13 @@
+# 組織データの取込の例（設計書23.8）。System Admin が流す。
+#
+#   dioryga import docs/examples/organization/manifest.yaml --as-user admin
+#   dioryga import docs/examples/organization/manifest.yaml --as-user admin --apply
+#
+# 名前はすべて架空（山・植物・地形の語）。
+format_version: 1
+kind: organization
+files:
+  - { entity: project_member, path: members.csv }
+  - { entity: project,        path: projects.csv }
+  - { entity: warehouse,      path: warehouses.csv }
+  - { entity: user,           path: users.csv }

@@ -14,7 +14,7 @@ pub struct Model {
     pub id: i32,
     /// カタログ取込はプロジェクトに属さない（18.1）。
     pub project_id: Option<i32>,
-    /// `catalog` / `instances`
+    /// `catalog` / `instances` / `organization`
     pub kind: String,
     /// 取り込んだファイルのSHA-256。同じファイルを二度流したかを判別できる。
     pub file_hash: String,

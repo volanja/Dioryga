@@ -116,8 +116,11 @@ pub async fn submit(
         ));
     };
 
-    // 無効化された利用者も、存在しない場合と同じ扱いにする
-    if user.disabled_at.is_some() {
+    // 無効化された利用者も、存在しない場合と同じ扱いにする。
+    // **パスワード未設定**（組織データの取込で作った利用者、23.8）も同じ。
+    // 管理者がリセットするまでログインさせない。空のハッシュは検証に渡すと
+    // 形式の誤りとして500になるため、ここで分ける
+    if user.disabled_at.is_some() || user.password_hash.is_empty() {
         let _ = state.passwords.verify_dummy(&form.password).await;
         record(&state, &key, &ip, false, now).await?;
         return render(&LoginPage::new(

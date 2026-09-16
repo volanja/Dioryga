@@ -38,7 +38,7 @@
 //!
 //! # 閉じた語彙と開いた語彙（8.6）
 //!
-//! 拒否するのは**閉じた語彙**——`port_kind` と `current_type`——だけである。
+//! 拒否するのは**閉じた語彙**——`device_category`・`port_kind`・`current_type`——だけである。
 //! `connector_type` と `port_speed` は `vocabularies.md` でも末尾が `...` の
 //! 開いた列挙であり、**閉じると「表に無いから取り込めない」が常態になる。**
 //! コネクタ形状も速度表記もベンダーと世代で増え続けるためで、正規化した
@@ -56,12 +56,12 @@ use super::{Entry, ImportError, Outcome, Report};
 // **入力型と展開記法は別crateにある**（#77）。構成図パーサ（Krounos）が同じ型を
 // 使うため、DBに触れない部分だけを切り出してある
 use crate::repository::{Actor, AuditedTx};
-use dioryga_catalog_format::ポートを検証する;
 pub use dioryga_catalog_format::{
     parse, CatalogFile, ChassisModelInput, ChassisModelRef, ConfigurationInput,
     ConfigurationPartInput, PartCatalogInput, PartCatalogRef, PortInput, PowerRatingInput,
     SlotInput, VendorInput,
 };
+use dioryga_catalog_format::{ポートを検証する, 種別を検証する};
 
 // ---------------------------------------------------------------------------
 // 取込
@@ -132,6 +132,12 @@ pub async fn dry_run<C: ConnectionTrait>(
                 target,
                 format!("ベンダー「{}」が見つかりません", m.vendor),
             ));
+            continue;
+        }
+
+        // **閉じた語彙は既定へ寄せず拒否する**（8.6、Q-21）
+        if let Err(e) = 種別を検証する(&m.device_category) {
+            report.push(Entry::new(Outcome::Error, target, e));
             continue;
         }
 

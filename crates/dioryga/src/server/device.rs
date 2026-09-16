@@ -28,6 +28,9 @@ use sea_orm::{
 };
 use serde::Deserialize;
 
+// 機器の種別は取込と同じ表を見る（8.6、#125）
+use dioryga_catalog_format::DEVICE_CATEGORIES;
+
 use crate::auth::authorization;
 use crate::auth::middleware::CurrentUser;
 use crate::error::{AppError, AppResult};
@@ -212,21 +215,6 @@ struct DeviceFormPage {
 /// 語彙（`vocabularies.md`）。DB制約にはせず、画面はリストから選ばせる。
 const DEVICE_TYPES: &[&str] = &["Physical", "Virtual", "Container", "Logical"];
 const STATUSES: &[&str] = &["running", "broken", "repair", "plan", "building"];
-const CATEGORIES: &[&str] = &[
-    "Server",
-    "Switch",
-    "Router",
-    "Firewall",
-    "LoadBalancer",
-    "Vpn",
-    "MediaConverter",
-    "Storage",
-    "Pdu",
-    "Ups",
-    "Kvm",
-    "ConsoleServer",
-    "Other",
-];
 
 // ---------------------------------------------------------------------------
 // 一覧
@@ -1037,7 +1025,7 @@ async fn 検証(
     // 構成を持たない機器（仮想アプライアンス等）があるため空欄は許す
     let device_category = match DeviceForm::空ならnone(&form.device_category) {
         None => None,
-        Some(value) => match DeviceForm::語彙(&value, CATEGORIES) {
+        Some(value) => match DeviceForm::語彙(&value, DEVICE_CATEGORIES) {
             Some(v) => Some(v),
             None => return Ok(Err("devices.device_category_invalid")),
         },
@@ -1158,7 +1146,7 @@ async fn フォーム(
         configuration_id: form.configuration_id.clone(),
         configurations: 構成の候補(state).await?,
         device_category: form.device_category.clone(),
-        categories: CATEGORIES.to_vec(),
+        categories: DEVICE_CATEGORIES.to_vec(),
         serial_number: form.serial_number.clone(),
         asset_number: form.asset_number.clone(),
         power_watt: form.power_watt.clone(),

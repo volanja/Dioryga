@@ -48,6 +48,9 @@ use sea_orm::{
 };
 use serde::Deserialize;
 
+// 機器の種別は取込と同じ表を見る（8.6、#125）
+use dioryga_catalog_format::DEVICE_CATEGORIES;
+
 use crate::auth::authorization;
 use crate::auth::middleware::CurrentUser;
 use crate::error::{AppError, AppResult};
@@ -71,22 +74,6 @@ const カテゴリとスロット: &[(&str, &str)] = &[
     ("Storage", "DRIVE_BAY"),
     ("NIC", "PCIE"),
     ("PSU", "PSU_BAY"),
-];
-
-const DEVICE_CATEGORIES: &[&str] = &[
-    "Server",
-    "Switch",
-    "Router",
-    "Firewall",
-    "LoadBalancer",
-    "Vpn",
-    "MediaConverter",
-    "Storage",
-    "Pdu",
-    "Ups",
-    "Kvm",
-    "ConsoleServer",
-    "Other",
 ];
 
 // ---------------------------------------------------------------------------

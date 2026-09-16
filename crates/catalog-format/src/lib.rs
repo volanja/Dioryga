@@ -36,7 +36,8 @@
 //!
 //! # 閉じた語彙と開いた語彙（8.6）
 //!
-//! 拒否するのは**閉じた語彙**——`device_category`・`port_kind`・`current_type`——だけである。
+//! 拒否するのは**閉じた語彙**——`device_category`・`mount_form`・`rack_width`・
+//! `slot_type`・部品の `category`・`port_kind`・`current_type`——だけである。
 //! `connector_type` と `port_speed` は `vocabularies.md` でも末尾が `...` の
 //! 開いた列挙であり、**閉じると「表に無いから取り込めない」が常態になる。**
 //! コネクタ形状も速度表記もベンダーと世代で増え続けるためで、正規化した
@@ -213,8 +214,11 @@ pub struct PartCatalogRef {
 // ---------------------------------------------------------------------------
 
 impl SlotInput {
-    /// ラベルの一覧へ展開する。
+    /// ラベルの一覧へ展開する。**`slot_type` の語彙もここで確かめる**（8.6、#148）。
+    ///
+    /// ドライランと反映の両方がここを通るため、検証を外に置くと片方で漏れる。
     pub fn expand(&self) -> Result<Vec<String>, String> {
+        閉じた語彙("slot_type", &self.slot_type, SLOT_TYPES)?;
         展開(
             self.labels.as_deref(),
             self.count,
@@ -307,19 +311,58 @@ pub const DEVICE_CATEGORIES: &[&str] = &[
     "Other",
 ];
 
+/// `CHASSIS_MODEL.mount_form`（6.2、12.3）。**閉じた語彙。**
+pub const MOUNT_FORMS: &[&str] = &["RackU", "RackSide", "Surface"];
+/// `CHASSIS_MODEL.rack_width`。**`mount_form=RackU` のときだけ意味を持つ。**
+pub const RACK_WIDTHS: &[&str] = &["Full", "Half"];
+/// `CHASSIS_SLOT.slot_type`。**閉じた語彙。**
+pub const SLOT_TYPES: &[&str] = &["CPU_SOCKET", "DIMM", "DRIVE_BAY", "PCIE", "PSU_BAY"];
+/// `PART_CATALOG.category`（6.4）。**閉じた語彙。**
+pub const PART_CATEGORIES: &[&str] = &["CPU", "Memory", "NIC", "Storage", "PSU", "PDU"];
+
+/// 閉じた語彙で検証する。**大文字・小文字を寄せず、既定へも倒さない**（Q-21）。
+fn 閉じた語彙(項目: &str, value: &str, allowed: &[&str]) -> Result<(), String> {
+    if allowed.contains(&value) {
+        Ok(())
+    } else {
+        Err(format!(
+            "{項目}「{value}」は語彙にありません（{}）",
+            allowed.join(" / ")
+        ))
+    }
+}
+
+/// 搭載形態と幅を検証し、保存する `rack_width` を返す（6.2、#148）。
+///
+/// **画面と同じ規則にする**（8.6「手入力の画面と取込で扱いを揃える」）。
+/// `RackU` で幅が無ければ `Full`、`RackU` 以外で幅があればエラー
+/// （意味を持たない値を黙って捨てない）。
+pub fn 搭載を検証する(
+    mount_form: &str,
+    rack_width: Option<&str>,
+) -> Result<Option<String>, String> {
+    閉じた語彙("mount_form", mount_form, MOUNT_FORMS)?;
+    match (mount_form, rack_width.map(str::trim).unwrap_or("")) {
+        ("RackU", "") => Ok(Some("Full".to_owned())),
+        ("RackU", w) => 閉じた語彙("rack_width", w, RACK_WIDTHS).map(|_| Some(w.to_owned())),
+        (_, "") => Ok(None),
+        (m, w) => Err(format!(
+            "rack_width「{w}」は mount_form が RackU のときだけ指定できます（{m}）"
+        )),
+    }
+}
+
+/// 部品のカテゴリを検証する（6.4、#148）。
+pub fn 部品カテゴリを検証する(value: &str) -> Result<(), String> {
+    閉じた語彙("category", value, PART_CATEGORIES)
+}
+
 /// 種別を検証する。**大文字・小文字を寄せずに拒否する**（#125）。
 ///
 /// 旧表記の `Vpn` 等を黙って `VPN` に直すと、語彙が経路ごとに2通りになる。
 /// 語彙外の値は既定へ倒さず拒否する（Q-21）のと同じ扱いにする。
 pub fn 種別を検証する(value: &str) -> Result<(), String> {
-    if DEVICE_CATEGORIES.contains(&value) {
-        Ok(())
-    } else {
-        Err(format!(
-            "device_category「{value}」は語彙にありません（{}）",
-            DEVICE_CATEGORIES.join(" / ")
-        ))
-    }
+    閉じた語彙("device_category", value, DEVICE_CATEGORIES)
 }
 
 const NETWORK: &str = "Network";
@@ -706,6 +749,32 @@ configurations:
         for v in ["Vpn", "Pdu", "Ups", "Kvm", "server", ""] {
             assert!(種別を検証する(v).is_err(), "{v}");
         }
+    }
+
+    /// **幅は `RackU` のときだけ。無ければ `Full`**（画面と同じ規則、#148）。
+    #[test]
+    fn 搭載形態と幅を検証する() {
+        assert_eq!(
+            搭載を検証する("RackU", None).unwrap().as_deref(),
+            Some("Full")
+        );
+        assert_eq!(
+            搭載を検証する("RackU", Some("Half")).unwrap().as_deref(),
+            Some("Half")
+        );
+        assert_eq!(搭載を検証する("Surface", None).unwrap(), None);
+        assert!(搭載を検証する("RackU", Some("half")).is_err());
+        assert!(搭載を検証する("Surface", Some("Full")).is_err());
+        assert!(搭載を検証する("racku", None).is_err());
+    }
+
+    #[test]
+    fn スロット種別と部品カテゴリは閉じた語彙() {
+        assert!(スロット("{ slot_type: Dimm, count: 2 }").expand().is_err());
+        assert!(スロット("{ slot_type: DIMM, count: 2 }").expand().is_ok());
+        assert!(部品カテゴリを検証する("PSU").is_ok());
+        assert!(部品カテゴリを検証する("Psu").is_err());
+        assert!(部品カテゴリを検証する("GPU").is_err());
     }
 
     /// **正規化は仮名・漢字を壊さない**（18.4）。

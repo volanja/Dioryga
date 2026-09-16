@@ -61,7 +61,9 @@ pub use dioryga_catalog_format::{
     ConfigurationPartInput, PartCatalogInput, PartCatalogRef, PortInput, PowerRatingInput,
     SlotInput, VendorInput,
 };
-use dioryga_catalog_format::{ポートを検証する, 種別を検証する};
+use dioryga_catalog_format::{
+    ポートを検証する, 搭載を検証する, 種別を検証する, 部品カテゴリを検証する,
+};
 
 // ---------------------------------------------------------------------------
 // 取込
@@ -136,7 +138,9 @@ pub async fn dry_run<C: ConnectionTrait>(
         }
 
         // **閉じた語彙は既定へ寄せず拒否する**（8.6、Q-21）
-        if let Err(e) = 種別を検証する(&m.device_category) {
+        if let Err(e) = 種別を検証する(&m.device_category)
+            .and_then(|_| 搭載を検証する(&m.mount_form, m.rack_width.as_deref()))
+        {
             report.push(Entry::new(Outcome::Error, target, e));
             continue;
         }
@@ -193,6 +197,11 @@ pub async fn dry_run<C: ConnectionTrait>(
                 target,
                 format!("ベンダー「{}」が見つかりません", p.vendor),
             ));
+            continue;
+        }
+        // **閉じた語彙は既定へ寄せず拒否する**（8.6、Q-21）
+        if let Err(e) = 部品カテゴリを検証する(&p.category) {
+            report.push(Entry::new(Outcome::Error, target, e));
             continue;
         }
         // ポートの展開と語彙をここで確かめる。落ちるのは記述の誤り
@@ -399,7 +408,9 @@ pub async fn apply(
                 device_category: Set(m.device_category.clone()),
                 height_u: Set(m.height_u),
                 mount_form: Set(m.mount_form.clone()),
-                rack_width: Set(m.rack_width.clone()),
+                // 画面と同じく、RackU で幅が無ければ Full にする（#148）
+                rack_width: Set(搭載を検証する(&m.mount_form, m.rack_width.as_deref())
+                    .expect("ドライランで検証済み")),
                 created_by: Set(actor),
                 created_at: Set(now),
                 updated_at: Set(now),

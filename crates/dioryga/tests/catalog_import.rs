@@ -139,6 +139,107 @@ chassis_models:
     assert!(!report.has_error(), "{report}");
 }
 
+/// **筐体モデルと部品の閉じた語彙を、画面と同じく拒否すること**（設計書8.6、#148）。
+///
+/// 画面が拒否する値を取込だけが通すと、同じ値が経路によって入ったり入らなかったりする。
+async fn 語彙外の搭載形態やスロットや部品カテゴリはエラー(
+    db: &DatabaseConnection,
+) {
+    let 筐体 = |mount: &str, width: &str, slot: &str| {
+        format!(
+            r#"
+format_version: 1
+kind: catalog
+vendors:
+  - name: V
+chassis_models:
+  - vendor: V
+    model_name: M1
+    device_category: Server
+    mount_form: {mount}
+    {width}
+    slots:
+      - {{ slot_type: {slot}, count: 2 }}
+"#
+        )
+    };
+    for (yaml, 語) in [
+        (筐体("racku", "", "DIMM"), "mount_form「racku」"),
+        (
+            筐体("RackU", "rack_width: half", "DIMM"),
+            "rack_width「half」",
+        ),
+        (
+            筐体("Surface", "rack_width: Full", "DIMM"),
+            "RackU のときだけ",
+        ),
+        (筐体("RackU", "", "Dimm"), "slot_type「Dimm」"),
+    ] {
+        let report = catalog::dry_run(db, &catalog::parse(&yaml).unwrap())
+            .await
+            .unwrap();
+        assert!(
+            report.errors().any(|e| e.detail.contains(語)),
+            "{語}: {report}"
+        );
+    }
+
+    let 部品 = r#"
+format_version: 1
+kind: catalog
+vendors:
+  - name: V
+part_catalogs:
+  - vendor: V
+    part_number: P1
+    category: Psu
+"#;
+    let report = catalog::dry_run(db, &catalog::parse(部品).unwrap())
+        .await
+        .unwrap();
+    assert!(
+        report
+            .errors()
+            .any(|e| e.detail.contains("category「Psu」")),
+        "{report}"
+    );
+}
+
+/// **`RackU` で幅を省いたら `Full` で保存すること**（画面と同じ規則、#148）。
+async fn rackuの幅は省くとfullになる(db: &DatabaseConnection) {
+    let user = 利用者(db, "rack-width@example.com").await;
+    let yaml = r#"
+format_version: 1
+kind: catalog
+vendors:
+  - name: V
+chassis_models:
+  - vendor: V
+    model_name: ラック搭載
+    device_category: Server
+    mount_form: RackU
+  - vendor: V
+    model_name: 机置き
+    device_category: Other
+    mount_form: Surface
+"#;
+    catalog::apply(db, &catalog::parse(yaml).unwrap(), user.id, 1)
+        .await
+        .unwrap();
+
+    let 幅 = |name: &'static str| async move {
+        chassis_model::Entity::find()
+            .filter(chassis_model::Column::ModelName.eq(name))
+            .one(db)
+            .await
+            .unwrap()
+            .unwrap()
+            .rack_width
+    };
+    assert_eq!(幅("ラック搭載").await.as_deref(), Some("Full"));
+    assert_eq!(幅("机置き").await, None);
+}
+
 // ---------------------------------------------------------------------------
 // 反映
 // ---------------------------------------------------------------------------
@@ -692,6 +793,8 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 解決できない参照はエラー);
         全検証!(@one $用意, $属性, 曖昧なスロット記述はエラー);
         全検証!(@one $用意, $属性, 種別の旧表記はエラー);
+        全検証!(@one $用意, $属性, 語彙外の搭載形態やスロットや部品カテゴリはエラー);
+        全検証!(@one $用意, $属性, rackuの幅は省くとfullになる);
         全検証!(@one $用意, $属性, 取り込むとスロットが展開される);
         全検証!(@one $用意, $属性, アンカー参照が構成に結び付く);
         全検証!(@one $用意, $属性, 二度流しても結果が変わらない);

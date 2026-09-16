@@ -56,6 +56,8 @@
 | `DEVICE_MOUNT.horizontal_position` | `Left` / `Right` / `Full`（nullable） |
 | `DEVICE_MOUNT.depth_position` | `Front` / `Rear` / `Full`（nullable） |
 
+`mount_form` / `rack_width` / `slot_type` / `PART_CATALOG.category` は**閉じた語彙で、画面と取込の両方で語彙外を拒否する**（表は `dioryga_catalog_format` に置く）。`rack_width` は `RackU` で省くと `Full` になり、`RackU` 以外で指定するとエラーになる。
+
 ## ネットワーク
 
 | 対象 | 値 |

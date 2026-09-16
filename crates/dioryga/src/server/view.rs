@@ -161,9 +161,76 @@ pub fn render<T: Template>(template: &T) -> Result<Response, AppError> {
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))
 }
 
+// ---------------------------------------------------------------------------
+// 語彙の表示（#126）
+// ---------------------------------------------------------------------------
+
+/// `<select>` の選択肢1つ。**`value` は保存する語彙のまま、`label` だけを訳す。**
+pub struct Choice {
+    pub value: &'static str,
+    pub label: String,
+}
+
+/// 機器の種別（`device_category`）の表示名。
+///
+/// **訳すのは表示だけで、保存する値は語彙のまま。**略語（`VPN` / `PDU` /
+/// `UPS` / `KVM`）は日本語画面でも訳さない。語彙に無い値は、そのまま出す。
+pub fn 種別の表示(value: &str, locale: &str) -> String {
+    let key = match value {
+        "Server" => "device_categories.server",
+        "Switch" => "device_categories.switch",
+        "Router" => "device_categories.router",
+        "Firewall" => "device_categories.firewall",
+        "LoadBalancer" => "device_categories.load_balancer",
+        "VPN" => "device_categories.vpn",
+        "MediaConverter" => "device_categories.media_converter",
+        "Storage" => "device_categories.storage",
+        "PDU" => "device_categories.pdu",
+        "UPS" => "device_categories.ups",
+        "KVM" => "device_categories.kvm",
+        "ConsoleServer" => "device_categories.console_server",
+        "Other" => "device_categories.other",
+        _ => return value.to_owned(),
+    };
+    rust_i18n::t!(key, locale = locale).to_string()
+}
+
+/// 機器の種別の選択肢。並びは語彙の表（`DEVICE_CATEGORIES`）のまま。
+pub fn 種別の選択肢(locale: &str) -> Vec<Choice> {
+    dioryga_catalog_format::DEVICE_CATEGORIES
+        .iter()
+        .map(|v| Choice {
+            value: v,
+            label: 種別の表示(v, locale),
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// **語彙のすべてに両言語の表示名があり、略語は訳さないこと**（#126）。
+    ///
+    /// 訳語が抜けると、キーの文字列（`device_categories.server`）が画面に出る。
+    #[test]
+    fn 種別の表示名が両言語にそろっている() {
+        for v in dioryga_catalog_format::DEVICE_CATEGORIES {
+            for locale in ["ja", "en"] {
+                let label = 種別の表示(v, locale);
+                assert!(!label.contains("device_categories"), "{locale}: {v}");
+            }
+            // 英語画面は語彙の値そのまま
+            assert_eq!(種別の表示(v, "en"), *v);
+        }
+        assert_eq!(種別の表示("Server", "ja"), "サーバー");
+        assert_eq!(種別の表示("ConsoleServer", "ja"), "コンソールサーバー");
+        for 略語 in ["VPN", "PDU", "UPS", "KVM"] {
+            assert_eq!(種別の表示(略語, "ja"), 略語);
+        }
+        // 語彙外（取込の検証より前に入った値など）はそのまま出す
+        assert_eq!(種別の表示("でたらめ", "ja"), "でたらめ");
+    }
 
     #[test]
     fn accept_languageから言語を推測する() {

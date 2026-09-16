@@ -811,3 +811,18 @@ warehouses:
   edit: 更新する
   new: 倉庫を登録
   empty: 倉庫がありません
+
+device_categories:
+  server: サーバー
+  switch: スイッチ
+  router: ルーター
+  firewall: ファイアウォール
+  load_balancer: ロードバランサー
+  vpn: VPN
+  media_converter: メディアコンバーター
+  storage: ストレージ
+  pdu: PDU
+  ups: UPS
+  kvm: KVM
+  console_server: コンソールサーバー
+  other: その他

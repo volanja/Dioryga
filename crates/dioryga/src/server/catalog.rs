@@ -55,7 +55,7 @@ use crate::auth::authorization;
 use crate::auth::middleware::CurrentUser;
 use crate::error::{AppError, AppResult};
 use crate::repository::{Actor, AuditedTx};
-use crate::server::view::{render, Chrome, Locale};
+use crate::server::view::{render, 種別の表示, 種別の選択肢, Choice, Chrome, Locale};
 use crate::server::AppState;
 
 /// 語彙（`vocabularies.md`、設計書6.2、12.3）。
@@ -160,7 +160,7 @@ struct ChassisModelsPage {
     t_no_vendor: String,
     rows: Vec<ChassisModelRow>,
     vendors: Vec<Labeled>,
-    device_categories: Vec<&'static str>,
+    device_categories: Vec<Choice>,
     mount_forms: Vec<&'static str>,
     rack_widths: Vec<&'static str>,
     show_retired: bool,
@@ -517,7 +517,7 @@ async fn 筐体型を描く(
             rack_width: m.rack_width.clone().unwrap_or_default(),
             id: m.id,
             model_name: m.model_name,
-            device_category: m.device_category,
+            device_category: 種別の表示(&m.device_category, l),
             height_u: m.height_u,
             mount_form: m.mount_form,
         });
@@ -551,7 +551,7 @@ async fn 筐体型を描く(
         t_no_vendor: rust_i18n::t!("catalog.no_vendor", locale = l).to_string(),
         rows,
         vendors: 現役のベンダー(&state.db).await?,
-        device_categories: DEVICE_CATEGORIES.to_vec(),
+        device_categories: 種別の選択肢(l),
         mount_forms: MOUNT_FORMS.to_vec(),
         rack_widths: RACK_WIDTHS.to_vec(),
         show_retired,
@@ -943,6 +943,10 @@ async fn 筐体型の詳細を描く(
         Labeled {
             label: rust_i18n::t!("catalog.vendor", locale = l).to_string(),
             value: ベンダー名(&state.db, m.vendor_id).await?,
+        },
+        Labeled {
+            label: rust_i18n::t!("devices.device_type", locale = l).to_string(),
+            value: 種別の表示(&m.device_category, l),
         },
         Labeled {
             label: rust_i18n::t!("catalog.height_u", locale = l).to_string(),

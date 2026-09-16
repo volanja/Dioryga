@@ -181,6 +181,23 @@ async fn 筐体モデルを登録できる(db: &DatabaseConnection) {
     assert_eq!(m.rack_width.as_deref(), Some("Full"));
 }
 
+/// **種別は日本語画面で訳して出し、送る値は語彙のままであること**（#126）。
+async fn 筐体モデルの種別は表示だけを訳す(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "chassis-label@example.com", "Operator").await;
+    let v = ベンダー(db, "HPE", user.id).await;
+    let m = 筐体モデル(db, v.id, "DL360 Gen10", user.id).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, 一覧) = 取得(状態, "/catalog/chassis-models", &token).await;
+    assert!(一覧.contains("<td>サーバー</td>"), "一覧で訳されていません");
+    assert!(一覧.contains(r#"<option value="Server">サーバー</option>"#));
+    assert!(一覧.contains(r#"<option value="KVM">KVM</option>"#));
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, 詳細) = 取得(状態, &format!("/catalog/chassis-models/{}", m.id), &token).await;
+    assert!(詳細.contains("<dd>サーバー</dd>"), "詳細で訳されていません");
+}
+
 /// **別ベンダーなら同じ製品名を持てること**（設計書6.2）。
 async fn 別ベンダーなら同名でも登録できる(db: &DatabaseConnection) {
     let user = メンバーの利用者(db, "sameName@example.com", "Operator").await;
@@ -1636,6 +1653,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, ベンダー名を正規化する);
         全検証!(@one $用意, $属性, 参照済みのベンダーは改名できる);
         全検証!(@one $用意, $属性, 筐体モデルを登録できる);
+        全検証!(@one $用意, $属性, 筐体モデルの種別は表示だけを訳す);
         全検証!(@one $用意, $属性, 別ベンダーなら同名でも登録できる);
         全検証!(@one $用意, $属性, 製品名を正規化する);
         全検証!(@one $用意, $属性, 幅はrackuでしか指定できない);

@@ -44,8 +44,8 @@
   <label for="device_category">{{ t_device_category }}</label>
   <select id="device_category" name="device_category">
     <option value=""></option>
-    {% for v in categories %}
-    <option value="{{ v }}" {% if device_category == *v %}selected{% endif %}>{{ v }}</option>
+    {% for c in categories %}
+    <option value="{{ c.value }}" {% if device_category == c.value %}selected{% endif %}>{{ c.label }}</option>
     {% endfor %}
   </select>
   <p class="hint">{{ t_device_category_hint }}</p>

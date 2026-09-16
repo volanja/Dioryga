@@ -28,6 +28,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
+use dioryga_catalog_format::種別を検証する;
 use entity::{chassis_model, configuration, device, device_assignment, project, vendor};
 use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
@@ -501,6 +502,13 @@ async fn 計画する<C: ConnectionTrait>(
                 continue;
             }
         };
+        // 構成を持たない機器（仮想アプライアンス等）があるため空欄は許す（8.6）
+        if let Some(category) = DeviceRow::空ならnone(&row.device_category) {
+            if let Err(e) = 種別を検証する(&category) {
+                report.push(Entry::new(Outcome::Error, target, e));
+                continue;
+            }
+        }
         let power_watt = match row.power_watt.trim() {
             "" => 0,
             v => match v.parse::<i32>() {

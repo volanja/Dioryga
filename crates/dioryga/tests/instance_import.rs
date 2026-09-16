@@ -370,6 +370,32 @@ async fn 語彙外の値は拒否される(db: &DatabaseConnection) {
     assert!(report.errors().any(|e| e.detail.contains("device_type")));
 }
 
+/// **種別の略語は大文字だけを受け、空欄は許すこと**（設計書8.6、#125）。
+///
+/// 構成を持たない機器（仮想アプライアンス等）だけが種別を持つため、空欄が普通である。
+async fn 種別の旧表記は拒否される(db: &DatabaseConnection) {
+    let p = プロジェクト(db, "種別検証").await;
+    let 種別つき = |category: &str| {
+        format!(
+            "uid,external_id,hostname,serial_number,asset_number,device_type,device_category,power_watt,status\n\
+             ,,vfw01,,,Virtual,{category},,"
+        )
+    };
+
+    let rows = instances::parse_devices(&種別つき("Vpn")).unwrap();
+    let report = instances::dry_run(db, p.id, &rows, &[]).await.unwrap();
+    assert!(
+        report.errors().any(|e| e.detail.contains("「Vpn」")),
+        "{report}"
+    );
+
+    for ok in ["VPN", ""] {
+        let rows = instances::parse_devices(&種別つき(ok)).unwrap();
+        let report = instances::dry_run(db, p.id, &rows, &[]).await.unwrap();
+        assert!(!report.has_error(), "「{ok}」: {report}");
+    }
+}
+
 // ---------------------------------------------------------------------------
 // プロジェクトの解決（設計書5.3）
 // ---------------------------------------------------------------------------
@@ -513,6 +539,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 移設は閉じて開く);
         全検証!(@one $用意, $属性, as_ofが履歴の開始日になる);
         全検証!(@one $用意, $属性, 語彙外の値は拒否される);
+        全検証!(@one $用意, $属性, 種別の旧表記は拒否される);
         全検証!(@one $用意, $属性, プロジェクトの解決順序);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {

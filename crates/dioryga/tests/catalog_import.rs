@@ -106,6 +106,39 @@ chassis_models:
     assert!(report.errors().any(|e| e.detail.contains("同時に指定")));
 }
 
+/// **種別の略語は大文字だけを受けること**（設計書8.6、#125）。
+///
+/// 旧表記の `Vpn` を黙って `VPN` に直すと、取込ファイルの誤りに気付けない。
+/// 語彙外の値と同じく拒否する。
+async fn 種別の旧表記はエラー(db: &DatabaseConnection) {
+    let yaml = |category: &str| {
+        format!(
+            r#"
+format_version: 1
+kind: catalog
+vendors:
+  - name: V
+chassis_models:
+  - vendor: V
+    model_name: M1
+    device_category: {category}
+    mount_form: RackU
+"#
+        )
+    };
+
+    let file = catalog::parse(&yaml("Vpn")).unwrap();
+    let report = catalog::dry_run(db, &file).await.unwrap();
+    assert!(
+        report.errors().any(|e| e.detail.contains("「Vpn」")),
+        "{report}"
+    );
+
+    let file = catalog::parse(&yaml("VPN")).unwrap();
+    let report = catalog::dry_run(db, &file).await.unwrap();
+    assert!(!report.has_error(), "{report}");
+}
+
 // ---------------------------------------------------------------------------
 // 反映
 // ---------------------------------------------------------------------------
@@ -658,6 +691,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, ドライランは書き換えない);
         全検証!(@one $用意, $属性, 解決できない参照はエラー);
         全検証!(@one $用意, $属性, 曖昧なスロット記述はエラー);
+        全検証!(@one $用意, $属性, 種別の旧表記はエラー);
         全検証!(@one $用意, $属性, 取り込むとスロットが展開される);
         全検証!(@one $用意, $属性, アンカー参照が構成に結び付く);
         全検証!(@one $用意, $属性, 二度流しても結果が変わらない);

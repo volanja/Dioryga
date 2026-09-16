@@ -36,7 +36,9 @@
 
 ### device_category（CHASSIS_MODEL、または仮想アプライアンスのDEVICE）
 
-`Server` / `Switch` / `Router` / `Firewall` / `LoadBalancer` / `Vpn` / `MediaConverter` / `Storage` / `Pdu` / `Ups` / `Kvm` / `ConsoleServer` / `Other`
+`Server` / `Switch` / `Router` / `Firewall` / `LoadBalancer` / `VPN` / `MediaConverter` / `Storage` / `PDU` / `UPS` / `KVM` / `ConsoleServer` / `Other`
+
+**閉じた語彙である。**略語は大文字で書き、**大文字・小文字の違う表記（`Vpn` 等）は取込でも拒否する。**語彙の表は `dioryga_catalog_format::DEVICE_CATEGORIES` にだけ置き、画面と取込が同じものを見る。
 
 多機能アプライアンス（UTM等）は主たる種別を1つ選ぶ。一覧のグループ化・絞り込み用の粗い分類であり、機能の詳細は別の場所が表現する（L2/L3はSVIの有無、ソフトウェア機能は`SOFTWARE_ROLE_ASSIGNMENT`、ネットワーク上の役割は`INTERFACE_ROLE`）。
 

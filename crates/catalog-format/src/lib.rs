@@ -36,7 +36,7 @@
 //!
 //! # 閉じた語彙と開いた語彙（8.6）
 //!
-//! 拒否するのは**閉じた語彙**——`port_kind` と `current_type`——だけである。
+//! 拒否するのは**閉じた語彙**——`device_category`・`port_kind`・`current_type`——だけである。
 //! `connector_type` と `port_speed` は `vocabularies.md` でも末尾が `...` の
 //! 開いた列挙であり、**閉じると「表に無いから取り込めない」が常態になる。**
 //! コネクタ形状も速度表記もベンダーと世代で増え続けるためで、正規化した
@@ -286,6 +286,41 @@ const ZONES: &[&str] = &["DMZ", "WAN", "LAN", "Management", "Isolated"];
 const VLANタグの下限: i32 = 1;
 const VLANタグの上限: i32 = 4094;
 const CURRENT_TYPES: &[&str] = &["AC", "DC"];
+
+/// 機器の種別（8.6）。**閉じた語彙。**`CHASSIS_MODEL` と、構成を持たない
+/// `DEVICE` の両方が使う。画面と取込が同じ表を見るよう、ここにだけ置く。
+///
+/// **略語は大文字で書く**（`VPN` / `PDU` / `UPS` / `KVM`、#125）。
+pub const DEVICE_CATEGORIES: &[&str] = &[
+    "Server",
+    "Switch",
+    "Router",
+    "Firewall",
+    "LoadBalancer",
+    "VPN",
+    "MediaConverter",
+    "Storage",
+    "PDU",
+    "UPS",
+    "KVM",
+    "ConsoleServer",
+    "Other",
+];
+
+/// 種別を検証する。**大文字・小文字を寄せずに拒否する**（#125）。
+///
+/// 旧表記の `Vpn` 等を黙って `VPN` に直すと、語彙が経路ごとに2通りになる。
+/// 語彙外の値は既定へ倒さず拒否する（Q-21）のと同じ扱いにする。
+pub fn 種別を検証する(value: &str) -> Result<(), String> {
+    if DEVICE_CATEGORIES.contains(&value) {
+        Ok(())
+    } else {
+        Err(format!(
+            "device_category「{value}」は語彙にありません（{}）",
+            DEVICE_CATEGORIES.join(" / ")
+        ))
+    }
+}
 
 const NETWORK: &str = "Network";
 const POWER: &str = "Power";
@@ -660,6 +695,17 @@ configurations:
         assert_eq!(ports.len(), 1, "ポート自体は作られるべき");
         assert!(ports[0].port_speed.is_none());
         assert_eq!(警告.len(), 1);
+    }
+
+    /// **略語の旧表記（`Vpn` 等）は受けない**（#125）。
+    #[test]
+    fn 種別は大文字小文字を区別して検証する() {
+        for v in ["VPN", "PDU", "UPS", "KVM", "Server"] {
+            assert!(種別を検証する(v).is_ok(), "{v}");
+        }
+        for v in ["Vpn", "Pdu", "Ups", "Kvm", "server", ""] {
+            assert!(種別を検証する(v).is_err(), "{v}");
+        }
     }
 
     /// **正規化は仮名・漢字を壊さない**（18.4）。

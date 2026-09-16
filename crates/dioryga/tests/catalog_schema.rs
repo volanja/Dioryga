@@ -10,7 +10,7 @@ use chrono::Utc;
 use dioryga::repository::{Actor, AuditedTx};
 use entity::{
     app_user, cable_catalog, cable_end_slot, chassis_model, configuration, configuration_part,
-    part_catalog, part_port_slot, port_power_rating, software_catalog, vendor,
+    device, part_catalog, part_port_slot, port_power_rating, software_catalog, vendor,
 };
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
 
@@ -411,9 +411,89 @@ async fn 部品(
     .unwrap()
 }
 
+// ---------------------------------------------------------------------------
+// 種別の略語を大文字に改めるマイグレーション（#125）
+// ---------------------------------------------------------------------------
+
+/// **保存済みの `Vpn` 等が `VPN` 等に書き換わり、戻せること。**
+///
+/// 種別はDB制約にせず語彙で検証する（設計書8.6）ため、語彙を改めただけでは
+/// 旧表記が語彙外の値として残る。対象外の値（`Server`）には触れない。
+async fn 種別の略語を大文字に書き換える(db: &DatabaseConnection) {
+    use migration::{Migrator, MigratorTrait};
+
+    // 最後のマイグレーション（#125）の手前に戻してから旧表記を入れる
+    Migrator::down(db, Some(1)).await.unwrap();
+
+    let user = 利用者(db, "category-migration@example.com").await;
+    let v = ベンダー(db, "CategoryVendor", user.id).await;
+    let mut ids = Vec::new();
+    for (name, category) in [
+        ("vpn", "Vpn"),
+        ("pdu", "Pdu"),
+        ("ups", "Ups"),
+        ("kvm", "Kvm"),
+        ("sv", "Server"),
+    ] {
+        let mut m: chassis_model::ActiveModel = 筐体モデル(db, v.id, name, user.id).await.into();
+        m.device_category = Set(category.to_owned());
+        ids.push(m.update(db).await.unwrap().id);
+    }
+    let 仮想 = device::ActiveModel {
+        uid: Set(uuid::Uuid::new_v4().to_string()),
+        device_type: Set("Virtual".to_owned()),
+        device_category: Set(Some("Kvm".to_owned())),
+        hostname: Set("vkvm01".to_owned()),
+        power_watt: Set(0),
+        status: Set("running".to_owned()),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    let 種別 = |db: &DatabaseConnection| {
+        let ids = ids.clone();
+        let db = db.clone();
+        async move {
+            let mut 結果 = Vec::new();
+            for id in ids {
+                let m = chassis_model::Entity::find_by_id(id)
+                    .one(&db)
+                    .await
+                    .unwrap()
+                    .unwrap();
+                結果.push(m.device_category);
+            }
+            let d = device::Entity::find_by_id(仮想.id)
+                .one(&db)
+                .await
+                .unwrap()
+                .unwrap();
+            結果.push(d.device_category.unwrap());
+            結果
+        }
+    };
+
+    Migrator::up(db, None).await.unwrap();
+    assert_eq!(
+        種別(db).await,
+        ["VPN", "PDU", "UPS", "KVM", "Server", "KVM"]
+    );
+
+    Migrator::down(db, Some(1)).await.unwrap();
+    assert_eq!(
+        種別(db).await,
+        ["Vpn", "Pdu", "Ups", "Kvm", "Server", "Kvm"]
+    );
+}
+
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, ベンダー名は重複できない);
+        全検証!(@one $用意, $属性, 種別の略語を大文字に書き換える);
         全検証!(@one $用意, $属性, 筐体モデルはベンダーごとに型番が一意);
         全検証!(@one $用意, $属性, 部品はベンダーごとに型番が一意);
         全検証!(@one $用意, $属性, 構成の部品は重複しない);

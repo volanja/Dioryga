@@ -44,6 +44,9 @@ use entity::{
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, Set};
 use serde::Deserialize;
 
+// 語彙は取込と同じ表を見る（8.6、#148）
+use dioryga_catalog_format::PART_CATEGORIES;
+
 use crate::auth::middleware::CurrentUser;
 use crate::error::{AppError, AppResult};
 use crate::repository::{Actor, AuditedTx};
@@ -51,8 +54,6 @@ use crate::server::catalog::{入場, 正規化, 現役のベンダー, 編集権
 use crate::server::view::{render, Chrome};
 use crate::server::AppState;
 
-/// 語彙（`vocabularies.md`、設計書6.4）。
-const CATEGORIES: &[&str] = &["CPU", "Memory", "NIC", "Storage", "PSU", "PDU"];
 const PORT_KINDS: &[&str] = &["Network", "Power", "Stack"];
 
 /// 給電方式（12.7）。**交流と直流の双方を受け付けるPSUが実在する。**
@@ -266,7 +267,7 @@ async fn 一覧を描く(
         t_spec_column_hint: rust_i18n::t!("parts.spec_column_hint", locale = l).to_string(),
         rows,
         vendors: 現役のベンダー(&state.db).await?,
-        categories: CATEGORIES.to_vec(),
+        categories: PART_CATEGORIES.to_vec(),
         show_retired,
         can_edit,
         error,
@@ -303,7 +304,7 @@ pub async fn create(
         return 一覧を描く(&state, &current, false, 誤り("parts.error_part_number")).await;
     }
     // **語彙外は既定へ寄せず拒否する**（Q-21）
-    if !CATEGORIES.contains(&form.category.as_str()) {
+    if !PART_CATEGORIES.contains(&form.category.as_str()) {
         return 一覧を描く(&state, &current, false, 誤り("parts.error_category")).await;
     }
 

@@ -48,8 +48,8 @@ use sea_orm::{
 };
 use serde::Deserialize;
 
-// 機器の種別は取込と同じ表を見る（8.6、#125）
-use dioryga_catalog_format::DEVICE_CATEGORIES;
+// 語彙は取込と同じ表を見る（8.6、#125、#148）
+use dioryga_catalog_format::{DEVICE_CATEGORIES, MOUNT_FORMS, RACK_WIDTHS, SLOT_TYPES};
 
 use crate::auth::authorization;
 use crate::auth::middleware::CurrentUser;
@@ -57,12 +57,6 @@ use crate::error::{AppError, AppResult};
 use crate::repository::{Actor, AuditedTx};
 use crate::server::view::{render, 種別の表示, 種別の選択肢, Choice, Chrome, Locale};
 use crate::server::AppState;
-
-/// 語彙（`vocabularies.md`、設計書6.2、12.3）。
-const MOUNT_FORMS: &[&str] = &["RackU", "RackSide", "Surface"];
-const RACK_WIDTHS: &[&str] = &["Full", "Half"];
-/// `CHASSIS_SLOT.slot_type`（`vocabularies.md`）。
-const SLOT_TYPES: &[&str] = &["CPU_SOCKET", "DIMM", "DRIVE_BAY", "PCIE", "PSU_BAY"];
 
 /// どの部品カテゴリがどのスロットを消費するか（設計書6.1）。
 ///

@@ -811,3 +811,18 @@ warehouses:
   edit: Update
   new: Add a warehouse
   empty: No warehouses yet
+
+device_categories:
+  server: Server
+  switch: Switch
+  router: Router
+  firewall: Firewall
+  load_balancer: LoadBalancer
+  vpn: VPN
+  media_converter: MediaConverter
+  storage: Storage
+  pdu: PDU
+  ups: UPS
+  kvm: KVM
+  console_server: ConsoleServer
+  other: Other

@@ -95,7 +95,7 @@
     <label for="device_category">{{ t_device_category }}</label>
     <select id="device_category" name="device_category">
       {% for c in device_categories %}
-      <option value="{{ c }}">{{ c }}</option>
+      <option value="{{ c.value }}">{{ c.label }}</option>
       {% endfor %}
     </select>
 

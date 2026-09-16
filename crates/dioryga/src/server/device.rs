@@ -35,7 +35,7 @@ use crate::auth::authorization;
 use crate::auth::middleware::CurrentUser;
 use crate::error::{AppError, AppResult};
 use crate::repository::{Actor, AuditedTx};
-use crate::server::view::{render, Chrome, Locale};
+use crate::server::view::{render, 種別の表示, 種別の選択肢, Choice, Chrome, Locale};
 use crate::server::AppState;
 
 /// `DEVICE_ASSIGNMENT.location_type`。
@@ -203,7 +203,7 @@ struct DeviceFormPage {
     configuration_id: String,
     configurations: Vec<Labeled>,
     device_category: String,
-    categories: Vec<&'static str>,
+    categories: Vec<Choice>,
     serial_number: String,
     asset_number: String,
     power_watt: String,
@@ -290,7 +290,7 @@ pub async fn list(
                 .iter()
                 .find(|(id, _)| *id == d.id)
                 .map(|(_, n)| n.clone())
-                .or_else(|| d.device_category.clone())
+                .or_else(|| d.device_category.as_deref().map(|c| 種別の表示(c, l)))
                 .unwrap_or_default(),
             location: match 現在地 {
                 Some(a) => 所在の表示(&state, a, l).await?,
@@ -521,7 +521,7 @@ pub async fn detail(
                 .await?
                 .first()
                 .map(|(_, n)| n.clone())
-                .or_else(|| d.device_category.clone())
+                .or_else(|| d.device_category.as_deref().map(|c| 種別の表示(c, l)))
                 .unwrap_or_else(|| 未設定.clone()),
         },
         Labeled {
@@ -1146,7 +1146,7 @@ async fn フォーム(
         configuration_id: form.configuration_id.clone(),
         configurations: 構成の候補(state).await?,
         device_category: form.device_category.clone(),
-        categories: DEVICE_CATEGORIES.to_vec(),
+        categories: 種別の選択肢(l),
         serial_number: form.serial_number.clone(),
         asset_number: form.asset_number.clone(),
         power_watt: form.power_watt.clone(),

@@ -389,6 +389,38 @@ fn 設定() -> Config {
     config
 }
 
+/// **種別は日本語画面で訳して出し、保存する値は語彙のままであること**（#126）。
+///
+/// 略語（`VPN` 等）は訳さない。一覧・詳細・登録フォームの3画面を見る。
+async fn 種別は表示だけを訳す(db: &DatabaseConnection) {
+    let user = 利用者(db, "category-label@example.com").await;
+    let p = プロジェクト(db, "種別表示").await;
+    メンバー(db, user.id, p.id, "Operator").await;
+    let d = 機器(db, "vsrv-01").await;
+    割当(db, d.id, p.id, Utc::now()).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, 一覧) = 取得(状態, &format!("/projects/{}/devices", p.id), &token).await;
+    assert!(一覧.contains("<td>サーバー</td>"), "一覧で訳されていません");
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, 詳細) = 取得(
+        状態,
+        &format!("/projects/{}/devices/{}", p.id, d.id),
+        &token,
+    )
+    .await;
+    assert!(詳細.contains("<dd>サーバー</dd>"), "詳細で訳されていません");
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, フォーム) = 取得(状態, &format!("/projects/{}/devices/new", p.id), &token).await;
+    assert!(
+        フォーム.contains(r#"<option value="Server" >サーバー</option>"#),
+        "{フォーム}"
+    );
+    assert!(フォーム.contains(r#"<option value="VPN" >VPN</option>"#));
+}
+
 async fn 認証済み(db: &DatabaseConnection, user: &app_user::Model) -> (AppState, String) {
     let config = 設定();
     let (setup, _) = SetupState::initialize(db).await.unwrap();
@@ -580,6 +612,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 予約中の機器は区別表示される);
         全検証!(@one $用意, $属性, 統合された機器は一覧に出ない);
         全検証!(@one $用意, $属性, 所属するプロジェクトだけ見える);
+        全検証!(@one $用意, $属性, 種別は表示だけを訳す);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

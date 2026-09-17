@@ -1611,37 +1611,54 @@ async fn メニューは今いる画面を示す(db: &DatabaseConnection) {
     let v = ベンダー(db, "HPE", user.id).await;
     let p = 部品(db, v.id, "CPU", "P-1", user.id).await;
 
-    // ダッシュボード：親だけ
+    // ダッシュボード：ダッシュボードの項目だけ
     let (状態, token) = 認証済み(db, &user).await;
     let (_, body) = 取得(状態, "/catalog", &token).await;
+    let 左 = 左メニュー(&body);
+    assert!(左.contains(r#"href="/catalog" class="current""#), "{左}");
+    assert_eq!(左.matches("current").count(), 1, "{左}");
+    // 上部は「共有カタログ」に印（#122）
     assert!(
-        body.contains(r#"href="/catalog" class="current""#),
+        上部メニュー(&body).contains(r#"href="/catalog" class="current""#),
         "{body}"
     );
-    assert!(!body.contains("sub current"), "{body}");
 
     // 一覧：該当する項目だけ。ベンダーがメニューに並ぶ
     let (状態, token) = 認証済み(db, &user).await;
     let (_, body) = 取得(状態, "/catalog/vendors", &token).await;
+    let 左 = 左メニュー(&body);
     assert!(
-        body.contains(r#"href="/catalog/vendors" class="sub current""#),
-        "{body}"
+        左.contains(r#"href="/catalog/vendors" class="current""#),
+        "{左}"
     );
-    assert!(
-        !body.contains(r#"href="/catalog" class="current""#),
-        "{body}"
-    );
-    assert_eq!(body.matches("sub current").count(), 1, "{body}");
+    assert_eq!(左.matches("current").count(), 1, "{左}");
 
     // 詳細：親の一覧の項目
     let (状態, token) = 認証済み(db, &user).await;
     let (status, body) = 取得(状態, &format!("/catalog/parts/{}", p.id), &token).await;
     assert_eq!(status, StatusCode::OK);
+    let 左 = 左メニュー(&body);
     assert!(
-        body.contains(r#"href="/catalog/parts" class="sub current""#),
-        "{body}"
+        左.contains(r#"href="/catalog/parts" class="current""#),
+        "{左}"
     );
-    assert_eq!(body.matches("sub current").count(), 1, "{body}");
+    assert_eq!(左.matches("current").count(), 1, "{左}");
+}
+
+fn 左メニュー(body: &str) -> &str {
+    let start = body
+        .find(r#"<nav class="sidenav">"#)
+        .expect("左メニューがありません");
+    let end = start + body[start..].find("</nav>").unwrap();
+    &body[start..end]
+}
+
+fn 上部メニュー(body: &str) -> &str {
+    let start = body
+        .find(r#"<nav class="topnav">"#)
+        .expect("上部メニューがありません");
+    let end = start + body[start..].find("</nav>").unwrap();
+    &body[start..end]
 }
 
 macro_rules! 全検証 {

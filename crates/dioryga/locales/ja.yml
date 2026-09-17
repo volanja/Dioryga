@@ -27,6 +27,24 @@ nav:
   users: ユーザー管理
   projects: プロジェクト
   account: 個人設定
+  admin_projects: プロジェクト管理
+  project_list: プロジェクト一覧
+  warehouse_list: 倉庫一覧
+  user_list: ユーザー一覧
+  password: パスワード
+  dashboard: ダッシュボード
+  devices: 機器
+  containers: 什器（ラック等）
+  ip_addresses: IPアドレス
+  components: コンポーネント
+  work_orders: 変更管理チケット
+  milestones: マイルストーン
+  costs: コスト
+  power: 電力
+  members: メンバー
+  import: 取込
+  stored_devices: 保管中の機器
+  stored_parts: 部品在庫
 
 common:
   logout: ログアウト
@@ -220,6 +238,7 @@ import:
 
 password_change:
   title: パスワードの変更
+  account_lead: ログインに使うパスワードを変更します
   lead: 続けるにはパスワードを変更してください
   current: 現在のパスワード
   new: 新しいパスワード

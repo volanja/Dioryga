@@ -497,7 +497,14 @@ pub async fn list(
         .collect();
 
     render(&WorkOrdersPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "work_orders",
+        )
+        .await,
         project_id,
         project_name: project.name,
         t_title: rust_i18n::t!("work_orders.title", locale = l).to_string(),
@@ -600,7 +607,14 @@ async fn 詳細を描く(
     let basic = 基本情報(state, &w, l).await?;
 
     render(&WorkOrderDetailPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "work_orders",
+        )
+        .await,
         project_id,
         project_name: project.name,
         work_order_id: w.id,
@@ -961,7 +975,14 @@ async fn 起票フォームを描く(
     let l = Locale::parse(&current.user.locale).as_str();
 
     render(&WorkOrderFormPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "work_orders",
+        )
+        .await,
         project_id,
         project_name: project.name,
         t_title: rust_i18n::t!("work_orders.new", locale = l).to_string(),

@@ -111,7 +111,14 @@ pub async fn show(
     let work_orders = 未完了のチケット(&state, project_id, today, l).await?;
 
     render(&DashboardPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "dashboard",
+        )
+        .await,
         project_name: project.name,
         project_code: project.code.unwrap_or_default(),
         archived: project.archived_at.is_some(),

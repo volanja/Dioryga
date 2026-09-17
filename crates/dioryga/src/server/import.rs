@@ -186,7 +186,14 @@ async fn 画面(
     let l = Locale::parse(&current.user.locale).as_str();
 
     Ok(ImportPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            project,
+            "import",
+        )
+        .await,
         project_id: project.id,
         project_name: project.name.clone(),
         t_title: rust_i18n::t!("import.title", locale = l).to_string(),
@@ -432,7 +439,14 @@ fn レポート画面(
         .collect();
 
     ReportPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        // 取込は編集権を確かめてから入る画面なので、取込の項目は常に出る
+        chrome: Chrome::project_known(
+            &current.user,
+            current.csrf_token.clone(),
+            project,
+            "import",
+            true,
+        ),
         project_id: project.id,
         project_name: project.name.clone(),
         t_title: rust_i18n::t!("import.report_title", locale = l).to_string(),

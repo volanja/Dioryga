@@ -268,7 +268,14 @@ async fn 一覧を描く(
     }
 
     render(&ContainersPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "containers",
+        )
+        .await,
         project_id,
         project_name: project.name,
         t_title: rust_i18n::t!("containers.title", locale = l).to_string(),
@@ -490,7 +497,14 @@ async fn 図を描く(
     };
 
     render(&RackPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "containers",
+        )
+        .await,
         project_id,
         container_id,
         container_name: container.name.clone(),

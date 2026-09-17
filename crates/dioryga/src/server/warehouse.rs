@@ -318,7 +318,13 @@ pub async fn devices(
         .collect();
 
     render(&DevicesPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "warehouses"),
+        chrome: Chrome::warehouse(
+            &current.user,
+            current.csrf_token.clone(),
+            w.id,
+            &w.name,
+            "devices",
+        ),
         warehouse_id: id,
         warehouse_name: w.name,
         t_title: rust_i18n::t!("warehouses.devices", locale = l).to_string(),
@@ -410,7 +416,13 @@ pub async fn device_detail(
     let history = 履歴を組む(&state, &履歴, l).await?;
 
     render(&DeviceDetailPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "warehouses"),
+        chrome: Chrome::warehouse(
+            &current.user,
+            current.csrf_token.clone(),
+            w.id,
+            &w.name,
+            "devices",
+        ),
         warehouse_id: id,
         warehouse_name: w.name,
         serial_number: d.serial_number.unwrap_or_default(),
@@ -594,7 +606,13 @@ pub async fn parts(
     });
 
     render(&PartsPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "warehouses"),
+        chrome: Chrome::warehouse(
+            &current.user,
+            current.csrf_token.clone(),
+            w.id,
+            &w.name,
+            "parts",
+        ),
         warehouse_name: w.name,
         t_title: rust_i18n::t!("warehouses.parts", locale = l).to_string(),
         t_lead: rust_i18n::t!("warehouses.parts_lead", locale = l).to_string(),

@@ -2,6 +2,10 @@
 //!
 //! 現時点ではパスワード変更のみ。`must_change_password` の利用者は、この画面を
 //! 終えるまで他の画面へ進めない（20.6）。
+//!
+//! **強制変更のときはメニューの無い画面で出す。**他の画面へ進めないのに
+//! メニューを並べると、押しても戻される項目が並ぶ。それ以外は個人設定の
+//! 画面として、上部と左のメニューを出す（#122）。
 
 use axum::extract::State;
 use axum::http::HeaderMap;
@@ -16,7 +20,7 @@ use crate::auth::middleware::CurrentUser;
 use crate::auth::session;
 use crate::error::{AppError, AppResult};
 use crate::repository::{Actor, AuditedTx};
-use crate::server::view::{render, Locale};
+use crate::server::view::{render, Chrome, Locale};
 use crate::server::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -59,17 +63,52 @@ impl PasswordChangePage {
     }
 }
 
+/// 個人設定の画面としてのパスワード変更（#122）。入力欄は強制変更と共有する。
+#[derive(askama::Template)]
+#[template(path = "account_password.html")]
+struct AccountPasswordPage {
+    chrome: Chrome,
+    t_title: String,
+    t_lead: String,
+    t_current: String,
+    t_new: String,
+    t_confirm: String,
+    t_submit: String,
+    csrf_token: String,
+    error: Option<String>,
+}
+
+/// 強制変更かどうかで画面を選んで描く。
+fn 描く(current: &CurrentUser, error: Option<String>) -> AppResult<Response> {
+    let page = PasswordChangePage::new(locale_of(&current.user), current.csrf_token.clone(), error);
+    if current.user.must_change_password {
+        return render(&page);
+    }
+    render(&AccountPasswordPage {
+        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "account"),
+        t_title: page.t_title,
+        // 強制変更の「続けるには」は、自分で開いた個人設定には合わない
+        t_lead: rust_i18n::t!(
+            "password_change.account_lead",
+            locale = locale_of(&current.user).as_str()
+        )
+        .to_string(),
+        t_current: page.t_current,
+        t_new: page.t_new,
+        t_confirm: page.t_confirm,
+        t_submit: page.t_submit,
+        csrf_token: page.csrf_token,
+        error: page.error,
+    })
+}
+
 /// 利用者の表示言語。ログイン後は `USER.locale` に従う（設計書16.5）。
 fn locale_of(user: &app_user::Model) -> Locale {
     Locale::parse(&user.locale)
 }
 
 pub async fn show(Extension(current): Extension<CurrentUser>) -> AppResult<Response> {
-    render(&PasswordChangePage::new(
-        locale_of(&current.user),
-        current.csrf_token,
-        None,
-    ))
+    描く(&current, None)
 }
 
 pub async fn submit(
@@ -82,14 +121,10 @@ pub async fn submit(
     let l = locale.as_str();
     let user = current.user.clone();
 
-    let 再表示 = |message: String| {
-        PasswordChangePage::new(locale, current.csrf_token.clone(), Some(message))
-    };
+    let 再表示 = |message: String| 描く(&current, Some(message));
 
     if form.new_password != form.confirm_password {
-        return render(&再表示(
-            rust_i18n::t!("password_change.mismatch", locale = l).to_string(),
-        ));
+        return 再表示(rust_i18n::t!("password_change.mismatch", locale = l).to_string());
     }
 
     // 現行パスワードの再入力を必須とする（設計書20.7）。
@@ -101,16 +136,14 @@ pub async fn submit(
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
     if verified.is_none() {
-        return render(&再表示(
-            rust_i18n::t!("password_change.current_invalid", locale = l).to_string(),
-        ));
+        return 再表示(rust_i18n::t!("password_change.current_invalid", locale = l).to_string());
     }
 
     if let Err(e) = state
         .passwords
         .check_policy(&form.new_password, &user.username, &user.name)
     {
-        return render(&再表示(e.to_string()));
+        return 再表示(e.to_string());
     }
 
     let hash = state

@@ -171,18 +171,44 @@ a:hover { text-decoration: underline; }
 .sidenav a:hover { background: var(--hover); }
 .sidenav a.current { background: var(--hover); font-weight: 600; }
 
-/* カタログの下位項目。開いているときだけ並ぶ（設計書16.1のD領域） */
-.sidenav a.sub { padding-left: 26px; font-size: 13px; color: var(--muted); }
-.sidenav a.sub:hover { color: var(--text); }
-/* 下位の項目も、今いる画面は色を戻して印を残す（#118） */
-.sidenav a.sub.current { color: var(--text); }
+/* 見出し（プロジェクト名・倉庫名）の下の項目（#122） */
+.sidenav a.sub { padding-left: 22px; }
+/* 見出しはリンクにしない。どのプロジェクト・倉庫の中にいるかを示す */
+.sidenav .heading {
+  margin-top: 10px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* 領域のメニュー（#122）。頻繁に切り替えないので上部に置く */
+.topnav { display: flex; flex-wrap: wrap; gap: 2px; }
+.topnav a {
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13px;
+}
+.topnav a:hover { background: var(--hover); }
+.topnav a.current { background: var(--hover); font-weight: 600; }
 
 .content { flex: 1 1 auto; min-width: 0; padding: 24px; }
 
 /* 画面が狭いときはナビを上へ回す */
 @media (max-width: 720px) {
-  .shell { flex-direction: column; }
+  /* 本文を画面幅に収める。揃えないと広い表に合わせて本文ごと横に伸びる */
+  .shell { flex-direction: column; align-items: stretch; }
   .sidenav { flex-direction: row; flex-wrap: wrap; width: 100%; }
+  .sidenav .heading { margin-top: 0; width: 100%; }
+  /* 上部のメニューは2段目へ折り返す */
+  .topbar { flex-wrap: wrap; }
+  .topbar-right { flex-wrap: wrap; }
+  .sidenav a.sub { padding-left: 12px; }
+  /* 見出しの横の操作ボタンが右にはみ出さないよう、下へ回す */
+  .page-head { flex-wrap: wrap; }
 }
 
 .page-head {

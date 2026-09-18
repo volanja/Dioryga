@@ -57,72 +57,268 @@ impl Locale {
 ///
 /// **各ページの構造体にこれを1つ持たせる。**ヘッダーとナビに必要な値は
 /// どの画面でも同じであり、画面を足すたびに同じフィールドを並べ直したくない。
+///
+/// # メニューの形（#122）
+///
+/// - **上部**：領域（プロジェクト／倉庫／共有カタログ／個人設定）。頻繁には切り替えない
+/// - **左**：**今いる領域の中の画面。**頻繁に行き来するのはこちら
+///
+/// どちらも**今いる場所に印を付ける。**詳細画面では親の一覧に付ける（#118）。
+/// 印が2つ付くとどちらにいるのか読めないため、左メニューの印は常に1つにする。
 pub struct Chrome {
     pub locale: &'static str,
     pub app_name: String,
     pub user_name: String,
-    /// 現在選択中のナビ項目。`users` / `projects` / `warehouses` / `catalog` / `account`。
-    pub nav: &'static str,
-    /// 共有カタログの下位メニューで、現在の画面にあたる項目（#118）。
-    /// `vendors` / `chassis_models` / `parts` / `configurations` / `cables` /
-    /// `software` / `vlans` / `merge`。ダッシュボードとカタログ以外では空。
-    ///
-    /// **詳細画面では親の一覧の項目を指す。**どこにいるか分かることが目的であり、
-    /// 詳細に入った途端にメニューの印が消えると迷う。
-    pub sub: &'static str,
     /// フォームのhidden fieldへ埋め込むCSRFトークン（設計書20.5）。
     pub csrf_token: String,
-    pub is_system_admin: bool,
     pub t_logout: String,
-    pub t_nav_users: String,
+    /// パンくずで使う。
     pub t_nav_projects: String,
-    pub t_nav_warehouses: String,
-    pub t_nav_catalog: String,
-    pub t_nav_vendors: String,
-    pub t_nav_chassis_models: String,
-    pub t_nav_parts: String,
-    pub t_nav_configurations: String,
-    pub t_nav_cables: String,
-    pub t_nav_software: String,
-    pub t_nav_vlans: String,
-    pub t_nav_merge: String,
-    pub t_nav_account: String,
+    /// 上部のメニュー（領域）。
+    pub top: Vec<NavItem>,
+    /// 左のメニュー（今いる領域の中の画面）。
+    pub side: Vec<NavItem>,
 }
 
-impl Chrome {
-    pub fn new(user: &entity::app_user::Model, csrf_token: String, nav: &'static str) -> Self {
-        let locale = Locale::parse(&user.locale);
-        let l = locale.as_str();
-        Self {
-            locale: l,
-            app_name: rust_i18n::t!("app.name", locale = l).to_string(),
-            user_name: user.name.clone(),
-            nav,
-            sub: "",
-            csrf_token,
-            is_system_admin: user.is_system_admin,
-            t_logout: rust_i18n::t!("common.logout", locale = l).to_string(),
-            t_nav_users: rust_i18n::t!("nav.users", locale = l).to_string(),
-            t_nav_projects: rust_i18n::t!("nav.projects", locale = l).to_string(),
-            t_nav_warehouses: rust_i18n::t!("warehouses.title", locale = l).to_string(),
-            t_nav_catalog: rust_i18n::t!("catalog.nav", locale = l).to_string(),
-            t_nav_vendors: rust_i18n::t!("catalog.vendors", locale = l).to_string(),
-            t_nav_chassis_models: rust_i18n::t!("catalog.chassis_models", locale = l).to_string(),
-            t_nav_parts: rust_i18n::t!("parts.title", locale = l).to_string(),
-            t_nav_configurations: rust_i18n::t!("catalog.configurations", locale = l).to_string(),
-            t_nav_cables: rust_i18n::t!("cables.title", locale = l).to_string(),
-            t_nav_software: rust_i18n::t!("software.title", locale = l).to_string(),
-            t_nav_vlans: rust_i18n::t!("vlans.title", locale = l).to_string(),
-            t_nav_merge: rust_i18n::t!("merge.title", locale = l).to_string(),
-            t_nav_account: rust_i18n::t!("nav.account", locale = l).to_string(),
+/// メニューの1項目。
+pub struct NavItem {
+    /// 見出し（プロジェクト名・倉庫名）はリンクにしない。
+    pub href: Option<String>,
+    pub label: String,
+    pub current: bool,
+    /// 見出しの下に字下げして並べる項目。
+    pub sub: bool,
+}
+
+impl NavItem {
+    /// `class` 属性の値。字下げ（`sub`）と印（`current`）を並べる。
+    pub fn class(&self) -> &'static str {
+        match (self.sub, self.current) {
+            (true, true) => "sub current",
+            (true, false) => "sub",
+            (false, true) => "current",
+            (false, false) => "",
         }
     }
 
-    /// 共有カタログの画面。`sub` は下位メニューのどの項目にいるか（空ならダッシュボード）。
-    pub fn catalog(user: &entity::app_user::Model, csrf_token: String, sub: &'static str) -> Self {
+    fn link(href: impl Into<String>, label: String, current: bool) -> Self {
         Self {
-            sub,
-            ..Self::new(user, csrf_token, "catalog")
+            href: Some(href.into()),
+            label,
+            current,
+            sub: false,
+        }
+    }
+
+    fn sub(href: impl Into<String>, label: String, current: bool) -> Self {
+        Self {
+            sub: true,
+            ..Self::link(href, label, current)
+        }
+    }
+
+    fn heading(label: String) -> Self {
+        Self {
+            href: None,
+            label,
+            current: false,
+            sub: false,
+        }
+    }
+}
+
+/// プロジェクトの中の画面（左メニュー）。`(sub, パス, ラベルのキー)`。
+///
+/// **並びは使う頻度の順**：機器・什器・ネットワークを上に、管理（メンバー・取込）を下に。
+const プロジェクトの画面: &[(&str, &str, &str)] = &[
+    ("dashboard", "", "nav.dashboard"),
+    ("devices", "/devices", "nav.devices"),
+    ("containers", "/containers", "nav.containers"),
+    ("ip_addresses", "/network/ip-addresses", "nav.ip_addresses"),
+    ("components", "/software/components", "nav.components"),
+    ("work_orders", "/work-orders", "nav.work_orders"),
+    ("milestones", "/milestones", "nav.milestones"),
+    ("costs", "/costs", "nav.costs"),
+    ("power", "/power", "nav.power"),
+    ("members", "/members", "nav.members"),
+];
+
+/// 共有カタログの中の画面（#118）。`(sub, パス, ラベルのキー)`。
+const カタログの画面: &[(&str, &str, &str)] = &[
+    ("", "/catalog", "nav.dashboard"),
+    ("vendors", "/catalog/vendors", "catalog.vendors"),
+    (
+        "chassis_models",
+        "/catalog/chassis-models",
+        "catalog.chassis_models",
+    ),
+    ("parts", "/catalog/parts", "parts.title"),
+    (
+        "configurations",
+        "/catalog/configurations",
+        "catalog.configurations",
+    ),
+    ("cables", "/catalog/cables", "cables.title"),
+    ("software", "/catalog/software", "software.title"),
+    ("vlans", "/catalog/vlans", "vlans.title"),
+    ("merge", "/catalog/merge", "merge.title"),
+];
+
+fn t(key: &str, l: &str) -> String {
+    rust_i18n::t!(key, locale = l).to_string()
+}
+
+impl Chrome {
+    /// 領域の一覧画面。`nav` は `projects` / `warehouses` / `account` /
+    /// `users` / `admin_projects`。左メニューはその一覧だけを持つ。
+    pub fn new(user: &entity::app_user::Model, csrf_token: String, nav: &'static str) -> Self {
+        let l = Locale::parse(&user.locale).as_str();
+        let side = match nav {
+            "projects" => vec![NavItem::link("/projects", t("nav.project_list", l), true)],
+            "warehouses" => vec![NavItem::link(
+                "/warehouses",
+                t("nav.warehouse_list", l),
+                true,
+            )],
+            "account" => vec![NavItem::link(
+                "/account/password",
+                t("nav.password", l),
+                true,
+            )],
+            "users" => vec![NavItem::link("/admin/users", t("nav.user_list", l), true)],
+            "admin_projects" => {
+                vec![NavItem::link(
+                    "/admin/projects",
+                    t("nav.project_list", l),
+                    true,
+                )]
+            }
+            _ => Vec::new(),
+        };
+        Self::組む(user, csrf_token, nav, side)
+    }
+
+    /// 共有カタログの画面。`sub` は左メニューのどの項目にいるか（空ならダッシュボード）。
+    pub fn catalog(user: &entity::app_user::Model, csrf_token: String, sub: &'static str) -> Self {
+        let l = Locale::parse(&user.locale).as_str();
+        let side = カタログの画面
+            .iter()
+            .map(|(key, href, label)| NavItem::link(*href, t(label, l), *key == sub))
+            .collect();
+        Self::組む(user, csrf_token, "catalog", side)
+    }
+
+    /// プロジェクトの中の画面（#122、#123）。
+    ///
+    /// `sub` は `dashboard` / `devices` / `containers` / `ip_addresses` /
+    /// `components` / `work_orders` / `milestones` / `costs` / `power` /
+    /// `members` / `import`。**取込は編集権のある利用者にだけ出す**——
+    /// 押しても入れない項目を並べない。
+    pub async fn project<C: sea_orm::ConnectionTrait>(
+        db: &C,
+        user: &entity::app_user::Model,
+        csrf_token: String,
+        project: &entity::project::Model,
+        sub: &'static str,
+    ) -> Self {
+        let 編集できる = crate::auth::authorization::require_project_editor(db, user, project.id)
+            .await
+            .is_ok();
+        Self::project_known(user, csrf_token, project, sub, 編集できる)
+    }
+
+    /// [`Chrome::project`] の、編集権を呼び出し側が既に知っている場合。
+    ///
+    /// 取込の結果画面のように、**編集権を確かめてから入る画面**で使う。
+    pub fn project_known(
+        user: &entity::app_user::Model,
+        csrf_token: String,
+        project: &entity::project::Model,
+        sub: &'static str,
+        編集できる: bool,
+    ) -> Self {
+        let l = Locale::parse(&user.locale).as_str();
+        let base = format!("/projects/{}", project.id);
+        let mut side = vec![
+            NavItem::link("/projects", t("nav.project_list", l), false),
+            NavItem::heading(project.name.clone()),
+        ];
+        side.extend(プロジェクトの画面.iter().map(|(key, path, label)| {
+            NavItem::sub(format!("{base}{path}"), t(label, l), *key == sub)
+        }));
+        if 編集できる {
+            side.push(NavItem::sub(
+                format!("{base}/import"),
+                t("nav.import", l),
+                sub == "import",
+            ));
+        }
+        Self::組む(user, csrf_token, "projects", side)
+    }
+
+    /// 倉庫の中の画面（#122）。`sub` は `devices` / `parts`。
+    pub fn warehouse(
+        user: &entity::app_user::Model,
+        csrf_token: String,
+        warehouse_id: i32,
+        warehouse_name: &str,
+        sub: &'static str,
+    ) -> Self {
+        let l = Locale::parse(&user.locale).as_str();
+        let base = format!("/warehouses/{warehouse_id}");
+        let side = vec![
+            NavItem::link("/warehouses", t("nav.warehouse_list", l), false),
+            NavItem::heading(warehouse_name.to_owned()),
+            NavItem::sub(
+                format!("{base}/devices"),
+                t("nav.stored_devices", l),
+                sub == "devices",
+            ),
+            NavItem::sub(
+                format!("{base}/parts"),
+                t("nav.stored_parts", l),
+                sub == "parts",
+            ),
+        ];
+        Self::組む(user, csrf_token, "warehouses", side)
+    }
+
+    fn 組む(
+        user: &entity::app_user::Model,
+        csrf_token: String,
+        nav: &str,
+        side: Vec<NavItem>,
+    ) -> Self {
+        let l = Locale::parse(&user.locale).as_str();
+        // **System Adminはプロジェクトの中・倉庫・カタログに入れない**（3章）。
+        // 出しても入れない項目は並べない
+        let top = if user.is_system_admin {
+            vec![
+                NavItem::link("/admin/users", t("nav.users", l), nav == "users"),
+                NavItem::link(
+                    "/admin/projects",
+                    t("nav.admin_projects", l),
+                    nav == "admin_projects",
+                ),
+                NavItem::link("/account/password", t("nav.account", l), nav == "account"),
+            ]
+        } else {
+            vec![
+                NavItem::link("/projects", t("nav.projects", l), nav == "projects"),
+                NavItem::link("/warehouses", t("warehouses.title", l), nav == "warehouses"),
+                NavItem::link("/catalog", t("catalog.nav", l), nav == "catalog"),
+                NavItem::link("/account/password", t("nav.account", l), nav == "account"),
+            ]
+        };
+        Self {
+            locale: l,
+            app_name: t("app.name", l),
+            user_name: user.name.clone(),
+            csrf_token,
+            t_logout: t("common.logout", l),
+            t_nav_projects: t("nav.projects", l),
+            top,
+            side,
         }
     }
 

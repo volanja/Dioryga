@@ -124,7 +124,14 @@ async fn 描く(
     };
 
     render(&MembersPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "members",
+        )
+        .await,
         project_id,
         project_name: project.name,
         t_title: rust_i18n::t!("members.title", locale = l).to_string(),

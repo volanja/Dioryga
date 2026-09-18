@@ -155,7 +155,14 @@ async fn 描く(
     };
 
     render(&SbomPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "devices",
+        )
+        .await,
         project_id,
         project_name: project.name,
         device_id,

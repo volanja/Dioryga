@@ -19,6 +19,14 @@
   </div>
 
   <div class="topbar-right">
+    {# 領域は頻繁に切り替えないので上に置く（#122）。System Adminは入れる領域だけ並ぶ #}
+    <nav class="topnav">
+      {% for item in chrome.top %}
+      {% if let Some(href) = item.href %}
+      <a href="{{ href }}" class="{{ item.class() }}">{{ item.label }}</a>
+      {% endif %}
+      {% endfor %}
+    </nav>
     <span class="who">{{ chrome.user_name }}</span>
     {# ログアウトは状態を変えるためGETにしない（リンクの先読みで落ちるため） #}
     <form method="post" action="/logout" class="inline">
@@ -29,44 +37,15 @@
 </header>
 
 <div class="shell">
+  {# 今いる領域の中の画面（#122）。今いる画面に印を付ける。詳細画面では親の一覧に付く #}
   <nav class="sidenav">
-    {% if chrome.is_system_admin %}
-    <a href="/admin/users" class="{% if chrome.nav == "users" %}current{% endif %}">
-      {{ chrome.t_nav_users }}
-    </a>
-    {# System Adminが見るのはプロジェクトの器まで。中のデータは見えない（3章） #}
-    <a href="/admin/projects" class="{% if chrome.nav == "admin_projects" %}current{% endif %}">
-      {{ chrome.t_nav_projects }}
-    </a>
+    {% for item in chrome.side %}
+    {% if let Some(href) = item.href %}
+    <a href="{{ href }}" class="{{ item.class() }}">{{ item.label }}</a>
     {% else %}
-    <a href="/projects" class="{% if chrome.nav == "projects" %}current{% endif %}">
-      {{ chrome.t_nav_projects }}
-    </a>
-    {# 倉庫はプロジェクトを横断する（設計書16.1のC領域）。System Adminは入れない #}
-    <a href="/warehouses" class="{% if chrome.nav == "warehouses" %}current{% endif %}">
-      {{ chrome.t_nav_warehouses }}
-    </a>
-    {# 共有カタログはプロジェクトを横断する（設計書18章）。System Adminは入れない #}
-    {# 下位の項目にいるときは親を光らせない。印が2つ付くとどちらにいるのか分からない #}
-    <a href="/catalog" class="{% if chrome.nav == "catalog" && chrome.sub.is_empty() %}current{% endif %}">
-      {{ chrome.t_nav_catalog }}
-    </a>
-    {% if chrome.nav == "catalog" %}
-    {# カタログの中は7種類ある（設計書16.1のD領域）。開いているときだけ並べる #}
-    {# **今いる画面に印を付ける**（#118）。詳細画面では親の一覧に付く（Chrome.sub） #}
-    <a href="/catalog/vendors" class="sub{% if chrome.sub == "vendors" %} current{% endif %}">{{ chrome.t_nav_vendors }}</a>
-    <a href="/catalog/chassis-models" class="sub{% if chrome.sub == "chassis_models" %} current{% endif %}">{{ chrome.t_nav_chassis_models }}</a>
-    <a href="/catalog/parts" class="sub{% if chrome.sub == "parts" %} current{% endif %}">{{ chrome.t_nav_parts }}</a>
-    <a href="/catalog/configurations" class="sub{% if chrome.sub == "configurations" %} current{% endif %}">{{ chrome.t_nav_configurations }}</a>
-    <a href="/catalog/cables" class="sub{% if chrome.sub == "cables" %} current{% endif %}">{{ chrome.t_nav_cables }}</a>
-    <a href="/catalog/software" class="sub{% if chrome.sub == "software" %} current{% endif %}">{{ chrome.t_nav_software }}</a>
-    <a href="/catalog/vlans" class="sub{% if chrome.sub == "vlans" %} current{% endif %}">{{ chrome.t_nav_vlans }}</a>
-    <a href="/catalog/merge" class="sub{% if chrome.sub == "merge" %} current{% endif %}">{{ chrome.t_nav_merge }}</a>
+    <span class="heading">{{ item.label }}</span>
     {% endif %}
-    {% endif %}
-    <a href="/account/password" class="{% if chrome.nav == "account" %}current{% endif %}">
-      {{ chrome.t_nav_account }}
-    </a>
+    {% endfor %}
   </nav>
 
   <main class="content">

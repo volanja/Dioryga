@@ -201,7 +201,14 @@ pub async fn dashboard(
     ];
 
     render(&DashboardPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "costs",
+        )
+        .await,
         project_id,
         project_name: project.name,
         t_title: rust_i18n::t!("costs.title", locale = l).to_string(),
@@ -365,7 +372,14 @@ async fn 契約を描く(
     }
 
     render(&ContractsPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "costs",
+        )
+        .await,
         project_id,
         t_title: rust_i18n::t!("costs.contracts", locale = l).to_string(),
         t_lead: rust_i18n::t!("costs.contracts_lead", locale = l).to_string(),
@@ -636,7 +650,14 @@ async fn 資産を描く(
     }
 
     render(&AssetsPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "costs",
+        )
+        .await,
         project_id,
         t_title: rust_i18n::t!("costs.fixed_assets", locale = l).to_string(),
         t_lead: rust_i18n::t!("costs.assets_lead", locale = l).to_string(),
@@ -842,7 +863,14 @@ async fn 定期費用を描く(
     }
 
     render(&RecurringPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "costs",
+        )
+        .await,
         project_id,
         project_name: project.name,
         t_title: rust_i18n::t!("costs.recurring", locale = l).to_string(),

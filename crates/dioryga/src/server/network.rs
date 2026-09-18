@@ -179,7 +179,14 @@ async fn サブネットを描く(
     }
 
     render(&SubnetsPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "ip_addresses",
+        )
+        .await,
         project_id,
         project_name: project.name,
         t_title: rust_i18n::t!("network.subnets", locale = l).to_string(),
@@ -421,7 +428,14 @@ pub async fn ip_addresses(
     rows.sort_by(|a, b| (&a.hostname, &a.address).cmp(&(&b.hostname, &b.address)));
 
     render(&IpAddressesPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "ip_addresses",
+        )
+        .await,
         project_id,
         project_name: project.name,
         t_title: rust_i18n::t!("network.ip_addresses", locale = l).to_string(),
@@ -531,7 +545,7 @@ async fn インターフェースを描く(
     device_id: i32,
     error: Option<String>,
 ) -> AppResult<Response> {
-    let (_, can_edit, l) = 入場(state, current, project_id).await?;
+    let (project, can_edit, l) = 入場(state, current, project_id).await?;
     let d = 対象の機器(state, project_id, device_id).await?;
 
     let list = 現在のインターフェース(&state.db, device_id).await?;
@@ -575,7 +589,14 @@ async fn インターフェースを描く(
     }
 
     render(&InterfacesPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "devices",
+        )
+        .await,
         project_id,
         device_id,
         hostname: d.hostname,

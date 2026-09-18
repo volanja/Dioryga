@@ -147,7 +147,14 @@ async fn 一覧を描く(
     }
 
     render(&MilestonesPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "milestones",
+        )
+        .await,
         project_id,
         project_name: project.name,
         t_title: rust_i18n::t!("milestones.title", locale = l).to_string(),

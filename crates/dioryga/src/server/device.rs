@@ -70,15 +70,6 @@ struct DevicesPage {
     t_title: String,
     t_lead: String,
     t_new: String,
-    t_import: String,
-    t_work_orders: String,
-    t_members: String,
-    t_containers: String,
-    t_components: String,
-    t_ip_addresses: String,
-    t_costs: String,
-    t_milestones: String,
-    t_power: String,
     t_keyword: String,
     t_search: String,
     t_scope_current: String,
@@ -306,21 +297,19 @@ pub async fn list(
     }
 
     render(&DevicesPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "devices",
+        )
+        .await,
         project_id,
         project_name: project.name,
         t_title: rust_i18n::t!("devices.title", locale = l).to_string(),
         t_lead: rust_i18n::t!("devices.lead", locale = l).to_string(),
         t_new: rust_i18n::t!("devices.new", locale = l).to_string(),
-        t_import: rust_i18n::t!("import.title", locale = l).to_string(),
-        t_work_orders: rust_i18n::t!("work_orders.title", locale = l).to_string(),
-        t_members: rust_i18n::t!("members.title", locale = l).to_string(),
-        t_containers: rust_i18n::t!("containers.title", locale = l).to_string(),
-        t_components: rust_i18n::t!("components.title", locale = l).to_string(),
-        t_ip_addresses: rust_i18n::t!("network.ip_addresses", locale = l).to_string(),
-        t_costs: rust_i18n::t!("costs.title", locale = l).to_string(),
-        t_milestones: rust_i18n::t!("milestones.title", locale = l).to_string(),
-        t_power: rust_i18n::t!("power.title", locale = l).to_string(),
         t_keyword: rust_i18n::t!("devices.keyword", locale = l).to_string(),
         t_search: rust_i18n::t!("common.search", locale = l).to_string(),
         t_scope_current: rust_i18n::t!("devices.scope_current", locale = l).to_string(),
@@ -571,7 +560,14 @@ pub async fn detail(
     }
 
     render(&DeviceDetailPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "devices",
+        )
+        .await,
         project_id,
         project_name: project.name,
         device_id: d.id,
@@ -1104,7 +1100,14 @@ async fn フォーム(
     let 新規 = device_id.is_none();
 
     Ok(DeviceFormPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            project,
+            "devices",
+        )
+        .await,
         project_id: project.id,
         project_name: project.name.clone(),
         t_title: if 新規 {

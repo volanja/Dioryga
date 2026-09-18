@@ -121,7 +121,14 @@ pub async fn search(
     hits.truncate(上限);
 
     render(&ComponentsPage {
-        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "projects"),
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "components",
+        )
+        .await,
         project_id,
         project_name: project.name,
         t_title: rust_i18n::t!("components.title", locale = l).to_string(),

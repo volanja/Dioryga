@@ -27,6 +27,24 @@ nav:
   users: Users
   projects: Projects
   account: Account
+  admin_projects: Project admin
+  project_list: Projects
+  warehouse_list: Warehouses
+  user_list: Users
+  password: Password
+  dashboard: Dashboard
+  devices: Devices
+  containers: Racks and furniture
+  ip_addresses: IP addresses
+  components: Components
+  work_orders: Work orders
+  milestones: Milestones
+  costs: Costs
+  power: Power
+  members: Members
+  import: Import
+  stored_devices: Stored devices
+  stored_parts: Parts stock
 
 common:
   logout: Sign out
@@ -220,6 +238,7 @@ import:
 
 password_change:
   title: Change password
+  account_lead: Change the password you sign in with
   lead: You must change your password to continue
   current: Current password
   new: New password

@@ -249,13 +249,22 @@ pub fn router(state: AppState) -> Router {
             "/catalog/vendors",
             get(catalog::vendors).post(catalog::save_vendor),
         )
+        .route("/catalog/vendors/new", get(catalog::new_vendor))
         .route(
             "/catalog/chassis-models",
             get(catalog::chassis_models).post(catalog::create_chassis_model),
         )
         .route(
+            "/catalog/chassis-models/new",
+            get(catalog::new_chassis_model),
+        )
+        .route(
             "/catalog/configurations",
             get(catalog::configurations).post(catalog::create_configuration),
+        )
+        .route(
+            "/catalog/configurations/new",
+            get(catalog::new_configuration),
         )
         .route(
             "/catalog/chassis-models/{id}",
@@ -299,6 +308,7 @@ pub fn router(state: AppState) -> Router {
         .route("/catalog/merge/vendors", post(merge::merge_vendor))
         .route("/catalog/merge/parts", post(merge::merge_part))
         .route("/catalog/parts", get(part::list).post(part::create))
+        .route("/catalog/parts/new", get(part::new_form))
         .route("/catalog/parts/retire", post(part::retire))
         .route("/catalog/parts/{id}", get(part::detail))
         .route("/catalog/parts/{id}/ports", post(part::add_port))
@@ -311,6 +321,7 @@ pub fn router(state: AppState) -> Router {
         )
         // 残りのカタログ（8.7、9.4、8.5）。**取込は無いが手入力はできる**
         .route("/catalog/cables", get(cable::list).post(cable::create))
+        .route("/catalog/cables/new", get(cable::new_form))
         .route("/catalog/cables/retire", post(cable::retire))
         .route("/catalog/cables/{id}", get(cable::detail))
         .route("/catalog/cables/{id}/ends", post(cable::add_end))
@@ -319,8 +330,10 @@ pub fn router(state: AppState) -> Router {
             "/catalog/software",
             get(software_catalog::list).post(software_catalog::create),
         )
+        .route("/catalog/software/new", get(software_catalog::new_form))
         .route("/catalog/software/retire", post(software_catalog::retire))
         .route("/catalog/vlans", get(vlan::list).post(vlan::create))
+        .route("/catalog/vlans/new", get(vlan::new_form))
         .route("/catalog/vlans/retire", post(vlan::retire))
         // 廃番は静的パスで置く。`/catalog/{kind}/retire` は詳細と衝突する
         .route("/catalog/vendors/retire", post(catalog::retire_vendor))

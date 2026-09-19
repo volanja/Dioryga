@@ -7,6 +7,10 @@
     <h1>{{ t_title }}</h1>
     <p class="lead">{{ t_lead }}</p>
   </div>
+  {# 登録は別画面で行う（#124）。一覧が伸びてもスクロールせずに入れる #}
+  {% if can_edit %}
+  <a class="button" href="/catalog/configurations/new">{{ t_new }}</a>
+  {% endif %}
 </div>
 
 {% if let Some(message) = error %}
@@ -63,45 +67,5 @@
 </div>
 {% endif %}
 
-{% if can_edit %}
-<h2 class="section">{{ t_new }}</h2>
-<div class="card">
-  {% if models.is_empty() %}
-  <p class="empty">{{ t_no_model }}</p>
-  {% else %}
-  <form method="post" action="/catalog/configurations" class="form">
-    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
-
-    <label for="chassis_model_id">{{ t_chassis_model }}</label>
-    <select id="chassis_model_id" name="chassis_model_id">
-      {% for m in models %}
-      <option value="{{ m.value }}">{{ m.label }}</option>
-      {% endfor %}
-    </select>
-
-    <label for="name">{{ t_name }}</label>
-    <input type="text" id="name" name="name" required>
-
-    {# 想定消費電力（設計書12.8）。任意だが、入れるなら3つ揃えて入れる #}
-    <label for="current_type">{{ t_current_type }}</label>
-    <select id="current_type" name="current_type">
-      <option value="">{{ t_power_unset }}</option>
-      {% for c in current_types %}
-      <option value="{{ c }}">{{ c }}</option>
-      {% endfor %}
-    </select>
-
-    <label for="assumed_voltage">{{ t_assumed_voltage }}</label>
-    <input type="text" id="assumed_voltage" name="assumed_voltage" inputmode="numeric">
-
-    <label for="assumed_va">{{ t_assumed_va }}</label>
-    <input type="text" id="assumed_va" name="assumed_va" inputmode="numeric">
-    <p class="hint">{{ t_assumed_va_hint }}</p>
-
-    <button type="submit">{{ t_submit }}</button>
-  </form>
-  {% endif %}
-</div>
-{% endif %}
 
 {% endblock %}

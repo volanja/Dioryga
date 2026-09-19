@@ -93,30 +93,22 @@ struct PartsPage {
     t_apply: String,
     t_title: String,
     t_lead: String,
-    t_hybrid_hint: String,
     t_category: String,
     t_vendor: String,
     t_part_number: String,
     t_core_count: String,
     t_capacity_gb: String,
-    t_spec_json: String,
-    t_spec_hint: String,
     t_ports: String,
     t_actions: String,
     t_detail: String,
     t_empty: String,
     t_new: String,
-    t_submit: String,
     t_retire: String,
     t_unretire: String,
     t_retired: String,
     t_referenced: String,
     t_show_retired: String,
-    t_no_vendor: String,
-    t_spec_column_hint: String,
     rows: Vec<PartRow>,
-    vendors: Vec<Labeled>,
-    categories: Vec<&'static str>,
     show_retired: bool,
     can_edit: bool,
     error: Option<String>,
@@ -244,37 +236,29 @@ async fn 一覧を描く(
         t_apply: rust_i18n::t!("catalog.apply", locale = l).to_string(),
         t_title: rust_i18n::t!("parts.title", locale = l).to_string(),
         t_lead: rust_i18n::t!("parts.lead", locale = l).to_string(),
-        t_hybrid_hint: rust_i18n::t!("parts.hybrid_hint", locale = l).to_string(),
         t_category: rust_i18n::t!("parts.category", locale = l).to_string(),
         t_vendor: rust_i18n::t!("catalog.vendor", locale = l).to_string(),
         t_part_number: rust_i18n::t!("parts.part_number", locale = l).to_string(),
         t_core_count: rust_i18n::t!("parts.core_count", locale = l).to_string(),
         t_capacity_gb: rust_i18n::t!("parts.capacity_gb", locale = l).to_string(),
-        t_spec_json: rust_i18n::t!("parts.spec_json", locale = l).to_string(),
-        t_spec_hint: rust_i18n::t!("parts.spec_hint", locale = l).to_string(),
         t_ports: rust_i18n::t!("parts.ports", locale = l).to_string(),
         t_actions: rust_i18n::t!("projects.actions", locale = l).to_string(),
         t_detail: rust_i18n::t!("devices.detail", locale = l).to_string(),
         t_empty: rust_i18n::t!("catalog.empty", locale = l).to_string(),
         t_new: rust_i18n::t!("parts.new", locale = l).to_string(),
-        t_submit: rust_i18n::t!("catalog.submit", locale = l).to_string(),
         t_retire: rust_i18n::t!("catalog.retire", locale = l).to_string(),
         t_unretire: rust_i18n::t!("catalog.unretire", locale = l).to_string(),
         t_retired: rust_i18n::t!("catalog.retired", locale = l).to_string(),
         t_referenced: rust_i18n::t!("catalog.referenced", locale = l).to_string(),
         t_show_retired: rust_i18n::t!("catalog.show_retired", locale = l).to_string(),
-        t_no_vendor: rust_i18n::t!("catalog.no_vendor", locale = l).to_string(),
-        t_spec_column_hint: rust_i18n::t!("parts.spec_column_hint", locale = l).to_string(),
         rows,
-        vendors: 現役のベンダー(&state.db).await?,
-        categories: PART_CATEGORIES.to_vec(),
         show_retired,
         can_edit,
         error,
     })
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct PartForm {
     pub vendor_id: i32,
     #[serde(default)]
@@ -289,6 +273,84 @@ pub struct PartForm {
     pub spec_json: String,
 }
 
+/// 部品の登録画面（#124）。
+#[derive(askama::Template)]
+#[template(path = "catalog_part_form.html")]
+struct PartFormPage {
+    chrome: Chrome,
+    t_title: String,
+    t_back: String,
+    t_hybrid_hint: String,
+    t_category: String,
+    t_vendor: String,
+    t_part_number: String,
+    t_core_count: String,
+    t_capacity_gb: String,
+    t_spec_json: String,
+    t_spec_hint: String,
+    t_spec_column_hint: String,
+    t_no_vendor: String,
+    t_submit: String,
+    vendors: Vec<Labeled>,
+    categories: Vec<&'static str>,
+    // **入力した値を保つ**（#124）
+    v_vendor_id: String,
+    v_category: String,
+    v_part_number: String,
+    v_core_count: String,
+    v_capacity_gb: String,
+    v_spec_json: String,
+    error: Option<String>,
+}
+
+/// 登録画面を描く（#124）。**Viewerは入れない**（18.1）。
+async fn 登録を描く(
+    state: &AppState,
+    current: &CurrentUser,
+    form: &PartForm,
+    error: Option<String>,
+) -> AppResult<Response> {
+    let l = 入場(state, current)?;
+    編集権(state, current).await?;
+
+    render(&PartFormPage {
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "parts"),
+        t_title: rust_i18n::t!("parts.new", locale = l).to_string(),
+        t_back: rust_i18n::t!("parts.back", locale = l).to_string(),
+        t_hybrid_hint: rust_i18n::t!("parts.hybrid_hint", locale = l).to_string(),
+        t_category: rust_i18n::t!("parts.category", locale = l).to_string(),
+        t_vendor: rust_i18n::t!("catalog.vendor", locale = l).to_string(),
+        t_part_number: rust_i18n::t!("parts.part_number", locale = l).to_string(),
+        t_core_count: rust_i18n::t!("parts.core_count", locale = l).to_string(),
+        t_capacity_gb: rust_i18n::t!("parts.capacity_gb", locale = l).to_string(),
+        t_spec_json: rust_i18n::t!("parts.spec_json", locale = l).to_string(),
+        t_spec_hint: rust_i18n::t!("parts.spec_hint", locale = l).to_string(),
+        t_spec_column_hint: rust_i18n::t!("parts.spec_column_hint", locale = l).to_string(),
+        t_no_vendor: rust_i18n::t!("catalog.no_vendor", locale = l).to_string(),
+        t_submit: rust_i18n::t!("catalog.submit", locale = l).to_string(),
+        vendors: 現役のベンダー(&state.db).await?,
+        categories: PART_CATEGORIES.to_vec(),
+        v_vendor_id: if form.vendor_id == 0 {
+            String::new()
+        } else {
+            form.vendor_id.to_string()
+        },
+        v_category: form.category.clone(),
+        v_part_number: form.part_number.clone(),
+        v_core_count: form.core_count.clone(),
+        v_capacity_gb: form.capacity_gb.clone(),
+        v_spec_json: form.spec_json.clone(),
+        error,
+    })
+}
+
+pub async fn new_form(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+) -> AppResult<Response> {
+    登録を描く(&state, &current, &PartForm::default(), None).await
+}
+
 pub async fn create(
     State(state): State<AppState>,
     Extension(current): Extension<CurrentUser>,
@@ -301,20 +363,20 @@ pub async fn create(
     // 型番も製品名と同じ規則で正規化する（18.4、25.2の段階3）
     let part_number = 正規化(&form.part_number);
     if part_number.is_empty() {
-        return 一覧を描く(&state, &current, false, 誤り("parts.error_part_number")).await;
+        return 登録を描く(&state, &current, &form, 誤り("parts.error_part_number")).await;
     }
     // **語彙外は既定へ寄せず拒否する**（Q-21）
     if !PART_CATEGORIES.contains(&form.category.as_str()) {
-        return 一覧を描く(&state, &current, false, 誤り("parts.error_category")).await;
+        return 登録を描く(&state, &current, &form, 誤り("parts.error_category")).await;
     }
 
     let core_count = match 任意の整数(&form.core_count) {
         Ok(v) => v,
-        Err(()) => return 一覧を描く(&state, &current, false, 誤り("parts.error_number")).await,
+        Err(()) => return 登録を描く(&state, &current, &form, 誤り("parts.error_number")).await,
     };
     let capacity_gb = match 任意の整数(&form.capacity_gb) {
         Ok(v) => v,
-        Err(()) => return 一覧を描く(&state, &current, false, 誤り("parts.error_number")).await,
+        Err(()) => return 登録を描く(&state, &current, &form, 誤り("parts.error_number")).await,
     };
 
     // **壊れたJSONは受け付けない。**読めない文字列を溜めると、後から使おうと
@@ -324,7 +386,7 @@ pub async fn create(
         v => match serde_json::from_str::<serde_json::Value>(v) {
             Ok(_) => v.to_owned(),
             Err(_) => {
-                return 一覧を描く(&state, &current, false, 誤り("parts.error_spec_json")).await;
+                return 登録を描く(&state, &current, &form, 誤り("parts.error_spec_json")).await;
             }
         },
     };
@@ -337,33 +399,35 @@ pub async fn create(
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     if 重複.is_some() {
-        return 一覧を描く(&state, &current, false, 誤り("parts.error_duplicate")).await;
+        return 登録を描く(&state, &current, &form, 誤り("parts.error_duplicate")).await;
     }
 
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     let now = Utc::now();
-    tx.insert(part_catalog::ActiveModel {
-        category: Set(form.category.clone()),
-        vendor_id: Set(form.vendor_id),
-        part_number: Set(part_number),
-        core_count: Set(core_count),
-        capacity_gb: Set(capacity_gb),
-        spec_json: Set(spec_json),
-        retired_at: Set(None),
-        created_by: Set(current.user.id),
-        created_at: Set(now),
-        updated_at: Set(now),
-        ..Default::default()
-    })
-    .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let part = tx
+        .insert(part_catalog::ActiveModel {
+            category: Set(form.category.clone()),
+            vendor_id: Set(form.vendor_id),
+            part_number: Set(part_number),
+            core_count: Set(core_count),
+            capacity_gb: Set(capacity_gb),
+            spec_json: Set(spec_json),
+            retired_at: Set(None),
+            created_by: Set(current.user.id),
+            created_at: Set(now),
+            updated_at: Set(now),
+            ..Default::default()
+        })
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     tx.commit()
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
-    Ok(Redirect::to("/catalog/parts").into_response())
+    // **詳細へ進む。**登録したらポートを足す作業が続く（#124）
+    Ok(Redirect::to(&format!("/catalog/parts/{}", part.id)).into_response())
 }
 
 // ---------------------------------------------------------------------------

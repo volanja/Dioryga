@@ -7,6 +7,10 @@
     <h1>{{ t_title }}</h1>
     <p class="lead">{{ t_lead }}</p>
   </div>
+  {# 登録は別画面で行う（#124）。いま見ている種別を引き継ぐ #}
+  {% if can_edit %}
+  <a class="button" href="/catalog/cables/new?kind={{ kind }}">{{ t_new }}</a>
+  {% endif %}
 </div>
 
 <p class="hint">{{ t_v2_hint }}</p>
@@ -82,49 +86,5 @@
 </div>
 {% endif %}
 
-{% if can_edit %}
-<h2 class="section">{{ t_new }}</h2>
-<div class="card">
-  <form method="post" action="/catalog/cables" class="form">
-    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
-    {# いま見ている種別で登録する。欄はそれに合わせて出し分ける #}
-    <input type="hidden" name="cable_kind" value="{{ kind }}">
-
-    <label for="cable_type">{{ t_cable_type }}</label>
-    <input type="text" id="cable_type" name="cable_type" required>
-    <p class="hint">{{ t_cable_type_hint }}</p>
-
-    <label for="length_m">{{ t_length }}</label>
-    <input type="text" id="length_m" name="length_m" inputmode="decimal">
-    <p class="hint">{{ t_length_hint }}</p>
-
-    <label for="color">{{ t_color }}</label>
-    <input type="text" id="color" name="color">
-
-    <label for="vendor_id">{{ t_vendor }}</label>
-    <select id="vendor_id" name="vendor_id">
-      <option value="">{{ t_unset }}</option>
-      {% for v in vendors %}
-      <option value="{{ v.value }}">{{ v.label }}</option>
-      {% endfor %}
-    </select>
-
-    <label for="part_number">{{ t_part_number }}</label>
-    <input type="text" id="part_number" name="part_number">
-
-    {# 電源コードの登録画面にだけ定格の欄を出す（設計書8.7） #}
-    {% if is_power %}
-    <label for="rated_voltage">{{ t_rated_voltage }}</label>
-    <input type="text" id="rated_voltage" name="rated_voltage" inputmode="numeric">
-
-    <label for="rated_current_a">{{ t_rated_current }}</label>
-    <input type="text" id="rated_current_a" name="rated_current_a" inputmode="decimal">
-    <p class="hint">{{ t_rating_hint }}</p>
-    {% endif %}
-
-    <button type="submit">{{ t_submit }}</button>
-  </form>
-</div>
-{% endif %}
 
 {% endblock %}

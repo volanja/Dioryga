@@ -190,8 +190,18 @@ async fn 筐体モデルの種別は表示だけを訳す(db: &DatabaseConnectio
     let (状態, token) = 認証済み(db, &user).await;
     let (_, 一覧) = 取得(状態, "/catalog/chassis-models", &token).await;
     assert!(一覧.contains("<td>サーバー</td>"), "一覧で訳されていません");
-    assert!(一覧.contains(r#"<option value="Server">サーバー</option>"#));
-    assert!(一覧.contains(r#"<option value="KVM">KVM</option>"#));
+
+    // 選択肢は登録画面にある（#124）
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, 登録) = 取得(状態, "/catalog/chassis-models/new", &token).await;
+    assert!(
+        登録.contains(r#"<option value="Server" >サーバー</option>"#),
+        "{登録}"
+    );
+    assert!(
+        登録.contains(r#"<option value="KVM" >KVM</option>"#),
+        "{登録}"
+    );
 
     let (状態, token) = 認証済み(db, &user).await;
     let (_, 詳細) = 取得(状態, &format!("/catalog/chassis-models/{}", m.id), &token).await;
@@ -1661,6 +1671,131 @@ fn 上部メニュー(body: &str) -> &str {
     &body[start..end]
 }
 
+/// **7種すべてで、一覧から登録画面へ入れること**（#124）。
+///
+/// 一覧の下にフォームを置くと、件数が増えるたびに登録までスクロールすることになる。
+async fn 一覧から登録画面へ入れる(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "new-screen@example.com", "Operator").await;
+
+    for (一覧のurl, 登録のurl) in [
+        ("/catalog/vendors", "/catalog/vendors/new"),
+        ("/catalog/chassis-models", "/catalog/chassis-models/new"),
+        ("/catalog/parts", "/catalog/parts/new"),
+        ("/catalog/configurations", "/catalog/configurations/new"),
+        ("/catalog/cables", "/catalog/cables/new?kind=Network"),
+        ("/catalog/software", "/catalog/software/new"),
+        ("/catalog/vlans", "/catalog/vlans/new"),
+    ] {
+        let (状態, token) = 認証済み(db, &user).await;
+        let (status, 一覧) = 取得(状態, 一覧のurl, &token).await;
+        assert_eq!(status, StatusCode::OK, "{一覧のurl}");
+        assert!(
+            一覧.contains(登録のurl),
+            "{一覧のurl}に登録へのリンクがありません"
+        );
+        // **一覧に登録フォームを残さない**（#124）
+        assert!(
+            !一覧.contains(&format!(
+                r#"<form class="card form" method="post" action="{一覧のurl}""#
+            )),
+            "{一覧のurl}にフォームが残っています"
+        );
+
+        let (状態, token) = 認証済み(db, &user).await;
+        let (status, _) = 取得(状態, 登録のurl, &token).await;
+        assert_eq!(status, StatusCode::OK, "{登録のurl}");
+    }
+}
+
+/// **閲覧者には登録へのリンクを出さず、登録画面にも入れないこと**（設計書18.1）。
+async fn 閲覧者は登録画面に入れない(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "viewer-new@example.com", "Viewer").await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, 一覧) = 取得(状態, "/catalog/parts", &token).await;
+    assert!(!一覧.contains("/catalog/parts/new"), "{一覧}");
+
+    for url in [
+        "/catalog/vendors/new",
+        "/catalog/chassis-models/new",
+        "/catalog/parts/new",
+        "/catalog/configurations/new",
+        "/catalog/cables/new",
+        "/catalog/software/new",
+        "/catalog/vlans/new",
+    ] {
+        let (状態, token) = 認証済み(db, &user).await;
+        let (status, _) = 取得(状態, url, &token).await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{url}");
+    }
+}
+
+/// **入力の誤りは、入力値を保ったまま登録画面に返すこと**（#124）。
+///
+/// 一覧へ戻して入力値を捨てると、長いフォームを最初から入れ直すことになる。
+async fn 誤りは入力値を保って登録画面に返る(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "keep-input@example.com", "Operator").await;
+    let v = ベンダー(db, "HPE", user.id).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 筐体モデルを送る(
+        状態,
+        &token,
+        v.id,
+        &[
+            ("model_name", "DL380 Gen11"),
+            ("height_u", "でたらめ"),
+            ("mount_form", "RackU"),
+        ],
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains(r#"action="/catalog/chassis-models""#),
+        "{body}"
+    );
+    // 入れ直させない
+    assert!(body.contains(r#"value="DL380 Gen11""#), "{body}");
+    assert!(body.contains(r#"value="でたらめ""#), "{body}");
+    assert!(
+        body.contains(&format!(
+            r#"<option value="{}" selected>HPE</option>"#,
+            v.id
+        )),
+        "{body}"
+    );
+}
+
+/// **登録に成功したら、続きの作業がある種類は詳細へ進むこと**（#124）。
+async fn 登録後は詳細へ進む(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "after-create@example.com", "Operator").await;
+    let v = ベンダー(db, "Dell", user.id).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 筐体モデルを送る(
+        状態,
+        &token,
+        v.id,
+        &[
+            ("model_name", "PowerEdge R760"),
+            ("height_u", "2"),
+            ("mount_form", "RackU"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let m = 筐体モデル一覧(db).await.pop().unwrap();
+    assert!(body.is_empty() || !body.contains("error"));
+    assert_eq!(m.model_name, "PowerEdge R760");
+
+    // 詳細（スロットを足す画面）へ進む
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, 詳細) = 取得(状態, &format!("/catalog/chassis-models/{}", m.id), &token).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(詳細.contains("PowerEdge R760"), "{詳細}");
+}
+
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, 操作者はカタログを編集できる);
@@ -1670,6 +1805,10 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, ベンダー名を正規化する);
         全検証!(@one $用意, $属性, 参照済みのベンダーは改名できる);
         全検証!(@one $用意, $属性, 筐体モデルを登録できる);
+        全検証!(@one $用意, $属性, 一覧から登録画面へ入れる);
+        全検証!(@one $用意, $属性, 閲覧者は登録画面に入れない);
+        全検証!(@one $用意, $属性, 誤りは入力値を保って登録画面に返る);
+        全検証!(@one $用意, $属性, 登録後は詳細へ進む);
         全検証!(@one $用意, $属性, 筐体モデルの種別は表示だけを訳す);
         全検証!(@one $用意, $属性, 別ベンダーなら同名でも登録できる);
         全検証!(@one $用意, $属性, 製品名を正規化する);

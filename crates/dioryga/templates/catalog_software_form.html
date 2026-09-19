@@ -1,0 +1,53 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+{# 登録は一覧と別の画面で行う（#124） #}
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/catalog/software">{{ t_back }}</a></p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_sbom_hint }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<form class="card form" method="post" action="/catalog/software">
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+  <label for="name">{{ t_name }}</label>
+  <input type="text" id="name" name="name" value="{{ v_name }}" required>
+
+  {# バージョンごとに別レコード（設計書9.4） #}
+  <label for="version">{{ t_version }}</label>
+  <input type="text" id="version" name="version" value="{{ v_version }}" required>
+
+  <label for="category">{{ t_category }}</label>
+  <select id="category" name="category">
+    {% for c in categories %}
+    <option value="{{ c }}" {% if *c == v_category %}selected{% endif %}>{{ c }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="vendor_id">{{ t_vendor }}</label>
+  <select id="vendor_id" name="vendor_id">
+    <option value="">{{ t_no_vendor }}</option>
+    {% for v in vendors %}
+    <option value="{{ v.value }}" {% if v.value == v_vendor_id %}selected{% endif %}>{{ v.label }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="purl">{{ t_purl }}</label>
+  <input type="text" id="purl" name="purl" value="{{ v_purl }}">
+  <p class="hint">{{ t_purl_hint }}</p>
+
+  <label for="license_expression">{{ t_license }}</label>
+  <input type="text" id="license_expression" name="license_expression" value="{{ v_license }}">
+
+  <button type="submit">{{ t_submit }}</button>
+</form>
+
+{% endblock %}

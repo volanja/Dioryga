@@ -7,6 +7,10 @@
     <h1>{{ t_title }}</h1>
     <p class="lead">{{ t_lead }}</p>
   </div>
+  {# 登録は別画面で行う（#124）。一覧が伸びてもスクロールせずに入れる #}
+  {% if can_edit %}
+  <a class="button" href="/catalog/vlans/new">{{ t_new }}</a>
+  {% endif %}
 </div>
 
 {# 同じタグは登録できる。拠点が違えば同じVLAN 100が別物として存在する #}
@@ -72,35 +76,5 @@
 </div>
 {% endif %}
 
-{% if can_edit %}
-<h2 class="section">{{ t_new }}</h2>
-<div class="card">
-  <form method="post" action="/catalog/vlans" class="form">
-    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
-
-    <label for="vlan_tag">{{ t_tag }}</label>
-    <input type="text" id="vlan_tag" name="vlan_tag" inputmode="numeric" required>
-    <p class="hint">{{ t_tag_hint }}</p>
-
-    <label for="name">{{ t_name }}</label>
-    <input type="text" id="name" name="name" required>
-
-    {# zone はネットワーク側の属性。INTERFACE_ROLE とは別軸（設計書8.5） #}
-    <label for="zone">{{ t_zone }}</label>
-    <select id="zone" name="zone">
-      <option value="">{{ t_unset }}</option>
-      {% for z in zones %}
-      <option value="{{ z }}">{{ z }}</option>
-      {% endfor %}
-    </select>
-    <p class="hint">{{ t_zone_hint }}</p>
-
-    <label for="description">{{ t_description }}</label>
-    <input type="text" id="description" name="description">
-
-    <button type="submit">{{ t_submit }}</button>
-  </form>
-</div>
-{% endif %}
 
 {% endblock %}

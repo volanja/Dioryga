@@ -1,0 +1,58 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+{# 登録は一覧と別の画面で行う（#124）。種別は一覧から引き継ぐ #}
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/catalog/cables?kind={{ kind }}">{{ t_back }}</a></p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ kind }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<form class="card form" method="post" action="/catalog/cables">
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+  {# いま見ている種別で登録する。欄はそれに合わせて出し分ける #}
+  <input type="hidden" name="cable_kind" value="{{ kind }}">
+
+  <label for="cable_type">{{ t_cable_type }}</label>
+  <input type="text" id="cable_type" name="cable_type" value="{{ v_cable_type }}" required>
+  <p class="hint">{{ t_cable_type_hint }}</p>
+
+  <label for="length_m">{{ t_length }}</label>
+  <input type="text" id="length_m" name="length_m" inputmode="decimal" value="{{ v_length_m }}">
+  <p class="hint">{{ t_length_hint }}</p>
+
+  <label for="color">{{ t_color }}</label>
+  <input type="text" id="color" name="color" value="{{ v_color }}">
+
+  <label for="vendor_id">{{ t_vendor }}</label>
+  <select id="vendor_id" name="vendor_id">
+    <option value="">{{ t_unset }}</option>
+    {% for v in vendors %}
+    <option value="{{ v.value }}" {% if v.value == v_vendor_id %}selected{% endif %}>{{ v.label }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="part_number">{{ t_part_number }}</label>
+  <input type="text" id="part_number" name="part_number" value="{{ v_part_number }}">
+
+  {# 電源コードの登録画面にだけ定格の欄を出す（設計書8.7） #}
+  {% if is_power %}
+  <label for="rated_voltage">{{ t_rated_voltage }}</label>
+  <input type="text" id="rated_voltage" name="rated_voltage" inputmode="numeric" value="{{ v_rated_voltage }}">
+
+  <label for="rated_current_a">{{ t_rated_current }}</label>
+  <input type="text" id="rated_current_a" name="rated_current_a" inputmode="decimal" value="{{ v_rated_current_a }}">
+  <p class="hint">{{ t_rating_hint }}</p>
+  {% endif %}
+
+  <button type="submit">{{ t_submit }}</button>
+</form>
+
+{% endblock %}

@@ -130,14 +130,20 @@ async fn 種別で一覧と入力欄が分かれる(db: &DatabaseConnection) {
     let (_, body) = 取得(状態, "/catalog/cables?kind=Network", &token).await;
     assert!(body.contains("OM4-LC-LC"));
     assert!(!body.contains("C13-NEMA"), "電源が混ざっている");
-    // **光ファイバの登録画面に定格電流の欄を出さない**
-    assert!(!body.contains("定格電流"), "定格の欄が出ている");
 
     let (状態, token) = 認証済み(db, &user).await;
     let (_, body) = 取得(状態, "/catalog/cables?kind=Power", &token).await;
     assert!(body.contains("C13-NEMA"));
     assert!(!body.contains("OM4-LC-LC"), "ネットワークが混ざっている");
-    assert!(body.contains("定格電流"));
+
+    // **登録画面は種別を引き継ぎ、定格の欄は電源のときだけ出す**（#124）
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, 光) = 取得(状態, "/catalog/cables/new?kind=Network", &token).await;
+    assert!(!光.contains("定格電流"), "定格の欄が出ている: {光}");
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, 電源) = 取得(状態, "/catalog/cables/new?kind=Power", &token).await;
+    assert!(電源.contains("定格電流"), "{電源}");
 }
 
 /// **端ごとに異なるコネクタを持てること**（設計書8.7）。

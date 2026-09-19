@@ -13,6 +13,9 @@ pub struct Model {
     pub id: i32,
     pub name: String,
     pub address: String,
+    /// null = 現役。**物理削除できない倉庫の終わり方**（#133）。所在の履歴が
+    /// 指し続けるため、使ったことのある倉庫は消さずに廃止する。
+    pub retired_at: Option<DateTimeUtc>,
     pub created_by: i32,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,

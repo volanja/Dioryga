@@ -7,11 +7,24 @@
     <h1>{{ t_title }}</h1>
     <p class="lead">{{ t_lead }}</p>
   </div>
+  {# 登録は別画面で行う（#133、共有カタログと同じ作り） #}
+  {% if can_edit %}
+  <a class="button" href="/warehouses/new">{{ t_new }}</a>
+  {% endif %}
 </div>
 
 {% if error.is_some() %}
 <p class="error">{{ error.as_deref().unwrap() }}</p>
 {% endif %}
+
+{# 既定では廃止を隠す（#133。カタログの廃番と同じ、設計書18.5） #}
+<form class="filters" method="get" action="/warehouses">
+  <label class="check">
+    <input type="checkbox" name="retired" value="1" {% if show_retired %}checked{% endif %}>
+    {{ t_show_retired }}
+  </label>
+  <button type="submit">{{ t_apply }}</button>
+</form>
 
 {% if rows.is_empty() %}
 <p class="empty">{{ t_empty }}</p>
@@ -24,54 +37,40 @@
       <th>{{ t_address }}</th>
       <th>{{ t_devices }}</th>
       <th>{{ t_parts }}</th>
-      <th>{{ t_actions }}</th>
+      {% if can_edit %}<th>{{ t_actions }}</th>{% endif %}
     </tr>
   </thead>
   <tbody>
     {% for row in rows %}
-    <tr>
-      <td>{{ row.name }}</td>
+    <tr class="{% if row.retired %}is-disabled{% endif %}">
+      <td>
+        {{ row.name }}
+        {% if row.retired %}<span class="badge">{{ t_retired }}</span>{% endif %}
+      </td>
       <td>{{ row.address }}</td>
       {# 件数は本文と同じ色にする。操作のリンクと同じ色だと数字として読みにくい #}
       <td><a class="count" href="/warehouses/{{ row.id }}/devices">{{ row.devices }}</a></td>
       <td><a class="count" href="/warehouses/{{ row.id }}/parts">{{ row.parts }}</a></td>
+      {% if can_edit %}
       <td class="actions">
-        <a href="/warehouses/{{ row.id }}/devices">{{ t_open }}</a>
-      </td>
-    </tr>
-    {% if can_edit %}
-    {# 編集は行の直下に置く。倉庫は項目が2つしかなく、別画面にするほどではない #}
-    <tr>
-      <td colspan="5">
-        <form class="inline form" method="post" action="/warehouses/{{ row.id }}">
+        {% if row.retired %}
+        {# 廃止の取り消し（#133）。カタログの「廃番を取り消す」と同じ #}
+        <form method="post" action="/warehouses/{{ row.id }}/unretire" class="inline">
           <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
-          <input type="text" name="name" value="{{ row.name }}" required>
-          <input type="text" name="address" value="{{ row.address }}">
-          <button type="submit" class="ghost">{{ t_edit }}</button>
+          <button type="submit" class="ghost">{{ t_unretire }}</button>
         </form>
+        {% else %}
+        <a href="/warehouses/{{ row.id }}/edit">{{ t_edit }}</a>
+        {# 削除は確認画面を挟む。一度も使っていない倉庫は行ごと消える #}
+        <a href="/warehouses/{{ row.id }}/delete">{{ t_delete }}</a>
+        {% endif %}
       </td>
+      {% endif %}
     </tr>
-    {% endif %}
     {% endfor %}
   </tbody>
 </table>
 </div>
-{% endif %}
-
-{% if can_edit %}
-<form class="card form" method="post" action="/warehouses">
-  <h2>{{ t_new }}</h2>
-  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
-  <label>
-    {{ t_name }}
-    <input type="text" name="name" required>
-  </label>
-  <label>
-    {{ t_address }}
-    <input type="text" name="address">
-  </label>
-  <button type="submit">{{ t_submit }}</button>
-</form>
 {% endif %}
 
 {% endblock %}

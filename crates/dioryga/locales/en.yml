@@ -825,6 +825,17 @@ dashboard:
   none: Nothing to show
 
 warehouses:
+  edit_title: Edit warehouse
+  back: Back to warehouses
+  delete: Delete
+  delete_title: Delete warehouse
+  delete_in_use: This warehouse still holds devices or parts. Move them out before deleting it
+  delete_hard: This warehouse has never been used, so the row is removed. This cannot be undone
+  delete_retire: This warehouse has been used before, so it is retired instead. Its location history stays, and you can undo this later
+  retired: Retired
+  unretire: Undo retirement
+  show_retired: Include retired
+  error_in_use: A warehouse that still holds devices or parts cannot be deleted
   title: Warehouses
   lead: Where devices and parts not assigned to a project are kept. Shared across projects
   name: Warehouse
@@ -844,7 +855,7 @@ warehouses:
   to: To
   current: Current
   unknown: Referenced record not found
-  edit: Update
+  edit: Edit
   new: Add a warehouse
   empty: No warehouses yet
 

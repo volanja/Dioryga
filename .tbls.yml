@@ -356,6 +356,8 @@ comments:
   # --- 物理設置 -------------------------------------------------------------
   - table: warehouse
     tableComment: 倉庫。プロジェクトを横断する未割当機器の置き場（12章）。
+    columnComments:
+      retired_at: null = 現役。所在の履歴が指し続けるため、使ったことのある倉庫は消さず廃止する（#133）
   - table: mount_container
     tableComment: 機器を載せる什器（12章）。
     columnComments:

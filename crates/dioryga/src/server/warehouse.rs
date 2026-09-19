@@ -34,7 +34,7 @@
 //! **プロジェクトと倉庫の間で機器を動かす導線はここに置かない。**11章の変更管理
 //! チケット（Transfer/Relocation）の担当である。
 
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::{Extension, Form};
 use chrono::Utc;
@@ -64,6 +64,8 @@ struct WarehouseRow {
     id: i32,
     name: String,
     address: String,
+    /// 廃止済み（#133）。**既定の一覧からは隠す**（カタログの廃番と同じ、18.5）。
+    retired: bool,
     /// 保管中の機器の台数。**空の倉庫と、まだ数えていない倉庫を区別する。**
     devices: usize,
     /// 保管中のパーツの点数。
@@ -81,12 +83,16 @@ struct WarehousesPage {
     t_devices: String,
     t_parts: String,
     t_actions: String,
-    t_open: String,
     t_empty: String,
     t_new: String,
-    t_submit: String,
     t_edit: String,
+    t_delete: String,
+    t_retired: String,
+    t_unretire: String,
+    t_show_retired: String,
+    t_apply: String,
     rows: Vec<WarehouseRow>,
+    show_retired: bool,
     can_edit: bool,
     error: Option<String>,
 }
@@ -94,13 +100,26 @@ struct WarehousesPage {
 pub async fn list(
     State(state): State<AppState>,
     Extension(current): Extension<CurrentUser>,
+    Query(query): Query<ListQuery>,
 ) -> AppResult<Response> {
-    一覧を描く(&state, &current, None).await
+    一覧を描く(&state, &current, 廃止を含む(&query), None).await
+}
+
+fn 廃止を含む(query: &ListQuery) -> bool {
+    query.retired.as_deref() == Some("1")
+}
+
+/// 一覧の絞り込み。**既定では廃止を隠す**（18.5と同じ）。
+#[derive(Debug, Default, Deserialize)]
+pub struct ListQuery {
+    #[serde(default)]
+    pub retired: Option<String>,
 }
 
 async fn 一覧を描く(
     state: &AppState,
     current: &CurrentUser,
+    show_retired: bool,
     error: Option<String>,
 ) -> AppResult<Response> {
     let l = 入場(state, current).await?;
@@ -119,7 +138,9 @@ async fn 一覧を描く(
 
     let rows = list
         .into_iter()
+        .filter(|w| show_retired || w.retired_at.is_none())
         .map(|w| WarehouseRow {
+            retired: w.retired_at.is_some(),
             devices: 機器.iter().filter(|a| a.location_id == Some(w.id)).count(),
             parts: パーツ
                 .iter()
@@ -140,18 +161,256 @@ async fn 一覧を描く(
         t_devices: rust_i18n::t!("warehouses.devices", locale = l).to_string(),
         t_parts: rust_i18n::t!("warehouses.parts", locale = l).to_string(),
         t_actions: rust_i18n::t!("projects.actions", locale = l).to_string(),
-        t_open: rust_i18n::t!("workspace.open", locale = l).to_string(),
         t_empty: rust_i18n::t!("warehouses.empty", locale = l).to_string(),
         t_new: rust_i18n::t!("warehouses.new", locale = l).to_string(),
-        t_submit: rust_i18n::t!("common.save", locale = l).to_string(),
         t_edit: rust_i18n::t!("warehouses.edit", locale = l).to_string(),
+        t_delete: rust_i18n::t!("warehouses.delete", locale = l).to_string(),
+        t_retired: rust_i18n::t!("warehouses.retired", locale = l).to_string(),
+        t_unretire: rust_i18n::t!("warehouses.unretire", locale = l).to_string(),
+        t_show_retired: rust_i18n::t!("warehouses.show_retired", locale = l).to_string(),
+        t_apply: rust_i18n::t!("catalog.apply", locale = l).to_string(),
         rows,
+        show_retired,
         can_edit,
         error,
     })
 }
 
-#[derive(Debug, Deserialize)]
+/// 登録・編集の画面（#133）。共有カタログ（#124）と同じく一覧から分ける。
+#[derive(askama::Template)]
+#[template(path = "warehouse_form.html")]
+struct WarehouseFormPage {
+    chrome: Chrome,
+    t_title: String,
+    t_back: String,
+    t_name: String,
+    t_address: String,
+    t_submit: String,
+    /// 送り先。登録は `/warehouses`、編集は `/warehouses/{id}`。
+    action: String,
+    v_name: String,
+    v_address: String,
+    error: Option<String>,
+}
+
+/// 削除の確認画面（#133）。**何が起きるかを示してから実行する。**
+#[derive(askama::Template)]
+#[template(path = "warehouse_delete.html")]
+struct WarehouseDeletePage {
+    chrome: Chrome,
+    t_title: String,
+    t_back: String,
+    t_lead: String,
+    t_submit: String,
+    t_cancel: String,
+    warehouse_id: i32,
+    name: String,
+    /// 実行できるか。中にものが残っていれば押せない。
+    can_delete: bool,
+}
+
+/// 「削除」を押したときに何が起きるか（#133）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum 削除の結末 {
+    /// 現在、機器・部品がある。**できない。**
+    使用中,
+    /// 空で、所在の履歴にも一度も現れない。**行ごと消せる。**
+    物理削除,
+    /// 空だが過去に使った。**廃止にする**（履歴が指し続けるため消せない。24.5）。
+    廃止,
+}
+
+/// 倉庫の状態を調べる（#133）。
+///
+/// **見るのは所在の2表だけ。**`location_type="Warehouse"` の行が、いま開いて
+/// いるか（`to_date IS NULL`）、過去に閉じられているかで結末が決まる。
+async fn 削除の判定(state: &AppState, id: i32) -> AppResult<削除の結末> {
+    let 機器 = device_assignment::Entity::find()
+        .filter(device_assignment::Column::LocationType.eq(WAREHOUSE))
+        .filter(device_assignment::Column::LocationId.eq(id))
+        .all(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let 部品 = part_instance_location::Entity::find()
+        .filter(part_instance_location::Column::LocationType.eq(WAREHOUSE))
+        .filter(part_instance_location::Column::LocationId.eq(id))
+        .all(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    if 機器.iter().any(|a| a.to_date.is_none()) || 部品.iter().any(|p| p.to_date.is_none()) {
+        return Ok(削除の結末::使用中);
+    }
+    if 機器.is_empty() && 部品.is_empty() {
+        return Ok(削除の結末::物理削除);
+    }
+    Ok(削除の結末::廃止)
+}
+
+async fn 入力画面を描く(
+    state: &AppState,
+    current: &CurrentUser,
+    id: Option<i32>,
+    form: &WarehouseForm,
+    error: Option<String>,
+) -> AppResult<Response> {
+    let l = 入場(state, current).await?;
+    編集権(state, current).await?;
+
+    render(&WarehouseFormPage {
+        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "warehouses"),
+        t_title: match id {
+            Some(_) => rust_i18n::t!("warehouses.edit_title", locale = l).to_string(),
+            None => rust_i18n::t!("warehouses.new", locale = l).to_string(),
+        },
+        t_back: rust_i18n::t!("warehouses.back", locale = l).to_string(),
+        t_name: rust_i18n::t!("warehouses.name", locale = l).to_string(),
+        t_address: rust_i18n::t!("warehouses.address", locale = l).to_string(),
+        t_submit: rust_i18n::t!("common.save", locale = l).to_string(),
+        action: match id {
+            Some(id) => format!("/warehouses/{id}"),
+            None => "/warehouses".to_owned(),
+        },
+        v_name: form.name.clone(),
+        v_address: form.address.clone(),
+        error,
+    })
+}
+
+pub async fn new_form(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+) -> AppResult<Response> {
+    入力画面を描く(&state, &current, None, &WarehouseForm::default(), None).await
+}
+
+pub async fn edit_form(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path(id): Path<i32>,
+) -> AppResult<Response> {
+    let w = 倉庫(&state, id).await?;
+    let form = WarehouseForm {
+        name: w.name,
+        address: w.address,
+    };
+    入力画面を描く(&state, &current, Some(id), &form, None).await
+}
+
+/// 削除の確認画面（#133）。
+pub async fn delete_form(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path(id): Path<i32>,
+) -> AppResult<Response> {
+    let l = 入場(&state, &current).await?;
+    編集権(&state, &current).await?;
+    let w = 倉庫(&state, id).await?;
+    let 結末 = 削除の判定(&state, id).await?;
+
+    render(&WarehouseDeletePage {
+        chrome: Chrome::new(&current.user, current.csrf_token.clone(), "warehouses"),
+        t_title: rust_i18n::t!("warehouses.delete_title", locale = l).to_string(),
+        t_back: rust_i18n::t!("warehouses.back", locale = l).to_string(),
+        t_lead: match 結末 {
+            削除の結末::使用中 => {
+                rust_i18n::t!("warehouses.delete_in_use", locale = l).to_string()
+            }
+            削除の結末::物理削除 => {
+                rust_i18n::t!("warehouses.delete_hard", locale = l).to_string()
+            }
+            削除の結末::廃止 => {
+                rust_i18n::t!("warehouses.delete_retire", locale = l).to_string()
+            }
+        },
+        t_submit: rust_i18n::t!("warehouses.delete", locale = l).to_string(),
+        t_cancel: rust_i18n::t!("warehouses.back", locale = l).to_string(),
+        warehouse_id: id,
+        name: w.name,
+        can_delete: 結末 != 削除の結末::使用中,
+    })
+}
+
+/// 削除を実行する（#133）。
+///
+/// **中にものが残っていればできない。**空でも、過去に使った倉庫は廃止に留める
+/// ——所在の履歴が指し続けており、消すと参照先を失う（24.5）。
+pub async fn delete(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path(id): Path<i32>,
+) -> AppResult<Response> {
+    let l = 入場(&state, &current).await?;
+    編集権(&state, &current).await?;
+    let w = 倉庫(&state, id).await?;
+
+    let 結末 = 削除の判定(&state, id).await?;
+    if 結末 == 削除の結末::使用中 {
+        let 誤り = rust_i18n::t!("warehouses.error_in_use", locale = l).to_string();
+        return 一覧を描く(&state, &current, false, Some(誤り)).await;
+    }
+
+    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    match 結末 {
+        削除の結末::物理削除 => tx
+            .delete(w.clone())
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?,
+        _ => {
+            tx.update(
+                &w,
+                warehouse::ActiveModel {
+                    id: Set(id),
+                    retired_at: Set(Some(Utc::now())),
+                    updated_at: Set(Utc::now()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+        }
+    }
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    Ok(Redirect::to("/warehouses").into_response())
+}
+
+/// 廃止を取り消す（#133）。カタログの「廃番を取り消す」（18.5）と同じ。
+pub async fn unretire(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path(id): Path<i32>,
+) -> AppResult<Response> {
+    入場(&state, &current).await?;
+    編集権(&state, &current).await?;
+    let w = 倉庫(&state, id).await?;
+
+    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.update(
+        &w,
+        warehouse::ActiveModel {
+            id: Set(id),
+            retired_at: Set(None),
+            updated_at: Set(Utc::now()),
+            ..Default::default()
+        },
+    )
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    Ok(Redirect::to("/warehouses?retired=1").into_response())
+}
+
+#[derive(Debug, Default, Deserialize)]
 pub struct WarehouseForm {
     #[serde(default)]
     pub name: String,
@@ -170,7 +429,7 @@ pub async fn create(
     let name = 正規化(&form.name);
     if name.is_empty() {
         let 誤り = rust_i18n::t!("catalog.error_name", locale = l).to_string();
-        return 一覧を描く(&state, &current, Some(誤り)).await;
+        return 入力画面を描く(&state, &current, None, &form, Some(誤り)).await;
     }
 
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
@@ -212,7 +471,7 @@ pub async fn update(
     let name = 正規化(&form.name);
     if name.is_empty() {
         let 誤り = rust_i18n::t!("catalog.error_name", locale = l).to_string();
-        return 一覧を描く(&state, &current, Some(誤り)).await;
+        return 入力画面を描く(&state, &current, Some(id), &form, Some(誤り)).await;
     }
 
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))

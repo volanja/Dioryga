@@ -297,7 +297,15 @@ pub fn router(state: AppState) -> Router {
         )
         // 倉庫領域（設計書16.1のC領域）。プロジェクトを横断する
         .route("/warehouses", get(warehouse::list).post(warehouse::create))
+        .route("/warehouses/new", get(warehouse::new_form))
         .route("/warehouses/{id}", post(warehouse::update))
+        .route("/warehouses/{id}/edit", get(warehouse::edit_form))
+        // 削除は確認画面を挟む（#133）。GETで何が起きるかを示し、POSTで実行する
+        .route(
+            "/warehouses/{id}/delete",
+            get(warehouse::delete_form).post(warehouse::delete),
+        )
+        .route("/warehouses/{id}/unretire", post(warehouse::unretire))
         .route("/warehouses/{id}/devices", get(warehouse::devices))
         .route(
             "/warehouses/{id}/devices/{device_id}",

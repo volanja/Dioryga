@@ -28,6 +28,7 @@ mod m20260906_000003_add_cable_rating;
 // マイグレーションを足しても対象がずれない（#125、#120）
 pub mod m20260916_000001_uppercase_device_category;
 mod m20260919_000001_add_user_theme;
+mod m20260919_000002_add_warehouse_retired_at;
 
 pub struct Migrator;
 
@@ -54,6 +55,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260906_000003_add_cable_rating::Migration),
             Box::new(m20260916_000001_uppercase_device_category::Migration),
             Box::new(m20260919_000001_add_user_theme::Migration),
+            Box::new(m20260919_000002_add_warehouse_retired_at::Migration),
         ]
     }
 }

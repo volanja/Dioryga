@@ -115,6 +115,24 @@ async fn 知らない倉庫はエラー(db: &DatabaseConnection) {
     assert_eq!(report.count(Outcome::Error), 1, "{report}");
 }
 
+/// **廃止した倉庫は置き場にできないこと**（#133）。
+///
+/// 廃止は「もう使わない」という表明であり、取込から入れられると意味がない。
+async fn 廃止した倉庫はエラー(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "廃止倉庫").await;
+    let _ = 機器(db, 場.project.id, "web01", Some("SN-1")).await;
+
+    let mut w: warehouse::ActiveModel = 場.warehouse.clone().into();
+    w.retired_at = Set(Some(Utc::now()));
+    w.update(db).await.unwrap();
+
+    let rows = placement::parse_assignments(&所属csv(&[",,web01,,Warehouse,本社倉庫"])).unwrap();
+    let report = placement::assignments_dry_run(db, 場.project.id, &rows)
+        .await
+        .unwrap();
+    assert_eq!(report.count(Outcome::Error), 1, "{report}");
+}
+
 /// **`Warehouse` に倉庫名が無ければエラー。**どこへ入れるか決められない。
 async fn 倉庫名が無ければエラー(db: &DatabaseConnection) {
     let 場 = 舞台(db, "倉庫名なし").await;
@@ -551,6 +569,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 廃棄は参照先を持たない);
         全検証!(@one $用意, $属性, 他プロジェクトへは移せない);
         全検証!(@one $用意, $属性, 知らない倉庫はエラー);
+        全検証!(@one $用意, $属性, 廃止した倉庫はエラー);
         全検証!(@one $用意, $属性, 倉庫名が無ければエラー);
         全検証!(@one $用意, $属性, 所属は二度流しても増えない);
         全検証!(@one $用意, $属性, 知らない機器はエラー);

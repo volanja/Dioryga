@@ -121,8 +121,230 @@ async fn 名前は必須(db: &DatabaseConnection) {
         &[("name", "  "), ("address", "")],
     )
     .await;
-    assert_eq!(status, StatusCode::OK, "エラーは一覧に戻して表示する");
+    assert_eq!(status, StatusCode::OK, "エラーは登録画面に戻して表示する");
     assert_eq!(warehouse::Entity::find().count(db).await.unwrap(), 1);
+}
+
+/// **一覧に入力欄を出さず、操作は編集と削除だけであること**（#133）。
+///
+/// 行内編集は視認性を損ねる。「開く」は件数を押せば足りるので置かない。
+async fn 一覧は編集と削除のリンクだけ(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "wh-actions@example.com", "Operator").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, "/warehouses", &token).await;
+    let 本文 = 本文だけ(&body).to_owned();
+
+    assert!(
+        !本文.contains(r#"<input type="text" name="name""#),
+        "行内の入力欄が残っています: {本文}"
+    );
+    assert!(
+        本文.contains(&format!(r#"href="/warehouses/{}/edit""#, 場.warehouse.id)),
+        "{本文}"
+    );
+    assert!(
+        本文.contains(&format!(r#"href="/warehouses/{}/delete""#, 場.warehouse.id)),
+        "{本文}"
+    );
+    assert!(本文.contains(r#"href="/warehouses/new""#), "{本文}");
+    assert!(!本文.contains(">開く<"), "{本文}");
+}
+
+/// **閲覧者には編集・削除を出さず、画面にも入れないこと**（設計書18.1と同じ条件）。
+async fn 閲覧者は編集画面に入れない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "wh-viewer-edit@example.com", "Viewer").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, "/warehouses", &token).await;
+    assert!(!本文だけ(&body).contains("/edit"), "{body}");
+
+    for uri in [
+        "/warehouses/new".to_owned(),
+        format!("/warehouses/{}/edit", 場.warehouse.id),
+        format!("/warehouses/{}/delete", 場.warehouse.id),
+    ] {
+        let (状態, token) = 認証済み(db, &場.user).await;
+        let (status, _) = 取得(状態, &uri, &token).await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{uri}");
+    }
+}
+
+/// **編集画面で名前と所在地を直せること**（#133）。
+async fn 編集画面で直せる(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "wh-edit@example.com", "Operator").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 取得(
+        状態,
+        &format!("/warehouses/{}/edit", 場.warehouse.id),
+        &token,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains(r#"value="本社倉庫""#),
+        "今の値が入っていません: {body}"
+    );
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 送信(
+        状態,
+        &format!("/warehouses/{}", 場.warehouse.id),
+        &token,
+        &[("name", "本社倉庫（西）"), ("address", "川崎")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let 後 = warehouse::Entity::find_by_id(場.warehouse.id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    // 名前は18.4で正規化される（全角の括弧は半角になる）
+    assert_eq!(後.name, "本社倉庫(西)");
+    assert_eq!(後.address, "川崎");
+}
+
+/// **中にものが残っている倉庫は削除できないこと**（#133）。
+async fn 使用中の倉庫は削除できない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "wh-in-use@example.com", "Operator").await;
+    let d = 機器(db, "stored-001", "running").await;
+    倉庫へ(db, d.id, 場.warehouse.id, 3).await;
+
+    // 確認画面は開くが、実行のボタンは出ない
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 取得(
+        状態,
+        &format!("/warehouses/{}/delete", 場.warehouse.id),
+        &token,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("払い出してから"), "{body}");
+    assert!(
+        !body.contains(r#"<button type="submit" class="ghost danger">"#),
+        "{body}"
+    );
+
+    // 直接送っても拒否する
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 送信(
+        状態,
+        &format!("/warehouses/{}/delete", 場.warehouse.id),
+        &token,
+        &[],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("残っている倉庫は削除できません"), "{body}");
+    assert_eq!(warehouse::Entity::find().count(db).await.unwrap(), 1);
+}
+
+/// **一度も使っていない倉庫は行ごと消えること**（#133）。
+async fn 未使用の倉庫は物理削除される(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "wh-hard-delete@example.com", "Operator").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, 確認) = 取得(
+        状態,
+        &format!("/warehouses/{}/delete", 場.warehouse.id),
+        &token,
+    )
+    .await;
+    assert!(確認.contains("行ごと消えます"), "{確認}");
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 送信(
+        状態,
+        &format!("/warehouses/{}/delete", 場.warehouse.id),
+        &token,
+        &[],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(warehouse::Entity::find().count(db).await.unwrap(), 0);
+}
+
+/// **過去に使った倉庫は廃止になり、履歴は残ること**（#133、設計書24.5）。
+///
+/// 所在の履歴が `location_type="Warehouse"` で指し続けるため、消すと参照先を失う。
+async fn 使用歴のある倉庫は廃止になる(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "wh-retire@example.com", "Operator").await;
+    let d = 機器(db, "moved-out-001", "running").await;
+    // 倉庫にいた期間は閉じている（いまは空）
+    device_assignment::ActiveModel {
+        device_id: Set(d.id),
+        location_type: Set("Warehouse".to_owned()),
+        location_id: Set(Some(場.warehouse.id)),
+        work_order_id: Set(None),
+        from_date: Set(Utc::now() - Duration::days(60)),
+        to_date: Set(Some(Utc::now() - Duration::days(10))),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, 確認) = 取得(
+        状態,
+        &format!("/warehouses/{}/delete", 場.warehouse.id),
+        &token,
+    )
+    .await;
+    assert!(確認.contains("廃止"), "{確認}");
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 送信(
+        状態,
+        &format!("/warehouses/{}/delete", 場.warehouse.id),
+        &token,
+        &[],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    // 行は残り、履歴も残る
+    let 後 = warehouse::Entity::find_by_id(場.warehouse.id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(後.retired_at.is_some(), "廃止になっていません");
+    assert_eq!(
+        device_assignment::Entity::find().count(db).await.unwrap(),
+        1,
+        "所在の履歴が消えています"
+    );
+
+    // 既定の一覧からは消え、切り替えると出る
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, 既定) = 取得(状態, "/warehouses", &token).await;
+    assert!(!本文だけ(&既定).contains("本社倉庫"), "{既定}");
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, 廃止込み) = 取得(状態, "/warehouses?retired=1", &token).await;
+    assert!(本文だけ(&廃止込み).contains("本社倉庫"), "{廃止込み}");
+    assert!(廃止込み.contains("廃止済み"), "{廃止込み}");
+
+    // 取り消せる
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 送信(
+        状態,
+        &format!("/warehouses/{}/unretire", 場.warehouse.id),
+        &token,
+        &[],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let 戻り = warehouse::Entity::find_by_id(場.warehouse.id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(戻り.retired_at.is_none(), "廃止が取り消せていません");
 }
 
 // ---------------------------------------------------------------------------
@@ -512,6 +734,14 @@ fn cookie_header(token: &str) -> String {
     format!("{}={token}", session::COOKIE_NAME)
 }
 
+/// メニューを除いた本文。左メニューにも倉庫へのリンクがあるため分ける。
+fn 本文だけ(body: &str) -> &str {
+    let start = body
+        .find(r#"<main class="content">"#)
+        .expect("本文がありません");
+    &body[start..]
+}
+
 async fn 取得(state: AppState, uri: &str, token: &str) -> (StatusCode, String) {
     let res = router(state)
         .oneshot(
@@ -570,6 +800,12 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 閲覧者は登録できない);
         全検証!(@one $用意, $属性, 作業者は登録できる);
         全検証!(@one $用意, $属性, 名前は必須);
+        全検証!(@one $用意, $属性, 一覧は編集と削除のリンクだけ);
+        全検証!(@one $用意, $属性, 閲覧者は編集画面に入れない);
+        全検証!(@one $用意, $属性, 編集画面で直せる);
+        全検証!(@one $用意, $属性, 使用中の倉庫は削除できない);
+        全検証!(@one $用意, $属性, 未使用の倉庫は物理削除される);
+        全検証!(@one $用意, $属性, 使用歴のある倉庫は廃止になる);
         全検証!(@one $用意, $属性, 新品の予備も見える);
         全検証!(@one $用意, $属性, 払い出した機器は出ない);
         全検証!(@one $用意, $属性, パーツ在庫が出る);

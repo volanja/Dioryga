@@ -398,6 +398,7 @@ rack:
   warn_capacity: This exceeds the capacity. It was registered, but please check.
 
 catalog:
+  unset: Not set
   nav: Catalog
   dashboard_lead: Number of entries in the masters shared across projects. Select a count to open its list
   count_unit: ""
@@ -442,6 +443,7 @@ catalog:
   error_rack_width_unused: Width can only be set on a RackU chassis model
   error_vendor_duplicate: A vendor with that name already exists
   error_model_duplicate: That vendor already has a chassis model with this name
+  back_vendors: Back to vendors
   back_models: Back to chassis models
   back_configurations: Back to configurations
   slots: Slots
@@ -626,6 +628,7 @@ cables:
   error_end_duplicate: That end label is already registered
 
 software:
+  back: Back to software
   title: Software catalog
   lead: Register the software your organisation manages
   sbom_hint: SBOM imports do not populate this table. An SBOM records what was observed on a device; the cross-device component search covers that
@@ -638,6 +641,7 @@ software:
   error_purl_duplicate: That purl is already registered
 
 vlans:
+  back: Back to VLANs
   title: VLANs
   lead: Register VLAN tags and their security zones
   duplicate_hint: The same tag can be registered more than once. VLAN tags are scoped to an L2 domain, so VLAN 100 at one site is a different thing from VLAN 100 at another

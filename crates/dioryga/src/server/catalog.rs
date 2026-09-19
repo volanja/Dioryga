@@ -98,7 +98,6 @@ struct VendorsPage {
     t_actions: String,
     t_empty: String,
     t_new: String,
-    t_submit: String,
     t_save: String,
     t_retire: String,
     t_unretire: String,
@@ -132,31 +131,21 @@ struct ChassisModelsPage {
     t_detail: String,
     t_title: String,
     t_lead: String,
-    t_naming_hint: String,
     t_vendor: String,
     t_model_name: String,
     t_device_category: String,
     t_height_u: String,
-    t_height_hint: String,
     t_mount_form: String,
-    t_mount_form_hint: String,
     t_rack_width: String,
-    t_rack_width_hint: String,
     t_actions: String,
     t_empty: String,
     t_new: String,
-    t_submit: String,
     t_retire: String,
     t_unretire: String,
     t_retired: String,
     t_referenced: String,
     t_show_retired: String,
-    t_no_vendor: String,
     rows: Vec<ChassisModelRow>,
-    vendors: Vec<Labeled>,
-    device_categories: Vec<Choice>,
-    mount_forms: Vec<&'static str>,
-    rack_widths: Vec<&'static str>,
     show_retired: bool,
     can_edit: bool,
     error: Option<String>,
@@ -183,24 +172,87 @@ struct ConfigurationsPage {
     t_actions: String,
     t_empty: String,
     t_new: String,
-    t_submit: String,
     t_retire: String,
     t_unretire: String,
     t_retired: String,
     t_referenced: String,
     t_show_retired: String,
+    rows: Vec<ConfigurationRow>,
+    show_retired: bool,
+    can_edit: bool,
+    error: Option<String>,
+}
+
+/// ベンダーの登録画面（#124）。
+#[derive(askama::Template)]
+#[template(path = "catalog_vendor_form.html")]
+struct VendorFormPage {
+    chrome: Chrome,
+    t_title: String,
+    t_lead: String,
+    t_back: String,
+    t_name: String,
+    t_submit: String,
+    v_name: String,
+    error: Option<String>,
+}
+
+/// 筐体モデルの登録画面（#124）。
+#[derive(askama::Template)]
+#[template(path = "catalog_chassis_model_form.html")]
+struct ChassisModelFormPage {
+    chrome: Chrome,
+    t_title: String,
+    t_back: String,
+    t_naming_hint: String,
+    t_vendor: String,
+    t_model_name: String,
+    t_device_category: String,
+    t_height_u: String,
+    t_height_hint: String,
+    t_mount_form: String,
+    t_mount_form_hint: String,
+    t_rack_width: String,
+    t_rack_width_hint: String,
+    t_no_vendor: String,
+    t_submit: String,
+    vendors: Vec<Labeled>,
+    device_categories: Vec<Choice>,
+    mount_forms: Vec<&'static str>,
+    rack_widths: Vec<&'static str>,
+    // **入力した値を保つ**（#124）。誤りのたびに入れ直させない
+    v_vendor_id: String,
+    v_model_name: String,
+    v_device_category: String,
+    v_height_u: String,
+    v_mount_form: String,
+    v_rack_width: String,
+    error: Option<String>,
+}
+
+/// 構成の登録画面（#124）。
+#[derive(askama::Template)]
+#[template(path = "catalog_configuration_form.html")]
+struct ConfigurationFormPage {
+    chrome: Chrome,
+    t_title: String,
+    t_back: String,
+    t_name: String,
+    t_chassis_model: String,
     t_no_model: String,
-    /// 想定消費電力（12.8）。登録時にも入れられる
     t_current_type: String,
     t_assumed_voltage: String,
     t_assumed_va: String,
     t_assumed_va_hint: String,
     t_power_unset: String,
-    current_types: Vec<&'static str>,
-    rows: Vec<ConfigurationRow>,
+    t_submit: String,
     models: Vec<Labeled>,
-    show_retired: bool,
-    can_edit: bool,
+    current_types: Vec<&'static str>,
+    v_chassis_model_id: String,
+    v_name: String,
+    v_current_type: String,
+    v_assumed_voltage: String,
+    v_assumed_va: String,
     error: Option<String>,
 }
 
@@ -370,7 +422,6 @@ async fn ベンダーを描く(
         t_actions: rust_i18n::t!("projects.actions", locale = l).to_string(),
         t_empty: rust_i18n::t!("catalog.empty", locale = l).to_string(),
         t_new: rust_i18n::t!("catalog.new_vendor", locale = l).to_string(),
-        t_submit: rust_i18n::t!("catalog.submit", locale = l).to_string(),
         t_save: rust_i18n::t!("members.save", locale = l).to_string(),
         t_retire: rust_i18n::t!("catalog.retire", locale = l).to_string(),
         t_unretire: rust_i18n::t!("catalog.unretire", locale = l).to_string(),
@@ -382,6 +433,35 @@ async fn ベンダーを描く(
         can_edit,
         error,
     })
+}
+
+/// 登録画面を描く（#124）。**Viewerは入れない**（18.1）。
+async fn ベンダー登録を描く(
+    state: &AppState,
+    current: &CurrentUser,
+    v_name: String,
+    error: Option<String>,
+) -> AppResult<Response> {
+    let l = 入場(state, current)?;
+    編集権(state, current).await?;
+
+    render(&VendorFormPage {
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "vendors"),
+        t_title: rust_i18n::t!("catalog.new_vendor", locale = l).to_string(),
+        t_lead: rust_i18n::t!("catalog.vendors_lead", locale = l).to_string(),
+        t_back: rust_i18n::t!("catalog.back_vendors", locale = l).to_string(),
+        t_name: rust_i18n::t!("catalog.name", locale = l).to_string(),
+        t_submit: rust_i18n::t!("catalog.submit", locale = l).to_string(),
+        v_name,
+        error,
+    })
+}
+
+pub async fn new_vendor(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+) -> AppResult<Response> {
+    ベンダー登録を描く(&state, &current, String::new(), None).await
 }
 
 #[derive(Debug, Deserialize)]
@@ -405,9 +485,18 @@ pub async fn save_vendor(
     // なると、表記ゆれを防ぐために置いたマスタが表記ゆれの発生源になる
     let name = 正規化(&form.name);
     let name = name.as_str();
+    // **改名は一覧の行で、登録は登録画面で行う**（#124）。誤りは来た画面へ返す
+    let 改名 = !form.id.trim().is_empty();
+    let 誤りを返す = async |state: &AppState, current: &CurrentUser, e: String| {
+        if 改名 {
+            ベンダーを描く(state, current, false, Some(e)).await
+        } else {
+            ベンダー登録を描く(state, current, form.name.clone(), Some(e)).await
+        }
+    };
     if name.is_empty() {
         let e = rust_i18n::t!("catalog.error_name", locale = l).to_string();
-        return ベンダーを描く(&state, &current, false, Some(e)).await;
+        return 誤りを返す(&state, &current, e).await;
     }
 
     // **`name` はUNIQUE**（18.3）。表記ゆれを防ぐために置いたマスタで同名を
@@ -421,7 +510,7 @@ pub async fn save_vendor(
     let id = form.id.trim().parse::<i32>().ok();
     if 既存.as_ref().is_some_and(|v| Some(v.id) != id) {
         let e = rust_i18n::t!("catalog.error_vendor_duplicate", locale = l).to_string();
-        return ベンダーを描く(&state, &current, false, Some(e)).await;
+        return 誤りを返す(&state, &current, e).await;
     }
 
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
@@ -523,38 +612,28 @@ async fn 筐体型を描く(
         t_detail: rust_i18n::t!("devices.detail", locale = l).to_string(),
         t_title: rust_i18n::t!("catalog.chassis_models", locale = l).to_string(),
         t_lead: rust_i18n::t!("catalog.chassis_models_lead", locale = l).to_string(),
-        t_naming_hint: rust_i18n::t!("catalog.naming_hint", locale = l).to_string(),
         t_vendor: rust_i18n::t!("catalog.vendor", locale = l).to_string(),
         t_model_name: rust_i18n::t!("catalog.model_name", locale = l).to_string(),
         t_device_category: rust_i18n::t!("devices.device_type", locale = l).to_string(),
         t_height_u: rust_i18n::t!("catalog.height_u", locale = l).to_string(),
-        t_height_hint: rust_i18n::t!("catalog.height_hint", locale = l).to_string(),
         t_mount_form: rust_i18n::t!("catalog.mount_form", locale = l).to_string(),
-        t_mount_form_hint: rust_i18n::t!("catalog.mount_form_hint", locale = l).to_string(),
         t_rack_width: rust_i18n::t!("catalog.rack_width", locale = l).to_string(),
-        t_rack_width_hint: rust_i18n::t!("catalog.rack_width_hint", locale = l).to_string(),
         t_actions: rust_i18n::t!("projects.actions", locale = l).to_string(),
         t_empty: rust_i18n::t!("catalog.empty", locale = l).to_string(),
         t_new: rust_i18n::t!("catalog.new_chassis_model", locale = l).to_string(),
-        t_submit: rust_i18n::t!("catalog.submit", locale = l).to_string(),
         t_retire: rust_i18n::t!("catalog.retire", locale = l).to_string(),
         t_unretire: rust_i18n::t!("catalog.unretire", locale = l).to_string(),
         t_retired: rust_i18n::t!("catalog.retired", locale = l).to_string(),
         t_referenced: rust_i18n::t!("catalog.referenced", locale = l).to_string(),
         t_show_retired: rust_i18n::t!("catalog.show_retired", locale = l).to_string(),
-        t_no_vendor: rust_i18n::t!("catalog.no_vendor", locale = l).to_string(),
         rows,
-        vendors: 現役のベンダー(&state.db).await?,
-        device_categories: 種別の選択肢(l),
-        mount_forms: MOUNT_FORMS.to_vec(),
-        rack_widths: RACK_WIDTHS.to_vec(),
         show_retired,
         can_edit,
         error,
     })
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct ChassisModelForm {
     pub vendor_id: i32,
     #[serde(default)]
@@ -569,6 +648,67 @@ pub struct ChassisModelForm {
     pub rack_width: String,
 }
 
+/// 登録画面を描く（#124）。**Viewerは入れない**（18.1）。
+async fn 筐体型の登録を描く(
+    state: &AppState,
+    current: &CurrentUser,
+    form: &ChassisModelForm,
+    error: Option<String>,
+) -> AppResult<Response> {
+    let l = 入場(state, current)?;
+    編集権(state, current).await?;
+
+    render(&ChassisModelFormPage {
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "chassis_models"),
+        t_title: rust_i18n::t!("catalog.new_chassis_model", locale = l).to_string(),
+        t_back: rust_i18n::t!("catalog.back_models", locale = l).to_string(),
+        t_naming_hint: rust_i18n::t!("catalog.naming_hint", locale = l).to_string(),
+        t_vendor: rust_i18n::t!("catalog.vendor", locale = l).to_string(),
+        t_model_name: rust_i18n::t!("catalog.model_name", locale = l).to_string(),
+        t_device_category: rust_i18n::t!("devices.device_type", locale = l).to_string(),
+        t_height_u: rust_i18n::t!("catalog.height_u", locale = l).to_string(),
+        t_height_hint: rust_i18n::t!("catalog.height_hint", locale = l).to_string(),
+        t_mount_form: rust_i18n::t!("catalog.mount_form", locale = l).to_string(),
+        t_mount_form_hint: rust_i18n::t!("catalog.mount_form_hint", locale = l).to_string(),
+        t_rack_width: rust_i18n::t!("catalog.rack_width", locale = l).to_string(),
+        t_rack_width_hint: rust_i18n::t!("catalog.rack_width_hint", locale = l).to_string(),
+        t_no_vendor: rust_i18n::t!("catalog.no_vendor", locale = l).to_string(),
+        t_submit: rust_i18n::t!("catalog.submit", locale = l).to_string(),
+        vendors: 現役のベンダー(&state.db).await?,
+        device_categories: 種別の選択肢(l),
+        mount_forms: MOUNT_FORMS.to_vec(),
+        rack_widths: RACK_WIDTHS.to_vec(),
+        v_vendor_id: 空でなければ(form.vendor_id),
+        v_model_name: form.model_name.clone(),
+        v_device_category: form.device_category.clone(),
+        v_height_u: form.height_u.clone(),
+        v_mount_form: form.mount_form.clone(),
+        v_rack_width: form.rack_width.clone(),
+        error,
+    })
+}
+
+/// 未選択（0）は空文字にする。**選択肢の値と比べるため文字列で持つ。**
+fn 空でなければ(id: i32) -> String {
+    if id == 0 {
+        String::new()
+    } else {
+        id.to_string()
+    }
+}
+
+pub async fn new_chassis_model(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+) -> AppResult<Response> {
+    let form = ChassisModelForm {
+        // 高さは1Uを既定にする。最も多い値を初期値にして入力を減らす
+        height_u: "1".to_owned(),
+        ..Default::default()
+    };
+    筐体型の登録を描く(&state, &current, &form, None).await
+}
+
 pub async fn create_chassis_model(
     State(state): State<AppState>,
     Extension(current): Extension<CurrentUser>,
@@ -581,20 +721,46 @@ pub async fn create_chassis_model(
     // **18.4の正規化。**全角英数を半角に、連続する空白を1つに（25.2の段階3）
     let model_name = 正規化(&form.model_name);
     if model_name.is_empty() {
-        return 筐体型を描く(&state, &current, false, 誤り("catalog.error_model_name")).await;
+        return 筐体型の登録を描く(
+            &state,
+            &current,
+            &form,
+            誤り("catalog.error_model_name"),
+        )
+        .await;
     }
 
     // **語彙外は既定へ寄せず拒否する**（Q-21）
     if !DEVICE_CATEGORIES.contains(&form.device_category.as_str()) {
-        return 筐体型を描く(&state, &current, false, 誤り("catalog.error_category")).await;
+        return 筐体型の登録を描く(
+            &state,
+            &current,
+            &form,
+            誤り("catalog.error_category"),
+        )
+        .await;
     }
     if !MOUNT_FORMS.contains(&form.mount_form.as_str()) {
-        return 筐体型を描く(&state, &current, false, 誤り("catalog.error_mount_form")).await;
+        return 筐体型の登録を描く(
+            &state,
+            &current,
+            &form,
+            誤り("catalog.error_mount_form"),
+        )
+        .await;
     }
 
     let height_u = match form.height_u.trim().parse::<i32>() {
         Ok(n) if n >= 0 => n,
-        _ => return 筐体型を描く(&state, &current, false, 誤り("catalog.error_height")).await,
+        _ => {
+            return 筐体型の登録を描く(
+                &state,
+                &current,
+                &form,
+                誤り("catalog.error_height"),
+            )
+            .await
+        }
     };
 
     // **`rack_width` は `mount_form=RackU` のときのみ意味を持つ**（6.2）。
@@ -603,14 +769,20 @@ pub async fn create_chassis_model(
         ("RackU", "") => Some("Full".to_owned()),
         ("RackU", v) if RACK_WIDTHS.contains(&v) => Some(v.to_owned()),
         ("RackU", _) => {
-            return 筐体型を描く(&state, &current, false, 誤り("catalog.error_rack_width")).await;
+            return 筐体型の登録を描く(
+                &state,
+                &current,
+                &form,
+                誤り("catalog.error_rack_width"),
+            )
+            .await;
         }
         (_, "") => None,
         (_, _) => {
-            return 筐体型を描く(
+            return 筐体型の登録を描く(
                 &state,
                 &current,
-                false,
+                &form,
                 誤り("catalog.error_rack_width_unused"),
             )
             .await;
@@ -625,10 +797,10 @@ pub async fn create_chassis_model(
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     if 重複.is_some() {
-        return 筐体型を描く(
+        return 筐体型の登録を描く(
             &state,
             &current,
-            false,
+            &form,
             誤り("catalog.error_model_duplicate"),
         )
         .await;
@@ -638,26 +810,28 @@ pub async fn create_chassis_model(
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     let now = Utc::now();
-    tx.insert(chassis_model::ActiveModel {
-        vendor_id: Set(form.vendor_id),
-        model_name: Set(model_name),
-        device_category: Set(form.device_category.clone()),
-        height_u: Set(height_u),
-        mount_form: Set(form.mount_form.clone()),
-        rack_width: Set(rack_width),
-        retired_at: Set(None),
-        created_by: Set(current.user.id),
-        created_at: Set(now),
-        updated_at: Set(now),
-        ..Default::default()
-    })
-    .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let model = tx
+        .insert(chassis_model::ActiveModel {
+            vendor_id: Set(form.vendor_id),
+            model_name: Set(model_name),
+            device_category: Set(form.device_category.clone()),
+            height_u: Set(height_u),
+            mount_form: Set(form.mount_form.clone()),
+            rack_width: Set(rack_width),
+            retired_at: Set(None),
+            created_by: Set(current.user.id),
+            created_at: Set(now),
+            updated_at: Set(now),
+            ..Default::default()
+        })
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     tx.commit()
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
-    Ok(Redirect::to("/catalog/chassis-models").into_response())
+    // **詳細へ進む。**登録したらスロットを足す作業が続く（#124）
+    Ok(Redirect::to(&format!("/catalog/chassis-models/{}", model.id)).into_response())
 }
 
 // ---------------------------------------------------------------------------
@@ -720,28 +894,19 @@ async fn 構成を描く(
         t_actions: rust_i18n::t!("projects.actions", locale = l).to_string(),
         t_empty: rust_i18n::t!("catalog.empty", locale = l).to_string(),
         t_new: rust_i18n::t!("catalog.new_configuration", locale = l).to_string(),
-        t_submit: rust_i18n::t!("catalog.submit", locale = l).to_string(),
         t_retire: rust_i18n::t!("catalog.retire", locale = l).to_string(),
         t_unretire: rust_i18n::t!("catalog.unretire", locale = l).to_string(),
         t_retired: rust_i18n::t!("catalog.retired", locale = l).to_string(),
         t_referenced: rust_i18n::t!("catalog.referenced", locale = l).to_string(),
         t_show_retired: rust_i18n::t!("catalog.show_retired", locale = l).to_string(),
-        t_no_model: rust_i18n::t!("catalog.no_model", locale = l).to_string(),
-        t_current_type: rust_i18n::t!("parts.current_type", locale = l).to_string(),
-        t_assumed_voltage: rust_i18n::t!("catalog.assumed_voltage", locale = l).to_string(),
-        t_assumed_va: rust_i18n::t!("catalog.assumed_va", locale = l).to_string(),
-        t_assumed_va_hint: rust_i18n::t!("catalog.assumed_va_hint", locale = l).to_string(),
-        t_power_unset: rust_i18n::t!("catalog.power_unset", locale = l).to_string(),
-        current_types: crate::server::part::CURRENT_TYPES.to_vec(),
         rows,
-        models: 現役の筐体型(&state.db).await?,
         show_retired,
         can_edit,
         error,
     })
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct ConfigurationForm {
     pub chassis_model_id: i32,
     #[serde(default)]
@@ -830,6 +995,47 @@ fn 想定電流(voltage: i32, va: i32) -> String {
     format!("{:.1}A", va as f64 / (voltage.abs() as f64))
 }
 
+/// 登録画面を描く（#124）。**Viewerは入れない**（18.1）。
+async fn 構成の登録を描く(
+    state: &AppState,
+    current: &CurrentUser,
+    form: &ConfigurationForm,
+    error: Option<String>,
+) -> AppResult<Response> {
+    let l = 入場(state, current)?;
+    編集権(state, current).await?;
+
+    render(&ConfigurationFormPage {
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "configurations"),
+        t_title: rust_i18n::t!("catalog.new_configuration", locale = l).to_string(),
+        t_back: rust_i18n::t!("catalog.back_configurations", locale = l).to_string(),
+        t_name: rust_i18n::t!("catalog.name", locale = l).to_string(),
+        t_chassis_model: rust_i18n::t!("catalog.chassis_model", locale = l).to_string(),
+        t_no_model: rust_i18n::t!("catalog.no_model", locale = l).to_string(),
+        t_current_type: rust_i18n::t!("catalog.current_type", locale = l).to_string(),
+        t_assumed_voltage: rust_i18n::t!("catalog.assumed_voltage", locale = l).to_string(),
+        t_assumed_va: rust_i18n::t!("catalog.assumed_va", locale = l).to_string(),
+        t_assumed_va_hint: rust_i18n::t!("catalog.assumed_va_hint", locale = l).to_string(),
+        t_power_unset: rust_i18n::t!("catalog.power_unset", locale = l).to_string(),
+        t_submit: rust_i18n::t!("catalog.submit", locale = l).to_string(),
+        models: 現役の筐体型(&state.db).await?,
+        current_types: crate::server::part::CURRENT_TYPES.to_vec(),
+        v_chassis_model_id: 空でなければ(form.chassis_model_id),
+        v_name: form.name.clone(),
+        v_current_type: form.current_type.clone(),
+        v_assumed_voltage: form.assumed_voltage.clone(),
+        v_assumed_va: form.assumed_va.clone(),
+        error,
+    })
+}
+
+pub async fn new_configuration(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+) -> AppResult<Response> {
+    構成の登録を描く(&state, &current, &ConfigurationForm::default(), None).await
+}
+
 pub async fn create_configuration(
     State(state): State<AppState>,
     Extension(current): Extension<CurrentUser>,
@@ -841,14 +1047,14 @@ pub async fn create_configuration(
     let name = 正規化(&form.name);
     if name.is_empty() {
         let e = rust_i18n::t!("catalog.error_name", locale = l).to_string();
-        return 構成を描く(&state, &current, false, Some(e)).await;
+        return 構成の登録を描く(&state, &current, &form, Some(e)).await;
     }
 
     let 電力 = match 電力を読む(&form.current_type, &form.assumed_voltage, &form.assumed_va) {
         Ok(v) => v,
         Err(key) => {
             let e = rust_i18n::t!(key, locale = l).to_string();
-            return 構成を描く(&state, &current, false, Some(e)).await;
+            return 構成の登録を描く(&state, &current, &form, Some(e)).await;
         }
     };
 
@@ -856,25 +1062,27 @@ pub async fn create_configuration(
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     let now = Utc::now();
-    tx.insert(configuration::ActiveModel {
-        chassis_model_id: Set(form.chassis_model_id),
-        name: Set(name),
-        retired_at: Set(None),
-        current_type: Set(電力.current_type.map(str::to_owned)),
-        assumed_voltage: Set(電力.voltage),
-        assumed_va: Set(電力.va),
-        created_by: Set(current.user.id),
-        created_at: Set(now),
-        updated_at: Set(now),
-        ..Default::default()
-    })
-    .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let configuration = tx
+        .insert(configuration::ActiveModel {
+            chassis_model_id: Set(form.chassis_model_id),
+            name: Set(name),
+            retired_at: Set(None),
+            current_type: Set(電力.current_type.map(str::to_owned)),
+            assumed_voltage: Set(電力.voltage),
+            assumed_va: Set(電力.va),
+            created_by: Set(current.user.id),
+            created_at: Set(now),
+            updated_at: Set(now),
+            ..Default::default()
+        })
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     tx.commit()
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
-    Ok(Redirect::to("/catalog/configurations").into_response())
+    // **詳細へ進む。**登録したら部品を足す作業が続く（#124）
+    Ok(Redirect::to(&format!("/catalog/configurations/{}", configuration.id)).into_response())
 }
 
 // ---------------------------------------------------------------------------

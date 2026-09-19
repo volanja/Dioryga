@@ -7,6 +7,10 @@
     <h1>{{ t_title }}</h1>
     <p class="lead">{{ t_lead }}</p>
   </div>
+  {# 登録は別画面で行う（#124）。一覧が伸びてもスクロールせずに入れる #}
+  {% if can_edit %}
+  <a class="button" href="/catalog/parts/new">{{ t_new }}</a>
+  {% endif %}
 </div>
 
 {% if let Some(message) = error %}
@@ -72,48 +76,5 @@
 </div>
 {% endif %}
 
-{% if can_edit %}
-<h2 class="section">{{ t_new }}</h2>
-<div class="card">
-  {% if vendors.is_empty() %}
-  <p class="empty">{{ t_no_vendor }}</p>
-  {% else %}
-  <p class="hint">{{ t_hybrid_hint }}</p>
-  <form method="post" action="/catalog/parts" class="form">
-    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
-
-    <label for="category">{{ t_category }}</label>
-    <select id="category" name="category">
-      {% for c in categories %}
-      <option value="{{ c }}">{{ c }}</option>
-      {% endfor %}
-    </select>
-
-    <label for="vendor_id">{{ t_vendor }}</label>
-    <select id="vendor_id" name="vendor_id">
-      {% for v in vendors %}
-      <option value="{{ v.value }}">{{ v.label }}</option>
-      {% endfor %}
-    </select>
-
-    <label for="part_number">{{ t_part_number }}</label>
-    <input type="text" id="part_number" name="part_number" required>
-
-    <label for="core_count">{{ t_core_count }}</label>
-    <input type="text" id="core_count" name="core_count" inputmode="numeric">
-
-    <label for="capacity_gb">{{ t_capacity_gb }}</label>
-    <input type="text" id="capacity_gb" name="capacity_gb" inputmode="numeric">
-    <p class="hint">{{ t_spec_column_hint }}</p>
-
-    <label for="spec_json">{{ t_spec_json }}</label>
-    <textarea id="spec_json" name="spec_json" rows="3" placeholder="{}"></textarea>
-    <p class="hint">{{ t_spec_hint }}</p>
-
-    <button type="submit">{{ t_submit }}</button>
-  </form>
-  {% endif %}
-</div>
-{% endif %}
 
 {% endblock %}

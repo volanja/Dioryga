@@ -7,6 +7,10 @@
     <h1>{{ t_title }}</h1>
     <p class="lead">{{ t_lead }}</p>
   </div>
+  {# 登録は別画面で行う（#124）。一覧が伸びてもスクロールせずに入れる #}
+  {% if can_edit %}
+  <a class="button" href="/catalog/software/new">{{ t_new }}</a>
+  {% endif %}
 </div>
 
 {# SBOM取込はこのテーブルを自動生成しない（設計書9.2） #}
@@ -74,44 +78,5 @@
 </div>
 {% endif %}
 
-{% if can_edit %}
-<h2 class="section">{{ t_new }}</h2>
-<div class="card">
-  <form method="post" action="/catalog/software" class="form">
-    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
-
-    <label for="name">{{ t_name }}</label>
-    <input type="text" id="name" name="name" required>
-
-    {# バージョンごとに別レコード（設計書9.4） #}
-    <label for="version">{{ t_version }}</label>
-    <input type="text" id="version" name="version" required>
-
-    <label for="category">{{ t_category }}</label>
-    <select id="category" name="category">
-      {% for c in categories %}
-      <option value="{{ c }}">{{ c }}</option>
-      {% endfor %}
-    </select>
-
-    <label for="vendor_id">{{ t_vendor }}</label>
-    <select id="vendor_id" name="vendor_id">
-      <option value="">{{ t_no_vendor }}</option>
-      {% for v in vendors %}
-      <option value="{{ v.value }}">{{ v.label }}</option>
-      {% endfor %}
-    </select>
-
-    <label for="purl">{{ t_purl }}</label>
-    <input type="text" id="purl" name="purl">
-    <p class="hint">{{ t_purl_hint }}</p>
-
-    <label for="license_expression">{{ t_license }}</label>
-    <input type="text" id="license_expression" name="license_expression">
-
-    <button type="submit">{{ t_submit }}</button>
-  </form>
-</div>
-{% endif %}
 
 {% endblock %}

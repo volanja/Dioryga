@@ -63,23 +63,18 @@ struct VlansPage {
     t_lead: String,
     t_duplicate_hint: String,
     t_tag: String,
-    t_tag_hint: String,
     t_name: String,
     t_zone: String,
-    t_zone_hint: String,
     t_description: String,
     t_actions: String,
     t_empty: String,
     t_new: String,
-    t_submit: String,
     t_retire: String,
     t_unretire: String,
     t_retired: String,
     t_referenced: String,
     t_show_retired: String,
-    t_unset: String,
     rows: Vec<VlanRow>,
-    zones: Vec<&'static str>,
     show_retired: bool,
     can_edit: bool,
     error: Option<String>,
@@ -136,23 +131,18 @@ async fn 一覧を描く(
         t_lead: rust_i18n::t!("vlans.lead", locale = l).to_string(),
         t_duplicate_hint: rust_i18n::t!("vlans.duplicate_hint", locale = l).to_string(),
         t_tag: rust_i18n::t!("vlans.tag", locale = l).to_string(),
-        t_tag_hint: rust_i18n::t!("vlans.tag_hint", locale = l).to_string(),
         t_name: rust_i18n::t!("catalog.name", locale = l).to_string(),
         t_zone: rust_i18n::t!("vlans.zone", locale = l).to_string(),
-        t_zone_hint: rust_i18n::t!("vlans.zone_hint", locale = l).to_string(),
         t_description: rust_i18n::t!("vlans.description", locale = l).to_string(),
         t_actions: rust_i18n::t!("projects.actions", locale = l).to_string(),
         t_empty: rust_i18n::t!("catalog.empty", locale = l).to_string(),
         t_new: rust_i18n::t!("vlans.new", locale = l).to_string(),
-        t_submit: rust_i18n::t!("catalog.submit", locale = l).to_string(),
         t_retire: rust_i18n::t!("catalog.retire", locale = l).to_string(),
         t_unretire: rust_i18n::t!("catalog.unretire", locale = l).to_string(),
         t_retired: rust_i18n::t!("catalog.retired", locale = l).to_string(),
         t_referenced: rust_i18n::t!("catalog.referenced", locale = l).to_string(),
         t_show_retired: rust_i18n::t!("catalog.show_retired", locale = l).to_string(),
-        t_unset: rust_i18n::t!("catalog.power_unset", locale = l).to_string(),
         rows,
-        zones: ZONES.to_vec(),
         show_retired,
         can_edit,
         error,
@@ -160,7 +150,7 @@ async fn 一覧を描く(
     })
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct VlanForm {
     #[serde(default)]
     pub vlan_tag: String,
@@ -170,6 +160,70 @@ pub struct VlanForm {
     pub zone: String,
     #[serde(default)]
     pub description: String,
+}
+
+/// VLANの登録画面（#124）。
+#[derive(askama::Template)]
+#[template(path = "catalog_vlan_form.html")]
+struct VlanFormPage {
+    chrome: Chrome,
+    t_title: String,
+    t_back: String,
+    t_duplicate_hint: String,
+    t_tag: String,
+    t_tag_hint: String,
+    t_name: String,
+    t_zone: String,
+    t_zone_hint: String,
+    t_description: String,
+    t_unset: String,
+    t_submit: String,
+    zones: Vec<&'static str>,
+    // **入力した値を保つ**（#124）
+    v_vlan_tag: String,
+    v_name: String,
+    v_zone: String,
+    v_description: String,
+    error: Option<String>,
+}
+
+/// 登録画面を描く（#124）。**Viewerは入れない**（18.1）。
+async fn 登録を描く(
+    state: &AppState,
+    current: &CurrentUser,
+    form: &VlanForm,
+    error: Option<String>,
+) -> AppResult<Response> {
+    let l = 入場(state, current)?;
+    編集権(state, current).await?;
+
+    render(&VlanFormPage {
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "vlans"),
+        t_title: rust_i18n::t!("vlans.new", locale = l).to_string(),
+        t_back: rust_i18n::t!("vlans.back", locale = l).to_string(),
+        t_duplicate_hint: rust_i18n::t!("vlans.duplicate_hint", locale = l).to_string(),
+        t_tag: rust_i18n::t!("vlans.tag", locale = l).to_string(),
+        t_tag_hint: rust_i18n::t!("vlans.tag_hint", locale = l).to_string(),
+        t_name: rust_i18n::t!("catalog.name", locale = l).to_string(),
+        t_zone: rust_i18n::t!("vlans.zone", locale = l).to_string(),
+        t_zone_hint: rust_i18n::t!("vlans.zone_hint", locale = l).to_string(),
+        t_description: rust_i18n::t!("vlans.description", locale = l).to_string(),
+        t_unset: rust_i18n::t!("catalog.unset", locale = l).to_string(),
+        t_submit: rust_i18n::t!("catalog.submit", locale = l).to_string(),
+        zones: ZONES.to_vec(),
+        v_vlan_tag: form.vlan_tag.clone(),
+        v_name: form.name.clone(),
+        v_zone: form.zone.clone(),
+        v_description: form.description.clone(),
+        error,
+    })
+}
+
+pub async fn new_form(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+) -> AppResult<Response> {
+    登録を描く(&state, &current, &VlanForm::default(), None).await
 }
 
 pub async fn create(
@@ -185,19 +239,19 @@ pub async fn create(
     // **802.1Qの範囲外は拒否する。**0と4095は予約されており、実機に設定できない
     let tag = match form.vlan_tag.trim().parse::<i32>() {
         Ok(n) if (タグの下限..=タグの上限).contains(&n) => n,
-        _ => return 一覧を描く(&state, &current, &query, 誤り("vlans.error_tag"), None).await,
+        _ => return 登録を描く(&state, &current, &form, 誤り("vlans.error_tag")).await,
     };
 
     let name = 正規化(&form.name);
     if name.is_empty() {
-        return 一覧を描く(&state, &current, &query, 誤り("catalog.error_name"), None).await;
+        return 登録を描く(&state, &current, &form, 誤り("catalog.error_name")).await;
     }
 
     // **閉じた語彙は既定へ寄せず拒否する**（8.6、Q-21）。未設定は許す
     let zone = match form.zone.trim() {
         "" => None,
         z if ZONES.contains(&z) => Some(z.to_owned()),
-        _ => return 一覧を描く(&state, &current, &query, 誤り("vlans.error_zone"), None).await,
+        _ => return 登録を描く(&state, &current, &form, 誤り("vlans.error_zone")).await,
     };
 
     // **同じタグは登録できる**（拠点が違えば同じタグが別物として存在する）。

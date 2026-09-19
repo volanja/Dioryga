@@ -1,0 +1,53 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+{# 登録は一覧と別の画面で行う（#124） #}
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/catalog/configurations">{{ t_back }}</a></p>
+    <h1>{{ t_title }}</h1>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+{% if models.is_empty() %}
+<p class="empty">{{ t_no_model }}</p>
+{% else %}
+<form class="card form" method="post" action="/catalog/configurations">
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+  <label for="chassis_model_id">{{ t_chassis_model }}</label>
+  <select id="chassis_model_id" name="chassis_model_id">
+    {% for m in models %}
+    <option value="{{ m.value }}" {% if m.value == v_chassis_model_id %}selected{% endif %}>{{ m.label }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="name">{{ t_name }}</label>
+  <input type="text" id="name" name="name" value="{{ v_name }}" required>
+
+  {# 想定消費電力（設計書12.8）。任意だが、入れるなら3つ揃えて入れる #}
+  <label for="current_type">{{ t_current_type }}</label>
+  <select id="current_type" name="current_type">
+    <option value="">{{ t_power_unset }}</option>
+    {% for c in current_types %}
+    <option value="{{ c }}" {% if *c == v_current_type %}selected{% endif %}>{{ c }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="assumed_voltage">{{ t_assumed_voltage }}</label>
+  <input type="text" id="assumed_voltage" name="assumed_voltage" inputmode="numeric" value="{{ v_assumed_voltage }}">
+
+  <label for="assumed_va">{{ t_assumed_va }}</label>
+  <input type="text" id="assumed_va" name="assumed_va" inputmode="numeric" value="{{ v_assumed_va }}">
+  <p class="hint">{{ t_assumed_va_hint }}</p>
+
+  <button type="submit">{{ t_submit }}</button>
+</form>
+{% endif %}
+
+{% endblock %}

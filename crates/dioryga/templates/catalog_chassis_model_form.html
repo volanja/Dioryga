@@ -1,0 +1,65 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+{# 登録は一覧と別の画面で行う（#124） #}
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/catalog/chassis-models">{{ t_back }}</a></p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_naming_hint }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+{% if vendors.is_empty() %}
+<p class="empty">{{ t_no_vendor }}</p>
+{% else %}
+<form class="card form" method="post" action="/catalog/chassis-models">
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+  <label for="vendor_id">{{ t_vendor }}</label>
+  <select id="vendor_id" name="vendor_id">
+    {% for v in vendors %}
+    <option value="{{ v.value }}" {% if v.value == v_vendor_id %}selected{% endif %}>{{ v.label }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="model_name">{{ t_model_name }}</label>
+  <input type="text" id="model_name" name="model_name" value="{{ v_model_name }}" required>
+
+  <label for="device_category">{{ t_device_category }}</label>
+  <select id="device_category" name="device_category">
+    {% for c in device_categories %}
+    <option value="{{ c.value }}" {% if c.value == v_device_category %}selected{% endif %}>{{ c.label }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="height_u">{{ t_height_u }}</label>
+  <input type="text" id="height_u" name="height_u" inputmode="numeric" value="{{ v_height_u }}">
+  <p class="hint">{{ t_height_hint }}</p>
+
+  <label for="mount_form">{{ t_mount_form }}</label>
+  <select id="mount_form" name="mount_form">
+    {% for m in mount_forms %}
+    <option value="{{ m }}" {% if *m == v_mount_form %}selected{% endif %}>{{ m }}</option>
+    {% endfor %}
+  </select>
+  <p class="hint">{{ t_mount_form_hint }}</p>
+
+  <label for="rack_width">{{ t_rack_width }}</label>
+  <select id="rack_width" name="rack_width">
+    {% for w in rack_widths %}
+    <option value="{{ w }}" {% if *w == v_rack_width %}selected{% endif %}>{{ w }}</option>
+    {% endfor %}
+  </select>
+  <p class="hint">{{ t_rack_width_hint }}</p>
+
+  <button type="submit">{{ t_submit }}</button>
+</form>
+{% endif %}
+
+{% endblock %}

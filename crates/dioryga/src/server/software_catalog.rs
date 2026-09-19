@@ -70,21 +70,16 @@ struct SoftwarePage {
     t_category: String,
     t_vendor: String,
     t_purl: String,
-    t_purl_hint: String,
     t_license: String,
     t_actions: String,
     t_empty: String,
     t_new: String,
-    t_submit: String,
     t_retire: String,
     t_unretire: String,
     t_retired: String,
     t_referenced: String,
     t_show_retired: String,
-    t_no_vendor: String,
     rows: Vec<SoftwareRow>,
-    vendors: Vec<Labeled>,
-    categories: Vec<&'static str>,
     q: String,
     show_retired: bool,
     can_edit: bool,
@@ -155,21 +150,16 @@ async fn 一覧を描く(
         t_category: rust_i18n::t!("parts.category", locale = l).to_string(),
         t_vendor: rust_i18n::t!("catalog.vendor", locale = l).to_string(),
         t_purl: rust_i18n::t!("components.purl", locale = l).to_string(),
-        t_purl_hint: rust_i18n::t!("software.purl_hint", locale = l).to_string(),
         t_license: rust_i18n::t!("software.license", locale = l).to_string(),
         t_actions: rust_i18n::t!("projects.actions", locale = l).to_string(),
         t_empty: rust_i18n::t!("catalog.empty", locale = l).to_string(),
         t_new: rust_i18n::t!("software.new", locale = l).to_string(),
-        t_submit: rust_i18n::t!("catalog.submit", locale = l).to_string(),
         t_retire: rust_i18n::t!("catalog.retire", locale = l).to_string(),
         t_unretire: rust_i18n::t!("catalog.unretire", locale = l).to_string(),
         t_retired: rust_i18n::t!("catalog.retired", locale = l).to_string(),
         t_referenced: rust_i18n::t!("catalog.referenced", locale = l).to_string(),
         t_show_retired: rust_i18n::t!("catalog.show_retired", locale = l).to_string(),
-        t_no_vendor: rust_i18n::t!("software.no_vendor", locale = l).to_string(),
         rows,
-        vendors: 現役のベンダー(&state.db).await?,
-        categories: CATEGORIES.to_vec(),
         q: keyword,
         show_retired,
         can_edit,
@@ -177,7 +167,7 @@ async fn 一覧を描く(
     })
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct SoftwareForm {
     #[serde(default)]
     pub name: String,
@@ -193,6 +183,78 @@ pub struct SoftwareForm {
     pub license_expression: String,
 }
 
+/// ソフトウェアの登録画面（#124）。
+#[derive(askama::Template)]
+#[template(path = "catalog_software_form.html")]
+struct SoftwareFormPage {
+    chrome: Chrome,
+    t_title: String,
+    t_back: String,
+    t_sbom_hint: String,
+    t_name: String,
+    t_version: String,
+    t_category: String,
+    t_vendor: String,
+    t_purl: String,
+    t_purl_hint: String,
+    t_license: String,
+    t_no_vendor: String,
+    t_submit: String,
+    vendors: Vec<Labeled>,
+    categories: Vec<&'static str>,
+    // **入力した値を保つ**（#124）
+    v_name: String,
+    v_version: String,
+    v_category: String,
+    v_vendor_id: String,
+    v_purl: String,
+    v_license: String,
+    error: Option<String>,
+}
+
+/// 登録画面を描く（#124）。**Viewerは入れない**（18.1）。
+async fn 登録を描く(
+    state: &AppState,
+    current: &CurrentUser,
+    form: &SoftwareForm,
+    error: Option<String>,
+) -> AppResult<Response> {
+    let l = 入場(state, current)?;
+    編集権(state, current).await?;
+
+    render(&SoftwareFormPage {
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "software"),
+        t_title: rust_i18n::t!("software.new", locale = l).to_string(),
+        t_back: rust_i18n::t!("software.back", locale = l).to_string(),
+        t_sbom_hint: rust_i18n::t!("software.sbom_hint", locale = l).to_string(),
+        t_name: rust_i18n::t!("catalog.name", locale = l).to_string(),
+        t_version: rust_i18n::t!("components.version", locale = l).to_string(),
+        t_category: rust_i18n::t!("parts.category", locale = l).to_string(),
+        t_vendor: rust_i18n::t!("catalog.vendor", locale = l).to_string(),
+        t_purl: rust_i18n::t!("components.purl", locale = l).to_string(),
+        t_purl_hint: rust_i18n::t!("software.purl_hint", locale = l).to_string(),
+        t_license: rust_i18n::t!("software.license", locale = l).to_string(),
+        t_no_vendor: rust_i18n::t!("catalog.no_vendor", locale = l).to_string(),
+        t_submit: rust_i18n::t!("catalog.submit", locale = l).to_string(),
+        vendors: 現役のベンダー(&state.db).await?,
+        categories: CATEGORIES.to_vec(),
+        v_name: form.name.clone(),
+        v_version: form.version.clone(),
+        v_category: form.category.clone(),
+        v_vendor_id: form.vendor_id.clone(),
+        v_purl: form.purl.clone(),
+        v_license: form.license_expression.clone(),
+        error,
+    })
+}
+
+pub async fn new_form(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+) -> AppResult<Response> {
+    登録を描く(&state, &current, &SoftwareForm::default(), None).await
+}
+
 pub async fn create(
     State(state): State<AppState>,
     Extension(current): Extension<CurrentUser>,
@@ -200,17 +262,16 @@ pub async fn create(
 ) -> AppResult<Response> {
     let l = 入場(&state, &current)?;
     編集権(&state, &current).await?;
-    let query = ListQuery::default();
     let 誤り = |key: &str| Some(rust_i18n::t!(key, locale = l).to_string());
 
     let name = 正規化(&form.name);
     let version = 正規化(&form.version);
     if name.is_empty() || version.is_empty() {
-        return 一覧を描く(&state, &current, &query, 誤り("software.error_required")).await;
+        return 登録を描く(&state, &current, &form, 誤り("software.error_required")).await;
     }
     // **閉じた語彙は既定へ寄せず拒否する**（8.6、Q-21）
     if !CATEGORIES.contains(&form.category.as_str()) {
-        return 一覧を描く(&state, &current, &query, 誤り("software.error_category")).await;
+        return 登録を描く(&state, &current, &form, 誤り("software.error_category")).await;
     }
 
     // **空文字ではなくNULLで持つ**（9.4）。空文字だと2件目から登録できない
@@ -225,10 +286,10 @@ pub async fn create(
             .await
             .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
         if 重複.is_some() {
-            return 一覧を描く(
+            return 登録を描く(
                 &state,
                 &current,
-                &query,
+                &form,
                 誤り("software.error_purl_duplicate"),
             )
             .await;
@@ -240,7 +301,7 @@ pub async fn create(
         v => match v.parse::<i32>() {
             Ok(id) => Some(id),
             Err(_) => {
-                return 一覧を描く(&state, &current, &query, 誤り("cables.error_vendor")).await
+                return 登録を描く(&state, &current, &form, 誤り("cables.error_vendor")).await
             }
         },
     };

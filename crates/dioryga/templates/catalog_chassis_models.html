@@ -7,6 +7,10 @@
     <h1>{{ t_title }}</h1>
     <p class="lead">{{ t_lead }}</p>
   </div>
+  {# 登録は別画面で行う（#124）。一覧が伸びてもスクロールせずに入れる #}
+  {% if can_edit %}
+  <a class="button" href="/catalog/chassis-models/new">{{ t_new }}</a>
+  {% endif %}
 </div>
 
 {% if let Some(message) = error %}
@@ -72,57 +76,5 @@
 </div>
 {% endif %}
 
-{% if can_edit %}
-<h2 class="section">{{ t_new }}</h2>
-<div class="card">
-  {% if vendors.is_empty() %}
-  <p class="empty">{{ t_no_vendor }}</p>
-  {% else %}
-  <p class="hint">{{ t_naming_hint }}</p>
-  <form method="post" action="/catalog/chassis-models" class="form">
-    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
-
-    <label for="vendor_id">{{ t_vendor }}</label>
-    <select id="vendor_id" name="vendor_id">
-      {% for v in vendors %}
-      <option value="{{ v.value }}">{{ v.label }}</option>
-      {% endfor %}
-    </select>
-
-    <label for="model_name">{{ t_model_name }}</label>
-    <input type="text" id="model_name" name="model_name" required>
-
-    <label for="device_category">{{ t_device_category }}</label>
-    <select id="device_category" name="device_category">
-      {% for c in device_categories %}
-      <option value="{{ c.value }}">{{ c.label }}</option>
-      {% endfor %}
-    </select>
-
-    <label for="height_u">{{ t_height_u }}</label>
-    <input type="text" id="height_u" name="height_u" inputmode="numeric" value="1">
-    <p class="hint">{{ t_height_hint }}</p>
-
-    <label for="mount_form">{{ t_mount_form }}</label>
-    <select id="mount_form" name="mount_form">
-      {% for m in mount_forms %}
-      <option value="{{ m }}">{{ m }}</option>
-      {% endfor %}
-    </select>
-    <p class="hint">{{ t_mount_form_hint }}</p>
-
-    <label for="rack_width">{{ t_rack_width }}</label>
-    <select id="rack_width" name="rack_width">
-      {% for w in rack_widths %}
-      <option value="{{ w }}">{{ w }}</option>
-      {% endfor %}
-    </select>
-    <p class="hint">{{ t_rack_width_hint }}</p>
-
-    <button type="submit">{{ t_submit }}</button>
-  </form>
-  {% endif %}
-</div>
-{% endif %}
 
 {% endblock %}

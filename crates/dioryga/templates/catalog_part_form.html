@@ -1,0 +1,56 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+{# 登録は一覧と別の画面で行う（#124） #}
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/catalog/parts">{{ t_back }}</a></p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_hybrid_hint }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+{% if vendors.is_empty() %}
+<p class="empty">{{ t_no_vendor }}</p>
+{% else %}
+<form class="card form" method="post" action="/catalog/parts">
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+  <label for="category">{{ t_category }}</label>
+  <select id="category" name="category">
+    {% for c in categories %}
+    <option value="{{ c }}" {% if *c == v_category %}selected{% endif %}>{{ c }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="vendor_id">{{ t_vendor }}</label>
+  <select id="vendor_id" name="vendor_id">
+    {% for v in vendors %}
+    <option value="{{ v.value }}" {% if v.value == v_vendor_id %}selected{% endif %}>{{ v.label }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="part_number">{{ t_part_number }}</label>
+  <input type="text" id="part_number" name="part_number" value="{{ v_part_number }}" required>
+
+  <label for="core_count">{{ t_core_count }}</label>
+  <input type="text" id="core_count" name="core_count" inputmode="numeric" value="{{ v_core_count }}">
+
+  <label for="capacity_gb">{{ t_capacity_gb }}</label>
+  <input type="text" id="capacity_gb" name="capacity_gb" inputmode="numeric" value="{{ v_capacity_gb }}">
+  <p class="hint">{{ t_spec_column_hint }}</p>
+
+  <label for="spec_json">{{ t_spec_json }}</label>
+  <textarea id="spec_json" name="spec_json" rows="3" placeholder="{}">{{ v_spec_json }}</textarea>
+  <p class="hint">{{ t_spec_hint }}</p>
+
+  <button type="submit">{{ t_submit }}</button>
+</form>
+{% endif %}
+
+{% endblock %}

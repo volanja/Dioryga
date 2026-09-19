@@ -80,28 +80,20 @@ struct CablesPage {
     t_v2_hint: String,
     t_kind: String,
     t_cable_type: String,
-    t_cable_type_hint: String,
     t_length: String,
-    t_length_hint: String,
     t_color: String,
     t_vendor: String,
     t_part_number: String,
     t_rating: String,
-    t_rated_voltage: String,
-    t_rated_current: String,
-    t_rating_hint: String,
     t_ends: String,
     t_actions: String,
     t_empty: String,
     t_new: String,
-    t_submit: String,
     t_retire: String,
     t_unretire: String,
     t_retired: String,
     t_show_retired: String,
-    t_unset: String,
     rows: Vec<CableRow>,
-    vendors: Vec<Labeled>,
     kinds: Vec<&'static str>,
     /// いま見ている種別。**フォームの既定値にもなる。**
     kind: String,
@@ -185,28 +177,20 @@ async fn 一覧を描く(
         t_v2_hint: rust_i18n::t!("cables.v2_hint", locale = l).to_string(),
         t_kind: rust_i18n::t!("cables.kind", locale = l).to_string(),
         t_cable_type: rust_i18n::t!("cables.cable_type", locale = l).to_string(),
-        t_cable_type_hint: rust_i18n::t!("cables.cable_type_hint", locale = l).to_string(),
         t_length: rust_i18n::t!("cables.length", locale = l).to_string(),
-        t_length_hint: rust_i18n::t!("cables.length_hint", locale = l).to_string(),
         t_color: rust_i18n::t!("cables.color", locale = l).to_string(),
         t_vendor: rust_i18n::t!("catalog.vendor", locale = l).to_string(),
         t_part_number: rust_i18n::t!("parts.part_number", locale = l).to_string(),
         t_rating: rust_i18n::t!("cables.rating", locale = l).to_string(),
-        t_rated_voltage: rust_i18n::t!("cables.rated_voltage", locale = l).to_string(),
-        t_rated_current: rust_i18n::t!("cables.rated_current", locale = l).to_string(),
-        t_rating_hint: rust_i18n::t!("cables.rating_hint", locale = l).to_string(),
         t_ends: rust_i18n::t!("cables.ends", locale = l).to_string(),
         t_actions: rust_i18n::t!("projects.actions", locale = l).to_string(),
         t_empty: rust_i18n::t!("catalog.empty", locale = l).to_string(),
         t_new: rust_i18n::t!("cables.new", locale = l).to_string(),
-        t_submit: rust_i18n::t!("catalog.submit", locale = l).to_string(),
         t_retire: rust_i18n::t!("catalog.retire", locale = l).to_string(),
         t_unretire: rust_i18n::t!("catalog.unretire", locale = l).to_string(),
         t_retired: rust_i18n::t!("catalog.retired", locale = l).to_string(),
         t_show_retired: rust_i18n::t!("catalog.show_retired", locale = l).to_string(),
-        t_unset: rust_i18n::t!("catalog.power_unset", locale = l).to_string(),
         rows,
-        vendors: 現役のベンダー(&state.db).await?,
         kinds: CABLE_KINDS.to_vec(),
         kind,
         is_power,
@@ -233,7 +217,7 @@ fn 定格の表示(voltage: Option<i32>, current_ma: Option<i32>) -> String {
 // 登録
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct CableForm {
     #[serde(default)]
     pub cable_kind: String,
@@ -255,6 +239,99 @@ pub struct CableForm {
     pub rated_current_a: String,
 }
 
+/// ケーブルの登録画面（#124）。
+#[derive(askama::Template)]
+#[template(path = "catalog_cable_form.html")]
+struct CableFormPage {
+    chrome: Chrome,
+    t_title: String,
+    t_back: String,
+    t_cable_type: String,
+    t_cable_type_hint: String,
+    t_length: String,
+    t_length_hint: String,
+    t_color: String,
+    t_vendor: String,
+    t_part_number: String,
+    t_rated_voltage: String,
+    t_rated_current: String,
+    t_rating_hint: String,
+    t_unset: String,
+    t_submit: String,
+    vendors: Vec<Labeled>,
+    /// いま登録している種別。一覧から引き継ぐ（8.7）。
+    kind: String,
+    is_power: bool,
+    // **入力した値を保つ**（#124）
+    v_cable_type: String,
+    v_length_m: String,
+    v_color: String,
+    v_vendor_id: String,
+    v_part_number: String,
+    v_rated_voltage: String,
+    v_rated_current_a: String,
+    error: Option<String>,
+}
+
+/// 登録画面を描く（#124）。**Viewerは入れない**（18.1）。
+async fn 登録を描く(
+    state: &AppState,
+    current: &CurrentUser,
+    form: &CableForm,
+    error: Option<String>,
+) -> AppResult<Response> {
+    let l = 入場(state, current)?;
+    編集権(state, current).await?;
+
+    // **語彙外の種別は既定に寄せる。**ここは入力ではなく、どの欄を出すかの分岐
+    let kind = match form.cable_kind.as_str() {
+        k if CABLE_KINDS.contains(&k) => k.to_owned(),
+        _ => CABLE_KINDS[0].to_owned(),
+    };
+    let is_power = kind == POWER;
+
+    render(&CableFormPage {
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "cables"),
+        t_title: rust_i18n::t!("cables.new", locale = l).to_string(),
+        t_back: rust_i18n::t!("cables.back", locale = l).to_string(),
+        t_cable_type: rust_i18n::t!("cables.cable_type", locale = l).to_string(),
+        t_cable_type_hint: rust_i18n::t!("cables.cable_type_hint", locale = l).to_string(),
+        t_length: rust_i18n::t!("cables.length", locale = l).to_string(),
+        t_length_hint: rust_i18n::t!("cables.length_hint", locale = l).to_string(),
+        t_color: rust_i18n::t!("cables.color", locale = l).to_string(),
+        t_vendor: rust_i18n::t!("catalog.vendor", locale = l).to_string(),
+        t_part_number: rust_i18n::t!("parts.part_number", locale = l).to_string(),
+        t_rated_voltage: rust_i18n::t!("cables.rated_voltage", locale = l).to_string(),
+        t_rated_current: rust_i18n::t!("cables.rated_current", locale = l).to_string(),
+        t_rating_hint: rust_i18n::t!("cables.rating_hint", locale = l).to_string(),
+        t_unset: rust_i18n::t!("catalog.unset", locale = l).to_string(),
+        t_submit: rust_i18n::t!("catalog.submit", locale = l).to_string(),
+        vendors: 現役のベンダー(&state.db).await?,
+        kind,
+        is_power,
+        v_cable_type: form.cable_type.clone(),
+        v_length_m: form.length_m.clone(),
+        v_color: form.color.clone(),
+        v_vendor_id: form.vendor_id.clone(),
+        v_part_number: form.part_number.clone(),
+        v_rated_voltage: form.rated_voltage.clone(),
+        v_rated_current_a: form.rated_current_a.clone(),
+        error,
+    })
+}
+
+pub async fn new_form(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Query(query): Query<ListQuery>,
+) -> AppResult<Response> {
+    let form = CableForm {
+        cable_kind: query.kind.unwrap_or_else(|| CABLE_KINDS[0].to_owned()),
+        ..Default::default()
+    };
+    登録を描く(&state, &current, &form, None).await
+}
+
 pub async fn create(
     State(state): State<AppState>,
     Extension(current): Extension<CurrentUser>,
@@ -263,22 +340,17 @@ pub async fn create(
     let l = 入場(&state, &current)?;
     編集権(&state, &current).await?;
 
-    // 誤りを返すときも、利用者が見ていた種別の一覧へ戻す
-    let query = ListQuery {
-        retired: None,
-        kind: Some(form.cable_kind.clone()),
-    };
     let 誤り = |key: &str| Some(rust_i18n::t!(key, locale = l).to_string());
 
     // **閉じた語彙は既定へ寄せず拒否する**（8.6、Q-21）
     if !CABLE_KINDS.contains(&form.cable_kind.as_str()) {
-        return 一覧を描く(&state, &current, &query, 誤り("cables.error_kind")).await;
+        return 登録を描く(&state, &current, &form, 誤り("cables.error_kind")).await;
     }
 
     // **開いた語彙。**正規化はするが語彙外でも拒否しない（8.6）
     let cable_type = 正規化(&form.cable_type);
     if cable_type.is_empty() {
-        return 一覧を描く(&state, &current, &query, 誤り("cables.error_type")).await;
+        return 登録を描く(&state, &current, &form, 誤り("cables.error_type")).await;
     }
 
     // **メートルで受けてミリメートルで保存する**（24.2.1）
@@ -286,18 +358,18 @@ pub async fn create(
         "" => None,
         v => match v.parse::<f64>() {
             Ok(m) if m > 0.0 => Some((m * 1000.0).round() as i32),
-            _ => return 一覧を描く(&state, &current, &query, 誤り("cables.error_length")).await,
+            _ => return 登録を描く(&state, &current, &form, 誤り("cables.error_length")).await,
         },
     };
 
     let (rated_voltage, rated_current_ma) = match 定格を読む(&form) {
         Ok(v) => v,
-        Err(key) => return 一覧を描く(&state, &current, &query, 誤り(key)).await,
+        Err(key) => return 登録を描く(&state, &current, &form, 誤り(key)).await,
     };
     // **意味を持たない列に値が来たら拒否する**（8.7、Q-21）。
     // 取込は警告に留めるが、画面は選択肢をサーバが描いているため改竄しかない
     if form.cable_kind != POWER && (rated_voltage.is_some() || rated_current_ma.is_some()) {
-        return 一覧を描く(&state, &current, &query, 誤り("cables.error_rating_unused")).await;
+        return 登録を描く(&state, &current, &form, 誤り("cables.error_rating_unused")).await;
     }
 
     let vendor_id = match form.vendor_id.trim() {
@@ -305,7 +377,7 @@ pub async fn create(
         v => match v.parse::<i32>() {
             Ok(id) => Some(id),
             Err(_) => {
-                return 一覧を描く(&state, &current, &query, 誤り("cables.error_vendor")).await
+                return 登録を描く(&state, &current, &form, 誤り("cables.error_vendor")).await
             }
         },
     };
@@ -314,31 +386,33 @@ pub async fn create(
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     let now = Utc::now();
-    tx.insert(cable_catalog::ActiveModel {
-        cable_kind: Set(Some(form.cable_kind.clone())),
-        cable_type: Set(cable_type),
-        length_mm: Set(length_mm),
-        color: Set(正規化(&form.color)),
-        vendor_id: Set(vendor_id),
-        part_number: Set(match 正規化(&form.part_number) {
-            v if v.is_empty() => None,
-            v => Some(v),
-        }),
-        rated_voltage: Set(rated_voltage),
-        rated_current_ma: Set(rated_current_ma),
-        retired_at: Set(None),
-        created_by: Set(current.user.id),
-        created_at: Set(now),
-        updated_at: Set(now),
-        ..Default::default()
-    })
-    .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let cable = tx
+        .insert(cable_catalog::ActiveModel {
+            cable_kind: Set(Some(form.cable_kind.clone())),
+            cable_type: Set(cable_type),
+            length_mm: Set(length_mm),
+            color: Set(正規化(&form.color)),
+            vendor_id: Set(vendor_id),
+            part_number: Set(match 正規化(&form.part_number) {
+                v if v.is_empty() => None,
+                v => Some(v),
+            }),
+            rated_voltage: Set(rated_voltage),
+            rated_current_ma: Set(rated_current_ma),
+            retired_at: Set(None),
+            created_by: Set(current.user.id),
+            created_at: Set(now),
+            updated_at: Set(now),
+            ..Default::default()
+        })
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     tx.commit()
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
-    Ok(Redirect::to(&format!("/catalog/cables?kind={}", form.cable_kind)).into_response())
+    // **詳細へ進む。**登録したら端の形を足す作業が続く（#124）
+    Ok(Redirect::to(&format!("/catalog/cables/{}", cable.id)).into_response())
 }
 
 /// 定格を読む（8.7）。**アンペアで受けてmAで保存する**（24.2.1）。

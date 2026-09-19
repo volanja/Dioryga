@@ -1,0 +1,44 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+{# 登録は一覧と別の画面で行う（#124） #}
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/catalog/vlans">{{ t_back }}</a></p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_duplicate_hint }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<form class="card form" method="post" action="/catalog/vlans">
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+  <label for="vlan_tag">{{ t_tag }}</label>
+  <input type="text" id="vlan_tag" name="vlan_tag" inputmode="numeric" value="{{ v_vlan_tag }}" required>
+  <p class="hint">{{ t_tag_hint }}</p>
+
+  <label for="name">{{ t_name }}</label>
+  <input type="text" id="name" name="name" value="{{ v_name }}" required>
+
+  {# zone はネットワーク側の属性。INTERFACE_ROLE とは別軸（設計書8.5） #}
+  <label for="zone">{{ t_zone }}</label>
+  <select id="zone" name="zone">
+    <option value="">{{ t_unset }}</option>
+    {% for z in zones %}
+    <option value="{{ z }}" {% if *z == v_zone %}selected{% endif %}>{{ z }}</option>
+    {% endfor %}
+  </select>
+  <p class="hint">{{ t_zone_hint }}</p>
+
+  <label for="description">{{ t_description }}</label>
+  <input type="text" id="description" name="description" value="{{ v_description }}">
+
+  <button type="submit">{{ t_submit }}</button>
+</form>
+
+{% endblock %}

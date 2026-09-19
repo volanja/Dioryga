@@ -64,6 +64,7 @@
 | must_change_password | boolean | 初期パスワード・リセット直後はtrue |
 | is_system_admin | boolean | プロジェクトロールとは別軸 |
 | locale | string | `en`/`ja` |
+| theme | string | `system`（OSに従う）/`light`/`dark`。既定は `system` |
 | last_login_at | datetime | nullable |
 | disabled_at | datetime | nullable、null=有効。**物理削除しない** |
 

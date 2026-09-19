@@ -31,6 +31,7 @@ nav:
   project_list: プロジェクト一覧
   warehouse_list: 倉庫一覧
   user_list: ユーザー一覧
+  display: 表示
   password: パスワード
   dashboard: ダッシュボード
   devices: 機器
@@ -45,6 +46,18 @@ nav:
   import: 取込
   stored_devices: 保管中の機器
   stored_parts: 部品在庫
+
+account:
+  display: 表示
+  display_lead: 画面の言語と、ライト／ダークの見え方を選びます
+  locale: 言語
+  locale_hint: 保存すると、この画面から切り替わります
+  theme: 表示モード
+  theme_hint: 「OSに従う」はお使いの端末の設定に合わせます
+  saved: 保存しました
+  theme_system: OSに従う
+  theme_light: ライト
+  theme_dark: ダーク
 
 common:
   logout: ログアウト

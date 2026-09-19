@@ -22,6 +22,8 @@ pub struct Model {
     /// プロジェクトロールとは別軸で扱う（設計書4章）。
     pub is_system_admin: bool,
     pub locale: String,
+    /// 表示モード。`system`（OSに従う）／`light`／`dark`（#120）。
+    pub theme: String,
     pub last_login_at: Option<DateTimeUtc>,
     /// null = 有効。物理削除はしない（設計書20.11）。
     pub disabled_at: Option<DateTimeUtc>,

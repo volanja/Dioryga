@@ -21,9 +21,12 @@
   --gap: 16px;
 }
 
-/* ライト/ダーク両対応（トグルは後続の画面で追加する） */
+/* ライト/ダーク両対応（設計書16.4）。個人設定で選べる（#120）
+   - 選んでいない（system）：OSの設定に従う
+   - light を選んだ：OSがダークでもライトのまま（media側を打ち消す）
+   - dark を選んだ：OSがライトでもダーク */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #1a1a26;
     --surface: #26263a;
     --border: #34344a;
@@ -34,6 +37,18 @@
     --danger: #f08a87;
     --link: #9192f7;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #1a1a26;
+  --surface: #26263a;
+  --border: #34344a;
+  --text: #e9e9f2;
+  --muted: #9696ac;
+  --hover: #2e2e44;
+  --accent: #9192f7;
+  --danger: #f08a87;
+  --link: #9192f7;
 }
 
 * { box-sizing: border-box; }
@@ -119,6 +134,16 @@ button:hover { filter: brightness(1.08); }
   border: 1px solid var(--danger);
   border-radius: 8px;
   color: var(--danger);
+  font-size: 13px;
+}
+
+/* 保存できたことの知らせ（#120）。エラーと同じ形で、色だけ変える */
+.notice {
+  padding: 10px 12px;
+  margin-bottom: var(--gap);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  color: var(--accent);
   font-size: 13px;
 }
 

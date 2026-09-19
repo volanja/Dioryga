@@ -23,7 +23,11 @@ mod m20260905_000006_add_catalog_merge;
 mod m20260906_000001_create_port_power_rating;
 mod m20260906_000002_add_configuration_power;
 mod m20260906_000003_add_cable_rating;
-mod m20260916_000001_uppercase_device_category;
+// **このマイグレーションだけ公開する。**結合テスト（`catalog_schema.rs`）が
+// 名指しで up / down を流し、既存の行が書き換わることを確かめる。後から
+// マイグレーションを足しても対象がずれない（#125、#120）
+pub mod m20260916_000001_uppercase_device_category;
+mod m20260919_000001_add_user_theme;
 
 pub struct Migrator;
 
@@ -49,6 +53,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260906_000002_add_configuration_power::Migration),
             Box::new(m20260906_000003_add_cable_rating::Migration),
             Box::new(m20260916_000001_uppercase_device_category::Migration),
+            Box::new(m20260919_000001_add_user_theme::Migration),
         ]
     }
 }

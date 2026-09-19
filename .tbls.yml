@@ -70,6 +70,7 @@ comments:
       disabled_at: null = 有効。**物理削除の代わり。**
       is_system_admin: プロジェクトロールとは別軸。**真の利用者はプロジェクトデータに一切アクセスできない**（3章）
       must_change_password: 一時パスワード発行時に真。変更を終えるまで他の画面へ進めない（20.6）
+      theme: 表示モード。`system`（OSに従う）／`light`／`dark`。既定は `system`（#120）
 
   - table: project
     tableComment: |

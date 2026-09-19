@@ -53,6 +53,43 @@ impl Locale {
     }
 }
 
+/// 表示モード（設計書16.4、#120）。**既定はOSに従う。**
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Theme {
+    System,
+    Light,
+    Dark,
+}
+
+impl Theme {
+    /// `USER.theme` の値。読めない値は既定（OSに従う）にする。
+    pub fn parse(value: &str) -> Self {
+        match value {
+            "light" => Self::Light,
+            "dark" => Self::Dark,
+            _ => Self::System,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::System => "system",
+            Self::Light => "light",
+            Self::Dark => "dark",
+        }
+    }
+
+    /// `<html>` の `data-theme`。**OSに従うときは属性を置かない**
+    /// ——CSSの `prefers-color-scheme` にそのまま任せる。
+    pub fn attribute(self) -> &'static str {
+        match self {
+            Self::System => "",
+            Self::Light => "light",
+            Self::Dark => "dark",
+        }
+    }
+}
+
 /// ログイン後の画面が共通で持つ枠（`app_layout.html`）。
 ///
 /// **各ページの構造体にこれを1つ持たせる。**ヘッダーとナビに必要な値は
@@ -67,6 +104,8 @@ impl Locale {
 /// 印が2つ付くとどちらにいるのか読めないため、左メニューの印は常に1つにする。
 pub struct Chrome {
     pub locale: &'static str,
+    /// `<html data-theme>` に出す値。OSに従うときは空（#120）。
+    pub theme: &'static str,
     pub app_name: String,
     pub user_name: String,
     /// フォームのhidden fieldへ埋め込むCSRFトークン（設計書20.5）。
@@ -180,11 +219,8 @@ impl Chrome {
                 t("nav.warehouse_list", l),
                 true,
             )],
-            "account" => vec![NavItem::link(
-                "/account/password",
-                t("nav.password", l),
-                true,
-            )],
+            // 個人設定は [`Chrome::account`] を使う。ここへは来ない
+            "account" => Vec::new(),
             "users" => vec![NavItem::link("/admin/users", t("nav.user_list", l), true)],
             "admin_projects" => {
                 vec![NavItem::link(
@@ -196,6 +232,19 @@ impl Chrome {
             _ => Vec::new(),
         };
         Self::組む(user, csrf_token, nav, side)
+    }
+
+    /// 個人設定の画面（#120）。`sub` は `display` / `password`。
+    ///
+    /// **性格の違う操作を分ける。**表示は選んで保存するだけだが、パスワードは
+    /// 現行の入力が要り、他の端末のセッションを切る（20.7）。
+    pub fn account(user: &entity::app_user::Model, csrf_token: String, sub: &'static str) -> Self {
+        let l = Locale::parse(&user.locale).as_str();
+        let side = vec![
+            NavItem::link("/account/display", t("nav.display", l), sub == "display"),
+            NavItem::link("/account/password", t("nav.password", l), sub == "password"),
+        ];
+        Self::組む(user, csrf_token, "account", side)
     }
 
     /// 共有カタログの画面。`sub` は左メニューのどの項目にいるか（空ならダッシュボード）。
@@ -300,18 +349,21 @@ impl Chrome {
                     t("nav.admin_projects", l),
                     nav == "admin_projects",
                 ),
-                NavItem::link("/account/password", t("nav.account", l), nav == "account"),
+                // 個人設定の先頭の画面へ入る（#120）
+                NavItem::link("/account/display", t("nav.account", l), nav == "account"),
             ]
         } else {
             vec![
                 NavItem::link("/projects", t("nav.projects", l), nav == "projects"),
                 NavItem::link("/warehouses", t("warehouses.title", l), nav == "warehouses"),
                 NavItem::link("/catalog", t("catalog.nav", l), nav == "catalog"),
-                NavItem::link("/account/password", t("nav.account", l), nav == "account"),
+                // 個人設定の先頭の画面へ入る（#120）
+                NavItem::link("/account/display", t("nav.account", l), nav == "account"),
             ]
         };
         Self {
             locale: l,
+            theme: Theme::parse(&user.theme).attribute(),
             app_name: t("app.name", l),
             user_name: user.name.clone(),
             csrf_token,

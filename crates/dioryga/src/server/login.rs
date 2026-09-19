@@ -21,6 +21,8 @@ use crate::server::AppState;
 #[template(path = "login.html")]
 struct LoginPage {
     locale: &'static str,
+    /// ログイン前は利用者が定まらないため、常にOSに従う（#120）。
+    theme: &'static str,
     app_name: String,
     t_title: String,
     t_lead: String,
@@ -36,6 +38,7 @@ impl LoginPage {
         let l = locale.as_str();
         Self {
             locale: l,
+            theme: "",
             app_name: rust_i18n::t!("app.name", locale = l).to_string(),
             t_title: rust_i18n::t!("login.title", locale = l).to_string(),
             t_lead: rust_i18n::t!("login.lead", locale = l).to_string(),

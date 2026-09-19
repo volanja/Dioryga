@@ -1,0 +1,37 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if saved %}
+<p class="notice">{{ t_saved }}</p>
+{% endif %}
+
+{# CSRFトークン（設計書20.5） #}
+<form class="card form" method="post" action="/account/display">
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+  <label for="locale">{{ t_locale }}</label>
+  <select id="locale" name="locale">
+    <option value="ja" {% if locale_value == "ja" %}selected{% endif %}>日本語</option>
+    <option value="en" {% if locale_value == "en" %}selected{% endif %}>English</option>
+  </select>
+  <p class="hint">{{ t_locale_hint }}</p>
+
+  <label for="theme">{{ t_theme }}</label>
+  <select id="theme" name="theme">
+    <option value="system" {% if theme_value == "system" %}selected{% endif %}>{{ t_theme_system }}</option>
+    <option value="light" {% if theme_value == "light" %}selected{% endif %}>{{ t_theme_light }}</option>
+    <option value="dark" {% if theme_value == "dark" %}selected{% endif %}>{{ t_theme_dark }}</option>
+  </select>
+  <p class="hint">{{ t_theme_hint }}</p>
+
+  <button type="submit">{{ t_submit }}</button>
+</form>
+{% endblock %}

@@ -17,6 +17,8 @@ use crate::server::AppState;
 #[template(path = "setup.html")]
 struct SetupPage {
     locale: &'static str,
+    /// 初期設定はまだ利用者がいないため、OSに従う（#120）。
+    theme: &'static str,
     app_name: String,
     t_title: String,
     t_lead: String,
@@ -37,6 +39,7 @@ impl SetupPage {
         let l = locale.as_str();
         Self {
             locale: l,
+            theme: "",
             app_name: rust_i18n::t!("app.name", locale = l).to_string(),
             t_title: rust_i18n::t!("setup.title", locale = l).to_string(),
             t_lead: rust_i18n::t!("setup.lead", locale = l).to_string(),

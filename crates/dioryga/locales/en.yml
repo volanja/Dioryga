@@ -31,6 +31,7 @@ nav:
   project_list: Projects
   warehouse_list: Warehouses
   user_list: Users
+  display: Display
   password: Password
   dashboard: Dashboard
   devices: Devices
@@ -45,6 +46,18 @@ nav:
   import: Import
   stored_devices: Stored devices
   stored_parts: Parts stock
+
+account:
+  display: Display
+  display_lead: Choose the language and the light or dark appearance
+  locale: Language
+  locale_hint: Saving switches the display from this screen onwards
+  theme: Appearance
+  theme_hint: Follow the system matches this device's setting
+  saved: Saved
+  theme_system: Follow the system
+  theme_light: Light
+  theme_dark: Dark
 
 common:
   logout: Sign out

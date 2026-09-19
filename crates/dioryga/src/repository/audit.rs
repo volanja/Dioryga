@@ -472,6 +472,7 @@ mod tests {
             must_change_password: false,
             is_system_admin: false,
             locale: "ja".to_owned(),
+            theme: "system".to_owned(),
             last_login_at: None,
             disabled_at: None,
             created_at: Utc::now(),

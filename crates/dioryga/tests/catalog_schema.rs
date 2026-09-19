@@ -420,10 +420,13 @@ async fn 部品(
 /// 種別はDB制約にせず語彙で検証する（設計書8.6）ため、語彙を改めただけでは
 /// 旧表記が語彙外の値として残る。対象外の値（`Server`）には触れない。
 async fn 種別の略語を大文字に書き換える(db: &DatabaseConnection) {
-    use migration::{Migrator, MigratorTrait};
+    use migration::m20260916_000001_uppercase_device_category::Migration as 大文字化;
+    use migration::{MigrationTrait, SchemaManager};
 
-    // 最後のマイグレーション（#125）の手前に戻してから旧表記を入れる
-    Migrator::down(db, Some(1)).await.unwrap();
+    // **このマイグレーションだけを名指しで戻す。**後からマイグレーションを
+    // 足しても対象がずれない
+    let manager = SchemaManager::new(db);
+    大文字化.down(&manager).await.unwrap();
 
     let user = 利用者(db, "category-migration@example.com").await;
     let v = ベンダー(db, "CategoryVendor", user.id).await;
@@ -477,13 +480,13 @@ async fn 種別の略語を大文字に書き換える(db: &DatabaseConnection) 
         }
     };
 
-    Migrator::up(db, None).await.unwrap();
+    大文字化.up(&manager).await.unwrap();
     assert_eq!(
         種別(db).await,
         ["VPN", "PDU", "UPS", "KVM", "Server", "KVM"]
     );
 
-    Migrator::down(db, Some(1)).await.unwrap();
+    大文字化.down(&manager).await.unwrap();
     assert_eq!(
         種別(db).await,
         ["Vpn", "Pdu", "Ups", "Kvm", "Server", "Kvm"]

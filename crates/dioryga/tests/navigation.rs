@@ -164,10 +164,16 @@ async fn 個人設定と強制変更(db: &DatabaseConnection) {
     let user = 利用者(db, "nav-account", false, false).await;
     let body = 開く(db, &user, "/account/password").await;
     assert!(
-        上部メニュー(&body).contains(r#"href="/account/password" class="current""#),
+        上部メニュー(&body).contains(r#"href="/account/display" class="current""#),
         "{body}"
     );
-    assert!(左メニュー(&body).contains(r#"href="/account/password" class="current""#));
+    let 左 = 左メニュー(&body);
+    assert!(
+        左.contains(r#"href="/account/password" class="current""#),
+        "{左}"
+    );
+    // 表示（言語・表示モード、#120）も並ぶ
+    assert!(左.contains(r#"href="/account/display" class="""#), "{左}");
 
     let forced = 利用者(db, "nav-forced", false, true).await;
     let body = 開く(db, &forced, "/account/password").await;
@@ -187,7 +193,7 @@ async fn システム管理者の上部メニュー(db: &DatabaseConnection) {
         上.contains(r#"href="/admin/projects" class="current""#),
         "{上}"
     );
-    assert!(上.contains(r#"href="/account/password""#), "{上}");
+    assert!(上.contains(r#"href="/account/display""#), "{上}");
     assert!(!上.contains("/catalog"), "{上}");
     assert!(!上.contains("/warehouses"), "{上}");
     assert!(左メニュー(&body).contains(r#"href="/admin/projects" class="current""#));

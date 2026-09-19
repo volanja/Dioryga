@@ -22,6 +22,7 @@
 | disabled_at | timestamp with time zone |  | true |  |  | null = 有効。**物理削除の代わり。** |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
+| theme | varchar | 'system'::character varying | false |  |  | 表示モード。`system`（OSに従う）／`light`／`dark`。既定は `system`（#120） |
 
 ## Constraints
 
@@ -34,6 +35,7 @@
 | app_user_must_change_password_not_null | n | NOT NULL must_change_password |
 | app_user_name_not_null | n | NOT NULL name |
 | app_user_password_hash_not_null | n | NOT NULL password_hash |
+| app_user_theme_not_null | n | NOT NULL theme |
 | app_user_updated_at_not_null | n | NOT NULL updated_at |
 | app_user_username_not_null | n | NOT NULL username |
 | app_user_pkey | PRIMARY KEY | PRIMARY KEY (id) |

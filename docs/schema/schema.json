@@ -71,6 +71,13 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "theme",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'system'::character varying",
+          "comment": "表示モード。`system`（OSに従う）／`light`／`dark`。既定は `system`（#120）"
         }
       ],
       "indexes": [
@@ -168,6 +175,16 @@
           "referenced_table": "",
           "columns": [
             "password_hash"
+          ]
+        },
+        {
+          "name": "app_user_theme_not_null",
+          "type": "n",
+          "def": "NOT NULL theme",
+          "table": "public.app_user",
+          "referenced_table": "",
+          "columns": [
+            "theme"
           ]
         },
         {

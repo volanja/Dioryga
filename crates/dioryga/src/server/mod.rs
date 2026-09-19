@@ -69,6 +69,10 @@ pub fn router(state: AppState) -> Router {
         .route("/login", get(login::show).post(login::submit))
         .route("/logout", post(login::logout))
         .route(
+            "/account/display",
+            get(account::display).post(account::update_display),
+        )
+        .route(
             "/account/password",
             get(account::show).post(account::submit),
         )

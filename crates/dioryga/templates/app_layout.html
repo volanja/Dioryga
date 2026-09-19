@@ -1,5 +1,6 @@
 <!doctype html>
-<html lang="{{ chrome.locale }}">
+{# 表示モード（#120）。OSに従うときは属性を置かず、prefers-color-scheme に任せる #}
+<html lang="{{ chrome.locale }}"{% if !chrome.theme.is_empty() %} data-theme="{{ chrome.theme }}"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

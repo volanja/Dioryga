@@ -406,6 +406,7 @@ catalog:
   vendors: ベンダー
   vendors_lead: 表記ゆれを防ぐためのマスタです。ここに無いベンダーは型番も登録できません
   vendor: ベンダー
+  vendor_registered: このベンダーで登録されているもの
   vendor_edit_hint: ベンダー名は参照済みでも直せます。誤字の訂正が構成そのものを変えるわけではないためです
   chassis_models: 筐体モデル
   chassis_models_lead: メーカーが製品として出している型番です。搭載できる部品の物理的な制約を持ちます

@@ -181,6 +181,89 @@ async fn 筐体モデルを登録できる(db: &DatabaseConnection) {
     assert_eq!(m.rack_width.as_deref(), Some("Full"));
 }
 
+/// **ベンダーの改名は詳細で行うこと**（#157）。
+///
+/// 一覧の行に入力欄が並ぶ形をやめ、他のカタログと同じく操作の欄は「詳細」にする。
+async fn ベンダーの改名は詳細で行う(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "vendor-detail@example.com", "Operator").await;
+    let v = ベンダー(db, "ハイマツ電機", user.id).await;
+    筐体モデル(db, v.id, "HM-2200", user.id).await;
+
+    // 一覧：入力欄は無く、詳細へのリンクがある
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, 一覧) = 取得(状態, "/catalog/vendors", &token).await;
+    assert!(
+        !一覧.contains(r#"name="name""#),
+        "行内の入力欄が残っています: {一覧}"
+    );
+    assert!(
+        一覧.contains(&format!(r#"href="/catalog/vendors/{}""#, v.id)),
+        "{一覧}"
+    );
+
+    // 詳細：このベンダーで登録されているものの件数が出る
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, 詳細) = 取得(状態, &format!("/catalog/vendors/{}", v.id), &token).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(詳細.contains("ハイマツ電機"), "{詳細}");
+    assert!(
+        詳細.contains("<dd>1</dd>"),
+        "筐体モデルの件数が出ていません: {詳細}"
+    );
+
+    // 改名できる。戻り先は一覧
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = 送信(
+        状態,
+        "/catalog/vendors",
+        &token,
+        &[("id", &v.id.to_string()), ("name", "ハイマツ電機工業")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(ベンダー一覧(db).await, vec!["ハイマツ電機工業"]);
+}
+
+/// **改名の誤りは、入力値を保ったまま詳細に返ること**（#157）。
+async fn 改名の誤りは詳細に返る(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "vendor-dup@example.com", "Operator").await;
+    let a = ベンダー(db, "HPE", user.id).await;
+    ベンダー(db, "Dell", user.id).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 送信(
+        状態,
+        "/catalog/vendors",
+        &token,
+        &[("id", &a.id.to_string()), ("name", "Dell")],
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("同じ名前のベンダーが既にあります"), "{body}");
+    // 詳細に戻っており、入れた値が残っている
+    assert!(
+        body.contains(&format!(r#"value="{}""#, a.id)),
+        "詳細ではありません: {body}"
+    );
+    assert!(body.contains(r#"value="Dell""#), "{body}");
+    assert_eq!(ベンダー一覧(db).await, vec!["Dell", "HPE"]);
+}
+
+/// **閲覧者は詳細を見られるが、改名の欄は出ないこと**（設計書18.1）。
+async fn 閲覧者はベンダーを直せない(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "vendor-viewer@example.com", "Viewer").await;
+    let v = ベンダー(db, "HPE", user.id).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, 詳細) = 取得(状態, &format!("/catalog/vendors/{}", v.id), &token).await;
+    assert_eq!(status, StatusCode::OK, "閲覧者も詳細は見られる");
+    assert!(
+        !詳細.contains(r#"name="name""#),
+        "改名の欄が出ています: {詳細}"
+    );
+}
+
 /// **種別は日本語画面で訳して出し、送る値は語彙のままであること**（#126）。
 async fn 筐体モデルの種別は表示だけを訳す(db: &DatabaseConnection) {
     let user = メンバーの利用者(db, "chassis-label@example.com", "Operator").await;
@@ -1804,6 +1887,9 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 同名のベンダーは登録できない);
         全検証!(@one $用意, $属性, ベンダー名を正規化する);
         全検証!(@one $用意, $属性, 参照済みのベンダーは改名できる);
+        全検証!(@one $用意, $属性, ベンダーの改名は詳細で行う);
+        全検証!(@one $用意, $属性, 改名の誤りは詳細に返る);
+        全検証!(@one $用意, $属性, 閲覧者はベンダーを直せない);
         全検証!(@one $用意, $属性, 筐体モデルを登録できる);
         全検証!(@one $用意, $属性, 一覧から登録画面へ入れる);
         全検証!(@one $用意, $属性, 閲覧者は登録画面に入れない);

@@ -98,12 +98,11 @@ struct VendorsPage {
     t_actions: String,
     t_empty: String,
     t_new: String,
-    t_save: String,
+    t_detail: String,
     t_retire: String,
     t_unretire: String,
     t_retired: String,
     t_show_retired: String,
-    t_edit_hint: String,
     rows: Vec<VendorRow>,
     show_retired: bool,
     can_edit: bool,
@@ -179,6 +178,31 @@ struct ConfigurationsPage {
     t_show_retired: String,
     rows: Vec<ConfigurationRow>,
     show_retired: bool,
+    can_edit: bool,
+    error: Option<String>,
+}
+
+/// ベンダーの詳細（#157）。**改名はここで行う。**
+///
+/// 一覧の行に入力欄を並べる形をやめ、他のカタログ（筐体モデル・部品・構成・
+/// ケーブル）と同じく詳細に集めた。
+#[derive(askama::Template)]
+#[template(path = "catalog_vendor_detail.html")]
+struct VendorDetailPage {
+    chrome: Chrome,
+    vendor_id: i32,
+    name: String,
+    retired: bool,
+    t_back: String,
+    t_retired: String,
+    t_registered: String,
+    t_edit: String,
+    t_edit_hint: String,
+    t_name: String,
+    t_submit: String,
+    /// このベンダーで登録されているものの件数。
+    counts: Vec<Labeled>,
+    v_name: String,
     can_edit: bool,
     error: Option<String>,
 }
@@ -422,12 +446,12 @@ async fn ベンダーを描く(
         t_actions: rust_i18n::t!("projects.actions", locale = l).to_string(),
         t_empty: rust_i18n::t!("catalog.empty", locale = l).to_string(),
         t_new: rust_i18n::t!("catalog.new_vendor", locale = l).to_string(),
-        t_save: rust_i18n::t!("members.save", locale = l).to_string(),
+        // 改名は詳細で行う（#157）
+        t_detail: rust_i18n::t!("devices.detail", locale = l).to_string(),
         t_retire: rust_i18n::t!("catalog.retire", locale = l).to_string(),
         t_unretire: rust_i18n::t!("catalog.unretire", locale = l).to_string(),
         t_retired: rust_i18n::t!("catalog.retired", locale = l).to_string(),
         t_show_retired: rust_i18n::t!("catalog.show_retired", locale = l).to_string(),
-        t_edit_hint: rust_i18n::t!("catalog.vendor_edit_hint", locale = l).to_string(),
         rows,
         show_retired,
         can_edit,
@@ -464,6 +488,86 @@ pub async fn new_vendor(
     ベンダー登録を描く(&state, &current, String::new(), None).await
 }
 
+/// 詳細を描く（#157）。**閲覧者も見られる。**改名の欄だけ編集権で出し分ける。
+async fn ベンダーの詳細を描く(
+    state: &AppState,
+    current: &CurrentUser,
+    id: i32,
+    v_name: Option<String>,
+    error: Option<String>,
+) -> AppResult<Response> {
+    let l = 入場(state, current)?;
+    let can_edit = 編集権(state, current).await.is_ok();
+
+    let v = vendor::Entity::find_by_id(id)
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .ok_or(AppError::NotFound)?;
+
+    // **このベンダーで何が登録されているかを出す。**改名してよいか、廃番にして
+    // よいかの判断材料になる。**統合で吸収された部品は数えない**（23.9.4）
+    let db = &state.db;
+    let 筐体 = chassis_model::Entity::find()
+        .filter(chassis_model::Column::VendorId.eq(id))
+        .count(db)
+        .await;
+    let 部品 = part_catalog::Entity::find()
+        .filter(part_catalog::Column::VendorId.eq(id))
+        .filter(part_catalog::Column::MergedIntoPartCatalogId.is_null())
+        .count(db)
+        .await;
+    let ケーブル = cable_catalog::Entity::find()
+        .filter(cable_catalog::Column::VendorId.eq(id))
+        .count(db)
+        .await;
+    let ソフトウェア = software_catalog::Entity::find()
+        .filter(software_catalog::Column::VendorId.eq(id))
+        .count(db)
+        .await;
+
+    let mut counts = Vec::new();
+    for (key, 結果) in [
+        ("catalog.chassis_models", 筐体),
+        ("parts.title", 部品),
+        ("cables.title", ケーブル),
+        ("software.title", ソフトウェア),
+    ] {
+        let n = 結果.map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+        counts.push(Labeled {
+            label: rust_i18n::t!(key, locale = l).to_string(),
+            value: n.to_string(),
+        });
+    }
+
+    render(&VendorDetailPage {
+        chrome: Chrome::catalog(&current.user, current.csrf_token.clone(), "vendors"),
+        vendor_id: id,
+        retired: v.retired_at.is_some(),
+        t_back: rust_i18n::t!("catalog.back_vendors", locale = l).to_string(),
+        t_retired: rust_i18n::t!("catalog.retired", locale = l).to_string(),
+        t_registered: rust_i18n::t!("catalog.vendor_registered", locale = l).to_string(),
+        t_edit: rust_i18n::t!("warehouses.edit", locale = l).to_string(),
+        t_edit_hint: rust_i18n::t!("catalog.vendor_edit_hint", locale = l).to_string(),
+        t_name: rust_i18n::t!("catalog.name", locale = l).to_string(),
+        t_submit: rust_i18n::t!("common.save", locale = l).to_string(),
+        counts,
+        // 誤って戻したときは入力した値を出す（#124と同じ）
+        v_name: v_name.unwrap_or_else(|| v.name.clone()),
+        name: v.name,
+        can_edit,
+        error,
+    })
+}
+
+pub async fn vendor_detail(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path(id): Path<i32>,
+) -> AppResult<Response> {
+    ベンダーの詳細を描く(&state, &current, id, None, None).await
+}
+
 #[derive(Debug, Deserialize)]
 pub struct VendorForm {
     /// 空なら新規登録、値があれば改名。
@@ -485,14 +589,13 @@ pub async fn save_vendor(
     // なると、表記ゆれを防ぐために置いたマスタが表記ゆれの発生源になる
     let name = 正規化(&form.name);
     let name = name.as_str();
-    // **改名は一覧の行で、登録は登録画面で行う**（#124）。誤りは来た画面へ返す
-    let 改名 = !form.id.trim().is_empty();
-    let 誤りを返す = async |state: &AppState, current: &CurrentUser, e: String| {
-        if 改名 {
-            ベンダーを描く(state, current, false, Some(e)).await
-        } else {
-            ベンダー登録を描く(state, current, form.name.clone(), Some(e)).await
+    // **改名は詳細（#157）、登録は登録画面（#124）。**誤りは来た画面へ返す
+    let 改名先 = form.id.trim().parse::<i32>().ok();
+    let 誤りを返す = async |state: &AppState, current: &CurrentUser, e: String| match 改名先 {
+        Some(id) => {
+            ベンダーの詳細を描く(state, current, id, Some(form.name.clone()), Some(e)).await
         }
+        None => ベンダー登録を描く(state, current, form.name.clone(), Some(e)).await,
     };
     if name.is_empty() {
         let e = rust_i18n::t!("catalog.error_name", locale = l).to_string();

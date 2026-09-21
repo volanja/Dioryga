@@ -3973,6 +3973,12 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "retired_at",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null = 現役。所在の履歴が指し続けるため、使ったことのある倉庫は消さず廃止する（#133）"
         }
       ],
       "indexes": [

@@ -1,0 +1,29 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+{# 登録・編集は一覧と別の画面で行う（#133、#124と同じ作り） #}
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/warehouses">{{ t_back }}</a></p>
+    <h1>{{ t_title }}</h1>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<form class="card form" method="post" action="{{ action }}">
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+  <label for="name">{{ t_name }}</label>
+  <input type="text" id="name" name="name" value="{{ v_name }}" required>
+
+  <label for="address">{{ t_address }}</label>
+  <input type="text" id="address" name="address" value="{{ v_address }}">
+
+  <button type="submit">{{ t_submit }}</button>
+</form>
+
+{% endblock %}

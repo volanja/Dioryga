@@ -26,7 +26,7 @@
 | [public.part_instance_location](public.part_instance_location.md) | 8 | 部品の所在 — 履歴テーブル（6.2、12.4）。 | BASE TABLE |
 | [public.firmware_version](public.firmware_version.md) | 9 | ファームウェアの版 — 履歴テーブル（6.2）。 | BASE TABLE |
 | [public.device_stack](public.device_stack.md) | 6 | スタック構成 — 履歴テーブル（8.6）。スタック全体を `device_type="Logical"` の DEVICE として<br />登録し、物理筐体は `Physical` として別に登録する。hostname や OS_INTERFACE は論理側、<br />DEVICE_MOUNT や power_watt は物理側が持つ。<br /> | BASE TABLE |
-| [public.warehouse](public.warehouse.md) | 6 | 倉庫。プロジェクトを横断する未割当機器の置き場（12章）。 | BASE TABLE |
+| [public.warehouse](public.warehouse.md) | 7 | 倉庫。プロジェクトを横断する未割当機器の置き場（12章）。 | BASE TABLE |
 | [public.mount_container](public.mount_container.md) | 9 | 機器を載せる什器（12章）。 | BASE TABLE |
 | [public.device_mount](public.device_mount.md) | 10 | 機器の搭載位置 — 履歴テーブル（12.2、13.2）。<br />**1行で `container_id` と `host_device_id` のどちらか一方だけが埋まる。**<br />この排他はDB制約にせず、アプリケーション層で検証する。<br /> | BASE TABLE |
 | [public.import_run](public.import_run.md) | 10 | 取込の実行記録（23.7）。**「この不正なデータはどの取込で入ったか」を辿る**ためにある。<br />取込では行ごとの監査ログを書かないため（24.4）、追跡はこのテーブルが担う。<br /> | BASE TABLE |

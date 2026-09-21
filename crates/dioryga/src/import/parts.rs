@@ -114,7 +114,9 @@ async fn 計画する<C: ConnectionTrait>(
 ) -> Result<(Report, Vec<部品の計画>), ImportError> {
     let 索引 = 機器の索引::作る(db, project_id).await?;
     let 候補 = このプロジェクトに関わった部品(db, &索引.ids()).await?;
+    // **廃止した倉庫は置き場の候補にしない**（#133）
     let 倉庫: HashMap<String, i32> = warehouse::Entity::find()
+        .filter(warehouse::Column::RetiredAt.is_null())
         .all(db)
         .await?
         .into_iter()

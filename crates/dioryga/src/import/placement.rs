@@ -507,7 +507,10 @@ async fn 現在の所属<C: ConnectionTrait>(
 async fn 倉庫の索引<C: ConnectionTrait>(
     db: &C,
 ) -> Result<HashMap<String, i32>, sea_orm::DbErr> {
+    // **廃止した倉庫は置き場の候補にしない**（#133）。名前で解決できなくなるため、
+    // 廃止後に同じ名前で取り込むと「倉庫が見つかりません」になる
     Ok(warehouse::Entity::find()
+        .filter(warehouse::Column::RetiredAt.is_null())
         .all(db)
         .await?
         .into_iter()

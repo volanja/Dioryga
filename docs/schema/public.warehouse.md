@@ -14,6 +14,7 @@
 | created_by | integer |  | false |  | [public.app_user](public.app_user.md) |  |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
+| retired_at | timestamp with time zone |  | true |  |  | null = 現役。所在の履歴が指し続けるため、使ったことのある倉庫は消さず廃止する（#133） |
 
 ## Constraints
 

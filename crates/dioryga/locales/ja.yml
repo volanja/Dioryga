@@ -825,6 +825,17 @@ dashboard:
   none: 該当するものはありません
 
 warehouses:
+  edit_title: 倉庫の編集
+  back: 倉庫一覧へ戻る
+  delete: 削除
+  delete_title: 倉庫の削除
+  delete_in_use: この倉庫には機器またはパーツが残っています。すべて払い出してから削除してください
+  delete_hard: この倉庫は一度も使われていないため、行ごと消えます。戻せません
+  delete_retire: この倉庫は過去に使われているため、廃止にします。所在の履歴は残り、あとから取り消せます
+  retired: 廃止済み
+  unretire: 廃止を取り消す
+  show_retired: 廃止も含める
+  error_in_use: 機器またはパーツが残っている倉庫は削除できません
   title: 倉庫
   lead: プロジェクトに割り当てられていない機器とパーツの置き場です。プロジェクトを横断します
   name: 倉庫名
@@ -844,7 +855,7 @@ warehouses:
   to: 終了
   current: 現在
   unknown: 参照先が見つかりません
-  edit: 更新する
+  edit: 編集
   new: 倉庫を登録
   empty: 倉庫がありません
 

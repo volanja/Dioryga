@@ -406,6 +406,7 @@ catalog:
   vendors: Vendors
   vendors_lead: The master that prevents naming drift. A model cannot be registered for a vendor that is not listed here
   vendor: Vendor
+  vendor_registered: Registered under this vendor
   vendor_edit_hint: A vendor name can be corrected even after it is referenced, because fixing a typo does not change any configuration
   chassis_models: Chassis models
   chassis_models_lead: The models a manufacturer ships, carrying the physical limits on what parts fit

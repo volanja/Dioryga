@@ -250,6 +250,8 @@ pub fn router(state: AppState) -> Router {
             get(catalog::vendors).post(catalog::save_vendor),
         )
         .route("/catalog/vendors/new", get(catalog::new_vendor))
+        // 改名は詳細で行う（#157）。他のカタログと同じ作り
+        .route("/catalog/vendors/{id}", get(catalog::vendor_detail))
         .route(
             "/catalog/chassis-models",
             get(catalog::chassis_models).post(catalog::create_chassis_model),

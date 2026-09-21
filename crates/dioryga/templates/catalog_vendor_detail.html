@@ -1,0 +1,47 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ name }}{% endblock %}
+{% block content %}
+
+{# 改名は一覧の行ではなくここで行う（#157）。他のカタログと同じく詳細に集める #}
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/catalog/vendors">{{ t_back }}</a></p>
+    <h1>
+      {{ name }}
+      {% if retired %}<span class="badge">{{ t_retired }}</span>{% endif %}
+    </h1>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<div class="panels">
+  <div class="card">
+    <h2>{{ t_registered }}</h2>
+    <dl>
+      {% for item in counts %}
+      <dt>{{ item.label }}</dt>
+      <dd>{{ item.value }}</dd>
+      {% endfor %}
+    </dl>
+  </div>
+</div>
+
+{% if can_edit %}
+<h2 class="section">{{ t_edit }}</h2>
+<form class="card form" method="post" action="/catalog/vendors">
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+  <input type="hidden" name="id" value="{{ vendor_id }}">
+
+  <label for="name">{{ t_name }}</label>
+  <input type="text" id="name" name="name" value="{{ v_name }}" required>
+  {# VENDORは18.2の対象外。参照済みでも改名できる（設計書18.3） #}
+  <p class="hint">{{ t_edit_hint }}</p>
+
+  <button type="submit">{{ t_submit }}</button>
+</form>
+{% endif %}
+
+{% endblock %}

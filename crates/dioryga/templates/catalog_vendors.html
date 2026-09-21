@@ -41,17 +41,13 @@
     {% for row in rows %}
     <tr class="{% if row.retired %}is-disabled{% endif %}">
       <td>
-        {% if can_edit %}
-        {# VENDORは18.2の対象外。参照済みでも改名できる（設計書18.3） #}
-        <input type="text" form="vendor-{{ row.id }}" name="name" value="{{ row.name }}" required>
-        {% else %}
+        {# 改名は詳細で行う（#157）。一覧は文字で出す #}
         {{ row.name }}
-        {% endif %}
         {% if row.retired %}<span class="badge">{{ t_retired }}</span>{% endif %}
       </td>
       {% if can_edit %}
       <td class="actions">
-        <button type="submit" form="vendor-{{ row.id }}" class="ghost">{{ t_save }}</button>
+        <a href="/catalog/vendors/{{ row.id }}">{{ t_detail }}</a>
         <form method="post" action="/catalog/vendors/retire" class="inline">
           <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
           <input type="hidden" name="id" value="{{ row.id }}">
@@ -67,21 +63,6 @@
   </tbody>
 </table>
 </div>
-
-{% if can_edit %}
-{# 表の中にフォームは置けないため form 属性で外へ紐づける #}
-{% for row in rows %}
-<form id="vendor-{{ row.id }}" method="post" action="/catalog/vendors" hidden>
-  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
-  <input type="hidden" name="id" value="{{ row.id }}">
-</form>
-{% endfor %}
-{% endif %}
-{% endif %}
-
-{% if can_edit %}
-{# 一覧の行で改名できる。18.2の対象外（設計書18.3） #}
-<p class="hint">{{ t_edit_hint }}</p>
 {% endif %}
 
 {% endblock %}

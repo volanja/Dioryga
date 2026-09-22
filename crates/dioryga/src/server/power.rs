@@ -38,7 +38,8 @@ use crate::server::view::{render, Chrome, Locale};
 use crate::server::AppState;
 
 const PHYSICAL: &str = "Physical";
-const PLAN: &str = "plan";
+/// 機器の状態（8.6）
+const DEVICE_PLANNED: &str = "planned";
 const PROJECT: &str = "Project";
 
 struct ContainerRow {
@@ -198,7 +199,7 @@ async fn 什器の電力<C: ConnectionTrait>(db: &C, container_id: i32) -> AppRe
         }
 
         // **予約中はまだ引いていない**（11.6）。分けて数える
-        if d.status == PLAN {
+        if d.status == DEVICE_PLANNED {
             out.planned += 1;
             out.watt_with_plan += d.power_watt;
         } else {

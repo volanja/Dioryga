@@ -51,7 +51,8 @@ const DESK: &str = "Desk";
 const PROJECT: &str = "Project";
 
 /// 予約中の機器（設計書11.6）。
-const PLAN: &str = "plan";
+/// 機器の状態（8.6）
+const DEVICE_PLANNED: &str = "planned";
 
 /// `CHASSIS_MODEL.mount_form`（設計書12.3）。
 const RACK_SIDE: &str = "RackSide";
@@ -415,7 +416,7 @@ async fn 図を描く(
 
     for m in &搭載一覧 {
         let 名 = 表示名(m);
-        let planned = m.device.status == PLAN;
+        let planned = m.device.status == DEVICE_PLANNED;
 
         // **0UサイドマウントはU数を消費しない**（12.3）。格子の外に置く（12.9）
         if m.mount_form == RACK_SIDE {

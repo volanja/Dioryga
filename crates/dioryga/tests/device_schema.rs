@@ -398,9 +398,69 @@ async fn 機器(
     .unwrap()
 }
 
+/// **機器・部品の状態の語彙が書き換わり、戻せること**（#173）。
+///
+/// 語彙はDB制約にせずアプリケーションで検証する（設計書8.6）ため、表を改めた
+/// だけでは既存の行が語彙外の値として残る。
+async fn 状態の語彙を書き換える(db: &DatabaseConnection) {
+    use migration::m20260922_000001_rename_device_status::Migration as 語彙変更;
+    use migration::{MigrationTrait, SchemaManager};
+
+    // **このマイグレーションだけを名指しで戻す。**後から足しても対象がずれない
+    let manager = SchemaManager::new(db);
+    語彙変更.down(&manager).await.unwrap();
+
+    let mut ids = Vec::new();
+    for (name, status) in [
+        ("old-plan", "plan"),
+        ("old-building", "building"),
+        ("old-repair", "repair"),
+        ("old-broken", "broken"),
+        ("old-running", "running"),
+    ] {
+        let d = 機器(db, name, "Physical", None).await;
+        let mut active: device::ActiveModel = d.clone().into();
+        active.status = Set(status.to_owned());
+        ids.push(active.update(db).await.unwrap().id);
+    }
+
+    let 状態 = |db: &DatabaseConnection| {
+        let ids = ids.clone();
+        let db = db.clone();
+        async move {
+            let mut 結果 = Vec::new();
+            for id in ids {
+                let d = device::Entity::find_by_id(id)
+                    .one(&db)
+                    .await
+                    .unwrap()
+                    .unwrap();
+                結果.push(d.status);
+            }
+            結果
+        }
+    };
+
+    語彙変更.up(&manager).await.unwrap();
+    assert_eq!(
+        状態(db).await,
+        ["planned", "provisioning", "repairing", "failed", "running"]
+    );
+
+    語彙変更.down(&manager).await.unwrap();
+    assert_eq!(
+        状態(db).await,
+        ["plan", "building", "repair", "broken", "running"]
+    );
+
+    // 試験の後始末。以降の検証は新しい語彙で動く
+    語彙変更.up(&manager).await.unwrap();
+}
+
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, 識別子が無くても登録できる);
+        全検証!(@one $用意, $属性, 状態の語彙を書き換える);
         全検証!(@one $用意, $属性, 統合された機器は残る);
         全検証!(@one $用意, $属性, 所在の履歴は閉じて開く);
         全検証!(@one $用意, $属性, 廃棄は所在で表す);

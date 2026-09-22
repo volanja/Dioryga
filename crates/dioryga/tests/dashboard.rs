@@ -73,7 +73,7 @@ async fn 移管した機器は数えない(db: &DatabaseConnection) {
 async fn 予約中は分けて数える(db: &DatabaseConnection) {
     let 場 = 舞台(db, "dash-plan@example.com", "Operator").await;
 
-    let 予約 = 機器(db, "srv-planned", "plan").await;
+    let 予約 = 機器(db, "srv-planned", "planned").await;
     割り当て(db, 予約.id, 場.project.id).await;
 
     let (状態, token) = 認証済み(db, &場.user).await;

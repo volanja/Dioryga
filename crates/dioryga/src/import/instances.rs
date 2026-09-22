@@ -412,7 +412,7 @@ struct Planned {
 
 const DEVICE_TYPES: &[&str] = &["Physical", "Virtual", "Container", "Logical"];
 /// **部品（`PART_INSTANCE`）も同じ語彙を持つ**ため、`parts.rs` と共有する。
-pub(super) const STATUSES: &[&str] = &["running", "broken", "repair", "plan", "building"];
+pub(super) const STATUSES: &[&str] = &["running", "failed", "repairing", "planned", "provisioning"];
 
 /// 閉じた語彙で検証する（8.6）。**語彙外は既定へ寄せず拒否し、空欄は既定にする。**
 pub(super) fn 語彙(
@@ -495,7 +495,7 @@ async fn 計画する<C: ConnectionTrait>(
                 continue;
             }
         };
-        let status = match 語彙(&row.status, STATUSES, "building") {
+        let status = match 語彙(&row.status, STATUSES, "provisioning") {
             Ok(v) => v,
             Err(e) => {
                 report.push(Entry::new(Outcome::Error, target, format!("status: {e}")));

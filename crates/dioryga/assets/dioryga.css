@@ -715,17 +715,17 @@ textarea {
 }
 
 .led.running { background: #3dba5a; }
-.led.building { background: #4a8cf0; }
-.led.repair { background: #e8c229; }
-.led.broken { background: #e5484d; }
+.led.provisioning { background: #4a8cf0; }
+.led.repairing { background: #e8c229; }
+.led.failed { background: #e5484d; }
 
-.led.running, .led.building, .led.repair, .led.broken {
+.led.running, .led.provisioning, .led.repairing, .led.failed {
   box-shadow: 0 0 0 2px #151617, inset 0 -2px 0 rgba(0, 0, 0, 0.25),
     inset 1px 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 /* 予約中は「点いているが色を持たない」白。消灯（暗い地）と見分けるため */
-.led.plan {
+.led.planned {
   background: #f0ede5;
   box-shadow: 0 0 0 2px #151617, inset 0 -2px 0 rgba(0, 0, 0, 0.18),
     inset 1px 1px 0 rgba(255, 255, 255, 0.6);

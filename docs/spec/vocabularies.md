@@ -23,7 +23,7 @@
 | 対象 | 値 |
 |---|---|
 | `DEVICE.device_type` | `Physical` / `Virtual` / `Container` / `Logical` |
-| `DEVICE.status` | `running` / `broken` / `repair` / `plan` / `building` |
+| `DEVICE.status` | `running` / `failed` / `repairing` / `planned` / `provisioning` |
 | `PART_INSTANCE.status` | 同上 |
 | `CABLE_INSTANCE.status` | `in_stock` / `in_use` / `broken` / `disposed` |
 | `PROJECT.closure_reason` | `Completed` / `Cancelled`（`archived_at` がある場合のみ） |

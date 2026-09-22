@@ -80,7 +80,8 @@ const TRANSFER: &str = "Transfer";
 const ADDITION: &str = "Addition";
 
 /// 予約中の機器（11.6）。ラック図が破線で描く。
-const PLAN: &str = "plan";
+/// 機器の状態（8.6）。チケットの `planned` とは別の列である
+const DEVICE_PLANNED: &str = "planned";
 const RUNNING: &str = "running";
 
 const PLANNED: &str = "planned";
@@ -1323,7 +1324,7 @@ async fn 予約を実機にする(
         return Ok(());
     };
 
-    if d.status != PLAN {
+    if d.status != DEVICE_PLANNED {
         return Ok(());
     }
 

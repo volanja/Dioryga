@@ -42,7 +42,8 @@ use crate::server::AppState;
 const PROJECT: &str = "Project";
 
 /// 予約中の機器（設計書11.6）。ラック図でも区別表示する。
-const PLAN: &str = "plan";
+/// 機器の状態（8.6）
+const DEVICE_PLANNED: &str = "planned";
 
 // ---------------------------------------------------------------------------
 // 画面
@@ -205,7 +206,7 @@ struct DeviceFormPage {
 
 /// 語彙（`vocabularies.md`）。DB制約にはせず、画面はリストから選ばせる。
 const DEVICE_TYPES: &[&str] = &["Physical", "Virtual", "Container", "Logical"];
-const STATUSES: &[&str] = &["running", "broken", "repair", "plan", "building"];
+const STATUSES: &[&str] = &["running", "failed", "repairing", "planned", "provisioning"];
 
 // ---------------------------------------------------------------------------
 // 一覧
@@ -288,7 +289,7 @@ pub async fn list(
                 None => rust_i18n::t!("devices.location_unknown", locale = l).to_string(),
             },
             departed: !このプロジェクトにいる,
-            planned: d.status == PLAN,
+            planned: d.status == DEVICE_PLANNED,
             status: d.status,
             id: d.id,
             hostname: d.hostname,
@@ -586,7 +587,7 @@ pub async fn detail(
         t_interfaces: rust_i18n::t!("network.interfaces", locale = l).to_string(),
         t_merged: rust_i18n::t!("devices.merged", locale = l).to_string(),
         hostname: d.hostname.clone(),
-        planned: d.status == PLAN,
+        planned: d.status == DEVICE_PLANNED,
         merged_into: d.merged_into_device_id,
         basic,
         locations,
@@ -1083,7 +1084,7 @@ pub async fn new_form(
         serial_number: String::new(),
         asset_number: String::new(),
         power_watt: "0".to_owned(),
-        status: "building".to_owned(),
+        status: "provisioning".to_owned(),
     };
     render(&フォーム(&state, &current, &project, None, &form, None).await?)
 }

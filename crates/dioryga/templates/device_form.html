@@ -63,8 +63,8 @@
 
   <label for="status">{{ t_status }}</label>
   <select id="status" name="status">
-    {% for v in statuses %}
-    <option value="{{ v }}" {% if status == *v %}selected{% endif %}>{{ v }}</option>
+    {% for s in statuses %}
+    <option value="{{ s.value }}" {% if status == s.value %}selected{% endif %}>{{ s.label }}</option>
     {% endfor %}
   </select>
 

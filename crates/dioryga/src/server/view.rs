@@ -458,6 +458,46 @@ pub fn 種別の表示(value: &str, locale: &str) -> String {
     rust_i18n::t!(key, locale = locale).to_string()
 }
 
+/// 機器・部品の状態（8.6）の表示名。**訳すのは表示だけで、保存する値は語彙のまま。**
+///
+/// 値は表示のほかにCSSのクラス名にも使う（`.led.running` 等）ので、
+/// **クラスには生の値を、文字にはこの表示名を**当てる。
+pub fn 状態の表示(value: &str, locale: &str) -> String {
+    let key = match value {
+        "running" => "device_statuses.running",
+        "planned" => "device_statuses.planned",
+        "provisioning" => "device_statuses.provisioning",
+        "repairing" => "device_statuses.repairing",
+        "failed" => "device_statuses.failed",
+        _ => return value.to_owned(),
+    };
+    rust_i18n::t!(key, locale = locale).to_string()
+}
+
+/// 機器の状態の選択肢。並びは語彙の表のまま。
+pub fn 状態の選択肢(statuses: &[&'static str], locale: &str) -> Vec<Choice> {
+    statuses
+        .iter()
+        .map(|v| Choice {
+            value: v,
+            label: 状態の表示(v, locale),
+        })
+        .collect()
+}
+
+/// 変更管理チケットの状態（11章）の表示名。
+pub fn チケットの状態の表示(value: &str, locale: &str) -> String {
+    let key = match value {
+        "planned" => "work_order_statuses.planned",
+        "approved" => "work_order_statuses.approved",
+        "in_progress" => "work_order_statuses.in_progress",
+        "completed" => "work_order_statuses.completed",
+        "cancelled" => "work_order_statuses.cancelled",
+        _ => return value.to_owned(),
+    };
+    rust_i18n::t!(key, locale = locale).to_string()
+}
+
 /// 機器の種別の選択肢。並びは語彙の表（`DEVICE_CATEGORIES`）のまま。
 pub fn 種別の選択肢(locale: &str) -> Vec<Choice> {
     dioryga_catalog_format::DEVICE_CATEGORIES
@@ -472,6 +512,41 @@ pub fn 種別の選択肢(locale: &str) -> Vec<Choice> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// **状態の表示名が両言語にそろっていること**（#172）。
+    ///
+    /// 訳語が抜けると、キーの文字列がそのまま画面に出る。
+    #[test]
+    fn 状態の表示名が両言語にそろっている() {
+        for v in ["running", "planned", "provisioning", "repairing", "failed"] {
+            for locale in ["ja", "en"] {
+                assert!(
+                    !状態の表示(v, locale).contains("device_statuses"),
+                    "{locale}: {v}"
+                );
+            }
+        }
+        for v in [
+            "planned",
+            "approved",
+            "in_progress",
+            "completed",
+            "cancelled",
+        ] {
+            for locale in ["ja", "en"] {
+                assert!(
+                    !チケットの状態の表示(v, locale).contains("work_order_statuses"),
+                    "{locale}: {v}"
+                );
+            }
+        }
+        assert_eq!(状態の表示("running", "ja"), "稼働中");
+        assert_eq!(状態の表示("failed", "ja"), "故障");
+        assert_eq!(チケットの状態の表示("in_progress", "ja"), "実行中");
+        assert_eq!(チケットの状態の表示("cancelled", "ja"), "中止");
+        // 語彙外はそのまま出す（取込の検証より前に入った値など）
+        assert_eq!(状態の表示("でたらめ", "ja"), "でたらめ");
+    }
 
     /// **語彙のすべてに両言語の表示名があり、略語は訳さないこと**（#126）。
     ///

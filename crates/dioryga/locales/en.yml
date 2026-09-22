@@ -860,6 +860,20 @@ warehouses:
   new: Add a warehouse
   empty: No warehouses yet
 
+device_statuses:
+  running: running
+  planned: planned
+  provisioning: provisioning
+  repairing: repairing
+  failed: failed
+
+work_order_statuses:
+  planned: planned
+  approved: approved
+  in_progress: in progress
+  completed: completed
+  cancelled: cancelled
+
 device_categories:
   server: Server
   switch: Switch

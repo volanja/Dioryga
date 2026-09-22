@@ -860,6 +860,20 @@ warehouses:
   new: 倉庫を登録
   empty: 倉庫がありません
 
+device_statuses:
+  running: 稼働中
+  planned: 予約中
+  provisioning: 構築中
+  repairing: 修理中
+  failed: 故障
+
+work_order_statuses:
+  planned: 計画中
+  approved: 承認済み
+  in_progress: 実行中
+  completed: 完了
+  cancelled: 中止
+
 device_categories:
   server: サーバー
   switch: スイッチ

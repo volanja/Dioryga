@@ -35,7 +35,9 @@ use crate::auth::authorization;
 use crate::auth::middleware::CurrentUser;
 use crate::error::{AppError, AppResult};
 use crate::repository::{Actor, AuditedTx};
-use crate::server::view::{render, 種別の表示, 種別の選択肢, Choice, Chrome, Locale};
+use crate::server::view::{
+    render, 状態の表示, 状態の選択肢, 種別の表示, 種別の選択肢, Choice, Chrome, Locale,
+};
 use crate::server::AppState;
 
 /// `DEVICE_ASSIGNMENT.location_type`。
@@ -55,6 +57,8 @@ struct DeviceRow {
     device_type: String,
     model: String,
     status: String,
+    /// 日本語画面での表示名（#172）。保存する値は `status` のまま
+    status_label: String,
     /// 予約中は区別して表示する（設計書11.6）
     planned: bool,
     location: String,
@@ -200,7 +204,7 @@ struct DeviceFormPage {
     asset_number: String,
     power_watt: String,
     status: String,
-    statuses: Vec<&'static str>,
+    statuses: Vec<Choice>,
     error: Option<String>,
 }
 
@@ -290,6 +294,8 @@ pub async fn list(
             },
             departed: !このプロジェクトにいる,
             planned: d.status == DEVICE_PLANNED,
+            // クラス名には生の値を、文字には表示名を当てる（#172）
+            status_label: 状態の表示(&d.status, l),
             status: d.status,
             id: d.id,
             hostname: d.hostname,
@@ -528,7 +534,7 @@ pub async fn detail(
         },
         Labeled {
             label: rust_i18n::t!("devices.status", locale = l).to_string(),
-            value: d.status.clone(),
+            value: 状態の表示(&d.status, l),
         },
         Labeled {
             label: "UID".to_owned(),
@@ -1155,7 +1161,7 @@ async fn フォーム(
         asset_number: form.asset_number.clone(),
         power_watt: form.power_watt.clone(),
         status: form.status.clone(),
-        statuses: STATUSES.to_vec(),
+        statuses: 状態の選択肢(STATUSES, l),
         error,
     })
 }

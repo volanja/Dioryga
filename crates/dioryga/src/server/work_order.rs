@@ -67,7 +67,7 @@ use crate::auth::authorization::{self, ADMINISTRATOR, APPROVER};
 use crate::auth::middleware::CurrentUser;
 use crate::error::{AppError, AppResult};
 use crate::repository::{Actor, AuditedTx};
-use crate::server::view::{render, Chrome, Locale};
+use crate::server::view::{render, チケットの状態の表示, Chrome, Locale};
 use crate::server::AppState;
 
 /// 語彙（`vocabularies.md`、設計書11.3）。DB制約にはせず、画面はリストから選ばせる。
@@ -492,7 +492,7 @@ pub async fn list(
                 id: w.id,
                 title: w.title,
                 work_type: w.work_type,
-                status: w.status,
+                status: チケットの状態の表示(&w.status, l),
             }
         })
         .collect();
@@ -639,7 +639,8 @@ async fn 詳細を描く(
         t_none: rust_i18n::t!("devices.none", locale = l).to_string(),
         t_all_approved_hint: rust_i18n::t!("work_orders.all_approved_hint", locale = l).to_string(),
         title: w.title.clone(),
-        status: w.status.clone(),
+        // 訳すのは表示だけ。保存する値は語彙のまま（#172）
+        status: チケットの状態の表示(&w.status, l),
         basic,
         approvals,
         can_execute: can_edit && w.status == APPROVED,

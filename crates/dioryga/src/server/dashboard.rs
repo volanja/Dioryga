@@ -43,10 +43,11 @@ use crate::server::AppState;
 const 期限間近: i64 = 90;
 
 const PROJECT: &str = "Project";
-const PLAN: &str = "plan";
+/// 機器の状態（8.6）。チケットの `planned` とは別の列である
+const DEVICE_PLANNED: &str = "planned";
 const PLANNED: &str = "planned";
 const COMPLETED: &str = "completed";
-const ABORTED: &str = "aborted";
+const CANCELLED: &str = "cancelled";
 
 /// 期限を持つ行の共通の見せ方。
 struct DueRow {
@@ -172,7 +173,10 @@ async fn 機器の台数(state: &AppState, project_id: i32) -> AppResult<(usize,
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
-    let planned = devices.iter().filter(|d| d.status == PLAN).count();
+    let planned = devices
+        .iter()
+        .filter(|d| d.status == DEVICE_PLANNED)
+        .count();
     Ok((devices.len() - planned, planned))
 }
 
@@ -250,7 +254,7 @@ async fn 未完了のチケット(
 ) -> AppResult<Vec<DueRow>> {
     let list = work_order::Entity::find()
         .filter(work_order::Column::ProjectId.eq(project_id))
-        .filter(work_order::Column::Status.is_not_in([COMPLETED, ABORTED]))
+        .filter(work_order::Column::Status.is_not_in([COMPLETED, CANCELLED]))
         .order_by_asc(work_order::Column::DueDate)
         .order_by_asc(work_order::Column::Id)
         .all(&state.db)

@@ -322,7 +322,7 @@ async fn 棚板の上の機器が帯の中に出る(db: &DatabaseConnection) {
 /// 破線と淡色の両方を使い、凡例に文字のラベルも置く。
 async fn 予約中は区別して描かれる(db: &DatabaseConnection) {
     let 場 = 舞台(db, "planned@example.com").await;
-    let 予約 = 機器(db, &場, "plan-01", 1, "RackU", None, "plan").await;
+    let 予約 = 機器(db, &場, "plan-01", 1, "RackU", None, "planned").await;
     搭載行(db, &場, 予約.id, Some(20), None, None, None).await;
 
     let (状態, token) = 認証済み(db, &場.user).await;

@@ -30,7 +30,7 @@
       <td>{{ row.category }}</td>
       <td class="mono">{{ row.part_number }}</td>
       <td class="mono">{{ row.serial_number }}</td>
-      <td><span class="st"><span class="led sm {{ row.status }}"></span>{{ row.status }}</span></td>
+      <td><span class="st"><span class="led sm {{ row.status }}"></span>{{ row.status_label }}</span></td>
       <td class="mono">{{ row.since }}</td>
     </tr>
     {% endfor %}

@@ -168,7 +168,7 @@ async fn operatorは登録できる(db: &DatabaseConnection) {
         &[
             ("hostname", "srv-new"),
             ("device_type", "Physical"),
-            ("status", "building"),
+            ("status", "provisioning"),
             ("power_watt", "350"),
         ],
     )
@@ -226,7 +226,7 @@ async fn 不正な入力は拒否される(db: &DatabaseConnection) {
         let mut fields: Vec<(&str, &str)> = vec![
             ("hostname", "invalid-01"),
             ("device_type", "Physical"),
-            ("status", "building"),
+            ("status", "provisioning"),
         ];
         match fields.iter_mut().find(|(k, _)| k == key) {
             Some(項目) => 項目.1 = value,
@@ -307,7 +307,7 @@ async fn 予約中の機器は区別表示される(db: &DatabaseConnection) {
 
     let d = 機器(db, "planned-01").await;
     let mut active: device::ActiveModel = d.clone().into();
-    active.status = Set("plan".to_owned());
+    active.status = Set("planned".to_owned());
     active.update(db).await.unwrap();
     割当(db, d.id, p.id, Utc::now()).await;
 

@@ -31,15 +31,15 @@ pub struct Model {
     pub primary_assignee_id: Option<i32>,
     pub secondary_assignee_id: Option<i32>,
     pub due_date: Option<Date>,
-    /// planned / approved / executing / completed / aborted
+    /// planned / approved / in_progress / completed / cancelled
     pub status: String,
     /// **予定と実績を別の列で持つ。**上書きすると「当初いつの予定だったか」が
     /// 失われ、QCDの「D」を定量的に見られなくなる（5.1）。
     pub planned_at: Option<DateTimeUtc>,
     pub executed_at: Option<DateTimeUtc>,
     pub completed_at: Option<DateTimeUtc>,
-    pub aborted_at: Option<DateTimeUtc>,
-    pub aborted_reason: Option<String>,
+    pub cancelled_at: Option<DateTimeUtc>,
+    pub cancelled_reason: Option<String>,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,
 }

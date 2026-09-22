@@ -114,9 +114,9 @@ async fn 中止は理由とともに残る(db: &DatabaseConnection) {
 
     let 中止済み = work_order::ActiveModel {
         id: Set(wo.id),
-        status: Set("aborted".to_owned()),
-        aborted_at: Set(Some(Utc::now())),
-        aborted_reason: Set(Some("調達が間に合わず次期へ繰越".to_owned())),
+        status: Set("cancelled".to_owned()),
+        cancelled_at: Set(Some(Utc::now())),
+        cancelled_reason: Set(Some("調達が間に合わず次期へ繰越".to_owned())),
         updated_at: Set(Utc::now()),
         ..Default::default()
     }
@@ -124,8 +124,8 @@ async fn 中止は理由とともに残る(db: &DatabaseConnection) {
     .await
     .unwrap();
 
-    assert_eq!(中止済み.status, "aborted");
-    assert!(中止済み.aborted_reason.is_some());
+    assert_eq!(中止済み.status, "cancelled");
+    assert!(中止済み.cancelled_reason.is_some());
     // 完了はしていない。納期遵守率の集計で完了と混ざらないこと（10.4）
     assert!(中止済み.completed_at.is_none());
 }
@@ -237,9 +237,34 @@ async fn 利用者(db: &DatabaseConnection, email: &str) -> app_user::Model {
     .unwrap()
 }
 
+/// **チケットの状態の語彙と列名が書き換わり、戻せること**（#174）。
+async fn 状態の語彙と列名を書き換える(db: &DatabaseConnection) {
+    use migration::m20260922_000002_rename_work_order_status::Migration as 語彙変更;
+    use migration::{MigrationTrait, SchemaManager};
+
+    let manager = SchemaManager::new(db);
+    語彙変更.down(&manager).await.unwrap();
+    // 戻した状態では旧の値が入る。**列名も旧に戻っているので、生のSQLで確かめる**
+    語彙変更.up(&manager).await.unwrap();
+
+    let p = プロジェクト(db, "語彙の検証").await;
+    let w = チケット(db, p.id, "Repair").await;
+
+    // 新しい列に書ける
+    let mut active: work_order::ActiveModel = w.clone().into();
+    active.cancelled_at = Set(Some(Utc::now()));
+    active.cancelled_reason = Set(Some("次期へ繰越".to_owned()));
+    active.status = Set("cancelled".to_owned());
+    let 後 = active.update(db).await.unwrap();
+
+    assert_eq!(後.status, "cancelled");
+    assert!(後.cancelled_reason.is_some());
+}
+
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, 起票できる);
+        全検証!(@one $用意, $属性, 状態の語彙と列名を書き換える);
         全検証!(@one $用意, $属性, 承認は影響先ごとに起こす);
         全検証!(@one $用意, $属性, 同一プロジェクトの承認は一行だけ);
         全検証!(@one $用意, $属性, 全承認が揃ったか引ける);

@@ -353,7 +353,7 @@ async fn 承認後に実行して完了できる(db: &DatabaseConnection) {
     let (status, _) = 遷移(状態, &token, p.id, w.id, "execute", "").await;
     assert_eq!(status, StatusCode::SEE_OTHER);
     let 実行中 = 再取得(db, w.id).await;
-    assert_eq!(実行中.status, "executing");
+    assert_eq!(実行中.status, "in_progress");
     assert!(実行中.executed_at.is_some());
     assert!(実行中.completed_at.is_none());
 
@@ -386,8 +386,11 @@ async fn 中止には理由が要る(db: &DatabaseConnection) {
     assert_eq!(status, StatusCode::SEE_OTHER);
 
     let 中止 = 再取得(db, w.id).await;
-    assert_eq!(中止.status, "aborted");
-    assert_eq!(中止.aborted_reason.as_deref(), Some("調達が間に合わず繰越"));
+    assert_eq!(中止.status, "cancelled");
+    assert_eq!(
+        中止.cancelled_reason.as_deref(),
+        Some("調達が間に合わず繰越")
+    );
     // 完了と混ざらないこと。納期遵守率の集計が汚れる（10.4）
     assert!(中止.completed_at.is_none());
 }
@@ -401,7 +404,7 @@ async fn 計画中からも中止できる(db: &DatabaseConnection) {
     let (状態, token) = 認証済み(db, &操作者).await;
     let (status, _) = 遷移(状態, &token, p.id, w.id, "abort", "対象機器が既に廃棄済み").await;
     assert_eq!(status, StatusCode::SEE_OTHER);
-    assert_eq!(再取得(db, w.id).await.status, "aborted");
+    assert_eq!(再取得(db, w.id).await.status, "cancelled");
 }
 
 /// 中止済みのチケットに承認ボタンを出さないこと。
@@ -459,7 +462,7 @@ async fn 中止済みは承認できない(db: &DatabaseConnection) {
     let (status, body) = 承認する(状態, &token, p.id, w.id, 承認[0].id, "approve").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("計画中のチケットだけ"));
-    assert_eq!(再取得(db, w.id).await.status, "aborted");
+    assert_eq!(再取得(db, w.id).await.status, "cancelled");
 }
 
 // ---------------------------------------------------------------------------
@@ -569,7 +572,7 @@ async fn 実行すると予約が実機になる(db: &DatabaseConnection) {
 
     assert_eq!(
         機器の状態(db, 場.device_id).await,
-        "plan",
+        "planned",
         "まだ予約中のはず"
     );
 
@@ -593,7 +596,7 @@ async fn 予約でない機器の状態は変えない(db: &DatabaseConnection) 
     // 対象機器を故障中にしておく
     device::ActiveModel {
         id: Set(場.device_id),
-        status: Set("broken".to_owned()),
+        status: Set("failed".to_owned()),
         updated_at: Set(Utc::now()),
         ..Default::default()
     }
@@ -616,7 +619,7 @@ async fn 予約でない機器の状態は変えない(db: &DatabaseConnection) 
     let (状態, token) = 認証済み(db, &場.user).await;
     遷移(状態, &token, 場.project_id, 場.work_order_id, "execute", "").await;
 
-    assert_eq!(機器の状態(db, 場.device_id).await, "broken");
+    assert_eq!(機器の状態(db, 場.device_id).await, "failed");
 }
 
 /// **承認後は予約を作れないこと**（設計書11.6）。
@@ -807,7 +810,7 @@ async fn 増設の舞台(db: &DatabaseConnection, email: &str) -> 増設の舞�
     };
 
     // **①機器の登録は承認不要**（11.6）。status=plan で登録されている
-    場.device_id = 予約対象の機器(db, &場, "new-srv", "plan").await;
+    場.device_id = 予約対象の機器(db, &場, "new-srv", "planned").await;
 
     let w = work_order::ActiveModel {
         project_id: Set(p.id),
@@ -937,7 +940,7 @@ async fn 遷移(
         state,
         &format!("/projects/{project_id}/work-orders/{work_order_id}/transition"),
         token,
-        &[("to", to), ("aborted_reason", reason)],
+        &[("to", to), ("cancelled_reason", reason)],
     )
     .await
 }

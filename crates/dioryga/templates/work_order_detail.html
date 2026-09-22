@@ -180,8 +180,8 @@
   <form method="post" action="/projects/{{ project_id }}/work-orders/{{ work_order_id }}/transition" class="form">
     <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
     <input type="hidden" name="to" value="abort">
-    <label for="aborted_reason">{{ t_abort_reason }}</label>
-    <textarea id="aborted_reason" name="aborted_reason" rows="2" required></textarea>
+    <label for="cancelled_reason">{{ t_abort_reason }}</label>
+    <textarea id="cancelled_reason" name="cancelled_reason" rows="2" required></textarea>
     <button type="submit" class="ghost danger">{{ t_abort }}</button>
   </form>
   {% endif %}

@@ -305,7 +305,7 @@ work_orders:
   abort_reason: 中止の理由
   executed_at: 実行開始
   completed_at: 完了
-  aborted_at: 中止
+  cancelled_at: 中止
   error_title: 件名を入力してください
   error_work_type: 種別の値が不正です
   error_target_project: Transfer では移譲先プロジェクトを指定してください
@@ -859,6 +859,20 @@ warehouses:
   edit: 編集
   new: 倉庫を登録
   empty: 倉庫がありません
+
+device_statuses:
+  running: 稼働中
+  planned: 予約中
+  provisioning: 構築中
+  repairing: 修理中
+  failed: 故障
+
+work_order_statuses:
+  planned: 計画中
+  approved: 承認済み
+  in_progress: 実行中
+  completed: 完了
+  cancelled: 中止
 
 device_categories:
   server: サーバー

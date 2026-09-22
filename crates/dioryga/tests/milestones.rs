@@ -204,7 +204,7 @@ async fn 予約中は分けて出す(db: &DatabaseConnection) {
     let 場 = 舞台(db, "power-plan@example.com").await;
     搭載(db, &場, 場.device.id, 1).await;
 
-    let 予約 = 機器(db, &場, "srv-plan", "Physical", "plan", 500).await;
+    let 予約 = 機器(db, &場, "srv-plan", "Physical", "planned", 500).await;
     搭載(db, &場, 予約.id, 2).await;
 
     let body = 電力画面(db, &場).await;

@@ -50,7 +50,7 @@ use crate::auth::middleware::CurrentUser;
 use crate::error::{AppError, AppResult};
 use crate::repository::{Actor, AuditedTx};
 use crate::server::catalog::正規化;
-use crate::server::view::{render, Chrome, Locale};
+use crate::server::view::{render, 状態の表示, Chrome, Locale};
 use crate::server::AppState;
 
 const WAREHOUSE: &str = "Warehouse";
@@ -505,6 +505,8 @@ struct StoredDeviceRow {
     hostname: String,
     device_type: String,
     status: String,
+    /// 日本語画面での表示名（#172）
+    status_label: String,
     serial_number: String,
     /// この倉庫に入った日。
     since: String,
@@ -572,6 +574,7 @@ pub async fn devices(
             id: d.id,
             hostname: d.hostname,
             device_type: d.device_type,
+            status_label: 状態の表示(&d.status, l),
             status: d.status,
         })
         .collect();
@@ -688,7 +691,7 @@ pub async fn device_detail(
         asset_number: d.asset_number.unwrap_or_default(),
         hostname: d.hostname,
         device_type: d.device_type,
-        status: d.status,
+        status: 状態の表示(&d.status, l),
         t_title: rust_i18n::t!("devices.detail", locale = l).to_string(),
         t_history_note: rust_i18n::t!("warehouses.history_note", locale = l).to_string(),
         t_hostname: rust_i18n::t!("devices.hostname", locale = l).to_string(),
@@ -783,6 +786,8 @@ struct StoredPartRow {
     part_number: String,
     serial_number: String,
     status: String,
+    /// 日本語画面での表示名（#172）
+    status_label: String,
     since: String,
 }
 
@@ -853,6 +858,7 @@ pub async fn parts(
                     .find(|p| p.part_instance_id == i.id)
                     .map(|p| p.from_date.date_naive().to_string())
                     .unwrap_or_default(),
+                status_label: 状態の表示(&i.status, l),
                 status: i.status,
             }
         })

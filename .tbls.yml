@@ -383,7 +383,7 @@ comments:
     columnComments:
       target_project_id: work_type=Transfer の移譲先。それ以外では null
       status: |
-        planned / approved / executing / completed / aborted。
+        planned / approved / in_progress / completed / cancelled。
         **`approved` は WORK_ORDER_APPROVAL の全行が approved になった結果**であり、単独では動かさない
       due_date: 期日。**実績の `completed_at` とは別に持つ**（5.1。上書きすると予定と実績の差が失われる）
       primary_assignee_id: 主担当。**この人物は自分のチケットを承認できない**（旧C-9、DB制約にできないためアプリケーション層で検証）

@@ -7731,7 +7731,7 @@
           "name": "status",
           "type": "varchar",
           "nullable": false,
-          "comment": "planned / approved / executing / completed / aborted。\n**`approved` は WORK_ORDER_APPROVAL の全行が approved になった結果**であり、単独では動かさない\n"
+          "comment": "planned / approved / in_progress / completed / cancelled。\n**`approved` は WORK_ORDER_APPROVAL の全行が approved になった結果**であり、単独では動かさない\n"
         },
         {
           "name": "planned_at",
@@ -7749,12 +7749,12 @@
           "nullable": true
         },
         {
-          "name": "aborted_at",
+          "name": "cancelled_at",
           "type": "timestamp with time zone",
           "nullable": true
         },
         {
-          "name": "aborted_reason",
+          "name": "cancelled_reason",
           "type": "text",
           "nullable": true
         },

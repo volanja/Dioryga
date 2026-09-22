@@ -216,7 +216,7 @@ async fn 状態だけの変更で所在は増えない(db: &DatabaseConnection) 
         .await
         .unwrap();
 
-    let 故障 = parts::parse_parts(&csv(&["SN-1,Samsung,DIMM-32G,broken,Device,web01,,"])).unwrap();
+    let 故障 = parts::parse_parts(&csv(&["SN-1,Samsung,DIMM-32G,failed,Device,web01,,"])).unwrap();
     let report = parts::dry_run(db, 場.project.id, &故障).await.unwrap();
     assert_eq!(report.count(Outcome::Updated), 1, "{report}");
 
@@ -225,7 +225,7 @@ async fn 状態だけの変更で所在は増えない(db: &DatabaseConnection) 
         .unwrap();
 
     let p = 部品(db, "SN-1").await.unwrap();
-    assert_eq!(p.status, "broken");
+    assert_eq!(p.status, "failed");
     assert_eq!(所在の履歴(db, p.id).await.len(), 1, "所在が増えています");
 }
 

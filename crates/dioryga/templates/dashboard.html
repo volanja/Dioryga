@@ -29,32 +29,8 @@
 {# 期限間近の窓の広さを明示する。何を基準に並んでいるか分からないと読めない #}
 <p class="hint">{{ t_window }}</p>
 
-{# 期限を持つ2つを左右に並べる（#170）。狭い画面では縦に落ちる #}
+{# 期限を持つ2つを左右に並べる（#170）。**常に2列**にする #}
 <div class="cols">
-<section>
-  <h2>{{ t_contracts }}</h2>
-  {% if contracts.is_empty() %}
-  <p class="empty">{{ t_none }}</p>
-  {% else %}
-  <div class="table-scroll">
-  <table>
-    <thead>
-      <tr><th>{{ t_contracts }}</th><th>{{ t_due }}</th><th></th></tr>
-    </thead>
-    <tbody>
-      {% for row in contracts %}
-      <tr>
-        <td>{{ row.label }}</td>
-        <td>{{ row.due }}{% if row.overdue %} <span class="badge danger">{{ t_overdue }}</span>{% endif %}</td>
-        <td class="actions"><a href="{{ row.href }}">{{ t_open }}</a></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  </div>
-  {% endif %}
-</section>
-
 <section>
   <h2>{{ t_milestones }}</h2>
   {% if milestones.is_empty() %}
@@ -69,6 +45,30 @@
       {% for row in milestones %}
       <tr>
         <td>{{ row.label }}{% if !row.sub.is_empty() %} <span class="muted">{{ row.sub }}</span>{% endif %}</td>
+        <td>{{ row.due }}{% if row.overdue %} <span class="badge danger">{{ t_overdue }}</span>{% endif %}</td>
+        <td class="actions"><a href="{{ row.href }}">{{ t_open }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</section>
+
+<section>
+  <h2>{{ t_contracts }}</h2>
+  {% if contracts.is_empty() %}
+  <p class="empty">{{ t_none }}</p>
+  {% else %}
+  <div class="table-scroll">
+  <table>
+    <thead>
+      <tr><th>{{ t_contracts }}</th><th>{{ t_due }}</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for row in contracts %}
+      <tr>
+        <td>{{ row.label }}</td>
         <td>{{ row.due }}{% if row.overdue %} <span class="badge danger">{{ t_overdue }}</span>{% endif %}</td>
         <td class="actions"><a href="{{ row.href }}">{{ t_open }}</a></td>
       </tr>

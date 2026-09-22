@@ -691,6 +691,15 @@ textarea {
 }
 
 .metrics .note { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+/* 期限を持つものを左右に並べる（#170）。**狭い画面でも2列のまま。**
+   表は自身の中で横スクロールする（#153）ので、列が細っても読める */
+.cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+  align-items: start;
+}
 /* カードの見出し・件数のリンク（カタログのダッシュボード）。大きな数字がリンク色
    だと集計値として読みにくいため、本文と同じ色にし、押せることは下線で示す */
 .panels h2 a,

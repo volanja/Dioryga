@@ -826,8 +826,8 @@ dashboard:
   window: 期限間近は%{days}日以内です。期限を過ぎたものも同じ枠に出します
   devices_running: 稼働中の機器
   devices_planned: 予約中の機器
-  contracts: 満了が近い保守契約
-  milestones: 予定日が近いマイルストーン
+  contracts: 保守契約
+  milestones: マイルストーン
   work_orders: 未完了の変更管理チケット
   due: 期限
   overdue: 期限超過

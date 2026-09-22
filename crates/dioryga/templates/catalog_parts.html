@@ -35,9 +35,9 @@
       <th>{{ t_category }}</th>
       <th>{{ t_vendor }}</th>
       <th>{{ t_part_number }}</th>
-      <th>{{ t_core_count }}</th>
-      <th>{{ t_capacity_gb }}</th>
-      <th>{{ t_ports }}</th>
+      <th class="num">{{ t_core_count }}</th>
+      <th class="num">{{ t_capacity_gb }}</th>
+      <th class="num">{{ t_ports }}</th>
       <th>{{ t_actions }}</th>
     </tr>
   </thead>
@@ -46,16 +46,16 @@
     <tr class="{% if row.retired %}is-disabled{% endif %}">
       <td>{{ row.category }}</td>
       <td>{{ row.vendor }}</td>
-      <td>
+      <td class="mono">
         {{ row.part_number }}
         {% if row.retired %}<span class="badge">{{ t_retired }}</span>{% endif %}
         {# 参照されたカタログはスペックを編集できない（設計書18.2） #}
         {% if row.referenced %}<span class="badge">{{ t_referenced }}</span>{% endif %}
       </td>
       {# 集計に使う値だけ実カラム（設計書6.4）。該当しない部品では空 #}
-      <td>{{ row.core_count }}</td>
-      <td>{{ row.capacity_gb }}</td>
-      <td>{{ row.ports }}</td>
+      <td class="num">{{ row.core_count }}</td>
+      <td class="num">{{ row.capacity_gb }}</td>
+      <td class="num">{{ row.ports }}</td>
       <td class="actions">
         <a href="/catalog/parts/{{ row.id }}">{{ t_detail }}</a>
         {% if can_edit %}

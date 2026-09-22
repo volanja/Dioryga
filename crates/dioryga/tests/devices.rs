@@ -421,6 +421,23 @@ async fn 種別は表示だけを訳す(db: &DatabaseConnection) {
     assert!(フォーム.contains(r#"<option value="VPN" >VPN</option>"#));
 }
 
+/// **一覧の状態にランプを添えること**（#163、設計書16.4）。
+///
+/// 文字だけだと、並んだ行の中で状態を見つけるのに目が要る。
+async fn 一覧の状態にランプが付く(db: &DatabaseConnection) {
+    let user = 利用者(db, "row-led@example.com").await;
+    let p = プロジェクト(db, "ランプ検証").await;
+    メンバー(db, user.id, p.id, "Viewer").await;
+    let d = 機器(db, "led-01").await;
+    割当(db, d.id, p.id, Utc::now()).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}/devices", p.id), &token).await;
+    assert!(body.contains(r#"<span class="led sm running">"#), "{body}");
+    // ホスト名は等幅の列（0とOの判別が要る）
+    assert!(body.contains(r#"<td class="mono">"#), "{body}");
+}
+
 async fn 認証済み(db: &DatabaseConnection, user: &app_user::Model) -> (AppState, String) {
     let config = 設定();
     let (setup, _) = SetupState::initialize(db).await.unwrap();
@@ -613,6 +630,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 統合された機器は一覧に出ない);
         全検証!(@one $用意, $属性, 所属するプロジェクトだけ見える);
         全検証!(@one $用意, $属性, 種別は表示だけを訳す);
+        全検証!(@one $用意, $属性, 一覧の状態にランプが付く);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

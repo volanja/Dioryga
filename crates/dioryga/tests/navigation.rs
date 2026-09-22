@@ -199,6 +199,18 @@ async fn システム管理者の上部メニュー(db: &DatabaseConnection) {
     assert!(左メニュー(&body).contains(r#"href="/admin/projects" class="current""#));
 }
 
+/// **画面の下にステータスバーが出て、右端に版が入ること**（#162）。
+async fn ステータスバーに版が出る(db: &DatabaseConnection) {
+    let user = 利用者(db, "nav-status", false, false).await;
+
+    let body = 開く(db, &user, "/projects").await;
+    let start = body
+        .find(r#"<footer class="statusbar">"#)
+        .expect("ステータスバーがありません");
+    let bar = &body[start..];
+    assert!(bar.contains("Dioryga "), "版が出ていません: {bar}");
+}
+
 // ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
@@ -349,6 +361,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 倉庫の中の画面が並ぶ);
         全検証!(@one $用意, $属性, 個人設定と強制変更);
         全検証!(@one $用意, $属性, システム管理者の上部メニュー);
+        全検証!(@one $用意, $属性, ステータスバーに版が出る);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

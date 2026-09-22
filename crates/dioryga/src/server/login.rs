@@ -24,6 +24,8 @@ struct LoginPage {
     /// ログイン前は利用者が定まらないため、常にOSに従う（#120）。
     theme: &'static str,
     app_name: String,
+    /// 画面の下の帯に出す版（#164）。認証前でもこれだけは読める
+    t_version: String,
     t_title: String,
     t_lead: String,
     t_username: String,
@@ -40,6 +42,7 @@ impl LoginPage {
             locale: l,
             theme: "",
             app_name: rust_i18n::t!("app.name", locale = l).to_string(),
+            t_version: format!("Dioryga {}", env!("CARGO_PKG_VERSION")),
             t_title: rust_i18n::t!("login.title", locale = l).to_string(),
             t_lead: rust_i18n::t!("login.lead", locale = l).to_string(),
             t_username: rust_i18n::t!("login.username", locale = l).to_string(),

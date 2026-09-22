@@ -35,7 +35,7 @@
       <th>{{ t_vendor }}</th>
       <th>{{ t_model_name }}</th>
       <th>{{ t_device_category }}</th>
-      <th>{{ t_height_u }}</th>
+      <th class="num">{{ t_height_u }}</th>
       <th>{{ t_mount_form }}</th>
       <th>{{ t_rack_width }}</th>
       <th>{{ t_actions }}</th>
@@ -45,14 +45,14 @@
     {% for row in rows %}
     <tr class="{% if row.retired %}is-disabled{% endif %}">
       <td>{{ row.vendor }}</td>
-      <td>
+      <td class="mono">
         {{ row.model_name }}
         {% if row.retired %}<span class="badge">{{ t_retired }}</span>{% endif %}
         {# 参照されたカタログはスペックを編集できない（設計書18.2） #}
         {% if row.referenced %}<span class="badge">{{ t_referenced }}</span>{% endif %}
       </td>
       <td>{{ row.device_category }}</td>
-      <td>{{ row.height_u }}</td>
+      <td class="num">{{ row.height_u }}</td>
       <td>{{ row.mount_form }}</td>
       <td>{{ row.rack_width }}</td>
       <td class="actions">

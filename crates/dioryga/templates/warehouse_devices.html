@@ -28,11 +28,11 @@
   <tbody>
     {% for row in rows %}
     <tr>
-      <td>{{ row.hostname }}</td>
+      <td class="mono">{{ row.hostname }}</td>
       <td>{{ row.device_type }}</td>
-      <td>{{ row.status }}</td>
-      <td>{{ row.serial_number }}</td>
-      <td>{{ row.since }}</td>
+      <td><span class="st"><span class="led sm {{ row.status }}"></span>{{ row.status }}</span></td>
+      <td class="mono">{{ row.serial_number }}</td>
+      <td class="mono">{{ row.since }}</td>
       <td class="actions">
         <a href="/warehouses/{{ warehouse_id }}/devices/{{ row.id }}">{{ t_detail }}</a>
       </td>

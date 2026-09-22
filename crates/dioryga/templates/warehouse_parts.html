@@ -28,10 +28,10 @@
     {% for row in rows %}
     <tr>
       <td>{{ row.category }}</td>
-      <td>{{ row.part_number }}</td>
-      <td>{{ row.serial_number }}</td>
-      <td>{{ row.status }}</td>
-      <td>{{ row.since }}</td>
+      <td class="mono">{{ row.part_number }}</td>
+      <td class="mono">{{ row.serial_number }}</td>
+      <td><span class="st"><span class="led sm {{ row.status }}"></span>{{ row.status }}</span></td>
+      <td class="mono">{{ row.since }}</td>
     </tr>
     {% endfor %}
   </tbody>

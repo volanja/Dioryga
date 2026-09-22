@@ -1,24 +1,54 @@
 /*
- * 配色は設計書16.4の方針に沿う。
- *   スレート（ニュートラルグレー）基調＋インディゴ/バイオレット系のアクセント
- *   ダークは漆黒に寄せず、チャコール〜スレート系のやや明るいダーク
- * 値は design-canvas/ の確定済みデザインから取っている。
+ * 配色・寸法・触感は設計書16.4に従う。案2「高密度・工業的」の触感 中。
+ *   制御盤の性格。行を詰め、ボタンは押すと沈み、状態は表示灯（LED）で示す。
+ *   画面の上下は暗い帯で締める（ライトでも暗いまま）。
+ *
+ * **差し色は面と文字で分ける。**橙は白地に対して約2.2:1しかなく、面には使えても
+ * 文字には使えない。ライトの文字・リンク・枠・焦点には暗い橙（--accent-ink）を使う。
  */
 :root {
-  --bg: #f7f7fa;
+  --bg: #f4f3f0;
   --surface: #ffffff;
-  --border: #e6e6ee;
-  --text: #20202b;
-  --muted: #75758a;
-  --hover: #f0f0f6;
-  --accent: #5b5bd6;
-  --danger: #c8322f;
-  /* リンク。背景（surface / bg / 行ホバー）に対してWCAGの目安4.5:1を満たす
-     （ライト 4.73〜5.37、ダーク 4.82〜6.28） */
-  --link: #5b5bd6;
+  /* パネル・左メニュー。面より一段沈んだ地 */
+  --panel: #eae8e3;
+  --border: #d6d3cc;
+  --border-strong: #c9c5bd;
+  --text: #1f2123;
+  --muted: #5f5d57;
+  --hover: #f4f3f0;
+  /* 選択した行。差し色を薄く敷く */
+  --selected: #fbeedd;
 
-  --radius: 10px;
+  /* 差し色。面・印は明るい橙、文字・リンク・枠・焦点は暗い橙 */
+  --accent: #f28c28;
+  --accent-ink: #9a4f0e;
+  --accent-edge: #b4650f;
+  --on-accent: #1b1c1d;
+
+  --danger: #c8322f;
+  /* リンク。背景（surface / bg / 行ホバー）に対してWCAGの目安4.5:1を満たす */
+  --link: #9a4f0e;
+
+  /* ボタン（主でないもの）。上辺の照りと下辺の影で厚みを出す */
+  --btn-bg: #e8e5df;
+  --btn-hover: #f0eee9;
+  --btn-edge: #a8a49b;
+  --btn-top: rgba(255, 255, 255, 0.9);
+  --field-bg: #ffffff;
+
+  /* 上下の帯。**ライトでも暗いまま。**両モードで画面の骨格を同じにする */
+  --bar: #1f2123;
+  --bar-text: #e6e4dd;
+  --bar-muted: #aba9a1;
+  --bar-border: #111213;
+
+  --radius: 3px;
   --gap: 16px;
+  /* 表の行の高さ（設計書16.4の密度） */
+  --row: 28px;
+
+  /* 等幅。0とOの判別が要る列にだけ当てる（設計書16.4） */
+  --mono: Consolas, Menlo, "Cascadia Mono", Monaco, monospace;
 }
 
 /* ライト/ダーク両対応（設計書16.4）。個人設定で選べる（#120）
@@ -27,37 +57,60 @@
    - dark を選んだ：OSがライトでもダーク */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #1a1a26;
-    --surface: #26263a;
-    --border: #34344a;
-    --text: #e9e9f2;
-    --muted: #9696ac;
-    --hover: #2e2e44;
-    --accent: #9192f7;
-    --danger: #f08a87;
-    --link: #9192f7;
+    --bg: #2b2d2f;
+    --surface: #2f3134;
+    --panel: #35383b;
+    --border: #474b50;
+    --border-strong: #5a5e63;
+    --text: #e6e4dd;
+    --muted: #aba9a1;
+    --hover: #383b3f;
+    --selected: #473a2c;
+    --accent: #f28c28;
+    --accent-ink: #f28c28;
+    --accent-edge: #8a4e14;
+    --on-accent: #1b1c1d;
+    --danger: #e5484d;
+    --link: #f28c28;
+    --btn-bg: #474b50;
+    --btn-hover: #4f5358;
+    --btn-edge: #17181a;
+    --btn-top: rgba(255, 255, 255, 0.14);
+    --field-bg: #232527;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #1a1a26;
-  --surface: #26263a;
-  --border: #34344a;
-  --text: #e9e9f2;
-  --muted: #9696ac;
-  --hover: #2e2e44;
-  --accent: #9192f7;
-  --danger: #f08a87;
-  --link: #9192f7;
+  --bg: #2b2d2f;
+  --surface: #2f3134;
+  --panel: #35383b;
+  --border: #474b50;
+  --border-strong: #5a5e63;
+  --text: #e6e4dd;
+  --muted: #aba9a1;
+  --hover: #383b3f;
+  --selected: #473a2c;
+  --accent: #f28c28;
+  --accent-ink: #f28c28;
+  --accent-edge: #8a4e14;
+  --on-accent: #1b1c1d;
+  --danger: #e5484d;
+  --link: #f28c28;
+  --btn-bg: #474b50;
+  --btn-hover: #4f5358;
+  --btn-edge: #17181a;
+  --btn-top: rgba(255, 255, 255, 0.14);
+  --field-bg: #232527;
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  /* フォントは同梱しない。OS標準のCJKフォントを使う（設計書2章・16.4） */
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans",
-    "Yu Gothic UI", "Noto Sans JP", sans-serif;
+  /* フォントは同梱しない。OS標準のものを使う（設計書2章・16.4）。
+     BIZ UD系はWindowsに入っており、無い環境ではHiragino Sansへ落ちる */
+  font-family: "BIZ UDPGothic", "BIZ UDGothic", "Hiragino Sans", "Yu Gothic UI",
+    sans-serif;
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
@@ -65,7 +118,7 @@ body {
 
 /* 認証系の画面。中央に1枚のカードを置く */
 .auth {
-  min-height: 100vh;
+  flex: 1 1 auto;
   display: grid;
   place-items: center;
   padding: 24px;
@@ -73,12 +126,15 @@ body {
 
 .auth-card {
   width: 100%;
-  max-width: 420px;
-  background: var(--surface);
+  max-width: 440px;
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 32px;
+  padding: 24px;
 }
+
+/* 認証前の画面でも、下の帯だけは出す。版と接続先が読めるようにする */
+.auth .brand-name { font-family: var(--mono); letter-spacing: 0.16em; }
 
 .brand {
   display: flex;
@@ -98,41 +154,71 @@ input[type="text"],
 input[type="email"],
 input[type="password"] {
   width: 100%;
-  padding: 10px 12px;
+  padding: 0 10px;
+  height: 34px;
   margin-bottom: var(--gap);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  background: var(--field-bg);
   color: var(--text);
-  font-size: 14px;
+  font-size: 13px;
   font-family: inherit;
 }
 
-input:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+/* 焦点は差し色で囲む。ライトでは明るい橙が白地に沈むため暗い橙を使う */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 0;
+  border-color: var(--accent-ink);
 }
 
+/*
+ * ボタンは押すと沈む（設計書16.4の触感）。上辺の照りと下辺の影を、押した瞬間に
+ * 内側の影へ入れ替える。**沈むぶんの2pxは margin-bottom で先に確保する**——
+ * 押すたびに周りの要素が動くと、続けて押せない。
+ */
 button {
   width: 100%;
-  padding: 11px 16px;
-  border: 0;
-  border-radius: 8px;
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid var(--accent-edge);
+  border-radius: var(--radius);
   background: var(--accent);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
+  color: var(--on-accent);
+  font-size: 13px;
+  font-weight: 700;
   font-family: inherit;
   cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 2px 0 var(--accent-edge);
+  margin-bottom: 2px;
 }
 
-button:hover { filter: brightness(1.08); }
+button:hover { filter: brightness(1.06); }
+
+button:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3), 0 0 0 var(--accent-edge);
+}
+
+button:disabled { opacity: 0.45; cursor: default; }
+button:disabled:active {
+  transform: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 2px 0 var(--accent-edge);
+}
+
+button:focus-visible,
+a.button:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
 
 .error {
   padding: 10px 12px;
   margin-bottom: var(--gap);
   border: 1px solid var(--danger);
-  border-radius: 8px;
+  border-radius: var(--radius);
   color: var(--danger);
   font-size: 13px;
 }
@@ -141,9 +227,9 @@ button:hover { filter: brightness(1.08); }
 .notice {
   padding: 10px 12px;
   margin-bottom: var(--gap);
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  color: var(--accent);
+  border: 1px solid var(--accent-ink);
+  border-radius: var(--radius);
+  color: var(--accent-ink);
   font-size: 13px;
 }
 
@@ -161,66 +247,139 @@ a:hover { text-decoration: underline; }
  * ログイン後の画面（app_layout）
  * ------------------------------------------------------------------ */
 
+/*
+ * 画面の枠（設計書16.4）。上に40pxの帯、左に184pxのメニュー、下に24pxの
+ * ステータスバー。**帯はライトでも暗いまま**で、両モードの骨格を同じにする。
+ */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--gap);
-  padding: 10px 20px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  height: 40px;
+  padding: 0 12px 0 14px;
+  background: var(--bar);
+  color: var(--bar-text);
+  border-bottom: 1px solid var(--bar-border);
 }
 
-.topbar .brand { margin-bottom: 0; }
+.topbar .brand { margin-bottom: 0; gap: 8px; color: var(--bar-text); }
+.topbar .brand-name {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.14em;
+}
+/* ロゴの水路の段は差し色。流れは淡く置く */
+.topbar .brand svg path:first-child { fill: var(--accent); opacity: 1; }
 .topbar-right { display: flex; align-items: center; gap: 12px; }
-.who { font-size: 13px; color: var(--muted); }
+.who { font-family: var(--mono); font-size: 12px; color: var(--bar-muted); }
 
-.shell { display: flex; align-items: flex-start; }
+/* 帯の上のボタンは暗い面にする。明るい面のキーだと帯から浮く */
+.topbar button.ghost {
+  height: 26px;
+  background: #474b50;
+  border-color: #17181a;
+  color: var(--bar-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 2px 0 #17181a;
+}
+.topbar button.ghost:hover { background: #4f5358; }
+
+/* 本文が短い画面でも、ステータスバーを画面の下に置く */
+body { min-height: 100vh; display: flex; flex-direction: column; }
+.shell { display: flex; align-items: stretch; flex: 1 1 auto; min-height: 0; }
 
 .sidenav {
-  flex: 0 0 200px;
+  flex: 0 0 184px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 16px 12px;
+  gap: 0;
+  padding: 10px 0;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
 }
 
 .sidenav a {
-  padding: 8px 12px;
-  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  padding: 0 10px 0 12px;
   color: var(--text);
   text-decoration: none;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .sidenav a:hover { background: var(--hover); }
-.sidenav a.current { background: var(--hover); font-weight: 600; }
+/* 今いる画面は左に3pxの差し色を立てる。文字も差し色にする（#118・#122） */
+.sidenav a.current {
+  background: var(--surface);
+  color: var(--accent-ink);
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
 
 /* 見出し（プロジェクト名・倉庫名）の下の項目（#122） */
 .sidenav a.sub { padding-left: 22px; }
 /* 見出しはリンクにしない。どのプロジェクト・倉庫の中にいるかを示す */
 .sidenav .heading {
   margin-top: 10px;
-  padding: 4px 12px;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 4px 12px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   color: var(--muted);
   overflow-wrap: anywhere;
 }
 
-/* 領域のメニュー（#122）。頻繁に切り替えないので上部に置く */
+/* 領域のメニュー（#122）。頻繁に切り替えないので上部に置く。
+   今いる領域は下に2pxの差し色——左メニューの「左に3px」と対になる */
 .topnav { display: flex; flex-wrap: wrap; gap: 2px; }
 .topnav a {
-  padding: 6px 10px;
-  border-radius: 8px;
-  color: var(--text);
+  padding: 0 10px;
+  line-height: 38px;
+  color: var(--bar-text);
   text-decoration: none;
   font-size: 13px;
+  border-bottom: 2px solid transparent;
 }
-.topnav a:hover { background: var(--hover); }
-.topnav a.current { background: var(--hover); font-weight: 600; }
+.topnav a:hover { color: #ffffff; text-decoration: none; }
+.topnav a.current {
+  color: var(--accent);
+  font-weight: 700;
+  border-bottom-color: var(--accent);
+}
 
-.content { flex: 1 1 auto; min-width: 0; padding: 24px; }
+.content { flex: 1 1 auto; min-width: 0; padding: 16px 16px 12px; }
+
+/*
+ * ステータスバー（設計書16.4）。画面の下を締める帯。**画面ごとの項目は
+ * `Chrome.status` から出す**——出す内容が無い画面では版だけになる。
+ */
+.statusbar {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  background: var(--bar);
+  color: var(--bar-text);
+  border-top: 1px solid var(--bar-border);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.statusbar > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 12px;
+  border-right: 1px solid #3a3d41;
+}
+
+.statusbar > span:last-child {
+  margin-left: auto;
+  border-right: 0;
+  color: var(--bar-muted);
+}
 
 /* 画面が狭いときはナビを上へ回す */
 @media (max-width: 720px) {
@@ -253,26 +412,47 @@ a:hover { text-decoration: underline; }
 a.button,
 button.ghost,
 a.button.ghost {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   width: auto;
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
+  margin-bottom: 2px;
 }
 
-a.button { background: var(--accent); color: #fff; }
+a.button {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: 1px solid var(--accent-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 2px 0 var(--accent-edge);
+}
 
+a.button:hover { filter: brightness(1.06); text-decoration: none; }
+
+/* 主でないボタン。盤面のキーのように、面を持たせて縁を暗くする */
 button.ghost,
 a.button.ghost {
-  background: transparent;
-  border: 1px solid var(--border);
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-edge);
   color: var(--text);
+  box-shadow: inset 0 1px 0 var(--btn-top), 0 2px 0 var(--btn-edge);
 }
 
-button.ghost:hover, a.button.ghost:hover { background: var(--hover); }
+button.ghost:hover, a.button.ghost:hover { background: var(--btn-hover); text-decoration: none; }
+
+a.button:active,
+button.ghost:active,
+a.button.ghost:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3), 0 0 0 var(--btn-edge);
+}
+
 button.ghost.danger { color: var(--danger); border-color: var(--danger); }
 
 /* 検索・フィルタ。すべての一覧画面が持つ（設計書16.1） */
@@ -286,41 +466,74 @@ button.ghost.danger { color: var(--danger); border-color: var(--danger); }
 .filters input[type="search"] { flex: 1 1 240px; }
 
 input[type="search"], select {
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  background: var(--field-bg);
   color: var(--text);
-  font-size: 14px;
+  font-size: 13px;
   font-family: inherit;
 }
 
-.filters button { width: auto; padding: 10px 18px; }
+.filters button { width: auto; padding: 0 18px; }
 
-/* 表は自身の中で横スクロールさせ、ページ全体を横に伸ばさない */
-.table-scroll { overflow-x: auto; }
+/*
+ * 表は自身の中で横スクロールさせ、ページ全体を横に伸ばさない。
+ * **続きがあることを右端の影で示す**（#153）。スクロールバーは環境によって
+ * 出ないことがあり、指で試すまで右に列があると気付けなかった。
+ */
+.table-scroll {
+  overflow-x: auto;
+  background:
+    linear-gradient(to right, var(--surface) 30%, rgba(0, 0, 0, 0)) left / 24px 100% no-repeat,
+    linear-gradient(to left, var(--surface) 30%, rgba(0, 0, 0, 0)) right / 24px 100% no-repeat,
+    radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0)) left / 10px 100% no-repeat,
+    radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0)) right / 10px 100% no-repeat;
+  background-attachment: local, local, scroll, scroll;
+}
 
+/* 行28px・本文12px（設計書16.4の密度）。10,000台規模の一覧を読む道具である */
 table {
   width: 100%;
   border-collapse: collapse;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-size: 14px;
+  font-size: 12px;
 }
 
-th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
-th { font-size: 12px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+th, td {
+  height: var(--row);
+  padding: 0 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border-strong);
+}
+
+/* 数値の列は右に揃える。桁で見比べるため */
+th.num, td.num { text-align: right; font-family: var(--mono); }
+
 tbody tr:last-child td { border-bottom: 0; }
 tbody tr:hover { background: var(--hover); }
+/* 選んだ行は差し色を薄く敷き、左に印を立てる */
+tbody tr.is-selected { background: var(--selected); box-shadow: inset 3px 0 0 var(--accent); }
 
 /* 無効化された行は色を落とす。消さずに残す（設計書20.11） */
 tr.is-disabled td { color: var(--muted); }
 
 td.actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-td.actions a { color: var(--accent); font-size: 13px; text-decoration: none; }
+td.actions a { color: var(--accent-ink); font-size: 12px; text-decoration: none; }
 td.actions a:hover { text-decoration: underline; }
-td.actions button.ghost { padding: 4px 10px; font-weight: 500; }
+td.actions button.ghost { height: 22px; padding: 0 8px; font-size: 11px; }
 /* 表の中の件数リンク（倉庫一覧の機器数・部品数）。操作のリンクと同じ色だと
    数字として読みにくいため、本文と同じ色にする。押せることはホバーの下線で示す
    （カタログのダッシュボードの件数と同じ扱い） */
@@ -332,7 +545,7 @@ td a.count { color: var(--text); font-weight: 600; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 24px;
+  padding: 20px;
   max-width: 520px;
 }
 
@@ -340,10 +553,10 @@ td a.count { color: var(--text); font-weight: 600; }
 .form textarea { width: 100%; margin-bottom: var(--gap); }
 
 textarea {
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  background: var(--field-bg);
   color: var(--text);
   font-size: 14px;
   font-family: inherit;
@@ -367,7 +580,7 @@ textarea {
 .issued {
   padding: 16px;
   margin-bottom: var(--gap);
-  border: 1px solid var(--accent);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius);
   background: var(--surface);
 }
@@ -409,7 +622,7 @@ textarea {
 }
 
 /* 予約中（status=plan）は実機と区別する（設計書11.6） */
-.badge.plan { border-color: var(--accent); color: var(--accent); }
+.badge.plan { border-color: var(--accent-ink); color: var(--accent-ink); }
 
 /* 詳細画面。項目を種類ごとのカードに分ける */
 .panels {
@@ -430,8 +643,49 @@ textarea {
 /* 集計値を大きく出す。電力集計とダッシュボードが使う（設計書16.1）。
    **定義が無いまま power.html が使っていた**ため、本文と同じ大きさで
    出ていた。集計画面で最初に読む数字が本文と同じ字送りでは読めない */
-.metric { margin: 0; font-size: 28px; font-weight: 600; line-height: 1.2; }
-.metric .unit { font-size: 14px; font-weight: 400; color: var(--muted); }
+.metric {
+  margin: 0;
+  font-family: var(--mono);
+  /* 桁で見比べるため、数字の幅を揃える */
+  font-variant-numeric: tabular-nums;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.metric .unit { font-size: 13px; font-weight: 400; color: var(--muted); font-family: inherit; }
+
+/*
+ * 指標を1枚の盤に並べる（設計書16.4）。枠線で仕切り、各枠は
+ * 「ランプ＋項目名 → 大きな数値 → 小さな注記」の3段にする。
+ */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: var(--gap);
+}
+
+.metrics > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  border-right: 1px solid var(--border);
+}
+
+.metrics > div:last-child { border-right: 0; }
+
+.metrics .label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.metrics .note { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 /* カードの見出し・件数のリンク（カタログのダッシュボード）。大きな数字がリンク色
    だと集計値として読みにくいため、本文と同じ色にし、押せることは下線で示す */
 .panels h2 a,
@@ -441,6 +695,46 @@ textarea {
 
 /* 主でない補足。行の中で主題と区別する */
 .muted { color: var(--muted); font-size: 12px; }
+
+/* 0とOの判別が要る列にだけ当てる（設計書16.4）。日本語の本文には当てない */
+.mono { font-family: var(--mono); }
+
+/*
+ * 状態の表示灯（設計書16.4）。**色は両モードで同じ。**ライトで彩度を落とすと、
+ * 修理中の黄と故障の赤が近づいて見分けがつかなくなる。
+ * 縁は暗いまま——明るい縁にすると白い表の上で輪郭が溶ける。
+ */
+.led {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+  background: #1c1e20;
+  box-shadow: 0 0 0 2px #151617;
+}
+
+.led.running { background: #3dba5a; }
+.led.building { background: #4a8cf0; }
+.led.repair { background: #e8c229; }
+.led.broken { background: #e5484d; }
+
+.led.running, .led.building, .led.repair, .led.broken {
+  box-shadow: 0 0 0 2px #151617, inset 0 -2px 0 rgba(0, 0, 0, 0.25),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* 予約中は「点いているが色を持たない」白。消灯（暗い地）と見分けるため */
+.led.plan {
+  background: #f0ede5;
+  box-shadow: 0 0 0 2px #151617, inset 0 -2px 0 rgba(0, 0, 0, 0.18),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.led.sm { width: 8px; height: 8px; }
+
+/* 状態の欄。ランプと文字を並べる */
+.st { display: inline-flex; align-items: center; gap: 8px; }
 
 /* ------------------------------------------------------------------ *
  * 一括取込
@@ -454,11 +748,11 @@ h2.section { font-size: 15px; margin: 32px 0 12px; }
 
 input[type="file"], input[type="date"] {
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 10px;
   margin-bottom: var(--gap);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  background: var(--field-bg);
   color: var(--text);
   font-size: 14px;
   font-family: inherit;
@@ -506,7 +800,7 @@ td.is-overdue { color: var(--danger); }
 
 .rack-device {
   fill: var(--hover);
-  stroke: var(--accent);
+  stroke: var(--accent-ink);
   stroke-width: 1;
   rx: 3;
 }
@@ -535,7 +829,7 @@ td.is-overdue { color: var(--danger); }
   height: 12px;
   border-radius: 3px;
   background: var(--hover);
-  border: 1px solid var(--accent);
+  border: 1px solid var(--accent-ink);
 }
 .swatch.is-planned { background: none; border-style: dashed; }
 
@@ -557,7 +851,7 @@ td.is-overdue { color: var(--danger); }
 .warn {
   padding: 10px 12px;
   margin-bottom: var(--gap);
-  border: 1px solid var(--accent);
+  border: 1px solid var(--accent-ink);
   border-radius: 8px;
   color: var(--text);
   background: var(--hover);

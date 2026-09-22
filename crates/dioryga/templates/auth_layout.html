@@ -21,5 +21,10 @@
     {% block content %}{% endblock %}
   </div>
 </main>
+
+{# 認証前でも画面の下は帯で締める（#164）。読めるのは版だけ #}
+<footer class="statusbar">
+  <span>{{ t_version }}</span>
+</footer>
 </body>
 </html>

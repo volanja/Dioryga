@@ -1,24 +1,54 @@
 /*
- * 配色は設計書16.4の方針に沿う。
- *   スレート（ニュートラルグレー）基調＋インディゴ/バイオレット系のアクセント
- *   ダークは漆黒に寄せず、チャコール〜スレート系のやや明るいダーク
- * 値は design-canvas/ の確定済みデザインから取っている。
+ * 配色・寸法・触感は設計書16.4に従う。案2「高密度・工業的」の触感 中。
+ *   制御盤の性格。行を詰め、ボタンは押すと沈み、状態は表示灯（LED）で示す。
+ *   画面の上下は暗い帯で締める（ライトでも暗いまま）。
+ *
+ * **差し色は面と文字で分ける。**橙は白地に対して約2.2:1しかなく、面には使えても
+ * 文字には使えない。ライトの文字・リンク・枠・焦点には暗い橙（--accent-ink）を使う。
  */
 :root {
-  --bg: #f7f7fa;
+  --bg: #f4f3f0;
   --surface: #ffffff;
-  --border: #e6e6ee;
-  --text: #20202b;
-  --muted: #75758a;
-  --hover: #f0f0f6;
-  --accent: #5b5bd6;
-  --danger: #c8322f;
-  /* リンク。背景（surface / bg / 行ホバー）に対してWCAGの目安4.5:1を満たす
-     （ライト 4.73〜5.37、ダーク 4.82〜6.28） */
-  --link: #5b5bd6;
+  /* パネル・左メニュー。面より一段沈んだ地 */
+  --panel: #eae8e3;
+  --border: #d6d3cc;
+  --border-strong: #c9c5bd;
+  --text: #1f2123;
+  --muted: #5f5d57;
+  --hover: #f4f3f0;
+  /* 選択した行。差し色を薄く敷く */
+  --selected: #fbeedd;
 
-  --radius: 10px;
+  /* 差し色。面・印は明るい橙、文字・リンク・枠・焦点は暗い橙 */
+  --accent: #f28c28;
+  --accent-ink: #9a4f0e;
+  --accent-edge: #b4650f;
+  --on-accent: #1b1c1d;
+
+  --danger: #c8322f;
+  /* リンク。背景（surface / bg / 行ホバー）に対してWCAGの目安4.5:1を満たす */
+  --link: #9a4f0e;
+
+  /* ボタン（主でないもの）。上辺の照りと下辺の影で厚みを出す */
+  --btn-bg: #e8e5df;
+  --btn-hover: #f0eee9;
+  --btn-edge: #a8a49b;
+  --btn-top: rgba(255, 255, 255, 0.9);
+  --field-bg: #ffffff;
+
+  /* 上下の帯。**ライトでも暗いまま。**両モードで画面の骨格を同じにする */
+  --bar: #1f2123;
+  --bar-text: #e6e4dd;
+  --bar-muted: #aba9a1;
+  --bar-border: #111213;
+
+  --radius: 3px;
   --gap: 16px;
+  /* 表の行の高さ（設計書16.4の密度） */
+  --row: 28px;
+
+  /* 等幅。0とOの判別が要る列にだけ当てる（設計書16.4） */
+  --mono: Consolas, Menlo, "Cascadia Mono", Monaco, monospace;
 }
 
 /* ライト/ダーク両対応（設計書16.4）。個人設定で選べる（#120）
@@ -27,37 +57,60 @@
    - dark を選んだ：OSがライトでもダーク */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #1a1a26;
-    --surface: #26263a;
-    --border: #34344a;
-    --text: #e9e9f2;
-    --muted: #9696ac;
-    --hover: #2e2e44;
-    --accent: #9192f7;
-    --danger: #f08a87;
-    --link: #9192f7;
+    --bg: #2b2d2f;
+    --surface: #2f3134;
+    --panel: #35383b;
+    --border: #474b50;
+    --border-strong: #5a5e63;
+    --text: #e6e4dd;
+    --muted: #aba9a1;
+    --hover: #383b3f;
+    --selected: #473a2c;
+    --accent: #f28c28;
+    --accent-ink: #f28c28;
+    --accent-edge: #8a4e14;
+    --on-accent: #1b1c1d;
+    --danger: #e5484d;
+    --link: #f28c28;
+    --btn-bg: #474b50;
+    --btn-hover: #4f5358;
+    --btn-edge: #17181a;
+    --btn-top: rgba(255, 255, 255, 0.14);
+    --field-bg: #232527;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #1a1a26;
-  --surface: #26263a;
-  --border: #34344a;
-  --text: #e9e9f2;
-  --muted: #9696ac;
-  --hover: #2e2e44;
-  --accent: #9192f7;
-  --danger: #f08a87;
-  --link: #9192f7;
+  --bg: #2b2d2f;
+  --surface: #2f3134;
+  --panel: #35383b;
+  --border: #474b50;
+  --border-strong: #5a5e63;
+  --text: #e6e4dd;
+  --muted: #aba9a1;
+  --hover: #383b3f;
+  --selected: #473a2c;
+  --accent: #f28c28;
+  --accent-ink: #f28c28;
+  --accent-edge: #8a4e14;
+  --on-accent: #1b1c1d;
+  --danger: #e5484d;
+  --link: #f28c28;
+  --btn-bg: #474b50;
+  --btn-hover: #4f5358;
+  --btn-edge: #17181a;
+  --btn-top: rgba(255, 255, 255, 0.14);
+  --field-bg: #232527;
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  /* フォントは同梱しない。OS標準のCJKフォントを使う（設計書2章・16.4） */
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans",
-    "Yu Gothic UI", "Noto Sans JP", sans-serif;
+  /* フォントは同梱しない。OS標準のものを使う（設計書2章・16.4）。
+     BIZ UD系はWindowsに入っており、無い環境ではHiragino Sansへ落ちる */
+  font-family: "BIZ UDPGothic", "BIZ UDGothic", "Hiragino Sans", "Yu Gothic UI",
+    sans-serif;
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
@@ -98,41 +151,71 @@ input[type="text"],
 input[type="email"],
 input[type="password"] {
   width: 100%;
-  padding: 10px 12px;
+  padding: 0 10px;
+  height: 34px;
   margin-bottom: var(--gap);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  background: var(--field-bg);
   color: var(--text);
-  font-size: 14px;
+  font-size: 13px;
   font-family: inherit;
 }
 
-input:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+/* 焦点は差し色で囲む。ライトでは明るい橙が白地に沈むため暗い橙を使う */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 0;
+  border-color: var(--accent-ink);
 }
 
+/*
+ * ボタンは押すと沈む（設計書16.4の触感）。上辺の照りと下辺の影を、押した瞬間に
+ * 内側の影へ入れ替える。**沈むぶんの2pxは margin-bottom で先に確保する**——
+ * 押すたびに周りの要素が動くと、続けて押せない。
+ */
 button {
   width: 100%;
-  padding: 11px 16px;
-  border: 0;
-  border-radius: 8px;
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid var(--accent-edge);
+  border-radius: var(--radius);
   background: var(--accent);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
+  color: var(--on-accent);
+  font-size: 13px;
+  font-weight: 700;
   font-family: inherit;
   cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 2px 0 var(--accent-edge);
+  margin-bottom: 2px;
 }
 
-button:hover { filter: brightness(1.08); }
+button:hover { filter: brightness(1.06); }
+
+button:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3), 0 0 0 var(--accent-edge);
+}
+
+button:disabled { opacity: 0.45; cursor: default; }
+button:disabled:active {
+  transform: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 2px 0 var(--accent-edge);
+}
+
+button:focus-visible,
+a.button:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
 
 .error {
   padding: 10px 12px;
   margin-bottom: var(--gap);
   border: 1px solid var(--danger);
-  border-radius: 8px;
+  border-radius: var(--radius);
   color: var(--danger);
   font-size: 13px;
 }
@@ -141,9 +224,9 @@ button:hover { filter: brightness(1.08); }
 .notice {
   padding: 10px 12px;
   margin-bottom: var(--gap);
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  color: var(--accent);
+  border: 1px solid var(--accent-ink);
+  border-radius: var(--radius);
+  color: var(--accent-ink);
   font-size: 13px;
 }
 
@@ -253,26 +336,47 @@ a:hover { text-decoration: underline; }
 a.button,
 button.ghost,
 a.button.ghost {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   width: auto;
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
+  margin-bottom: 2px;
 }
 
-a.button { background: var(--accent); color: #fff; }
+a.button {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: 1px solid var(--accent-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 2px 0 var(--accent-edge);
+}
 
+a.button:hover { filter: brightness(1.06); text-decoration: none; }
+
+/* 主でないボタン。盤面のキーのように、面を持たせて縁を暗くする */
 button.ghost,
 a.button.ghost {
-  background: transparent;
-  border: 1px solid var(--border);
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-edge);
   color: var(--text);
+  box-shadow: inset 0 1px 0 var(--btn-top), 0 2px 0 var(--btn-edge);
 }
 
-button.ghost:hover, a.button.ghost:hover { background: var(--hover); }
+button.ghost:hover, a.button.ghost:hover { background: var(--btn-hover); text-decoration: none; }
+
+a.button:active,
+button.ghost:active,
+a.button.ghost:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3), 0 0 0 var(--btn-edge);
+}
+
 button.ghost.danger { color: var(--danger); border-color: var(--danger); }
 
 /* 検索・フィルタ。すべての一覧画面が持つ（設計書16.1） */
@@ -286,16 +390,17 @@ button.ghost.danger { color: var(--danger); border-color: var(--danger); }
 .filters input[type="search"] { flex: 1 1 240px; }
 
 input[type="search"], select {
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  background: var(--field-bg);
   color: var(--text);
-  font-size: 14px;
+  font-size: 13px;
   font-family: inherit;
 }
 
-.filters button { width: auto; padding: 10px 18px; }
+.filters button { width: auto; padding: 0 18px; }
 
 /* 表は自身の中で横スクロールさせ、ページ全体を横に伸ばさない */
 .table-scroll { overflow-x: auto; }
@@ -318,7 +423,7 @@ tbody tr:hover { background: var(--hover); }
 tr.is-disabled td { color: var(--muted); }
 
 td.actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-td.actions a { color: var(--accent); font-size: 13px; text-decoration: none; }
+td.actions a { color: var(--accent-ink); font-size: 13px; text-decoration: none; }
 td.actions a:hover { text-decoration: underline; }
 td.actions button.ghost { padding: 4px 10px; font-weight: 500; }
 /* 表の中の件数リンク（倉庫一覧の機器数・部品数）。操作のリンクと同じ色だと
@@ -332,7 +437,7 @@ td a.count { color: var(--text); font-weight: 600; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 24px;
+  padding: 20px;
   max-width: 520px;
 }
 
@@ -340,10 +445,10 @@ td a.count { color: var(--text); font-weight: 600; }
 .form textarea { width: 100%; margin-bottom: var(--gap); }
 
 textarea {
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  background: var(--field-bg);
   color: var(--text);
   font-size: 14px;
   font-family: inherit;
@@ -367,7 +472,7 @@ textarea {
 .issued {
   padding: 16px;
   margin-bottom: var(--gap);
-  border: 1px solid var(--accent);
+  border: 1px solid var(--accent-ink);
   border-radius: var(--radius);
   background: var(--surface);
 }
@@ -409,7 +514,7 @@ textarea {
 }
 
 /* 予約中（status=plan）は実機と区別する（設計書11.6） */
-.badge.plan { border-color: var(--accent); color: var(--accent); }
+.badge.plan { border-color: var(--accent-ink); color: var(--accent-ink); }
 
 /* 詳細画面。項目を種類ごとのカードに分ける */
 .panels {
@@ -442,6 +547,46 @@ textarea {
 /* 主でない補足。行の中で主題と区別する */
 .muted { color: var(--muted); font-size: 12px; }
 
+/* 0とOの判別が要る列にだけ当てる（設計書16.4）。日本語の本文には当てない */
+.mono { font-family: var(--mono); }
+
+/*
+ * 状態の表示灯（設計書16.4）。**色は両モードで同じ。**ライトで彩度を落とすと、
+ * 修理中の黄と故障の赤が近づいて見分けがつかなくなる。
+ * 縁は暗いまま——明るい縁にすると白い表の上で輪郭が溶ける。
+ */
+.led {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+  background: #1c1e20;
+  box-shadow: 0 0 0 2px #151617;
+}
+
+.led.running { background: #3dba5a; }
+.led.building { background: #4a8cf0; }
+.led.repair { background: #e8c229; }
+.led.broken { background: #e5484d; }
+
+.led.running, .led.building, .led.repair, .led.broken {
+  box-shadow: 0 0 0 2px #151617, inset 0 -2px 0 rgba(0, 0, 0, 0.25),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* 予約中は「点いているが色を持たない」白。消灯（暗い地）と見分けるため */
+.led.plan {
+  background: #f0ede5;
+  box-shadow: 0 0 0 2px #151617, inset 0 -2px 0 rgba(0, 0, 0, 0.18),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.led.sm { width: 8px; height: 8px; }
+
+/* 状態の欄。ランプと文字を並べる */
+.st { display: inline-flex; align-items: center; gap: 8px; }
+
 /* ------------------------------------------------------------------ *
  * 一括取込
  * ------------------------------------------------------------------ */
@@ -454,11 +599,11 @@ h2.section { font-size: 15px; margin: 32px 0 12px; }
 
 input[type="file"], input[type="date"] {
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 10px;
   margin-bottom: var(--gap);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  background: var(--field-bg);
   color: var(--text);
   font-size: 14px;
   font-family: inherit;
@@ -506,7 +651,7 @@ td.is-overdue { color: var(--danger); }
 
 .rack-device {
   fill: var(--hover);
-  stroke: var(--accent);
+  stroke: var(--accent-ink);
   stroke-width: 1;
   rx: 3;
 }
@@ -535,7 +680,7 @@ td.is-overdue { color: var(--danger); }
   height: 12px;
   border-radius: 3px;
   background: var(--hover);
-  border: 1px solid var(--accent);
+  border: 1px solid var(--accent-ink);
 }
 .swatch.is-planned { background: none; border-style: dashed; }
 
@@ -557,7 +702,7 @@ td.is-overdue { color: var(--danger); }
 .warn {
   padding: 10px 12px;
   margin-bottom: var(--gap);
-  border: 1px solid var(--accent);
+  border: 1px solid var(--accent-ink);
   border-radius: 8px;
   color: var(--text);
   background: var(--hover);

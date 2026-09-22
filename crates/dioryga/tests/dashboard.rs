@@ -63,7 +63,7 @@ async fn 移管した機器は数えない(db: &DatabaseConnection) {
     assert_eq!(status, StatusCode::OK, "{body}");
     // 舞台が用意する稼働中1台だけ。出ていった1台を足して2にしていないこと
     assert_eq!(
-        抜き出す(&body, "稼働中の機器"),
+        抜き出す(&body, "稼働中"),
         "1",
         "移管した機器を数えています: {body}"
     );
@@ -81,8 +81,62 @@ async fn 予約中は分けて数える(db: &DatabaseConnection) {
 
     assert_eq!(status, StatusCode::OK, "{body}");
     // 稼働中1台・予約中1台。合算して2台と出していないこと
-    assert_eq!(抜き出す(&body, "稼働中の機器"), "1", "{body}");
-    assert_eq!(抜き出す(&body, "予約中の機器"), "1", "{body}");
+    assert_eq!(抜き出す(&body, "稼働中"), "1", "{body}");
+    assert_eq!(抜き出す(&body, "予約中"), "1", "{body}");
+}
+
+/// **5つの状態すべてに枠を出すこと**（#170）。
+///
+/// 0件の状態を落とすと、並びが詰まって位置で読めなくなる。
+async fn 状態は5つとも枠を出す(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "dash-metrics@example.com", "Operator").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}", 場.project.id), &token).await;
+
+    for (ラベル, 台数) in [
+        ("稼働中", "1"),
+        ("予約中", "0"),
+        ("構築中", "0"),
+        ("修理中", "0"),
+        ("故障", "0"),
+    ] {
+        assert_eq!(抜き出す(&body, ラベル), 台数, "{ラベル}: {body}");
+    }
+}
+
+/// **故障・修理中の機器を、起票への導線とともに出すこと**（#170）。
+///
+/// 気付いても一覧を開き直して機器を探すところから始めるのでは、作業につながらない。
+async fn 対応が必要な機器を出す(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "dash-attention@example.com", "Operator").await;
+
+    let 故障 = 機器(db, "srv-failed", "failed").await;
+    割り当て(db, 故障.id, 場.project.id).await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}", 場.project.id), &token).await;
+
+    assert!(body.contains("対応が必要な機器"), "{body}");
+    assert!(body.contains("srv-failed"), "{body}");
+    // 未起票なので、起票への導線が出る
+    assert!(
+        body.contains(&format!(
+            r#"href="/projects/{}/work-orders/new""#,
+            場.project.id
+        )),
+        "{body}"
+    );
+}
+
+/// **故障も修理中も無ければ、表ごと出さないこと**（#170）。
+async fn 対応が必要な機器が無ければ出さない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "dash-no-attention@example.com", "Operator").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}", 場.project.id), &token).await;
+
+    assert!(!body.contains("対応が必要な機器"), "{body}");
 }
 
 // ---------------------------------------------------------------------------
@@ -532,6 +586,9 @@ macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, 移管した機器は数えない);
         全検証!(@one $用意, $属性, 予約中は分けて数える);
+        全検証!(@one $用意, $属性, 状態は5つとも枠を出す);
+        全検証!(@one $用意, $属性, 対応が必要な機器を出す);
+        全検証!(@one $用意, $属性, 対応が必要な機器が無ければ出さない);
         全検証!(@one $用意, $属性, 期限を過ぎたものも出す);
         全検証!(@one $用意, $属性, 遠い予定は出さない);
         全検証!(@one $用意, $属性, 完了したものは出さない);

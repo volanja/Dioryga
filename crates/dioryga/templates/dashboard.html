@@ -14,22 +14,23 @@
   </div>
 </div>
 
-{# 機器数。予約中は分けて出す（設計書11.6、12.5と同じ考え方）。
-   1枚の盤に並べ、ランプ＋項目名・数値・注記の3段にする（設計書16.4） #}
+{# 状態ごとの台数（#170）。1枚の盤に並べ、ランプ＋項目名・数値・注記の3段
+   （設計書16.4）。**0件の状態も枠を出す**——欠けると位置で読めなくなる #}
 <div class="metrics">
+  {% for card in metrics %}
   <div>
-    <span class="label"><span class="led sm running"></span>{{ t_devices_running }}</span>
-    <p class="metric">{{ running }}</p>
+    <span class="label"><span class="led sm {{ card.status }}"></span>{{ card.label }}</span>
+    <p class="metric">{{ card.count }}</p>
+    <span class="note">{{ card.note }}</span>
   </div>
-  <div>
-    <span class="label"><span class="led sm plan"></span>{{ t_devices_planned }}</span>
-    <p class="metric">{{ planned }}</p>
-  </div>
+  {% endfor %}
 </div>
 
 {# 期限間近の窓の広さを明示する。何を基準に並んでいるか分からないと読めない #}
 <p class="hint">{{ t_window }}</p>
 
+{# 期限を持つ2つを左右に並べる（#170）。狭い画面では縦に落ちる #}
+<div class="cols">
 <section>
   <h2>{{ t_contracts }}</h2>
   {% if contracts.is_empty() %}
@@ -102,5 +103,39 @@
   </div>
   {% endif %}
 </section>
+
+{# 対応が必要な機器（#170）。故障・修理中のものを、搭載先と未完了のチケットと
+   ともに出す。**起票への導線をここに置く**——気付きを作業につなげるため #}
+{% if !attention.is_empty() %}
+<section>
+  <h2>{{ t_attention }}</h2>
+  <div class="table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ t_status }}</th>
+        <th>{{ t_hostname }}</th>
+        <th>{{ t_device_type }}</th>
+        <th>{{ t_mounted }}</th>
+        <th>{{ t_work_orders }}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in attention %}
+      <tr>
+        <td><span class="st"><span class="led sm {{ row.status }}"></span>{{ row.status_label }}</span></td>
+        <td class="mono"><a href="{{ row.href }}">{{ row.hostname }}</a></td>
+        <td>{{ row.device_type }}</td>
+        <td class="mono">{{ row.mounted }}</td>
+        <td>{% if row.work_order.is_empty() %}<span class="muted">{{ t_none }}</span>{% else %}{{ row.work_order }}{% endif %}</td>
+        <td class="actions"><a href="{{ row.action_href }}">{{ row.action_label }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
 
 {% endblock %}

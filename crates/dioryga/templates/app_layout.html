@@ -53,5 +53,13 @@
     {% block content %}{% endblock %}
   </main>
 </div>
+
+{# 画面の下を締める帯（#162）。画面ごとの項目と、右端に版を出す #}
+<footer class="statusbar">
+  {% for item in chrome.status %}
+  <span>{{ item }}</span>
+  {% endfor %}
+  <span>{{ chrome.t_version }}</span>
+</footer>
 </body>
 </html>

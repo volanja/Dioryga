@@ -117,6 +117,11 @@ pub struct Chrome {
     pub top: Vec<NavItem>,
     /// 左のメニュー（今いる領域の中の画面）。
     pub side: Vec<NavItem>,
+    /// 画面下のステータスバーに出す項目（#162）。**画面ごとに差し替える。**
+    /// 出す内容が無い画面では空のままでよい——版は常に右端へ出る。
+    pub status: Vec<String>,
+    /// 右端に出す版。どの画面でも同じ。
+    pub t_version: String,
 }
 
 /// メニューの1項目。
@@ -364,6 +369,8 @@ impl Chrome {
         Self {
             locale: l,
             theme: Theme::parse(&user.theme).attribute(),
+            status: Vec::new(),
+            t_version: format!("Dioryga {}", env!("CARGO_PKG_VERSION")),
             app_name: t("app.name", l),
             user_name: user.name.clone(),
             csrf_token,
@@ -372,6 +379,14 @@ impl Chrome {
             top,
             side,
         }
+    }
+
+    /// ステータスバーの項目を差し替える（#162）。
+    ///
+    /// 一覧なら表示件数、取込なら対象のファイルなど、**その画面で最後に見る値**を置く。
+    pub fn with_status(mut self, items: Vec<String>) -> Self {
+        self.status = items;
+        self
     }
 
     pub fn locale(&self) -> Locale {

@@ -244,66 +244,139 @@ a:hover { text-decoration: underline; }
  * ログイン後の画面（app_layout）
  * ------------------------------------------------------------------ */
 
+/*
+ * 画面の枠（設計書16.4）。上に40pxの帯、左に184pxのメニュー、下に24pxの
+ * ステータスバー。**帯はライトでも暗いまま**で、両モードの骨格を同じにする。
+ */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--gap);
-  padding: 10px 20px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  height: 40px;
+  padding: 0 12px 0 14px;
+  background: var(--bar);
+  color: var(--bar-text);
+  border-bottom: 1px solid var(--bar-border);
 }
 
-.topbar .brand { margin-bottom: 0; }
+.topbar .brand { margin-bottom: 0; gap: 8px; color: var(--bar-text); }
+.topbar .brand-name {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.14em;
+}
+/* ロゴの水路の段は差し色。流れは淡く置く */
+.topbar .brand svg path:first-child { fill: var(--accent); opacity: 1; }
 .topbar-right { display: flex; align-items: center; gap: 12px; }
-.who { font-size: 13px; color: var(--muted); }
+.who { font-family: var(--mono); font-size: 12px; color: var(--bar-muted); }
 
-.shell { display: flex; align-items: flex-start; }
+/* 帯の上のボタンは暗い面にする。明るい面のキーだと帯から浮く */
+.topbar button.ghost {
+  height: 26px;
+  background: #474b50;
+  border-color: #17181a;
+  color: var(--bar-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 2px 0 #17181a;
+}
+.topbar button.ghost:hover { background: #4f5358; }
+
+/* 本文が短い画面でも、ステータスバーを画面の下に置く */
+body { min-height: 100vh; display: flex; flex-direction: column; }
+.shell { display: flex; align-items: stretch; flex: 1 1 auto; min-height: 0; }
 
 .sidenav {
-  flex: 0 0 200px;
+  flex: 0 0 184px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 16px 12px;
+  gap: 0;
+  padding: 10px 0;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
 }
 
 .sidenav a {
-  padding: 8px 12px;
-  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  padding: 0 10px 0 12px;
   color: var(--text);
   text-decoration: none;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .sidenav a:hover { background: var(--hover); }
-.sidenav a.current { background: var(--hover); font-weight: 600; }
+/* 今いる画面は左に3pxの差し色を立てる。文字も差し色にする（#118・#122） */
+.sidenav a.current {
+  background: var(--surface);
+  color: var(--accent-ink);
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
 
 /* 見出し（プロジェクト名・倉庫名）の下の項目（#122） */
 .sidenav a.sub { padding-left: 22px; }
 /* 見出しはリンクにしない。どのプロジェクト・倉庫の中にいるかを示す */
 .sidenav .heading {
   margin-top: 10px;
-  padding: 4px 12px;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 4px 12px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   color: var(--muted);
   overflow-wrap: anywhere;
 }
 
-/* 領域のメニュー（#122）。頻繁に切り替えないので上部に置く */
+/* 領域のメニュー（#122）。頻繁に切り替えないので上部に置く。
+   今いる領域は下に2pxの差し色——左メニューの「左に3px」と対になる */
 .topnav { display: flex; flex-wrap: wrap; gap: 2px; }
 .topnav a {
-  padding: 6px 10px;
-  border-radius: 8px;
-  color: var(--text);
+  padding: 0 10px;
+  line-height: 38px;
+  color: var(--bar-text);
   text-decoration: none;
   font-size: 13px;
+  border-bottom: 2px solid transparent;
 }
-.topnav a:hover { background: var(--hover); }
-.topnav a.current { background: var(--hover); font-weight: 600; }
+.topnav a:hover { color: #ffffff; text-decoration: none; }
+.topnav a.current {
+  color: var(--accent);
+  font-weight: 700;
+  border-bottom-color: var(--accent);
+}
 
-.content { flex: 1 1 auto; min-width: 0; padding: 24px; }
+.content { flex: 1 1 auto; min-width: 0; padding: 16px 16px 12px; }
+
+/*
+ * ステータスバー（設計書16.4）。画面の下を締める帯。**画面ごとの項目は
+ * `Chrome.status` から出す**——出す内容が無い画面では版だけになる。
+ */
+.statusbar {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  background: var(--bar);
+  color: var(--bar-text);
+  border-top: 1px solid var(--bar-border);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.statusbar > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 12px;
+  border-right: 1px solid #3a3d41;
+}
+
+.statusbar > span:last-child {
+  margin-left: auto;
+  border-right: 0;
+  color: var(--bar-muted);
+}
 
 /* 画面が狭いときはナビを上へ回す */
 @media (max-width: 720px) {

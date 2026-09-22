@@ -118,7 +118,7 @@ body {
 
 /* 認証系の画面。中央に1枚のカードを置く */
 .auth {
-  min-height: 100vh;
+  flex: 1 1 auto;
   display: grid;
   place-items: center;
   padding: 24px;
@@ -126,12 +126,15 @@ body {
 
 .auth-card {
   width: 100%;
-  max-width: 420px;
-  background: var(--surface);
+  max-width: 440px;
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 32px;
+  padding: 24px;
 }
+
+/* 認証前の画面でも、下の帯だけは出す。版と接続先が読めるようにする */
+.auth .brand-name { font-family: var(--mono); letter-spacing: 0.16em; }
 
 .brand {
   display: flex;
@@ -640,8 +643,49 @@ textarea {
 /* 集計値を大きく出す。電力集計とダッシュボードが使う（設計書16.1）。
    **定義が無いまま power.html が使っていた**ため、本文と同じ大きさで
    出ていた。集計画面で最初に読む数字が本文と同じ字送りでは読めない */
-.metric { margin: 0; font-size: 28px; font-weight: 600; line-height: 1.2; }
-.metric .unit { font-size: 14px; font-weight: 400; color: var(--muted); }
+.metric {
+  margin: 0;
+  font-family: var(--mono);
+  /* 桁で見比べるため、数字の幅を揃える */
+  font-variant-numeric: tabular-nums;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.metric .unit { font-size: 13px; font-weight: 400; color: var(--muted); font-family: inherit; }
+
+/*
+ * 指標を1枚の盤に並べる（設計書16.4）。枠線で仕切り、各枠は
+ * 「ランプ＋項目名 → 大きな数値 → 小さな注記」の3段にする。
+ */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: var(--gap);
+}
+
+.metrics > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  border-right: 1px solid var(--border);
+}
+
+.metrics > div:last-child { border-right: 0; }
+
+.metrics .label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.metrics .note { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 /* カードの見出し・件数のリンク（カタログのダッシュボード）。大きな数字がリンク色
    だと集計値として読みにくいため、本文と同じ色にし、押せることは下線で示す */
 .panels h2 a,

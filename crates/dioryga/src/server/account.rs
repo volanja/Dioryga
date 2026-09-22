@@ -40,6 +40,8 @@ struct PasswordChangePage {
     locale: &'static str,
     theme: &'static str,
     app_name: String,
+    /// 画面の下の帯に出す版（#164）。認証前でもこれだけは読める
+    t_version: String,
     t_title: String,
     t_lead: String,
     t_current: String,
@@ -57,6 +59,7 @@ impl PasswordChangePage {
             locale: l,
             theme,
             app_name: rust_i18n::t!("app.name", locale = l).to_string(),
+            t_version: format!("Dioryga {}", env!("CARGO_PKG_VERSION")),
             t_title: rust_i18n::t!("password_change.title", locale = l).to_string(),
             t_lead: rust_i18n::t!("password_change.lead", locale = l).to_string(),
             t_current: rust_i18n::t!("password_change.current", locale = l).to_string(),

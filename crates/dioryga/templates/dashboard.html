@@ -14,14 +14,15 @@
   </div>
 </div>
 
-{# 機器数。予約中は分けて出す（設計書11.6、12.5と同じ考え方） #}
-<div class="panels">
-  <div class="card">
-    <h2>{{ t_devices_running }}</h2>
+{# 機器数。予約中は分けて出す（設計書11.6、12.5と同じ考え方）。
+   1枚の盤に並べ、ランプ＋項目名・数値・注記の3段にする（設計書16.4） #}
+<div class="metrics">
+  <div>
+    <span class="label"><span class="led sm running"></span>{{ t_devices_running }}</span>
     <p class="metric">{{ running }}</p>
   </div>
-  <div class="card">
-    <h2>{{ t_devices_planned }}</h2>
+  <div>
+    <span class="label"><span class="led sm plan"></span>{{ t_devices_planned }}</span>
     <p class="metric">{{ planned }}</p>
   </div>
 </div>

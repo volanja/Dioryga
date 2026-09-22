@@ -813,12 +813,21 @@ power:
   total: 合計
 
 dashboard:
+  attention: 対応が必要な機器
+  mounted: 搭載先
+  open_work_order: チケットを開く
+  create_work_order: チケットを起票
+  note_running: 現在このプロジェクトにあるもの
+  note_planned: チケットで確保済み
+  note_provisioning: 実行中のチケットあり
+  note_repairing: 対応中
+  note_failed: 起票が必要
   lead: このプロジェクトの状況です。値は保存せず、開くたびに計算します
   window: 期限間近は%{days}日以内です。期限を過ぎたものも同じ枠に出します
   devices_running: 稼働中の機器
   devices_planned: 予約中の機器
-  contracts: 満了が近い保守契約
-  milestones: 予定日が近いマイルストーン
+  contracts: 保守契約
+  milestones: マイルストーン
   work_orders: 未完了の変更管理チケット
   due: 期限
   overdue: 期限超過

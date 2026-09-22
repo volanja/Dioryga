@@ -79,13 +79,12 @@ struct DevicesPage {
     t_search: String,
     t_scope_current: String,
     t_scope_all: String,
-    t_hostname: String,
+    /// 並べ替えできる見出し（#171）
+    h_hostname: SortHead,
     t_device_type: String,
     t_model: String,
-    t_status: String,
+    h_status: SortHead,
     t_location: String,
-    t_actions: String,
-    t_detail: String,
     t_empty: String,
     t_departed: String,
     t_planned: String,
@@ -222,6 +221,86 @@ pub struct ListQuery {
     pub q: Option<String>,
     #[serde(default)]
     pub scope: Option<String>,
+    /// 並べ替える列（#171）。`hostname` / `status`。
+    #[serde(default)]
+    pub sort: Option<String>,
+    /// `asc` / `desc`。
+    #[serde(default)]
+    pub dir: Option<String>,
+}
+
+/// 並べ替え（#171）。**URLに持つ**——再読み込みと共有で並びが残る。
+///
+/// **DBで並べる。**10,000台規模（22.2）で、取得後に並べ直すのは重い。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Sort {
+    Hostname,
+    Status,
+}
+
+impl Sort {
+    fn parse(value: Option<&str>) -> Self {
+        match value {
+            Some("status") => Self::Status,
+            // 既定はホスト名。**識別子で並ぶのが、台帳では最も探しやすい**
+            _ => Self::Hostname,
+        }
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Hostname => "hostname",
+            Self::Status => "status",
+        }
+    }
+
+    fn column(self) -> device::Column {
+        match self {
+            Self::Hostname => device::Column::Hostname,
+            Self::Status => device::Column::Status,
+        }
+    }
+}
+
+/// 並べ替えの向き。見出しを押すたびに入れ替わる。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Dir {
+    Asc,
+    Desc,
+}
+
+impl Dir {
+    fn parse(value: Option<&str>) -> Self {
+        match value {
+            Some("desc") => Self::Desc,
+            _ => Self::Asc,
+        }
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Asc => "asc",
+            Self::Desc => "desc",
+        }
+    }
+
+    fn 逆(self) -> Self {
+        match self {
+            Self::Asc => Self::Desc,
+            Self::Desc => Self::Asc,
+        }
+    }
+}
+
+/// 見出しの1つ。押すと並べ替える（#171）。
+struct SortHead {
+    label: String,
+    /// この列を押したときのリンク。向きは、いまその列で並んでいれば反転する。
+    href: String,
+    /// いまこの列で並んでいるか。矢印を出す
+    current: bool,
+    /// `▲`（昇順）/ `▼`（降順）。
+    arrow: &'static str,
 }
 
 /// 表示範囲。既定は「現在このプロジェクトにあるもの」。
@@ -262,8 +341,10 @@ pub async fn list(
 
     let scope = Scope::parse(query.scope.as_deref());
     let keyword = query.q.clone().unwrap_or_default();
+    let sort = Sort::parse(query.sort.as_deref());
+    let dir = Dir::parse(query.dir.as_deref());
 
-    let devices = 検索(&state.db, project_id, &keyword)
+    let devices = 検索(&state.db, project_id, &keyword, sort, dir)
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
@@ -321,13 +402,27 @@ pub async fn list(
         t_search: rust_i18n::t!("common.search", locale = l).to_string(),
         t_scope_current: rust_i18n::t!("devices.scope_current", locale = l).to_string(),
         t_scope_all: rust_i18n::t!("devices.scope_all", locale = l).to_string(),
-        t_hostname: rust_i18n::t!("devices.hostname", locale = l).to_string(),
+        h_hostname: 並べ替えの見出し(
+            project_id,
+            &keyword,
+            scope,
+            sort,
+            dir,
+            Sort::Hostname,
+            rust_i18n::t!("devices.hostname", locale = l).to_string(),
+        ),
         t_device_type: rust_i18n::t!("devices.device_type", locale = l).to_string(),
         t_model: rust_i18n::t!("devices.model", locale = l).to_string(),
-        t_status: rust_i18n::t!("devices.status", locale = l).to_string(),
+        h_status: 並べ替えの見出し(
+            project_id,
+            &keyword,
+            scope,
+            sort,
+            dir,
+            Sort::Status,
+            rust_i18n::t!("devices.status", locale = l).to_string(),
+        ),
         t_location: rust_i18n::t!("devices.location", locale = l).to_string(),
-        t_actions: rust_i18n::t!("projects.actions", locale = l).to_string(),
-        t_detail: rust_i18n::t!("devices.detail", locale = l).to_string(),
         t_empty: rust_i18n::t!("devices.empty", locale = l).to_string(),
         t_departed: rust_i18n::t!("devices.departed", locale = l).to_string(),
         t_planned: rust_i18n::t!("devices.planned", locale = l).to_string(),
@@ -349,6 +444,8 @@ async fn 検索<C: ConnectionTrait>(
     db: &C,
     project_id: i32,
     keyword: &str,
+    sort: Sort,
+    dir: Dir,
 ) -> Result<Vec<device::Model>, sea_orm::DbErr> {
     let 所属したことがある = SeaQuery::select()
         .column(device_assignment::Column::DeviceId)
@@ -374,11 +471,58 @@ async fn 検索<C: ConnectionTrait>(
         );
     }
 
-    query
-        .order_by_asc(device::Column::Hostname)
-        .order_by_asc(device::Column::Id)
-        .all(db)
-        .await
+    // **並べ替えはDBで行う**（#171）。同じ値のときの並びが揺れないよう、
+    // 最後に id を添える
+    let query = match dir {
+        Dir::Asc => query.order_by_asc(sort.column()),
+        Dir::Desc => query.order_by_desc(sort.column()),
+    };
+    query.order_by_asc(device::Column::Id).all(db).await
+}
+
+/// 見出しを組む（#171）。**いまの検索・表示範囲を保ったままリンクにする。**
+fn 並べ替えの見出し(
+    project_id: i32,
+    keyword: &str,
+    scope: Scope,
+    sort: Sort,
+    dir: Dir,
+    列: Sort,
+    label: String,
+) -> SortHead {
+    let current = sort == 列;
+    // 同じ列を押したら向きを反転、別の列なら昇順から
+    let 次 = if current { dir.逆() } else { Dir::Asc };
+    let href = format!(
+        "/projects/{project_id}/devices?q={}&scope={}&sort={}&dir={}",
+        百分率符号化(keyword),
+        scope.as_str(),
+        列.as_str(),
+        次.as_str()
+    );
+    SortHead {
+        label,
+        href,
+        current,
+        arrow: if dir == Dir::Asc { "▲" } else { "▼" },
+    }
+}
+
+/// クエリ文字列に載せるための符号化。
+///
+/// **依存を増やさないために自前で持つ。**英数字と `-._~` 以外を `%XX` にする
+/// （RFC 3986 の unreserved）。空白を `+` にはしない——`%20` でどちらの解釈でも通る。
+fn 百分率符号化(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for b in value.as_bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                out.push(*b as char)
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
 }
 
 fn escape_like(value: &str) -> String {

@@ -813,12 +813,21 @@ power:
   total: Total
 
 dashboard:
+  attention: Devices needing attention
+  mounted: Mounted in
+  open_work_order: Open work order
+  create_work_order: Create work order
+  note_running: Currently in this project
+  note_planned: Held by a work order
+  note_provisioning: A work order is in progress
+  note_repairing: Being worked on
+  note_failed: Needs a work order
   lead: Current state of this project. Values are not stored; they are computed each time you open this page
   window: "Due soon means within %{days} days. Items already past due are shown here too"
   devices_running: Devices in service
   devices_planned: Devices reserved
-  contracts: Maintenance contracts expiring soon
-  milestones: Milestones due soon
+  contracts: Maintenance contracts
+  milestones: Milestones
   work_orders: Open change tickets
   due: Due
   overdue: Overdue

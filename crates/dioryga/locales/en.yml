@@ -268,7 +268,7 @@ work_orders:
   keyword: Search by title
   status: Status
   status_open: In progress
-  status_all: Include completed and aborted
+  status_all: Include completed and cancelled
   mine: Assigned to me
   ticket: Title
   work_type: Type
@@ -305,7 +305,7 @@ work_orders:
   abort_reason: Reason for aborting
   executed_at: Execution started
   completed_at: Completed
-  aborted_at: Aborted
+  cancelled_at: Cancelled
   error_title: Enter a title
   error_work_type: Invalid work type
   error_target_project: Transfer requires a target project
@@ -319,7 +319,7 @@ work_orders:
   error_transition_from: This operation is not allowed from the current state
   error_abort_reason: Enter a reason for aborting
   reservations: Reserved placement
-  reservations_hint: Hold a rack position while the work is still planned. It appears in the rack diagram as reserved so nobody else takes the spot, and it is released if the work order is aborted
+  reservations_hint: Hold a rack position while the work is still planned. It appears in the rack diagram as reserved so nobody else takes the spot, and it is released if the work order is cancelled
   reserve: Reserve a rack position
   container: Container
   released: Released

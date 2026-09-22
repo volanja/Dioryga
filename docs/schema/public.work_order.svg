@@ -63,11 +63,11 @@
 <text text-anchor="start" x="587.22" y="-801.6" font-family="Arial" font-size="14.00">completed_at </text>
 <text text-anchor="start" x="675.16" y="-801.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 <polygon fill="none" stroke="black" points="580.22,-758.6 580.22,-789.4 852.17,-789.4 852.17,-758.6 580.22,-758.6"/>
-<text text-anchor="start" x="587.22" y="-770.8" font-family="Arial" font-size="14.00">aborted_at </text>
-<text text-anchor="start" x="658.05" y="-770.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<text text-anchor="start" x="587.22" y="-770.8" font-family="Arial" font-size="14.00">cancelled_at </text>
+<text text-anchor="start" x="669.72" y="-770.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 <polygon fill="none" stroke="black" points="580.22,-727.8 580.22,-758.6 852.17,-758.6 852.17,-727.8 580.22,-727.8"/>
-<text text-anchor="start" x="587.22" y="-740" font-family="Arial" font-size="14.00">aborted_reason </text>
-<text text-anchor="start" x="689.19" y="-740" font-family="Arial" font-size="14.00" fill="#666666">[text]</text>
+<text text-anchor="start" x="587.22" y="-740" font-family="Arial" font-size="14.00">cancelled_reason </text>
+<text text-anchor="start" x="700.85" y="-740" font-family="Arial" font-size="14.00" fill="#666666">[text]</text>
 <polygon fill="none" stroke="black" points="580.22,-697 580.22,-727.8 852.17,-727.8 852.17,-697 580.22,-697"/>
 <text text-anchor="start" x="587.22" y="-709.2" font-family="Arial" font-size="14.00">created_at </text>
 <text text-anchor="start" x="657.27" y="-709.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>

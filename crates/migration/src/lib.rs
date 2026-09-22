@@ -30,6 +30,7 @@ pub mod m20260916_000001_uppercase_device_category;
 mod m20260919_000001_add_user_theme;
 mod m20260919_000002_add_warehouse_retired_at;
 pub mod m20260922_000001_rename_device_status;
+pub mod m20260922_000002_rename_work_order_status;
 
 pub struct Migrator;
 
@@ -58,6 +59,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260919_000001_add_user_theme::Migration),
             Box::new(m20260919_000002_add_warehouse_retired_at::Migration),
             Box::new(m20260922_000001_rename_device_status::Migration),
+            Box::new(m20260922_000002_rename_work_order_status::Migration),
         ]
     }
 }

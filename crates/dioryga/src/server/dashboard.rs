@@ -47,7 +47,7 @@ const PROJECT: &str = "Project";
 const DEVICE_PLANNED: &str = "planned";
 const PLANNED: &str = "planned";
 const COMPLETED: &str = "completed";
-const ABORTED: &str = "aborted";
+const CANCELLED: &str = "cancelled";
 
 /// 期限を持つ行の共通の見せ方。
 struct DueRow {
@@ -254,7 +254,7 @@ async fn 未完了のチケット(
 ) -> AppResult<Vec<DueRow>> {
     let list = work_order::Entity::find()
         .filter(work_order::Column::ProjectId.eq(project_id))
-        .filter(work_order::Column::Status.is_not_in([COMPLETED, ABORTED]))
+        .filter(work_order::Column::Status.is_not_in([COMPLETED, CANCELLED]))
         .order_by_asc(work_order::Column::DueDate)
         .order_by_asc(work_order::Column::Id)
         .all(&state.db)

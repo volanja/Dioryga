@@ -86,9 +86,9 @@ const RUNNING: &str = "running";
 
 const PLANNED: &str = "planned";
 const APPROVED: &str = "approved";
-const EXECUTING: &str = "executing";
+const IN_PROGRESS: &str = "in_progress";
 const COMPLETED: &str = "completed";
-const ABORTED: &str = "aborted";
+const CANCELLED: &str = "cancelled";
 
 const PENDING: &str = "pending";
 const REJECTED: &str = "rejected";
@@ -228,18 +228,18 @@ impl Transition {
     fn 遷移元(self) -> &'static [&'static str] {
         match self {
             Self::Execute => &[APPROVED],
-            Self::Complete => &[EXECUTING],
+            Self::Complete => &[IN_PROGRESS],
             // **中止はどの途中状態からもできる。**「結果はどうだったのか。
             // 中断、完了。」という要件に対応する（11.2）
-            Self::Abort => &[PLANNED, APPROVED, EXECUTING],
+            Self::Abort => &[PLANNED, APPROVED, IN_PROGRESS],
         }
     }
 
     fn 遷移先(self) -> &'static str {
         match self {
-            Self::Execute => EXECUTING,
+            Self::Execute => IN_PROGRESS,
             Self::Complete => COMPLETED,
-            Self::Abort => ABORTED,
+            Self::Abort => CANCELLED,
         }
     }
 }
@@ -455,7 +455,7 @@ pub async fn list(
 
     let 語 = keyword.trim().to_lowercase();
     tickets.retain(|w| {
-        if !全件 && (w.status == COMPLETED || w.status == ABORTED) {
+        if !全件 && (w.status == COMPLETED || w.status == CANCELLED) {
             return false;
         }
         if 自分のみ
@@ -481,7 +481,7 @@ pub async fn list(
             WorkOrderRow {
                 overdue: w
                     .due_date
-                    .is_some_and(|d| d < 今日 && w.status != COMPLETED && w.status != ABORTED),
+                    .is_some_and(|d| d < 今日 && w.status != COMPLETED && w.status != CANCELLED),
                 self_approved: 行.clone().any(|a| a.self_approved),
                 approvals: format!("{済} / {総数}"),
                 assignee: w
@@ -604,7 +604,7 @@ async fn 詳細を描く(
         });
     }
 
-    let 未完了 = w.status != COMPLETED && w.status != ABORTED;
+    let 未完了 = w.status != COMPLETED && w.status != CANCELLED;
     let basic = 基本情報(state, &w, l).await?;
 
     render(&WorkOrderDetailPage {
@@ -643,7 +643,7 @@ async fn 詳細を描く(
         basic,
         approvals,
         can_execute: can_edit && w.status == APPROVED,
-        can_complete: can_edit && w.status == EXECUTING,
+        can_complete: can_edit && w.status == IN_PROGRESS,
         can_abort: can_edit && 未完了,
         // --- 予約（設計書11.6） ---
         t_reservations: rust_i18n::t!("work_orders.reservations", locale = l).to_string(),
@@ -799,7 +799,7 @@ async fn 基本情報(state: &AppState, w: &work_order::Model, l: &str) -> AppRe
     for (key, at) in [
         ("work_orders.executed_at", w.executed_at),
         ("work_orders.completed_at", w.completed_at),
-        ("work_orders.aborted_at", w.aborted_at),
+        ("work_orders.cancelled_at", w.cancelled_at),
     ] {
         if let Some(at) = at {
             basic.push(Labeled {
@@ -810,7 +810,7 @@ async fn 基本情報(state: &AppState, w: &work_order::Model, l: &str) -> AppRe
     }
 
     // 中止は理由とともに残す。**削除しない**（旧C-2）
-    if let Some(reason) = &w.aborted_reason.clone().filter(|r| !r.is_empty()) {
+    if let Some(reason) = &w.cancelled_reason.clone().filter(|r| !r.is_empty()) {
         basic.push(Labeled {
             label: rust_i18n::t!("work_orders.abort_reason", locale = l).to_string(),
             value: reason.clone(),
@@ -924,8 +924,8 @@ pub async fn create(
             planned_at: Set(Some(now)),
             executed_at: Set(None),
             completed_at: Set(None),
-            aborted_at: Set(None),
-            aborted_reason: Set(None),
+            cancelled_at: Set(None),
+            cancelled_reason: Set(None),
             created_at: Set(now),
             updated_at: Set(now),
             ..Default::default()
@@ -1189,7 +1189,7 @@ async fn 他に承認できる人がいる<C: ConnectionTrait>(
 pub struct TransitionForm {
     pub to: String,
     #[serde(default)]
-    pub aborted_reason: String,
+    pub cancelled_reason: String,
 }
 
 pub async fn transition(
@@ -1217,7 +1217,7 @@ pub async fn transition(
         return 詳細を描く(&state, &current, project_id, work_order_id, Some(e), None).await;
     }
 
-    let 理由 = form.aborted_reason.trim().to_owned();
+    let 理由 = form.cancelled_reason.trim().to_owned();
     if t == Transition::Abort && 理由.is_empty() {
         // 中止の理由は必須。**「結果はどうだったのか」に答えられなくなる**（旧C-2）
         let e = rust_i18n::t!("work_orders.error_abort_reason", locale = l).to_string();
@@ -1239,8 +1239,8 @@ pub async fn transition(
         Transition::Execute => model.executed_at = Set(Some(now)),
         Transition::Complete => model.completed_at = Set(Some(now)),
         Transition::Abort => {
-            model.aborted_at = Set(Some(now));
-            model.aborted_reason = Set(Some(理由));
+            model.cancelled_at = Set(Some(now));
+            model.cancelled_reason = Set(Some(理由));
         }
     }
 

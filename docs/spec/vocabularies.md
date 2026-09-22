@@ -120,7 +120,7 @@
 | 対象 | 値 |
 |---|---|
 | `WORK_ORDER.work_type` | `Repair` / `Addition` / `Relocation` / `Disposal` / `Transfer` |
-| `WORK_ORDER.status` | `planned` / `approved` / `executing` / `completed` / `aborted` |
+| `WORK_ORDER.status` | `planned` / `approved` / `in_progress` / `completed` / `cancelled` |
 | `WORK_ORDER_APPROVAL.status` | `pending` / `approved` / `rejected` |
 | `MILESTONE.milestone_type` | `ServiceStart` / `ServiceUpdate` / `ServiceMaintenance` / `ServiceEnd` |
 | `MILESTONE.status` | `planned` / `completed` / `cancelled` |
@@ -131,12 +131,12 @@
 ```
 [*] --> Planned
 Planned  --> Approved   : 承認（Approver）
-Approved --> Executing  : 実行開始
-Executing --> Completed : 完了
-Planned / Approved / Executing --> Aborted : 中止
+Approved --> InProgress  : 実行開始
+InProgress --> Completed : 完了
+Planned / Approved / InProgress --> Cancelled : 中止
 ```
 
-`Aborted` は計画段階・承認後・実行中のいずれからも遷移できる。
+`Cancelled` は計画段階・承認後・実行中のいずれからも遷移できる。
 
 ## 多態的参照の型
 

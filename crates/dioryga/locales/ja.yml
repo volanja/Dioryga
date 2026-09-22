@@ -305,7 +305,7 @@ work_orders:
   abort_reason: 中止の理由
   executed_at: 実行開始
   completed_at: 完了
-  aborted_at: 中止
+  cancelled_at: 中止
   error_title: 件名を入力してください
   error_work_type: 種別の値が不正です
   error_target_project: Transfer では移譲先プロジェクトを指定してください

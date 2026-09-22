@@ -191,8 +191,8 @@ async fn 期限のないチケットも出す(db: &DatabaseConnection) {
         planned_at: Set(None),
         executed_at: Set(None),
         completed_at: Set(None),
-        aborted_at: Set(None),
-        aborted_reason: Set(None),
+        cancelled_at: Set(None),
+        cancelled_reason: Set(None),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
         ..Default::default()
@@ -212,7 +212,7 @@ async fn 期限のないチケットも出す(db: &DatabaseConnection) {
 async fn 完了したチケットは出さない(db: &DatabaseConnection) {
     let 場 = 舞台(db, "dash-wo-done@example.com", "Operator").await;
 
-    for (title, status) in [("済んだ修理", "completed"), ("やめた修理", "aborted")] {
+    for (title, status) in [("済んだ修理", "completed"), ("やめた修理", "cancelled")] {
         work_order::ActiveModel {
             project_id: Set(場.project.id),
             target_project_id: Set(None),
@@ -228,8 +228,8 @@ async fn 完了したチケットは出さない(db: &DatabaseConnection) {
             planned_at: Set(None),
             executed_at: Set(None),
             completed_at: Set(None),
-            aborted_at: Set(None),
-            aborted_reason: Set(None),
+            cancelled_at: Set(None),
+            cancelled_reason: Set(None),
             created_at: Set(Utc::now()),
             updated_at: Set(Utc::now()),
             ..Default::default()

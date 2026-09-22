@@ -21,12 +21,12 @@ SQLiteが後から制約を足せないため。参照整合はアプリケー�
 | primary_assignee_id | integer |  | true |  | [public.app_user](public.app_user.md) | 主担当。**この人物は自分のチケットを承認できない**（旧C-9、DB制約にできないためアプリケーション層で検証） |
 | secondary_assignee_id | integer |  | true |  | [public.app_user](public.app_user.md) |  |
 | due_date | date |  | true |  |  | 期日。**実績の `completed_at` とは別に持つ**（5.1。上書きすると予定と実績の差が失われる） |
-| status | varchar |  | false |  |  | planned / approved / executing / completed / aborted。<br />**`approved` は WORK_ORDER_APPROVAL の全行が approved になった結果**であり、単独では動かさない<br /> |
+| status | varchar |  | false |  |  | planned / approved / in_progress / completed / cancelled。<br />**`approved` は WORK_ORDER_APPROVAL の全行が approved になった結果**であり、単独では動かさない<br /> |
 | planned_at | timestamp with time zone |  | true |  |  |  |
 | executed_at | timestamp with time zone |  | true |  |  |  |
 | completed_at | timestamp with time zone |  | true |  |  |  |
-| aborted_at | timestamp with time zone |  | true |  |  |  |
-| aborted_reason | text |  | true |  |  |  |
+| cancelled_at | timestamp with time zone |  | true |  |  |  |
+| cancelled_reason | text |  | true |  |  |  |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
 

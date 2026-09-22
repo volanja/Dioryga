@@ -379,9 +379,9 @@
 | title / description | |
 | primary_assignee_id / secondary_assignee_id | FK User、nullable |
 | due_date | date nullable |
-| status | planned/approved/executing/completed/aborted |
-| planned_at / executed_at / completed_at / aborted_at | datetime |
-| aborted_reason | nullable |
+| status | planned/approved/in_progress/completed/cancelled |
+| planned_at / executed_at / completed_at / cancelled_at | datetime |
+| cancelled_reason | nullable |
 
 ### WORK_ORDER_APPROVAL
 `work_order_id`(FK), `required_project_id`(FK), `approver_id`(FK User nullable), `status`(pending/approved/rejected), `approved_at`(nullable)

@@ -438,6 +438,62 @@ async fn 一覧の状態にランプが付く(db: &DatabaseConnection) {
     assert!(body.contains(r#"<td class="mono">"#), "{body}");
 }
 
+/// **ホスト名を押して開けること**（#171）。右端の「詳細」は置かない。
+async fn ホスト名を押して開ける(db: &DatabaseConnection) {
+    let user = 利用者(db, "dev-link@example.com").await;
+    let p = プロジェクト(db, "リンク検証").await;
+    メンバー(db, user.id, p.id, "Viewer").await;
+    let d = 機器(db, "link-01").await;
+    割当(db, d.id, p.id, Utc::now()).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}/devices", p.id), &token).await;
+    assert!(
+        body.contains(&format!(
+            r#"<a href="/projects/{}/devices/{}">link-01</a>"#,
+            p.id, d.id
+        )),
+        "{body}"
+    );
+    let 本文 = &body[body.find(r#"<main class="content">"#).unwrap()..];
+    assert!(!本文.contains(">詳細<"), "「詳細」が残っています: {本文}");
+}
+
+/// **見出しで並べ替えられ、並びがURLに残ること**（#171）。
+async fn 見出しで並べ替えられる(db: &DatabaseConnection) {
+    let user = 利用者(db, "dev-sort@example.com").await;
+    let p = プロジェクト(db, "並べ替え検証").await;
+    メンバー(db, user.id, p.id, "Viewer").await;
+    for name in ["srv-c", "srv-a", "srv-b"] {
+        let d = 機器(db, name).await;
+        割当(db, d.id, p.id, Utc::now()).await;
+    }
+
+    // 既定はホスト名の昇順
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}/devices", p.id), &token).await;
+    assert!(
+        body.find("srv-a").unwrap() < body.find("srv-c").unwrap(),
+        "既定が昇順になっていません"
+    );
+    // 見出しのリンクは、押すと降順になる
+    // 属性の中の & は実体参照で出る
+    assert!(body.contains("sort=hostname"), "{body}");
+    assert!(body.contains("dir=desc"), "{body}");
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, 降順) = 取得(
+        状態,
+        &format!("/projects/{}/devices?sort=hostname&dir=desc", p.id),
+        &token,
+    )
+    .await;
+    assert!(
+        降順.find("srv-c").unwrap() < 降順.find("srv-a").unwrap(),
+        "降順になっていません"
+    );
+}
+
 async fn 認証済み(db: &DatabaseConnection, user: &app_user::Model) -> (AppState, String) {
     let config = 設定();
     let (setup, _) = SetupState::initialize(db).await.unwrap();
@@ -631,6 +687,8 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 所属するプロジェクトだけ見える);
         全検証!(@one $用意, $属性, 種別は表示だけを訳す);
         全検証!(@one $用意, $属性, 一覧の状態にランプが付く);
+        全検証!(@one $用意, $属性, ホスト名を押して開ける);
+        全検証!(@one $用意, $属性, 見出しで並べ替えられる);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

@@ -33,12 +33,12 @@
 <table>
   <thead>
     <tr>
-      <th>{{ t_hostname }}</th>
+      {# 見出しを押すと並べ替える（#171）。いまの並びは矢印で示す #}
+      <th><a class="sort" href="{{ h_hostname.href }}">{{ h_hostname.label }}{% if h_hostname.current %} <span class="on">{{ h_hostname.arrow }}</span>{% endif %}</a></th>
       <th>{{ t_device_type }}</th>
       <th>{{ t_model }}</th>
-      <th>{{ t_status }}</th>
+      <th><a class="sort" href="{{ h_status.href }}">{{ h_status.label }}{% if h_status.current %} <span class="on">{{ h_status.arrow }}</span>{% endif %}</a></th>
       <th>{{ t_location }}</th>
-      <th>{{ t_actions }}</th>
     </tr>
   </thead>
   <tbody>
@@ -46,7 +46,8 @@
     <tr class="{% if row.departed %}is-disabled{% endif %}">
       {# 0とOの判別が要る列にだけ等幅を当てる（設計書16.4） #}
       <td class="mono">
-        {{ row.hostname }}
+        {# 名前を押して開く（#171）。右端の「詳細」は置かない #}
+        <a href="/projects/{{ project_id }}/devices/{{ row.id }}">{{ row.hostname }}</a>
         {# 予約中は区別表示する（設計書11.6） #}
         {% if row.planned %}<span class="badge plan">{{ t_planned }}</span>{% endif %}
         {% if row.departed %}<span class="badge">{{ t_departed }}</span>{% endif %}
@@ -56,9 +57,6 @@
       {# 状態はランプを添える。文字だけより、並んだ行の中で見つけやすい #}
       <td><span class="st"><span class="led sm {{ row.status }}"></span>{{ row.status_label }}</span></td>
       <td>{{ row.location }}</td>
-      <td class="actions">
-        <a href="/projects/{{ project_id }}/devices/{{ row.id }}">{{ t_detail }}</a>
-      </td>
     </tr>
     {% endfor %}
   </tbody>

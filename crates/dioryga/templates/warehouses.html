@@ -35,8 +35,8 @@
     <tr>
       <th>{{ t_name }}</th>
       <th>{{ t_address }}</th>
-      <th>{{ t_devices }}</th>
-      <th>{{ t_parts }}</th>
+      <th class="num">{{ t_devices }}</th>
+      <th class="num">{{ t_parts }}</th>
       {% if can_edit %}<th>{{ t_actions }}</th>{% endif %}
     </tr>
   </thead>
@@ -49,8 +49,8 @@
       </td>
       <td>{{ row.address }}</td>
       {# 件数は本文と同じ色にする。操作のリンクと同じ色だと数字として読みにくい #}
-      <td><a class="count" href="/warehouses/{{ row.id }}/devices">{{ row.devices }}</a></td>
-      <td><a class="count" href="/warehouses/{{ row.id }}/parts">{{ row.parts }}</a></td>
+      <td class="num"><a class="count" href="/warehouses/{{ row.id }}/devices">{{ row.devices }}</a></td>
+      <td class="num"><a class="count" href="/warehouses/{{ row.id }}/parts">{{ row.parts }}</a></td>
       {% if can_edit %}
       <td class="actions">
         {% if row.retired %}

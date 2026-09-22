@@ -44,7 +44,8 @@
   <tbody>
     {% for row in rows %}
     <tr class="{% if row.departed %}is-disabled{% endif %}">
-      <td>
+      {# 0とOの判別が要る列にだけ等幅を当てる（設計書16.4） #}
+      <td class="mono">
         {{ row.hostname }}
         {# 予約中は区別表示する（設計書11.6） #}
         {% if row.planned %}<span class="badge plan">{{ t_planned }}</span>{% endif %}
@@ -52,7 +53,8 @@
       </td>
       <td>{{ row.device_type }}</td>
       <td>{{ row.model }}</td>
-      <td>{{ row.status }}</td>
+      {# 状態はランプを添える。文字だけより、並んだ行の中で見つけやすい #}
+      <td><span class="st"><span class="led sm {{ row.status }}"></span>{{ row.status }}</span></td>
       <td>{{ row.location }}</td>
       <td class="actions">
         <a href="/projects/{{ project_id }}/devices/{{ row.id }}">{{ t_detail }}</a>

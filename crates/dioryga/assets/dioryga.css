@@ -475,30 +475,62 @@ input[type="search"], select {
 
 .filters button { width: auto; padding: 0 18px; }
 
-/* 表は自身の中で横スクロールさせ、ページ全体を横に伸ばさない */
-.table-scroll { overflow-x: auto; }
+/*
+ * 表は自身の中で横スクロールさせ、ページ全体を横に伸ばさない。
+ * **続きがあることを右端の影で示す**（#153）。スクロールバーは環境によって
+ * 出ないことがあり、指で試すまで右に列があると気付けなかった。
+ */
+.table-scroll {
+  overflow-x: auto;
+  background:
+    linear-gradient(to right, var(--surface) 30%, rgba(0, 0, 0, 0)) left / 24px 100% no-repeat,
+    linear-gradient(to left, var(--surface) 30%, rgba(0, 0, 0, 0)) right / 24px 100% no-repeat,
+    radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0)) left / 10px 100% no-repeat,
+    radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0)) right / 10px 100% no-repeat;
+  background-attachment: local, local, scroll, scroll;
+}
 
+/* 行28px・本文12px（設計書16.4の密度）。10,000台規模の一覧を読む道具である */
 table {
   width: 100%;
   border-collapse: collapse;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-size: 14px;
+  font-size: 12px;
 }
 
-th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
-th { font-size: 12px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+th, td {
+  height: var(--row);
+  padding: 0 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border-strong);
+}
+
+/* 数値の列は右に揃える。桁で見比べるため */
+th.num, td.num { text-align: right; font-family: var(--mono); }
+
 tbody tr:last-child td { border-bottom: 0; }
 tbody tr:hover { background: var(--hover); }
+/* 選んだ行は差し色を薄く敷き、左に印を立てる */
+tbody tr.is-selected { background: var(--selected); box-shadow: inset 3px 0 0 var(--accent); }
 
 /* 無効化された行は色を落とす。消さずに残す（設計書20.11） */
 tr.is-disabled td { color: var(--muted); }
 
 td.actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-td.actions a { color: var(--accent-ink); font-size: 13px; text-decoration: none; }
+td.actions a { color: var(--accent-ink); font-size: 12px; text-decoration: none; }
 td.actions a:hover { text-decoration: underline; }
-td.actions button.ghost { padding: 4px 10px; font-weight: 500; }
+td.actions button.ghost { height: 22px; padding: 0 8px; font-size: 11px; }
 /* 表の中の件数リンク（倉庫一覧の機器数・部品数）。操作のリンクと同じ色だと
    数字として読みにくいため、本文と同じ色にする。押せることはホバーの下線で示す
    （カタログのダッシュボードの件数と同じ扱い） */

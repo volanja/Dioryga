@@ -141,7 +141,7 @@ pub async fn redirect_while_pending(
 }
 
 /// セットアップ完了後に `/setup` が404を返すことの確認は、
-/// 結合テスト（tests/setup.rs）で行う。
+/// 結合テスト（tests/it/setup.rs）で行う。
 #[cfg(test)]
 mod tests {
     use super::*;

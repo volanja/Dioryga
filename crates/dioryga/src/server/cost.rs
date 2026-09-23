@@ -1010,8 +1010,9 @@ pub async fn create_recurring(
 // ---------------------------------------------------------------------------
 
 /// `2026-04-01`。**曖昧な書式を受け付けない。**
+/// 画面の日付。`2026-09-23` も `2026/09/23` も読む（[`crate::date::読む`]）。
 fn 日付(value: &str) -> Option<NaiveDate> {
-    NaiveDate::parse_from_str(value.trim(), "%Y-%m-%d").ok()
+    crate::date::読む(value)
 }
 
 async fn 入場(

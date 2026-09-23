@@ -937,7 +937,7 @@ impl PurchaseInput {
         let supplier = 空ならnone(&self.supplier);
         let acquired_on = match self.acquisition_date.trim() {
             "" => None,
-            v => Some(日付(v).ok_or("costs.error_date")?),
+            v => Some(日付(v).ok_or("devices.error_acquisition_date")?),
         };
         let amount = match self.acquisition_cost.trim() {
             "" => None,
@@ -1032,8 +1032,9 @@ fn 空ならnone(value: &str) -> Option<String> {
     }
 }
 
+/// 画面の日付。`2026-09-23` も `2026/09/23` も読む（[`crate::date::読む`]）。
 fn 日付(value: &str) -> Option<NaiveDate> {
-    NaiveDate::parse_from_str(value.trim(), "%Y-%m-%d").ok()
+    crate::date::読む(value)
 }
 
 /// 現在の搭載位置（`DEVICE_MOUNT` の `to_date IS NULL`）。
@@ -1403,14 +1404,13 @@ async fn 費用を検証(
     };
 
     let 資産 = if form.資産として管理する() {
-        let Some(p) = 購入.as_ref() else {
-            return Ok(Err("costs.error_amount"));
-        };
+        // **欠けているのか読めないのかを分けて伝える。**「形が違う」と言われても、
+        // 空欄のまま送った利用者には何を直せばよいか分からない
         if form.purchase.acquisition_cost.trim().is_empty() {
-            return Ok(Err("costs.error_amount"));
+            return Ok(Err("devices.error_asset_cost_required"));
         }
-        if p.acquired_on.is_none() {
-            return Ok(Err("costs.error_date"));
+        if !購入.as_ref().is_some_and(|p| p.acquired_on.is_some()) {
+            return Ok(Err("devices.error_asset_date_required"));
         }
         // **閉じた語彙は既定へ寄せず拒否する**（8.6、Q-21）
         if !crate::cost::DEPRECIATION_METHODS.contains(&form.depreciation_method.trim()) {
@@ -1443,9 +1443,12 @@ async fn 費用を検証(
         if number.is_empty() {
             return Ok(Err("costs.error_contract_number"));
         }
+        if form.contract_start.trim().is_empty() || form.contract_end.trim().is_empty() {
+            return Ok(Err("devices.error_contract_dates_required"));
+        }
         let (Some(start), Some(end)) = (日付(&form.contract_start), 日付(&form.contract_end))
         else {
-            return Ok(Err("costs.error_date"));
+            return Ok(Err("devices.error_contract_dates"));
         };
         // **期間が0以下は按分できない**（24.2.2）
         if end < start {

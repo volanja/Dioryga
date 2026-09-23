@@ -13,6 +13,7 @@ pub mod cli;
 pub mod config;
 pub mod cost;
 pub mod currency;
+pub mod date;
 pub mod db;
 pub mod error;
 pub mod import;

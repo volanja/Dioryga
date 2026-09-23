@@ -253,6 +253,11 @@ devices:
   contract_end_hint: 満了の90日前からダッシュボードに出ます
   configuration_required: Physical の機器は構成を選んでください
   device_category_required: 構成を持たない機器は種別分類を選んでください
+  error_acquisition_date: 取得日を読めません。2026/09/23 のように入れてください
+  error_asset_cost_required: 固定資産として管理するときは、取得原価を入れてください
+  error_asset_date_required: 固定資産として管理するときは、取得日を入れてください（償却はこの日から始まります）
+  error_contract_dates_required: 新しい保守契約には、開始日と満了日を入れてください
+  error_contract_dates: 保守契約の開始日か満了日を読めません。2026/09/23 のように入れてください
   next_steps: このあとの手順
   next_steps_lead: ネットワークとソフトウェアは、この画面では設定しません。登録すると機器の詳細へ移ります。そこから順に進めてください
   step_register: 機器を登録する
@@ -816,7 +821,7 @@ costs:
   new_recurring: 定期費用を登録
   amount_hint: 最小通貨単位の整数で保存します。円は小数点以下を持ちません
   error_contract_number: 契約番号を入力してください
-  error_date: 日付は YYYY-MM-DD の形で入力してください
+  error_date: 日付を読めません。2026/09/23 のように入れてください
   error_period: 終了日が開始日より前です
   error_amount: 金額の形式が正しくありません。通貨の小数点以下の桁数を超える値は受け付けません
   error_method: 償却方法の値が不正です

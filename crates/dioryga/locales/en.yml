@@ -253,6 +253,11 @@ devices:
   contract_end_hint: It appears on the dashboard from 90 days before it ends
   configuration_required: Choose a configuration for a Physical device
   device_category_required: Choose a category for a device without a configuration
+  error_acquisition_date: The acquisition date cannot be read. Enter it like 2026-09-23
+  error_asset_cost_required: Enter the acquisition cost to manage this as a fixed asset
+  error_asset_date_required: Enter the acquisition date to manage this as a fixed asset (depreciation starts on that day)
+  error_contract_dates_required: A new maintenance contract needs a start date and an end date
+  error_contract_dates: The contract start or end date cannot be read. Enter it like 2026-09-23
   next_steps: What comes next
   next_steps_lead: Network and software are not set on this screen. After registering you move to the device details; continue from there in order
   step_register: Register the device
@@ -816,7 +821,7 @@ costs:
   new_recurring: Register a recurring cost
   amount_hint: Stored as an integer in the smallest currency unit. The yen has no decimal places
   error_contract_number: Enter a contract number
-  error_date: Enter the date as YYYY-MM-DD
+  error_date: The date cannot be read. Enter it like 2026-09-23
   error_period: The end date precedes the start date
   error_amount: Invalid amount. More decimal places than the currency allows are not accepted
   error_method: Invalid depreciation method

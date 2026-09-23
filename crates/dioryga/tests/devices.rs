@@ -485,10 +485,96 @@ async fn 固定資産には取得日が要る(db: &DatabaseConnection) {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert!(body.contains("日付"), "取得日のエラーが出ていません");
+    // **「形が違う」ではなく「入れてください」と伝える。**空欄のまま送った利用者に、
+    // 日付の形を直せと言っても何を直せばよいか分からない
+    assert!(
+        body.contains("取得日を入れてください"),
+        "取得日が欠けていることが伝わっていません"
+    );
     // **開いていた欄は開いたまま戻る**（チェックボックスが checked で描き直される）
     assert!(body
         .contains(r#"id="manage_as_fixed_asset" name="manage_as_fixed_asset" value="1" checked"#));
+    assert!(device::Entity::find().all(db).await.unwrap().is_empty());
+}
+
+/// **日付は見えている形（`2026/09/23`）で入れても通ること。**
+///
+/// `<input type="date">` は送信時には `2026-09-23` を送るが、画面に見えているのは
+/// `2026/09/23` であり、日付入力に対応していないブラウザでは利用者がその形で打つ。
+async fn 日付は斜線区切りでも通る(db: &DatabaseConnection) {
+    let (user, p, cfg) = 登録の舞台(db, "slash").await;
+    let v = ベンダー(db, "斜線保守", user.id).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _, body) = 送信して行き先(
+        状態,
+        &format!("/projects/{}/devices", p.id),
+        &token,
+        &[
+            ("hostname", "slash-01"),
+            ("device_type", "Physical"),
+            ("configuration_id", &cfg.to_string()),
+            ("status", "provisioning"),
+            ("acquisition_cost", "1200000"),
+            ("acquisition_date", "2026/4/1"),
+            ("manage_as_fixed_asset", "1"),
+            ("useful_life_years", "5"),
+            ("depreciation_method", "straight_line"),
+            ("register_maintenance", "1"),
+            ("maintenance_mode", "new"),
+            ("contract_number", "MC-SLASH"),
+            ("contract_vendor_id", &v.to_string()),
+            ("contract_start", "2026/04/01"),
+            ("contract_end", "2029/03/31"),
+            ("contract_amount", "240000"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "拒否されました: {body}");
+
+    let 資産 = fixed_asset::Entity::find().one(db).await.unwrap().unwrap();
+    assert_eq!(
+        資産.acquisition_date,
+        chrono::NaiveDate::from_ymd_opt(2026, 4, 1).unwrap()
+    );
+    let 契約 = maintenance_contract::Entity::find()
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        契約.end_date,
+        chrono::NaiveDate::from_ymd_opt(2029, 3, 31).unwrap()
+    );
+}
+
+/// **保守契約の日付が欠けていれば、そう伝えること。**
+async fn 保守契約の日付が欠けていれば伝える(db: &DatabaseConnection) {
+    let (user, p, cfg) = 登録の舞台(db, "contract-date").await;
+    let v = ベンダー(db, "日付保守", user.id).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 送信(
+        状態,
+        &format!("/projects/{}/devices", p.id),
+        &token,
+        &[
+            ("hostname", "cd-01"),
+            ("device_type", "Physical"),
+            ("configuration_id", &cfg.to_string()),
+            ("status", "provisioning"),
+            ("register_maintenance", "1"),
+            ("maintenance_mode", "new"),
+            ("contract_number", "MC-NODATE"),
+            ("contract_vendor_id", &v.to_string()),
+            ("contract_start", "2026-04-01"),
+            ("contract_end", ""),
+            ("contract_amount", "240000"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("開始日と満了日を入れてください"), "{body}");
     assert!(device::Entity::find().all(db).await.unwrap().is_empty());
 }
 
@@ -1128,6 +1214,8 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 固定資産でなくても購入は記録される);
         全検証!(@one $用意, $属性, 固定資産として管理すると資産ができる);
         全検証!(@one $用意, $属性, 固定資産には取得日が要る);
+        全検証!(@one $用意, $属性, 日付は斜線区切りでも通る);
+        全検証!(@one $用意, $属性, 保守契約の日付が欠けていれば伝える);
         全検証!(@one $用意, $属性, 登録時に保守契約へ含められる);
         全検証!(@one $用意, $属性, 見えない契約には足せない);
         全検証!(@one $用意, $属性, もう1台は選択を引き継ぐ);

@@ -9,7 +9,8 @@
       <a href="/projects/{{ project_id }}/work-orders">{{ t_back }}</a>
     </p>
     <h1>{{ title }}</h1>
-    <p class="lead">{{ status }}</p>
+    {# 連絡に使う番号（設計書11.4-11） #}
+    <p class="lead">{{ number }} / {{ status }}</p>
   </div>
 </div>
 

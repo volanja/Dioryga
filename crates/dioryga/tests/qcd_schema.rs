@@ -134,6 +134,7 @@ async fn マイルストーンは予定と実績を別に持つ(db: &DatabaseCon
     let p = プロジェクト(db, "納期検証").await;
 
     let m = milestone::ActiveModel {
+        uid: Set(uuid::Uuid::new_v4().to_string()),
         project_id: Set(p.id),
         milestone_type: Set("ServiceStart".to_owned()),
         planned_date: Set(NaiveDate::from_ymd_opt(2026, 4, 1).unwrap()),
@@ -183,6 +184,7 @@ async fn マイルストーンの日付は日付のまま(db: &DatabaseConnectio
     let 予定 = NaiveDate::from_ymd_opt(2026, 12, 31).unwrap();
 
     let m = milestone::ActiveModel {
+        uid: Set(uuid::Uuid::new_v4().to_string()),
         project_id: Set(p.id),
         milestone_type: Set("ServiceEnd".to_owned()),
         planned_date: Set(予定),

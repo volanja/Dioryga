@@ -36,6 +36,7 @@
 <table>
   <thead>
     <tr>
+      <th>{{ t_number }}</th>
       <th>{{ t_ticket }}</th>
       <th>{{ t_work_type }}</th>
       <th>{{ t_status }}</th>
@@ -48,6 +49,8 @@
   <tbody>
     {% for row in rows %}
     <tr>
+      {# 連絡に使う番号。id から作る（設計書11.4-11） #}
+      <td>{{ row.number }}</td>
       <td>
         {{ row.title }}
         {# 自己承認は一覧でも分かるようにする（設計書11.4-9） #}

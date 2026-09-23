@@ -20,7 +20,7 @@
 #   3. 組織データを取り込む（System Admin）   docs/examples/organization/
 #   4. カタログを取り込む（Operator）          scripts/dev-seed/catalog.yaml
 #   5. プロジェクトごとに取り込む（編集者）    scripts/dev-seed/projects/*/
-#   6. マイルストーンとチケットを直に書く      ワークフローを入れる()
+#   6. マイルストーンとチケットを取り込む      期限のあるデータを作る()
 #   7. （--serve）自動ログインを有効にして起動する（dev-autologin 機能）
 #
 # # System Admin のパスワード
@@ -35,19 +35,17 @@
 #
 # 取込の手段が無いものは入らない：什器（#139）、プロジェクトのアーカイブ（#142）。
 #
-# マイルストーン（#140）と変更管理チケット（#141）も取込の手段が無いが、
-# **ダッシュボードの4枠のうち2枠がこれで埋まる**ため、[`ワークフローを入れる`]
-# でSQLiteへ直に書く。取込ができるようになったらその関数ごと捨てる。
+# **マイルストーンと変更管理チケットは取込から入る**（#140・#141）。以前は
+# 取込の経路が無く、SQLiteへ直に書いていた。**その関数は消えた。**
 
 from __future__ import annotations
 
 import argparse
 import os
 import secrets
-import sqlite3
 import subprocess
 import sys
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -140,118 +138,57 @@ WORK_ORDERS = [
 承認済みの状態 = ("approved", "in_progress", "completed")
 
 
-def ワークフローを入れる(db: Path) -> None:
-    """マイルストーンと変更管理チケットを入れる（#140・#141）。
+def 期限のあるデータを作る() -> Path:
+    """マイルストーンとチケットのCSVを書き出す（#140・#141）。**ファイルは持たない。**
 
-    **取込の経路が無いものだけ、ここでSQLiteへ直に書く。**23.8が禁じているのは
-    製品に開発用の書き込み経路を足すことであり、この関数は製品のコードを1行も
-    増やさない。取込ができるようになったら**この関数ごと捨てて** projects/*/ の
-    CSVへ移す。
+    **日付が流した日から決まる**ため、固定のCSVにできない。「10日後」「期限切れ」は
+    確かめたい見え方そのもので、固定日で書くと日が経つほど目的から外れる。
+    機器を生成する場合（`--devices`）と同じ扱いにしてある。
 
-    **監査ログは残らない。**画面から起票したチケットと違うのはそこだけである。
-
-    **日付は流すたびに今日から数え直す。**「10日後」「期限切れ」は確かめたい
-    見え方そのものであり、固定日で書くと日が経つほど目的から外れる。
+    **承認行は状態から決まる。**進んでいるチケット（approved 以降）は承認済み、
+    それ以外は承認待ちにする。揃っていないと取込が警告を出す（11.4-7）。
     """
+    out = RUN / "dev-seed-workflow"
+    out.mkdir(parents=True, exist_ok=True)
     today = date.today()
-    now = datetime.now(timezone.utc).isoformat()
 
-    con = sqlite3.connect(db)
-    con.execute("PRAGMA foreign_keys = ON")
-    try:
-        project = con.execute(
-            "SELECT id FROM project WHERE code = ?", (WORKFLOW_PROJECT,)
-        ).fetchone()[0]
-        利用者 = {name: id for id, name in con.execute("SELECT id, username FROM app_user")}
-        機器 = {name: id for id, name in con.execute("SELECT id, hostname FROM device")}
+    def 日付(差: int) -> str:
+        return (today + timedelta(days=差)).isoformat()
 
-        # 流し直しても増やさない。**この関数が入れた行だけ**を消してから入れる。
-        # 画面から手で作ったチケットには触れない
-        題名 = [w["title"] for w in WORK_ORDERS]
-        枠 = ",".join("?" * len(題名))
-        con.execute(
-            "DELETE FROM work_order_approval WHERE work_order_id IN"
-            f" (SELECT id FROM work_order WHERE project_id = ? AND title IN ({枠}))",
-            [project, *題名],
+    マイルストーン = ["uid,external_id,milestone_type,planned_date,actual_date,status,description"]
+    for i, (種別, 差, status, 説明) in enumerate(MILESTONES, start=1):
+        マイルストーン.append(f",MS-{i:03d},{種別},{日付(差)},,{status},{説明}")
+    (out / "milestones.csv").write_text("\n".join(マイルストーン) + "\n", encoding="utf-8")
+
+    チケット = [
+        "uid,external_id,work_type,title,description,device_hostname,"
+        "primary_assignee,secondary_assignee,due_date,status,cancelled_reason"
+    ]
+    承認 = ["work_order,required_project,approver,status"]
+    for i, w in enumerate(WORK_ORDERS, start=1):
+        番号 = f"WO-{i:03d}"
+        チケット.append(
+            f",{番号},{w['work_type']},{w['title']},{w['description']},{w['device']},"
+            f"{ASSIGNEE},,{日付(w['due'])},{w['status']},{w.get('cancelled_reason', '')}"
         )
-        con.execute(
-            f"DELETE FROM work_order WHERE project_id = ? AND title IN ({枠})",
-            [project, *題名],
+        承認済み = w["status"] in 承認済みの状態
+        承認.append(
+            f"{番号},{WORKFLOW_PROJECT},{APPROVER if 承認済み else ''},"
+            f"{'approved' if 承認済み else 'pending'}"
         )
-        説明 = [m[3] for m in MILESTONES]
-        枠 = ",".join("?" * len(説明))
-        con.execute(
-            f"DELETE FROM milestone WHERE project_id = ? AND description IN ({枠})",
-            [project, *説明],
-        )
+    (out / "work-orders.csv").write_text("\n".join(チケット) + "\n", encoding="utf-8")
+    (out / "approvals.csv").write_text("\n".join(承認) + "\n", encoding="utf-8")
 
-        for milestone_type, 差, status, description in MILESTONES:
-            con.execute(
-                "INSERT INTO milestone (project_id, milestone_type, planned_date,"
-                " actual_date, status, description, created_at, updated_at)"
-                " VALUES (?, ?, ?, NULL, ?, ?, ?, ?)",
-                (
-                    project,
-                    milestone_type,
-                    (today + timedelta(days=差)).isoformat(),
-                    status,
-                    description,
-                    now,
-                    now,
-                ),
-            )
-
-        for w in WORK_ORDERS:
-            status = w["status"]
-            着手した = status in ("in_progress", "completed")
-            row = con.execute(
-                "INSERT INTO work_order (project_id, target_project_id, device_id,"
-                " part_instance_id, work_type, title, description,"
-                " primary_assignee_id, secondary_assignee_id, due_date, status,"
-                " planned_at, executed_at, completed_at, cancelled_at,"
-                " cancelled_reason, created_at, updated_at)"
-                " VALUES (?, NULL, ?, NULL, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    project,
-                    機器[w["device"]],
-                    w["work_type"],
-                    w["title"],
-                    w["description"],
-                    利用者[ASSIGNEE],
-                    (today + timedelta(days=w["due"])).isoformat(),
-                    status,
-                    now,
-                    now if 着手した else None,
-                    now if status == "completed" else None,
-                    now if status == "cancelled" else None,
-                    w.get("cancelled_reason"),
-                    now,
-                    now,
-                ),
-            )
-            承認済み = status in 承認済みの状態
-            con.execute(
-                "INSERT INTO work_order_approval (work_order_id, required_project_id,"
-                " approver_id, status, approved_at, self_approved, created_at, updated_at)"
-                " VALUES (?, ?, ?, ?, ?, 0, ?, ?)",
-                (
-                    row.lastrowid,
-                    project,
-                    利用者[APPROVER] if 承認済み else None,
-                    "approved" if 承認済み else "pending",
-                    now if 承認済み else None,
-                    now,
-                    now,
-                ),
-            )
-        con.commit()
-    finally:
-        con.close()
-
-    print(
-        f"マイルストーン{len(MILESTONES)}件・変更管理チケット{len(WORK_ORDERS)}件を"
-        f"{WORKFLOW_PROJECT}に入れました（取込の経路が無いため直に書いています）"
+    (out / "manifest.yaml").write_text(
+        "format_version: 1\nkind: instances\n"
+        f'project: "{WORKFLOW_PROJECT}"\n'
+        "files:\n"
+        "  - { entity: milestone,            path: milestones.csv }\n"
+        "  - { entity: work_order,           path: work-orders.csv }\n"
+        "  - { entity: work_order_approval,  path: approvals.csv }\n",
+        encoding="utf-8",
     )
+    return out / "manifest.yaml"
 
 
 def 実行(args: list[str], env: dict[str, str], stdin: str | None = None, check: bool = True):
@@ -354,7 +291,8 @@ def main() -> int:
     if args.devices > 0:
         取り込む(binary, env, 機器を生成する(args.devices), IMPORTER)
 
-    ワークフローを入れる(db)
+    # **期限は流した日から決まる。**生成して取込を通す（機器の生成と同じ扱い）
+    取り込む(binary, env, 期限のあるデータを作る(), IMPORTER)
 
     print()
     print(f"入れました：{db.relative_to(REPO)}")

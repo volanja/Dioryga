@@ -17,6 +17,10 @@ use serde::{Deserialize, Serialize};
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
+    /// 登録時に採番する不変の識別子。取込時の突合に使う（23.5）。
+    pub uid: String,
+    /// 取込元システムでの識別子。再取込時の突合用（23.5）。
+    pub external_id: Option<String>,
     /// 起票元プロジェクト。
     pub project_id: i32,
     /// `work_type = Transfer` の移譲先。それ以外では `None`。

@@ -15,6 +15,7 @@ async fn 起票できる(db: &DatabaseConnection) {
     let 副 = 利用者(db, "secondary@example.com").await;
 
     let wo = work_order::ActiveModel {
+        uid: Set(uuid::Uuid::new_v4().to_string()),
         project_id: Set(p.id),
         work_type: Set("Repair".to_owned()),
         title: Set("電源ユニット交換".to_owned()),
@@ -192,6 +193,7 @@ async fn チケット(
     work_type: &str,
 ) -> work_order::Model {
     work_order::ActiveModel {
+        uid: Set(uuid::Uuid::new_v4().to_string()),
         project_id: Set(project_id),
         work_type: Set(work_type.to_owned()),
         title: Set(format!("{work_type}のチケット")),

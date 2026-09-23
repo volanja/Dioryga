@@ -19,6 +19,8 @@
 | description | varchar | ''::character varying | false |  |  |  |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
+| uid | varchar | ''::character varying | false |  |  |  |
+| external_id | varchar |  | true |  |  |  |
 
 ## Constraints
 
@@ -31,6 +33,7 @@
 | milestone_planned_date_not_null | n | NOT NULL planned_date |
 | milestone_project_id_not_null | n | NOT NULL project_id |
 | milestone_status_not_null | n | NOT NULL status |
+| milestone_uid_not_null | n | NOT NULL uid |
 | milestone_updated_at_not_null | n | NOT NULL updated_at |
 | milestone_project_id_fkey | FOREIGN KEY | FOREIGN KEY (project_id) REFERENCES project(id) |
 | milestone_pkey | PRIMARY KEY | PRIMARY KEY (id) |
@@ -42,6 +45,8 @@
 | milestone_pkey | CREATE UNIQUE INDEX milestone_pkey ON public.milestone USING btree (id) |
 | idx_milestone_project | CREATE INDEX idx_milestone_project ON public.milestone USING btree (project_id) |
 | idx_milestone_planned_date | CREATE INDEX idx_milestone_planned_date ON public.milestone USING btree (planned_date) |
+| idx_milestone_uid | CREATE UNIQUE INDEX idx_milestone_uid ON public.milestone USING btree (uid) |
+| idx_milestone_external_id | CREATE INDEX idx_milestone_external_id ON public.milestone USING btree (external_id) |
 
 ## Relations
 

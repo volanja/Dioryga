@@ -28,6 +28,7 @@ pub mod organization;
 pub mod parts;
 pub mod placement;
 pub mod run;
+pub mod workflow;
 
 use std::fmt;
 

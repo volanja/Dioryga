@@ -10,7 +10,7 @@ pub struct Model {
     pub id: i32,
     pub part_catalog_id: i32,
     pub serial_number: Option<String>,
-    /// running / broken / repair / plan / building
+    /// running / failed / repairing / planned / provisioning
     pub status: String,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,

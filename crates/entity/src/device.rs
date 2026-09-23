@@ -31,7 +31,7 @@ pub struct Model {
     /// 登録できないのは実務上成立しない。
     pub asset_number: Option<String>,
     pub power_watt: i32,
-    /// running / broken / repair / plan / building
+    /// running / failed / repairing / planned / provisioning
     pub status: String,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,

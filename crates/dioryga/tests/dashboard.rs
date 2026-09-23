@@ -151,6 +151,7 @@ async fn 期限を過ぎたものも出す(db: &DatabaseConnection) {
     let 場 = 舞台(db, "dash-overdue@example.com", "Operator").await;
 
     milestone::ActiveModel {
+        uid: Set(uuid::Uuid::new_v4().to_string()),
         project_id: Set(場.project.id),
         milestone_type: Set("ServiceStart".to_owned()),
         planned_date: Set((Utc::now() - Duration::days(10)).date_naive()),
@@ -178,6 +179,7 @@ async fn 遠い予定は出さない(db: &DatabaseConnection) {
     let 場 = 舞台(db, "dash-far@example.com", "Operator").await;
 
     milestone::ActiveModel {
+        uid: Set(uuid::Uuid::new_v4().to_string()),
         project_id: Set(場.project.id),
         milestone_type: Set("ServiceEnd".to_owned()),
         planned_date: Set((Utc::now() + Duration::days(200)).date_naive()),
@@ -203,6 +205,7 @@ async fn 完了したものは出さない(db: &DatabaseConnection) {
     let 場 = 舞台(db, "dash-done@example.com", "Operator").await;
 
     milestone::ActiveModel {
+        uid: Set(uuid::Uuid::new_v4().to_string()),
         project_id: Set(場.project.id),
         milestone_type: Set("ServiceStart".to_owned()),
         planned_date: Set((Utc::now() - Duration::days(5)).date_naive()),
@@ -231,6 +234,7 @@ async fn 期限のないチケットも出す(db: &DatabaseConnection) {
     let 場 = 舞台(db, "dash-nodue@example.com", "Operator").await;
 
     work_order::ActiveModel {
+        uid: Set(uuid::Uuid::new_v4().to_string()),
         project_id: Set(場.project.id),
         target_project_id: Set(None),
         device_id: Set(None),
@@ -268,6 +272,7 @@ async fn 完了したチケットは出さない(db: &DatabaseConnection) {
 
     for (title, status) in [("済んだ修理", "completed"), ("やめた修理", "cancelled")] {
         work_order::ActiveModel {
+            uid: Set(uuid::Uuid::new_v4().to_string()),
             project_id: Set(場.project.id),
             target_project_id: Set(None),
             device_id: Set(None),

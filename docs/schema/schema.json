@@ -6628,6 +6628,17 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "uid",
+          "type": "varchar",
+          "nullable": false,
+          "default": "''::character varying"
+        },
+        {
+          "name": "external_id",
+          "type": "varchar",
+          "nullable": true
         }
       ],
       "indexes": [
@@ -6653,6 +6664,22 @@
           "table": "public.milestone",
           "columns": [
             "planned_date"
+          ]
+        },
+        {
+          "name": "idx_milestone_uid",
+          "def": "CREATE UNIQUE INDEX idx_milestone_uid ON public.milestone USING btree (uid)",
+          "table": "public.milestone",
+          "columns": [
+            "uid"
+          ]
+        },
+        {
+          "name": "idx_milestone_external_id",
+          "def": "CREATE INDEX idx_milestone_external_id ON public.milestone USING btree (external_id)",
+          "table": "public.milestone",
+          "columns": [
+            "external_id"
           ]
         }
       ],
@@ -6725,6 +6752,16 @@
           "referenced_table": "",
           "columns": [
             "status"
+          ]
+        },
+        {
+          "name": "milestone_uid_not_null",
+          "type": "n",
+          "def": "NOT NULL uid",
+          "table": "public.milestone",
+          "referenced_table": "",
+          "columns": [
+            "uid"
           ]
         },
         {
@@ -7033,6 +7070,17 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "uid",
+          "type": "varchar",
+          "nullable": false,
+          "default": "''::character varying"
+        },
+        {
+          "name": "external_id",
+          "type": "varchar",
+          "nullable": true
         }
       ],
       "indexes": [
@@ -7100,6 +7148,22 @@
             "status",
             "due_date"
           ]
+        },
+        {
+          "name": "idx_work_order_uid",
+          "def": "CREATE UNIQUE INDEX idx_work_order_uid ON public.work_order USING btree (uid)",
+          "table": "public.work_order",
+          "columns": [
+            "uid"
+          ]
+        },
+        {
+          "name": "idx_work_order_external_id",
+          "def": "CREATE INDEX idx_work_order_external_id ON public.work_order USING btree (external_id)",
+          "table": "public.work_order",
+          "columns": [
+            "external_id"
+          ]
         }
       ],
       "constraints": [
@@ -7161,6 +7225,16 @@
           "referenced_table": "",
           "columns": [
             "title"
+          ]
+        },
+        {
+          "name": "work_order_uid_not_null",
+          "type": "n",
+          "def": "NOT NULL uid",
+          "table": "public.work_order",
+          "referenced_table": "",
+          "columns": [
+            "uid"
           ]
         },
         {

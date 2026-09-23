@@ -485,6 +485,15 @@ pub fn 状態の選択肢(statuses: &[&'static str], locale: &str) -> Vec<Choice
         .collect()
 }
 
+/// 人が連絡に使うチケット番号（設計書11.4-11）。
+///
+/// **`id` から作る。列としては持たない。**`WORK_ORDER.id` はプロジェクトを
+/// 横断して一意であり、「W-1042の件」で通じる。保存すると二重管理になる
+/// （不変条件2）。取込の突合に使うのは `uid` / `external_id` のほう（23.5）。
+pub fn チケット番号(id: i32) -> String {
+    format!("W-{id}")
+}
+
 /// 変更管理チケットの状態（11章）の表示名。
 pub fn チケットの状態の表示(value: &str, locale: &str) -> String {
     let key = match value {

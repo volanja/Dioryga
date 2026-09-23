@@ -29,6 +29,8 @@ SQLiteが後から制約を足せないため。参照整合はアプリケー�
 | cancelled_reason | text |  | true |  |  |  |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
+| uid | varchar | ''::character varying | false |  |  |  |
+| external_id | varchar |  | true |  |  |  |
 
 ## Constraints
 
@@ -40,6 +42,7 @@ SQLiteが後から制約を足せないため。参照整合はアプリケー�
 | work_order_project_id_not_null | n | NOT NULL project_id |
 | work_order_status_not_null | n | NOT NULL status |
 | work_order_title_not_null | n | NOT NULL title |
+| work_order_uid_not_null | n | NOT NULL uid |
 | work_order_updated_at_not_null | n | NOT NULL updated_at |
 | work_order_work_type_not_null | n | NOT NULL work_type |
 | work_order_primary_assignee_id_fkey | FOREIGN KEY | FOREIGN KEY (primary_assignee_id) REFERENCES app_user(id) |
@@ -62,6 +65,8 @@ SQLiteが後から制約を足せないため。参照整合はアプリケー�
 | idx_work_order_primary_assignee | CREATE INDEX idx_work_order_primary_assignee ON public.work_order USING btree (primary_assignee_id) |
 | idx_work_order_secondary_assignee | CREATE INDEX idx_work_order_secondary_assignee ON public.work_order USING btree (secondary_assignee_id) |
 | idx_work_order_status_due | CREATE INDEX idx_work_order_status_due ON public.work_order USING btree (status, due_date) |
+| idx_work_order_uid | CREATE UNIQUE INDEX idx_work_order_uid ON public.work_order USING btree (uid) |
+| idx_work_order_external_id | CREATE INDEX idx_work_order_external_id ON public.work_order USING btree (external_id) |
 
 ## Relations
 

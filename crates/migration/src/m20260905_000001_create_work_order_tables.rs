@@ -71,7 +71,8 @@ impl MigrationTrait for Migration {
                     .col(integer_null(WorkOrder::PrimaryAssigneeId))
                     .col(integer_null(WorkOrder::SecondaryAssigneeId))
                     .col(date_null(WorkOrder::DueDate))
-                    // planned / approved / executing / completed / aborted
+                    // planned / approved / in_progress / completed / cancelled
+                    // （当初は executing / aborted。#174 で改名した）
                     .col(string(WorkOrder::Status))
                     .col(timestamp_with_time_zone_null(WorkOrder::PlannedAt))
                     .col(timestamp_with_time_zone_null(WorkOrder::ExecutedAt))

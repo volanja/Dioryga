@@ -41,9 +41,9 @@
 | [public.cable_connection](public.cable_connection.md) | 8 | ケーブルの接続 — 履歴テーブル（8.3）。**`device_id` を持たない**<br />（PART_INSTANCE_LOCATION 経由で導出する。持つと部品の移設時に二重管理になる）。<br /> | BASE TABLE |
 | [public.fixed_asset](public.fixed_asset.md) | 9 | 固定資産（10章）。**`disposal_date` と簿価を持たない**——廃棄は<br />DEVICE_ASSIGNMENT の Disposed 行から、簿価は取得価額と経過期間から計算する<br />（旧B-1）。持つと二重管理になり必ずずれる。<br /> | BASE TABLE |
 | [public.recurring_cost](public.recurring_cost.md) | 12 | 定期費用（10章）。ラック料金・回線費用など。 | BASE TABLE |
-| [public.milestone](public.milestone.md) | 9 | マイルストーン（10.4）。**予定と実績を別の列で持つ。**片方に上書きすると<br />「当初いつの予定だったか」が失われ、QCDの「D」を定量的に見られなくなる（5.1）。<br /> | BASE TABLE |
+| [public.milestone](public.milestone.md) | 11 | マイルストーン（10.4）。**予定と実績を別の列で持つ。**片方に上書きすると<br />「当初いつの予定だったか」が失われ、QCDの「D」を定量的に見られなくなる（5.1）。<br /> | BASE TABLE |
 | [public.milestone_device](public.milestone_device.md) | 7 | マイルストーンと機器の対応（10.4）。 | BASE TABLE |
-| [public.work_order](public.work_order.md) | 19 | 変更管理チケット（11章）。**`work_order_id` を持つ履歴テーブルからの外部キーは存在しない**（24.3）。<br />SQLiteが後から制約を足せないため。参照整合はアプリケーション層と `dioryga check` で担保する。<br /> | BASE TABLE |
+| [public.work_order](public.work_order.md) | 21 | 変更管理チケット（11章）。**`work_order_id` を持つ履歴テーブルからの外部キーは存在しない**（24.3）。<br />SQLiteが後から制約を足せないため。参照整合はアプリケーション層と `dioryga check` で担保する。<br /> | BASE TABLE |
 | [public.work_order_approval](public.work_order_approval.md) | 9 | 変更の承認（11章）。**影響を受けるプロジェクトごとに1行を起こす。**<br />他プロジェクトの機器を巻き込む変更（移設・移譲）では複数必要になる。<br /> | BASE TABLE |
 | [public.software_instance](public.software_instance.md) | 7 | ソフトウェアの固有のインストール単位（9.3）。**バージョンアップを跨いで引き継がれる固有情報**を持つ。<br />**`status` を持たない**（9.4.1）。インストール状態は SOFTWARE_INSTALLATION から導出する。<br /> | BASE TABLE |
 | [public.software_installation](public.software_installation.md) | 6 | ソフトウェアのインストール — **履歴テーブル**（9.4）。`to_date IS NULL` が現在有効な行。<br />**1つのインスタンスが同時に2台へ入ることはない**ため現行行に部分ユニークを張る。<br /> | BASE TABLE |

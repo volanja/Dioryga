@@ -23,13 +23,19 @@
 #   6. マイルストーンとチケットを取り込む      期限のあるデータを作る()
 #   7. （--serve）自動ログインを有効にして起動する（dev-autologin 機能）
 #
-# # System Admin のパスワード
+# # パスワード
 #
-# **生成して .run/dev-seed-admin-password に置く**（.run は .gitignore 済み）。
-# 画面を人が手で見るときに使う。自動ログインには要らない。
+# **System Admin のパスワードは生成して admin create に渡すだけで、どこにも
+# 残さない**（#197）。取込で作った利用者はパスワード未設定（23.8）。
 #
-# 取込で作った利用者はパスワード未設定（23.8）。手でログインするときは
-# `dioryga admin reset-password --username <名前>` で一時パスワードを発行する。
+# 画面を見るだけなら自動ログインで足りる。System Admin の画面も同じ：
+#
+#   ./scripts/dev-seed.py --serve --keep --as kitadake
+#
+# 手でログインするときは、一時パスワードを発行する（次のログインで変更を求められる）：
+#
+#   DIORYGA_DATABASE__URL='sqlite://.run/dev-seed.db' \
+#     cargo run --features dev-autologin -- admin reset-password --username kitadake
 #
 # # 入らないもの
 #
@@ -216,13 +222,12 @@ def 管理者を作る(binary: Path, env: dict[str, str]) -> None:
         stdin=password + "\n",
         check=False,
     )
+    # **パスワードはどこにも残さない**（#197）。手でログインするときは
+    # reset-password で一時パスワードを発行する（冒頭の説明）
     if result.returncode == 0:
-        path = RUN / "dev-seed-admin-password"
-        path.write_text(password + "\n", encoding="utf-8")
-        path.chmod(0o600)
-        print(f"System Admin「{ADMIN}」のパスワードを {path.relative_to(REPO)} に置きました")
+        print(f"System Admin「{ADMIN}」を作りました")
     elif "既に存在" in result.stderr:
-        print(f"System Admin「{ADMIN}」は既にいます（パスワードは前回のものです）")
+        print(f"System Admin「{ADMIN}」は既にいます")
     else:
         print(result.stderr.rstrip(), file=sys.stderr)
         sys.exit(result.returncode)

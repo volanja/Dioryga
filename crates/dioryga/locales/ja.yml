@@ -210,15 +210,59 @@ devices:
   location_unknown: 所在の記録がありません
   section_pending: 発注明細・ソフトウェア構成は、該当するテーブルの実装後に表示します
 
-  orders_hint: この機器の発注明細です。発注そのものの一覧画面は持たず、品目の側から見ます
+  purchase: 購入の記録
+  purchase_hint: この機器1台の購入の記録です。発注そのものの一覧画面は持たず、品目の側から見ます。同じ発注番号を別の機器に入れて構いません
   order_number: 発注番号
-  order_number_hint: 新しい発注を作る
-  order_date: 発注日
-  unit_price: 単価
-  subtotal: 小計
-  add_order: 発注明細を足す
-  no_order: 発注明細がありません
-  error_order_number: 発注番号を入力してください
+  order_number_hint: 書類に書かれた番号をそのまま入れます。同じ番号を何台に入れても構いません
+  supplier: 購入元
+  supplier_hint: 代理店や商社から買うこともあるため、ベンダーの一覧からは選ばせません。書類のとおりに書いてください
+  acquisition_cost: 取得原価
+  acquisition_date: 取得日
+  acquisition_date_hint: 現品を受け取った日です。償却はこの日から始まります
+  no_purchase: 購入の記録がありません
+  import_hint: 同じ構成をまとめて何台も入れるなら、一括取込のほうが速く済みます
+  register: 登録する
+  register_again: 登録して、もう1台入れる
+  register_again_hint: 「もう1台」を押すと、形態・構成・状態・保守契約はそのまま残り、ホスト名・シリアル番号・資産番号だけが空になります
+  registered: を登録しました。続けて入力できます
+  required: 必須
+  optional: 任意
+  sec_kind: どんな機器か
+  sec_kind_hint: ここを選ぶと、以降の欄が変わります
+  sec_identity: この1台を指すもの
+  sec_identity_hint: 現品のラベルを見ながら写す欄
+  sec_state: いまの状態
+  sec_money: お金の記録
+  sec_money_hint: 発注と金額は、固定資産として管理するかに関わらず記録します。届いた書類が手元にあるなら、ここで済ませます
+  form_type: 形態
+  tip_physical: 筐体のある1台。構成をカタログから選び、シリアル番号を持ちます
+  tip_virtual: ハイパーバイザの上で動くもの。構成とシリアル番号は持ちません
+  tip_container: コンテナ。構成とシリアル番号は持ちません
+  tip_logical: 複数の筐体が1台として振る舞うもの（スタック・HAペア）。構成とシリアル番号は持ちません
+  hostname_hint: 運用で呼ぶ名前です
+  status_hint_new: 既定は「構築中」。「予約中」はこの画面では選べません——予約は増設の変更管理チケットが作ります
+  status_hint_edit: 予約中の機器は、増設の変更管理チケットが実行されると稼働中になります
+  power_hint: 実測があればそれを、無ければ見込みの値を入れます
+  manage_as_fixed_asset: 固定資産として管理する
+  fixed_asset_hint: 取得原価と取得日は上の値を使います。償却に要る2つだけ足してください
+  register_maintenance: 保守契約に含める
+  maintenance_existing: 既にある契約に足す
+  maintenance_new: 新しい契約を作る
+  maintenance_contract: 対象の契約
+  maintenance_contract_hint: 1つの契約は複数の機器をまとめて守ります。この機器を品目として足します
+  contract_end_hint: 満了の90日前からダッシュボードに出ます
+  configuration_required: Physical の機器は構成を選んでください
+  device_category_required: 構成を持たない機器は種別分類を選んでください
+  next_steps: このあとの手順
+  next_steps_lead: ネットワークとソフトウェアは、この画面では設定しません。登録すると機器の詳細へ移ります。そこから順に進めてください
+  step_register: 機器を登録する
+  step_register_where: この画面
+  step_parts: 部品を登録する
+  step_parts_where: 機器の詳細 ／ シリアルが分かったとき。予約なら先に作れます
+  step_interfaces: インターフェースとIPアドレスを設定する
+  step_interfaces_where: 機器の詳細のインターフェース画面 ／ 物理ポートはここで紐づけます
+  step_sbom: SBOMを取り込む
+  step_sbom_where: 構築が済んでから
 import:
   title: 一括取込
   lead: ファイルを取り込みます。まず差分を確認し、それから反映します
@@ -727,14 +771,17 @@ costs:
   contracts: 保守契約
   recurring: 定期費用
   fixed_assets: 固定資産
-  purchase_orders: 発注
+  purchases: 購入
   excluded: 合算に含めなかったもの
   excluded_lead: 計算できなかった行です。金額が小さいのが実態なのかデータ不備なのかを判別できるよう、黙って除外せずここに出します
   kind: 種別
   reason: 理由
   no_excluded: 合算に含めなかったものはありません
   excluded_declining: 定率法は償却率テーブルが未実装のため計算できません
-  excluded_currency: プロジェクトの通貨と異なるため合算できません
+  excluded_no_date: 取得日が無いため、どの年に計上するか決められません
+  method_straight_line: 定額法
+  method_declining_balance: 定率法
+  error_contract: 契約を選び直してください
   excluded_period: 期間が不正です（終了日が開始日より前）
   excluded_life: 耐用年数が0以下です
   excluded_negative: 金額が負です

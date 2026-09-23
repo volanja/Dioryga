@@ -1,6 +1,6 @@
 //! 費用の取込（設計書23.5、10.2、10.3、24.2.1、24.2.2）。
 //!
-//! `PURCHASE_ORDER`＋明細、`FIXED_ASSET`、`MAINTENANCE_CONTRACT`＋明細を扱う。
+//! `PURCHASE`、`FIXED_ASSET`、`MAINTENANCE_CONTRACT`＋明細を扱う。
 //!
 //! # 多態的参照は「型＋自然キー」で書く（23.5）
 //!
@@ -29,7 +29,7 @@
 //!
 //! # `as_of` を使わない
 //!
-//! **発注も固定資産も保守契約も履歴ではなく、日付を自分の列として持つ**
+//! **購入も固定資産も保守契約も履歴ではなく、日付を自分の列として持つ**
 //! （10.2、10.3）。契約期間や取得日は事実として行に入っており、取込の
 //! 基準時刻（23.1）で上書きするものではない。
 //!
@@ -42,8 +42,7 @@ use std::collections::HashMap;
 
 use chrono::{NaiveDate, Utc};
 use entity::{
-    fixed_asset, maintenance_contract, maintenance_contract_item, part_instance, purchase_order,
-    purchase_order_item, vendor,
+    fixed_asset, maintenance_contract, maintenance_contract_item, part_instance, purchase, vendor,
 };
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
@@ -61,18 +60,24 @@ const PART_INSTANCE: &str = "PartInstance";
 // 行の定義
 // ---------------------------------------------------------------------------
 
+/// 購入の1行（10.2）。**品目ごとに1行**で、発注番号は重複してよい。
 #[derive(Debug, Clone, Deserialize)]
-pub struct PurchaseOrderRow {
-    pub order_number: String,
-    pub order_date: String,
-    pub vendor: String,
+pub struct PurchaseRow {
     pub item_type: String,
     #[serde(default)]
     pub item_hostname: String,
     #[serde(default)]
     pub item_serial_number: String,
-    pub quantity: String,
-    pub unit_price: String,
+    /// 自由入力。**同じ番号を何行に書いてもよい。**
+    #[serde(default)]
+    pub order_number: String,
+    /// 現品を受け取った日。空でよい。
+    #[serde(default)]
+    pub acquired_on: String,
+    pub amount: String,
+    /// 買った相手。**`VENDOR` を引かない**（代理店・商社を書く）。
+    #[serde(default)]
+    pub supplier: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -107,7 +112,7 @@ pub struct MaintenanceContractRow {
     pub item_serial_number: String,
 }
 
-pub fn parse_purchase_orders(source: &str) -> Result<Vec<PurchaseOrderRow>, ImportError> {
+pub fn parse_purchases(source: &str) -> Result<Vec<PurchaseRow>, ImportError> {
     読み取る(source)
 }
 pub fn parse_fixed_assets(source: &str) -> Result<Vec<FixedAssetRow>, ImportError> {
@@ -120,13 +125,17 @@ pub fn parse_maintenance_contracts(
 }
 
 // ---------------------------------------------------------------------------
-// 発注（10.2）
+// 購入（10.2）
 // ---------------------------------------------------------------------------
 
-pub async fn 発注を取り込む(
+/// 購入の記録を取り込む（10.2）。
+///
+/// **品目で突合する。**発注番号は重複してよいため、突合の鍵にならない。1つの品目に
+/// 購入の記録は1行であり、同じ品目が再び来たら上書きする（23.1の宣言的な取込）。
+pub async fn 購入を取り込む(
     tx: &AuditedTx,
     project_id: i32,
-    rows: &[PurchaseOrderRow],
+    rows: &[PurchaseRow],
     currency_code: &str,
 ) -> Result<Report, ImportError> {
     let mut report = Report::default();
@@ -134,48 +143,28 @@ pub async fn 発注を取り込む(
     let now = Utc::now();
 
     for row in rows {
-        let number = row.order_number.trim().to_owned();
-        let target = format!("PURCHASE_ORDER {number}");
+        let target = format!("PURCHASE {} {}", row.item_type.trim(), 品目名(row));
 
-        if number.is_empty() {
-            report.push(Entry::new(Outcome::Error, target, "order_number が空です"));
-            continue;
-        }
+        let acquired_on = match row.acquired_on.trim() {
+            "" => None,
+            v => match 日付(v) {
+                Some(d) => Some(d),
+                None => {
+                    report.push(Entry::new(
+                        Outcome::Error,
+                        target,
+                        format!("acquired_on「{v}」を日付として読めません"),
+                    ));
+                    continue;
+                }
+            },
+        };
 
-        let Some(order_date) = 日付(&row.order_date) else {
+        let Some(amount) = currency::最小単位へ(&row.amount, currency_code) else {
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                format!("order_date「{}」を日付として読めません", row.order_date),
-            ));
-            continue;
-        };
-
-        let vendor_id = match ベンダーを引く(tx, &row.vendor).await? {
-            Ok(id) => id,
-            Err(理由) => {
-                report.push(Entry::new(Outcome::Error, target, 理由));
-                continue;
-            }
-        };
-
-        let quantity = match row.quantity.trim().parse::<i32>() {
-            Ok(q) if q > 0 => q,
-            _ => {
-                report.push(Entry::new(
-                    Outcome::Error,
-                    target,
-                    format!("quantity「{}」は1以上の整数で書いてください", row.quantity),
-                ));
-                continue;
-            }
-        };
-
-        let Some(unit_price) = currency::最小単位へ(&row.unit_price, currency_code) else {
-            report.push(Entry::new(
-                Outcome::Error,
-                target,
-                金額の誤り("unit_price", &row.unit_price, currency_code),
+                金額の誤り("amount", &row.amount, currency_code),
             ));
             continue;
         };
@@ -193,60 +182,48 @@ pub async fn 発注を取り込む(
             }
         };
 
-        // 発注そのものは `order_number` で突合する。**明細は発注と品目の組**
-        let po = match purchase_order::Entity::find()
-            .filter(purchase_order::Column::OrderNumber.eq(&number))
-            .one(tx.reader())
-            .await?
-        {
-            Some(既存) => 既存,
-            None => {
-                tx.insert(purchase_order::ActiveModel {
-                    order_number: Set(number.clone()),
-                    order_date: Set(order_date),
-                    vendor_id: Set(vendor_id),
-                    currency: Set(currency_code.to_owned()),
-                    created_at: Set(now),
-                    updated_at: Set(now),
-                    ..Default::default()
-                })
-                .await?
-            }
-        };
+        let order_number = 空ならnone(&row.order_number).map(str::to_owned);
+        let supplier = 空ならnone(&row.supplier).map(str::to_owned);
 
-        let 明細 = purchase_order_item::Entity::find()
-            .filter(purchase_order_item::Column::PurchaseOrderId.eq(po.id))
-            .filter(purchase_order_item::Column::ItemType.eq(&item_type))
-            .filter(purchase_order_item::Column::ItemId.eq(item_id))
+        let 既存 = purchase::Entity::find()
+            .filter(purchase::Column::ItemType.eq(&item_type))
+            .filter(purchase::Column::ItemId.eq(item_id))
             .one(tx.reader())
             .await?;
 
-        let 明細の表示 = format!("{target} {item_type} {}", 品目名(row));
-        match 明細 {
-            Some(既存) if 既存.quantity == quantity && 既存.unit_price == unit_price => {
-                report.push(Entry::new(Outcome::Unchanged, 明細の表示, ""));
+        match 既存 {
+            Some(既存)
+                if 既存.order_number == order_number
+                    && 既存.acquired_on == acquired_on
+                    && 既存.amount == amount
+                    && 既存.supplier == supplier =>
+            {
+                report.push(Entry::new(Outcome::Unchanged, target, ""));
             }
             Some(既存) => {
-                let mut active: purchase_order_item::ActiveModel = 既存.clone().into();
-                active.quantity = Set(quantity);
-                active.unit_price = Set(unit_price);
+                let mut active: purchase::ActiveModel = 既存.clone().into();
+                active.order_number = Set(order_number);
+                active.acquired_on = Set(acquired_on);
+                active.amount = Set(amount);
+                active.supplier = Set(supplier);
                 active.updated_at = Set(now);
                 tx.update(&既存, active).await?;
-                report.push(Entry::new(Outcome::Updated, 明細の表示, ""));
+                report.push(Entry::new(Outcome::Updated, target, ""));
             }
             None => {
-                tx.insert(purchase_order_item::ActiveModel {
-                    purchase_order_id: Set(po.id),
+                tx.insert(purchase::ActiveModel {
                     item_type: Set(item_type),
                     item_id: Set(item_id),
-                    quantity: Set(quantity),
-                    unit_price: Set(unit_price),
+                    order_number: Set(order_number),
+                    acquired_on: Set(acquired_on),
+                    amount: Set(amount),
+                    supplier: Set(supplier),
                     created_at: Set(now),
                     updated_at: Set(now),
                     ..Default::default()
                 })
                 .await?;
-                report.push(Entry::new(Outcome::Created, 明細の表示, ""));
+                report.push(Entry::new(Outcome::Created, target, ""));
             }
         }
     }
@@ -512,7 +489,7 @@ pub async fn 保守契約を取り込む(
                         amount: Set(amount),
                         quote_contact: Set(row.quote_contact.trim().to_owned()),
                         failure_contact: Set(row.failure_contact.trim().to_owned()),
-                        purchase_order_id: Set(None),
+                        order_number: Set(None),
                         created_at: Set(now),
                         updated_at: Set(now),
                         ..Default::default()
@@ -653,7 +630,7 @@ fn 金額の誤り(列: &str, value: &str, code: &str) -> String {
     )
 }
 
-fn 品目名(row: &PurchaseOrderRow) -> String {
+fn 品目名(row: &PurchaseRow) -> String {
     表示する品目(&row.item_hostname, &row.item_serial_number)
 }
 fn 資産の品目名(row: &FixedAssetRow) -> String {

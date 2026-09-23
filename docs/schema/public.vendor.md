@@ -10,7 +10,7 @@
 
 | Name | Type | Default | Nullable | Children | Parents | Comment |
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
-| id | integer |  | false | [public.chassis_model](public.chassis_model.md) [public.part_catalog](public.part_catalog.md) [public.cable_catalog](public.cable_catalog.md) [public.software_catalog](public.software_catalog.md) [public.purchase_order](public.purchase_order.md) [public.maintenance_contract](public.maintenance_contract.md) [public.recurring_cost](public.recurring_cost.md) |  |  |
+| id | integer |  | false | [public.chassis_model](public.chassis_model.md) [public.part_catalog](public.part_catalog.md) [public.cable_catalog](public.cable_catalog.md) [public.software_catalog](public.software_catalog.md) [public.recurring_cost](public.recurring_cost.md) [public.maintenance_contract](public.maintenance_contract.md) |  |  |
 | name | varchar |  | false |  |  |  |
 | created_by | integer |  | false |  | [public.app_user](public.app_user.md) |  |
 | created_at | timestamp with time zone |  | false |  |  |  |

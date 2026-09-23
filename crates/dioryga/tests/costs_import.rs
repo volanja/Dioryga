@@ -19,19 +19,19 @@ use dioryga::repository::{Actor, AuditedTx};
 use entity::{
     app_user, device, device_assignment, fixed_asset, maintenance_contract,
     maintenance_contract_item, part_catalog, part_instance, part_instance_location, project,
-    purchase_order, purchase_order_item, vendor,
+    purchase, vendor,
 };
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, PaginatorTrait, Set};
 
-const 発注見出し: &str =
-    "order_number,order_date,vendor,item_type,item_hostname,item_serial_number,quantity,unit_price\n";
+const 購入見出し: &str =
+    "item_type,item_hostname,item_serial_number,order_number,acquired_on,amount,supplier\n";
 const 資産見出し: &str =
     "item_type,item_hostname,item_serial_number,acquisition_cost,depreciation_method,useful_life_years,acquisition_date\n";
 const 契約見出し: &str =
     "contract_number,vendor,start_date,end_date,amount,quote_contact,failure_contact,item_type,item_hostname,item_serial_number\n";
 
-fn 発注(rows: &[&str]) -> Vec<costs::PurchaseOrderRow> {
-    costs::parse_purchase_orders(&format!("{発注見出し}{}", rows.join("\n"))).unwrap()
+fn 購入(rows: &[&str]) -> Vec<costs::PurchaseRow> {
+    costs::parse_purchases(&format!("{購入見出し}{}", rows.join("\n"))).unwrap()
 }
 fn 資産(rows: &[&str]) -> Vec<costs::FixedAssetRow> {
     costs::parse_fixed_assets(&format!("{資産見出し}{}", rows.join("\n"))).unwrap()
@@ -41,52 +41,47 @@ fn 契約(rows: &[&str]) -> Vec<costs::MaintenanceContractRow> {
 }
 
 // ---------------------------------------------------------------------------
-// 発注（10.2）
+// 購入（10.2）
 // ---------------------------------------------------------------------------
 
-/// **発注と明細を登録でき、二度流しても増えないこと。**
-async fn 発注を登録できる(db: &DatabaseConnection) {
-    let 場 = 舞台(db, "発注", "JPY").await;
-    let rows = 発注(&["PO-1,2026-04-01,Fujitsu,Device,web01,,2,600000"]);
+/// **購入の記録を登録でき、二度流しても増えないこと。**
+async fn 購入を登録できる(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "購入", "JPY").await;
+    let rows = 購入(&["Device,web01,,PO-1,2026-04-01,600000,〇〇商事"]);
 
     let tx = 取込(db).await;
-    let r = costs::発注を取り込む(&tx, 場.project.id, &rows, "JPY")
+    let r = costs::購入を取り込む(&tx, 場.project.id, &rows, "JPY")
         .await
         .unwrap();
     tx.commit().await.unwrap();
     assert_eq!(r.count(Outcome::Created), 1, "{r}");
 
-    let item = purchase_order_item::Entity::find()
-        .one(db)
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(item.quantity, 2);
-    assert_eq!(item.unit_price, 600000);
-    assert_eq!(item.item_type, "Device");
-    assert_eq!(item.item_id, 場.device.id);
+    let p = purchase::Entity::find().one(db).await.unwrap().unwrap();
+    assert_eq!(p.amount, 600000);
+    assert_eq!(p.order_number.as_deref(), Some("PO-1"));
+    assert_eq!(p.supplier.as_deref(), Some("〇〇商事"));
+    assert_eq!(p.acquired_on, chrono::NaiveDate::from_ymd_opt(2026, 4, 1));
+    assert_eq!(p.item_type, "Device");
+    assert_eq!(p.item_id, 場.device.id);
 
     let tx = 取込(db).await;
-    let r = costs::発注を取り込む(&tx, 場.project.id, &rows, "JPY")
+    let r = costs::購入を取り込む(&tx, 場.project.id, &rows, "JPY")
         .await
         .unwrap();
     tx.commit().await.unwrap();
     assert_eq!(r.count(Outcome::Unchanged), 1, "{r}");
-    assert_eq!(purchase_order::Entity::find().count(db).await.unwrap(), 1);
-    assert_eq!(
-        purchase_order_item::Entity::find().count(db).await.unwrap(),
-        1
-    );
+    assert_eq!(purchase::Entity::find().count(db).await.unwrap(), 1);
 }
 
-/// **数量や単価が変われば明細を更新すること。**
-async fn 明細は更新される(db: &DatabaseConnection) {
-    let 場 = 舞台(db, "発注更新", "JPY").await;
+/// **品目で突合し、金額が変われば上書きすること。**発注番号は重複してよいため、
+/// 突合の鍵にしない。
+async fn 購入は品目で突合する(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "購入更新", "JPY").await;
     let tx = 取込(db).await;
-    costs::発注を取り込む(
+    costs::購入を取り込む(
         &tx,
         場.project.id,
-        &発注(&["PO-1,2026-04-01,Fujitsu,Device,web01,,2,600000"]),
+        &購入(&["Device,web01,,PO-1,2026-04-01,600000,"]),
         "JPY",
     )
     .await
@@ -94,10 +89,10 @@ async fn 明細は更新される(db: &DatabaseConnection) {
     tx.commit().await.unwrap();
 
     let tx = 取込(db).await;
-    let r = costs::発注を取り込む(
+    let r = costs::購入を取り込む(
         &tx,
         場.project.id,
-        &発注(&["PO-1,2026-04-01,Fujitsu,Device,web01,,3,600000"]),
+        &購入(&["Device,web01,,PO-2,2026-04-01,650000,"]),
         "JPY",
     )
     .await
@@ -105,27 +100,46 @@ async fn 明細は更新される(db: &DatabaseConnection) {
     tx.commit().await.unwrap();
 
     assert_eq!(r.count(Outcome::Updated), 1, "{r}");
-    let item = purchase_order_item::Entity::find()
-        .one(db)
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(item.quantity, 3);
+    let p = purchase::Entity::find().one(db).await.unwrap().unwrap();
+    assert_eq!(p.amount, 650000);
+    assert_eq!(p.order_number.as_deref(), Some("PO-2"));
     assert_eq!(
-        purchase_order_item::Entity::find().count(db).await.unwrap(),
+        purchase::Entity::find().count(db).await.unwrap(),
         1,
-        "明細が増えています"
+        "購入の記録が増えています"
     );
 }
 
-/// **数量は1以上であること。**0や負では発注として意味を成さない。
-async fn 数量が0以下ならエラー(db: &DatabaseConnection) {
-    let 場 = 舞台(db, "数量", "JPY").await;
+/// **発注番号・取得日・購入元は空でよいこと。**取得日の無い購入は、年間コストの
+/// 合算から外して画面に列挙する側で扱う（10.3）。
+async fn 取得日と発注番号は空でよい(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "空欄", "JPY").await;
     let tx = 取込(db).await;
-    let r = costs::発注を取り込む(
+    let r = costs::購入を取り込む(
         &tx,
         場.project.id,
-        &発注(&["PO-1,2026-04-01,Fujitsu,Device,web01,,0,600000"]),
+        &購入(&["Device,web01,,,,600000,"]),
+        "JPY",
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+
+    assert_eq!(r.count(Outcome::Created), 1, "{r}");
+    let p = purchase::Entity::find().one(db).await.unwrap().unwrap();
+    assert_eq!(p.order_number, None);
+    assert_eq!(p.acquired_on, None);
+    assert_eq!(p.supplier, None);
+}
+
+/// **読めない取得日はエラーにすること。**空欄と違い、書いた値が解釈できない。
+async fn 読めない取得日はエラー(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "日付", "JPY").await;
+    let tx = 取込(db).await;
+    let r = costs::購入を取り込む(
+        &tx,
+        場.project.id,
+        &購入(&["Device,web01,,PO-1,2026/04/01,600000,"]),
         "JPY",
     )
     .await
@@ -576,9 +590,10 @@ async fn 舞台(db: &DatabaseConnection, name: &str, currency: &str) -> 舞台�
 
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
-        全検証!(@one $用意, $属性, 発注を登録できる);
-        全検証!(@one $用意, $属性, 明細は更新される);
-        全検証!(@one $用意, $属性, 数量が0以下ならエラー);
+        全検証!(@one $用意, $属性, 購入を登録できる);
+        全検証!(@one $用意, $属性, 購入は品目で突合する);
+        全検証!(@one $用意, $属性, 取得日と発注番号は空でよい);
+        全検証!(@one $用意, $属性, 読めない取得日はエラー);
         全検証!(@one $用意, $属性, 円に小数はエラー);
         全検証!(@one $用意, $属性, usdは小数2桁を受ける);
         全検証!(@one $用意, $属性, 負の金額はエラー);

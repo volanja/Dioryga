@@ -141,10 +141,10 @@ pub fn router(state: AppState) -> Router {
             "/projects/{id}/devices/{device_id}/edit",
             get(device::edit_form),
         )
-        // 発注は専用の一覧画面を持たず、機器詳細から登録する（10.2）
+        // 購入の記録は専用の一覧画面を持たず、機器詳細と登録から入れる（10.2）
         .route(
-            "/projects/{id}/devices/{device_id}/orders",
-            post(device::add_order),
+            "/projects/{id}/devices/{device_id}/purchase",
+            post(device::save_purchase),
         )
         .route(
             "/projects/{id}/devices/{device_id}/sbom",

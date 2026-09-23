@@ -17,10 +17,11 @@
 use axum::extract::{Path, Query, State};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::{Extension, Form};
-use chrono::Utc;
+use chrono::{NaiveDate, Utc};
 use entity::{
     chassis_model, configuration, device, device_assignment, device_mount, device_stack,
-    firmware_version, part_catalog, part_instance, part_instance_location, project, vendor,
+    firmware_version, fixed_asset, maintenance_contract, maintenance_contract_item, part_catalog,
+    part_instance, part_instance_location, project, purchase, vendor,
 };
 use sea_orm::sea_query::{Expr, Func, LikeExpr, Query as SeaQuery};
 use sea_orm::{
@@ -130,67 +131,54 @@ struct DeviceDetailPage {
     parts: Vec<Labeled>,
     firmware: Vec<Labeled>,
     stack: Vec<Labeled>,
-    /// 発注明細（10.2）。**専用の一覧画面を持たず、ここに出す。**
-    orders: Vec<OrderRow>,
-    order_form: OrderForm,
+    /// 購入の記録（10.2）。**機器1台につき1行。専用の一覧画面を持たず、ここに出す。**
+    purchase: Option<PurchaseView>,
+    purchase_form: PurchaseForm,
     can_edit: bool,
 }
 
-/// 発注明細の1行（設計書10.2）。
-struct OrderRow {
+/// 購入の記録（設計書10.2）。表示用。
+struct PurchaseView {
     order_number: String,
-    order_date: String,
-    vendor: String,
-    quantity: i32,
-    unit_price: String,
-    /// `quantity × unit_price`。**保存しない**（不変条件2）。
-    subtotal: String,
-    /// プロジェクトの通貨と違う（Q-6）。年間コストの合算からは外れる
-    other_currency: String,
+    acquired_on: String,
+    amount: String,
+    supplier: String,
 }
 
-/// 発注の登録欄（10.2）。**発注を作る画面と明細を足す画面を分けない。**
-struct OrderForm {
-    t_orders: String,
-    t_orders_hint: String,
+/// 購入の記録の入力欄。**1台につき1行なので、既存の値を入れて出し、上書きする。**
+struct PurchaseForm {
+    t_title: String,
+    t_hint: String,
     t_order_number: String,
     t_order_number_hint: String,
-    t_order_date: String,
-    t_vendor: String,
-    t_quantity: String,
-    t_unit_price: String,
+    t_acquired_on: String,
+    t_acquired_on_hint: String,
+    t_amount: String,
     t_amount_hint: String,
-    t_subtotal: String,
-    t_add: String,
+    t_supplier: String,
+    t_supplier_hint: String,
+    t_save: String,
     t_empty: String,
     currency: String,
-    vendors: Vec<Labeled>,
-    /// 既存の発注番号。選ぶと明細だけを足す
-    existing: Vec<Labeled>,
+    order_number: String,
+    acquired_on: String,
+    amount: String,
+    supplier: String,
 }
 
+/// 登録・編集の画面（設計書16.1「機器の登録は、手を動かす順に4段へ分ける」）。
+///
+/// **開閉と分岐はCSSで行う**（`:has(input:checked)`）。状態がフォームの値そのもの
+/// なので、検証エラーで描き直したときに、開いていた欄は開いたまま戻る。
 #[derive(askama::Template)]
 #[template(path = "device_form.html")]
 struct DeviceFormPage {
     chrome: Chrome,
     project_id: i32,
     project_name: String,
-    t_title: String,
-    t_lead: String,
-    t_back: String,
-    t_hostname: String,
-    t_device_type: String,
-    t_configuration: String,
-    t_configuration_hint: String,
-    t_device_category: String,
-    t_device_category_hint: String,
-    t_serial_number: String,
-    t_serial_hint: String,
-    t_asset_number: String,
-    t_asset_hint: String,
-    t_power_watt: String,
-    t_status: String,
-    t_submit: String,
+    /// 登録のときだけ、お金の記録と「このあとの手順」を出す
+    is_new: bool,
+    t: FormText,
     action: String,
     hostname: String,
     device_type: String,
@@ -204,12 +192,120 @@ struct DeviceFormPage {
     power_watt: String,
     status: String,
     statuses: Vec<Choice>,
+    /// 「もう1台」で戻ったとき、直前に登録した機器のホスト名
+    registered: Option<String>,
+    // --- お金の記録（登録のときだけ） ---
+    currency: String,
+    order_number: String,
+    supplier: String,
+    acquisition_cost: String,
+    acquisition_date: String,
+    manage_as_fixed_asset: bool,
+    useful_life_years: String,
+    depreciation_method: String,
+    methods: Vec<Choice>,
+    register_maintenance: bool,
+    maintenance_new: bool,
+    maintenance_contract_id: String,
+    contracts: Vec<Labeled>,
+    contract_number: String,
+    contract_vendor_id: String,
+    vendors: Vec<Labeled>,
+    contract_start: String,
+    contract_end: String,
+    contract_amount: String,
+    quote_contact: String,
+    failure_contact: String,
     error: Option<String>,
+}
+
+/// 登録・編集画面の文言。
+struct FormText {
+    title: String,
+    lead: String,
+    import_hint: String,
+    back: String,
+    submit: String,
+    submit_again: String,
+    again_hint: String,
+    required: String,
+    optional: String,
+    registered: String,
+    sec_kind: String,
+    sec_kind_hint: String,
+    sec_identity: String,
+    sec_identity_hint: String,
+    sec_state: String,
+    sec_money: String,
+    sec_money_hint: String,
+    device_type: String,
+    tip_physical: String,
+    tip_virtual: String,
+    tip_container: String,
+    tip_logical: String,
+    configuration: String,
+    configuration_hint: String,
+    device_category: String,
+    device_category_hint: String,
+    hostname: String,
+    hostname_hint: String,
+    serial_number: String,
+    serial_hint: String,
+    asset_number: String,
+    asset_hint: String,
+    status: String,
+    status_hint: String,
+    power_watt: String,
+    power_hint: String,
+    order_number: String,
+    order_number_hint: String,
+    supplier: String,
+    supplier_hint: String,
+    acquisition_cost: String,
+    acquisition_cost_hint: String,
+    acquisition_date: String,
+    acquisition_date_hint: String,
+    manage_as_fixed_asset: String,
+    fixed_asset_hint: String,
+    useful_life_years: String,
+    depreciation_method: String,
+    depreciation_hint: String,
+    register_maintenance: String,
+    maintenance_existing: String,
+    maintenance_new: String,
+    maintenance_contract: String,
+    maintenance_contract_hint: String,
+    contract_number: String,
+    contract_vendor: String,
+    contract_start: String,
+    contract_end: String,
+    contract_end_hint: String,
+    contract_amount: String,
+    quote_contact: String,
+    failure_contact: String,
+    failure_contact_hint: String,
+    next_steps: String,
+    next_steps_lead: String,
+    step_register: String,
+    step_register_where: String,
+    step_parts: String,
+    step_parts_where: String,
+    step_interfaces: String,
+    step_interfaces_where: String,
+    step_sbom: String,
+    step_sbom_where: String,
 }
 
 /// 語彙（`vocabularies.md`）。DB制約にはせず、画面はリストから選ばせる。
 const DEVICE_TYPES: &[&str] = &["Physical", "Virtual", "Container", "Logical"];
 const STATUSES: &[&str] = &["running", "failed", "repairing", "planned", "provisioning"];
+/// 登録で選べる状態。**`planned` を含まない**——予約は増設の変更管理チケットが
+/// 作る（設計書11.6）。この画面からも作れると、同じ状態を作る経路が2つになる。
+const STATUSES_ON_CREATE: &[&str] = &["provisioning", "running", "repairing", "failed"];
+/// 筐体のある1台。構成とシリアル番号を持つのはこれだけ（設計書6.2、13.2）。
+const PHYSICAL: &str = "Physical";
+/// `PURCHASE` / `FIXED_ASSET` / `MAINTENANCE_CONTRACT_ITEM` の `item_type`。
+const DEVICE_ITEM: &str = "Device";
 
 // ---------------------------------------------------------------------------
 // 一覧
@@ -710,6 +806,8 @@ pub async fn detail(
         });
     }
 
+    let 購入 = 購入の記録(&state.db, d.id).await?;
+
     render(&DeviceDetailPage {
         chrome: Chrome::project(
             &state.db,
@@ -720,7 +818,7 @@ pub async fn detail(
         )
         .await,
         project_id,
-        project_name: project.name,
+        project_name: project.name.clone(),
         device_id: d.id,
         t_back: rust_i18n::t!("devices.back", locale = l).to_string(),
         t_edit: rust_i18n::t!("projects.edit", locale = l).to_string(),
@@ -745,219 +843,197 @@ pub async fn detail(
         parts: 搭載部品(&state, &d).await?,
         firmware: ファームウェア(&state, &d).await?,
         stack: スタック構成(&state, &d).await?,
-        orders: 発注明細(&state, &d, &project.currency).await?,
-        order_form: 発注の入力欄(&state, &project.currency, l).await?,
+        purchase: 購入の表示(&購入, &project.currency),
+        purchase_form: 購入の入力欄(&購入, &project.currency, l),
         can_edit,
     })
 }
 
-/// この機器の発注明細（設計書10.2）。
-///
-/// **専用の一覧画面を持たず、ここに出す。**発注は機器・パーツ・ソフトウェアの
-/// いずれにも紐づくため、品目の側から見るのが自然である。
-async fn 発注明細(
-    state: &AppState, d: &device::Model, 通貨: &str
-) -> AppResult<Vec<OrderRow>> {
-    let items = entity::purchase_order_item::Entity::find()
-        .filter(entity::purchase_order_item::Column::ItemType.eq("Device"))
-        .filter(entity::purchase_order_item::Column::ItemId.eq(d.id))
-        .order_by_asc(entity::purchase_order_item::Column::Id)
-        .all(&state.db)
+/// この機器の購入の記録（設計書10.2）。**機器1台につき1行。**
+async fn 購入の記録<C: ConnectionTrait>(
+    db: &C,
+    device_id: i32,
+) -> AppResult<Option<purchase::Model>> {
+    purchase::Entity::find()
+        .filter(purchase::Column::ItemType.eq(DEVICE_ITEM))
+        .filter(purchase::Column::ItemId.eq(device_id))
+        .one(db)
         .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
-
-    let mut rows = Vec::new();
-    for item in items {
-        let Some(order) = entity::purchase_order::Entity::find_by_id(item.purchase_order_id)
-            .one(&state.db)
-            .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-        else {
-            continue;
-        };
-        let vendor = entity::vendor::Entity::find_by_id(order.vendor_id)
-            .one(&state.db)
-            .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-            .map(|v| v.name)
-            .unwrap_or_default();
-
-        rows.push(OrderRow {
-            order_number: order.order_number.clone(),
-            order_date: order.order_date.to_string(),
-            vendor,
-            quantity: item.quantity,
-            unit_price: crate::currency::表示(item.unit_price, &order.currency),
-            // **保存せず計算する**（不変条件2）
-            subtotal: crate::currency::表示(
-                item.quantity as i64 * item.unit_price,
-                &order.currency,
-            ),
-            // **通貨が違えば年間コストの合算から外れる**（Q-6、10.3）
-            other_currency: if order.currency == 通貨 {
-                String::new()
-            } else {
-                order.currency.clone()
-            },
-        });
-    }
-    Ok(rows)
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))
 }
 
-async fn 発注の入力欄(
-    state: &AppState, 通貨: &str, l: &'static str
-) -> AppResult<OrderForm> {
-    let existing = entity::purchase_order::Entity::find()
-        .order_by_desc(entity::purchase_order::Column::OrderDate)
-        .all(&state.db)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-        .into_iter()
-        .map(|o| Labeled {
-            label: format!("{} ({})", o.order_number, o.order_date),
-            value: o.id.to_string(),
-        })
-        .collect();
-
-    let vendors = entity::vendor::Entity::find()
-        .filter(entity::vendor::Column::RetiredAt.is_null())
-        .order_by_asc(entity::vendor::Column::Name)
-        .all(&state.db)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-        .into_iter()
-        .map(|v| Labeled {
-            label: v.name,
-            value: v.id.to_string(),
-        })
-        .collect();
-
-    Ok(OrderForm {
-        t_orders: rust_i18n::t!("costs.purchase_orders", locale = l).to_string(),
-        t_orders_hint: rust_i18n::t!("devices.orders_hint", locale = l).to_string(),
-        t_order_number: rust_i18n::t!("devices.order_number", locale = l).to_string(),
-        t_order_number_hint: rust_i18n::t!("devices.order_number_hint", locale = l).to_string(),
-        t_order_date: rust_i18n::t!("devices.order_date", locale = l).to_string(),
-        t_vendor: rust_i18n::t!("catalog.vendor", locale = l).to_string(),
-        t_quantity: rust_i18n::t!("catalog.quantity", locale = l).to_string(),
-        t_unit_price: rust_i18n::t!("devices.unit_price", locale = l).to_string(),
-        t_amount_hint: rust_i18n::t!("costs.amount_hint", locale = l).to_string(),
-        t_subtotal: rust_i18n::t!("devices.subtotal", locale = l).to_string(),
-        t_add: rust_i18n::t!("devices.add_order", locale = l).to_string(),
-        t_empty: rust_i18n::t!("devices.no_order", locale = l).to_string(),
-        currency: 通貨.to_owned(),
-        vendors,
-        existing,
+fn 購入の表示(p: &Option<purchase::Model>, 通貨: &str) -> Option<PurchaseView> {
+    p.as_ref().map(|p| PurchaseView {
+        order_number: p.order_number.clone().unwrap_or_default(),
+        acquired_on: p.acquired_on.map(|d| d.to_string()).unwrap_or_default(),
+        amount: crate::currency::表示(p.amount, 通貨),
+        supplier: p.supplier.clone().unwrap_or_default(),
     })
 }
 
-/// 発注明細を足す（設計書10.2）。
-///
-/// **既存の発注番号を選べば明細だけを足す。**1発注に複数品目がある場合に、
-/// 発注を作る画面と明細を足す画面を分けない。
-#[derive(Debug, Deserialize)]
-pub struct AddOrderForm {
-    /// 空なら新しい発注を作る。
-    #[serde(default)]
-    pub purchase_order_id: String,
+fn 購入の入力欄(p: &Option<purchase::Model>, 通貨: &str, l: &'static str) -> PurchaseForm {
+    let t = |key: &str| rust_i18n::t!(key, locale = l).to_string();
+    PurchaseForm {
+        t_title: t("devices.purchase"),
+        t_hint: t("devices.purchase_hint"),
+        t_order_number: t("devices.order_number"),
+        t_order_number_hint: t("devices.order_number_hint"),
+        t_acquired_on: t("devices.acquisition_date"),
+        t_acquired_on_hint: t("devices.acquisition_date_hint"),
+        t_amount: t("devices.acquisition_cost"),
+        t_amount_hint: t("costs.amount_hint"),
+        t_supplier: t("devices.supplier"),
+        t_supplier_hint: t("devices.supplier_hint"),
+        t_save: t("common.save"),
+        t_empty: t("devices.no_purchase"),
+        currency: 通貨.to_owned(),
+        order_number: p
+            .as_ref()
+            .and_then(|p| p.order_number.clone())
+            .unwrap_or_default(),
+        acquired_on: p
+            .as_ref()
+            .and_then(|p| p.acquired_on)
+            .map(|d| d.to_string())
+            .unwrap_or_default(),
+        amount: p
+            .as_ref()
+            .map(|p| crate::currency::表示(p.amount, 通貨))
+            .unwrap_or_default(),
+        supplier: p
+            .as_ref()
+            .and_then(|p| p.supplier.clone())
+            .unwrap_or_default(),
+    }
+}
+
+/// 購入の記録の入力（設計書10.2）。
+#[derive(Debug, Default, Deserialize)]
+pub struct PurchaseInput {
+    /// 自由入力。**同じ番号を別の機器に入れてよい。**
     #[serde(default)]
     pub order_number: String,
     #[serde(default)]
-    pub order_date: String,
+    pub acquisition_date: String,
     #[serde(default)]
-    pub vendor_id: String,
+    pub acquisition_cost: String,
+    /// 買った相手。**`VENDOR` から選ばせない**——代理店・商社から買うのが普通
     #[serde(default)]
-    pub quantity: String,
-    #[serde(default)]
-    pub unit_price: String,
+    pub supplier: String,
 }
 
-pub async fn add_order(
+/// 検証を通った購入の記録。
+struct 購入の値 {
+    order_number: Option<String>,
+    acquired_on: Option<NaiveDate>,
+    amount: i64,
+    supplier: Option<String>,
+}
+
+impl PurchaseInput {
+    /// **どの欄も空なら `Ok(None)`**（購入の記録を作らない）。
+    fn 検証(&self, 通貨: &str) -> Result<Option<購入の値>, &'static str> {
+        let order_number = 空ならnone(&self.order_number);
+        let supplier = 空ならnone(&self.supplier);
+        let acquired_on = match self.acquisition_date.trim() {
+            "" => None,
+            v => Some(日付(v).ok_or("costs.error_date")?),
+        };
+        let amount = match self.acquisition_cost.trim() {
+            "" => None,
+            v => Some(crate::currency::最小単位へ(v, 通貨).ok_or("costs.error_amount")?),
+        };
+        if order_number.is_none() && supplier.is_none() && acquired_on.is_none() && amount.is_none()
+        {
+            return Ok(None);
+        }
+        Ok(Some(購入の値 {
+            order_number,
+            acquired_on,
+            amount: amount.unwrap_or(0),
+            supplier,
+        }))
+    }
+}
+
+/// 購入の記録を保存する（設計書10.2）。**1台につき1行なので上書きする。**
+pub async fn save_purchase(
     State(state): State<AppState>,
     Extension(current): Extension<CurrentUser>,
     Path((project_id, device_id)): Path<(i32, i32)>,
-    Form(form): Form<AddOrderForm>,
+    Form(form): Form<PurchaseInput>,
 ) -> AppResult<Response> {
     let project = 編集入場(&state, &current, project_id).await?;
     let d = 対象(&state, project_id, device_id).await?;
     let 誤り = |key: &str| AppError::Validation(rust_i18n::t!(key, locale = "ja").to_string());
 
-    let quantity = match form.quantity.trim().parse::<i32>() {
-        Ok(n) if n > 0 => n,
-        _ => return Err(誤り("catalog.error_quantity")),
+    let Some(値) = form.検証(&project.currency).map_err(誤り)? else {
+        return Ok(
+            Redirect::to(&format!("/projects/{project_id}/devices/{device_id}")).into_response(),
+        );
     };
-
-    // **既存の発注を選んだなら、その通貨で単価を読む。**プロジェクトの通貨と
-    // 違う発注もありうる（Q-6）
-    let 既存 = match form.purchase_order_id.trim() {
-        "" => None,
-        v => entity::purchase_order::Entity::find_by_id(
-            v.parse::<i32>().map_err(|_| 誤り("costs.error_item"))?,
-        )
-        .one(&state.db)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?,
-    };
-    let 通貨 = 既存
-        .as_ref()
-        .map(|o| o.currency.clone())
-        .unwrap_or_else(|| project.currency.clone());
-    let unit_price = crate::currency::最小単位へ(&form.unit_price, &通貨)
-        .ok_or_else(|| 誤り("costs.error_amount"))?;
+    // **読み取りはトランザクションを開く前に済ませる**（SQLiteで自分の書き込みロックを待つ）
+    let 既存 = 購入の記録(&state.db, d.id).await?;
 
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
-    let now = Utc::now();
-
-    let order_id = match 既存 {
-        Some(o) => o.id,
-        None => {
-            let number = crate::server::catalog::正規化(&form.order_number);
-            if number.is_empty() {
-                return Err(誤り("devices.error_order_number"));
-            }
-            let date = chrono::NaiveDate::parse_from_str(form.order_date.trim(), "%Y-%m-%d")
-                .map_err(|_| 誤り("costs.error_date"))?;
-            let vendor_id = form
-                .vendor_id
-                .trim()
-                .parse::<i32>()
-                .map_err(|_| 誤り("cables.error_vendor"))?;
-
-            tx.insert(entity::purchase_order::ActiveModel {
-                order_number: Set(number),
-                order_date: Set(date),
-                vendor_id: Set(vendor_id),
-                // **画面の入力はプロジェクトの通貨で固定する**（Q-6、10.3）
-                currency: Set(project.currency.clone()),
-                created_at: Set(now),
-                updated_at: Set(now),
-                ..Default::default()
-            })
-            .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-            .id
-        }
-    };
-
-    tx.insert(entity::purchase_order_item::ActiveModel {
-        purchase_order_id: Set(order_id),
-        item_type: Set("Device".to_owned()),
-        item_id: Set(d.id),
-        quantity: Set(quantity),
-        unit_price: Set(unit_price),
-        created_at: Set(now),
-        updated_at: Set(now),
-        ..Default::default()
-    })
-    .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    購入を書く(&tx, d.id, 既存, 値, Utc::now()).await?;
     tx.commit()
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
     Ok(Redirect::to(&format!("/projects/{project_id}/devices/{device_id}")).into_response())
+}
+
+/// 購入の記録を書く。あれば上書き、無ければ作る。
+async fn 購入を書く(
+    tx: &AuditedTx,
+    device_id: i32,
+    既存: Option<purchase::Model>,
+    値: 購入の値,
+    now: chrono::DateTime<Utc>,
+) -> AppResult<()> {
+    match 既存 {
+        Some(既存) => {
+            let mut active: purchase::ActiveModel = 既存.clone().into();
+            active.order_number = Set(値.order_number);
+            active.acquired_on = Set(値.acquired_on);
+            active.amount = Set(値.amount);
+            active.supplier = Set(値.supplier);
+            active.updated_at = Set(now);
+            tx.update(&既存, active)
+                .await
+                .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+        }
+        None => {
+            tx.insert(purchase::ActiveModel {
+                item_type: Set(DEVICE_ITEM.to_owned()),
+                item_id: Set(device_id),
+                order_number: Set(値.order_number),
+                acquired_on: Set(値.acquired_on),
+                amount: Set(値.amount),
+                supplier: Set(値.supplier),
+                created_at: Set(now),
+                updated_at: Set(now),
+                ..Default::default()
+            })
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+        }
+    }
+    Ok(())
+}
+
+fn 空ならnone(value: &str) -> Option<String> {
+    match value.trim() {
+        "" => None,
+        v => Some(v.to_owned()),
+    }
+}
+
+fn 日付(value: &str) -> Option<NaiveDate> {
+    NaiveDate::parse_from_str(value.trim(), "%Y-%m-%d").ok()
 }
 
 /// 現在の搭載位置（`DEVICE_MOUNT` の `to_date IS NULL`）。
@@ -1096,8 +1172,9 @@ async fn スタック構成(state: &AppState, d: &device::Model) -> AppResult<Ve
 // 登録・編集
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct DeviceForm {
+    #[serde(default)]
     pub hostname: String,
     #[serde(default)]
     pub device_type: String,
@@ -1115,6 +1192,61 @@ pub struct DeviceForm {
     pub status: String,
 }
 
+/// 登録の入力（設計書16.1）。機器の欄に、お金の記録と送信後の行き先が加わる。
+///
+/// **隠れている欄の値も送信される**（CSSで隠しても `<input>` は残る）。形態に
+/// 合わない項目・開いていない段の項目は、[`検証`] と [`費用を検証`] が捨てる。
+#[derive(Debug, Default, Deserialize)]
+pub struct NewDeviceForm {
+    #[serde(flatten)]
+    pub device: DeviceForm,
+    #[serde(flatten)]
+    pub purchase: PurchaseInput,
+    /// チェックボックス。入っていれば `"1"`
+    #[serde(default)]
+    pub manage_as_fixed_asset: String,
+    #[serde(default)]
+    pub useful_life_years: String,
+    #[serde(default)]
+    pub depreciation_method: String,
+    #[serde(default)]
+    pub register_maintenance: String,
+    /// `existing`（既定）/ `new`
+    #[serde(default)]
+    pub maintenance_mode: String,
+    #[serde(default)]
+    pub maintenance_contract_id: String,
+    #[serde(default)]
+    pub contract_number: String,
+    #[serde(default)]
+    pub contract_vendor_id: String,
+    #[serde(default)]
+    pub contract_start: String,
+    #[serde(default)]
+    pub contract_end: String,
+    #[serde(default)]
+    pub contract_amount: String,
+    #[serde(default)]
+    pub quote_contact: String,
+    #[serde(default)]
+    pub failure_contact: String,
+    /// 送信ボタンの別。`again` なら同じ画面へ戻る（設計書16.1）
+    #[serde(default)]
+    pub then: String,
+}
+
+impl NewDeviceForm {
+    fn 資産として管理する(&self) -> bool {
+        !self.manage_as_fixed_asset.trim().is_empty()
+    }
+    fn 保守契約に含める(&self) -> bool {
+        !self.register_maintenance.trim().is_empty()
+    }
+    fn 新しい契約(&self) -> bool {
+        self.maintenance_mode.trim() == "new"
+    }
+}
+
 /// 検証を通った入力。**保存してよいのはここに入った値だけ。**
 struct 検証済み {
     hostname: String,
@@ -1129,10 +1261,7 @@ struct 検証済み {
 
 impl DeviceForm {
     fn 空ならnone(value: &str) -> Option<String> {
-        match value.trim() {
-            "" => None,
-            v => Some(v.to_owned()),
-        }
+        空ならnone(value)
     }
 
     /// 語彙に含まれていれば返す。**含まれていなければ `None`。**
@@ -1153,9 +1282,16 @@ impl DeviceForm {
 /// **型・語彙の整合性は緩めない。**不変条件6の「検証は原則ハードな禁止ではなく
 /// 警告」は「実機が仕様の想定外でありうる」ことへの配慮（スロット本数の超過等）
 /// であって、送られてきた値が解釈できない場合の話ではない。
+///
+/// # 形態で変わる必須は、ここで確かめる（設計書16.1）
+///
+/// **画面の `required` は常に見えている欄（ホスト名）だけに付けている。**CSSで
+/// 隠れた欄に付けると、空のまま生き残ってフォーム全体が送信できなくなるため
+/// である。`Physical` の構成、それ以外の種別分類は、ここで必須にする。
 async fn 検証(
     state: &AppState,
     form: &DeviceForm,
+    新規: bool,
 ) -> AppResult<Result<検証済み, &'static str>> {
     let hostname = form.hostname.trim().to_owned();
     if hostname.is_empty() {
@@ -1165,37 +1301,48 @@ async fn 検証(
     let Some(device_type) = DeviceForm::語彙(&form.device_type, DEVICE_TYPES) else {
         return Ok(Err("devices.device_type_invalid"));
     };
-    let Some(status) = DeviceForm::語彙(&form.status, STATUSES) else {
+    // **予約は登録から作らない**（設計書11.6）。編集では予約中の機器もありうる
+    let 選べる状態 = if 新規 { STATUSES_ON_CREATE } else { STATUSES };
+    let Some(status) = DeviceForm::語彙(&form.status, 選べる状態) else {
         return Ok(Err("devices.status_invalid"));
     };
+    let 物理 = device_type == PHYSICAL;
 
-    // 構成を持たない機器（仮想アプライアンス等）があるため空欄は許す
-    let device_category = match DeviceForm::空ならnone(&form.device_category) {
-        None => None,
-        Some(value) => match DeviceForm::語彙(&value, DEVICE_CATEGORIES) {
-            Some(v) => Some(v),
-            None => return Ok(Err("devices.device_category_invalid")),
-        },
+    // **形態に合わない項目は捨てる。**隠れた欄の値も送信されるため
+    let device_category = if 物理 {
+        None
+    } else {
+        match DeviceForm::空ならnone(&form.device_category) {
+            None => return Ok(Err("devices.device_category_required")),
+            Some(value) => match DeviceForm::語彙(&value, DEVICE_CATEGORIES) {
+                Some(v) => Some(v),
+                None => return Ok(Err("devices.device_category_invalid")),
+            },
+        }
     };
 
     // Virtual / Container / Logical は構成を持たない（設計書6.2）
-    let configuration_id = match DeviceForm::空ならnone(&form.configuration_id) {
-        None => None,
-        Some(value) => {
-            let Ok(id) = value.parse::<i32>() else {
-                return Ok(Err("devices.configuration_invalid"));
-            };
-            // **存在も確かめる。**確かめないと外部キー違反で500になり、
-            // 利用者には何が悪いのか分からない
-            let 実在 = configuration::Entity::find_by_id(id)
-                .one(&state.db)
-                .await
-                .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-                .is_some();
-            if !実在 {
-                return Ok(Err("devices.configuration_invalid"));
+    let configuration_id = if !物理 {
+        None
+    } else {
+        match DeviceForm::空ならnone(&form.configuration_id) {
+            None => return Ok(Err("devices.configuration_required")),
+            Some(value) => {
+                let Ok(id) = value.parse::<i32>() else {
+                    return Ok(Err("devices.configuration_invalid"));
+                };
+                // **存在も確かめる。**確かめないと外部キー違反で500になり、
+                // 利用者には何が悪いのか分からない
+                let 実在 = configuration::Entity::find_by_id(id)
+                    .one(&state.db)
+                    .await
+                    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+                    .is_some();
+                if !実在 {
+                    return Ok(Err("devices.configuration_invalid"));
+                }
+                Some(id)
             }
-            Some(id)
         }
     };
 
@@ -1212,7 +1359,12 @@ async fn 検証(
         device_type,
         configuration_id,
         device_category,
-        serial_number: DeviceForm::空ならnone(&form.serial_number),
+        // 仮想機器・コンテナ・論理機器にシリアル番号は無い（設計書6.2）
+        serial_number: if 物理 {
+            DeviceForm::空ならnone(&form.serial_number)
+        } else {
+            None
+        },
         // 採番待ちでも登録できる（設計書23.2）
         asset_number: DeviceForm::空ならnone(&form.asset_number),
         power_watt,
@@ -1220,23 +1372,182 @@ async fn 検証(
     }))
 }
 
+/// 検証を通ったお金の記録（設計書16.1、10.2）。
+struct 費用 {
+    購入: Option<購入の値>,
+    /// （耐用年数, 償却方法）。取得原価と取得日は購入の値を使う
+    資産: Option<(i32, String)>,
+    保守: Option<保守契約>,
+}
+
+enum 保守契約 {
+    既存(i32),
+    /// 大きいので箱に入れる（clippy::large_enum_variant）
+    新規(Box<maintenance_contract::ActiveModel>),
+}
+
+/// お金の記録を検証する。**読み取りはここで済ませる**（トランザクションの前）。
+///
+/// - 取得原価・取得日・発注番号・購入元は、固定資産として管理するかに関わらず受ける
+/// - **固定資産として管理するなら、取得原価と取得日は必須**（`FIXED_ASSET` の列が
+///   NOT NULL）。そのうえで耐用年数と償却方法だけを足して聞く
+async fn 費用を検証(
+    state: &AppState,
+    project: &project::Model,
+    form: &NewDeviceForm,
+) -> AppResult<Result<費用, &'static str>> {
+    let 通貨 = project.currency.as_str();
+    let mut 購入 = match form.purchase.検証(通貨) {
+        Ok(v) => v,
+        Err(key) => return Ok(Err(key)),
+    };
+
+    let 資産 = if form.資産として管理する() {
+        let Some(p) = 購入.as_ref() else {
+            return Ok(Err("costs.error_amount"));
+        };
+        if form.purchase.acquisition_cost.trim().is_empty() {
+            return Ok(Err("costs.error_amount"));
+        }
+        if p.acquired_on.is_none() {
+            return Ok(Err("costs.error_date"));
+        }
+        // **閉じた語彙は既定へ寄せず拒否する**（8.6、Q-21）
+        if !crate::cost::DEPRECIATION_METHODS.contains(&form.depreciation_method.trim()) {
+            return Ok(Err("costs.error_method"));
+        }
+        // **耐用年数が0以下は按分できない**（24.2.2）
+        let life = match form.useful_life_years.trim().parse::<i32>() {
+            Ok(n) if n > 0 => n,
+            _ => return Ok(Err("costs.error_life")),
+        };
+        Some((life, form.depreciation_method.trim().to_owned()))
+    } else {
+        None
+    };
+    // 固定資産として管理しないなら、購入は入力があったときだけ作る
+    if 資産.is_none()
+        && 購入.as_ref().is_some_and(|p| p.amount == 0)
+        && form.purchase.acquisition_cost.trim().is_empty()
+        && 購入.as_ref().is_some_and(|p| {
+            p.order_number.is_none() && p.supplier.is_none() && p.acquired_on.is_none()
+        })
+    {
+        購入 = None;
+    }
+
+    let 保守 = if !form.保守契約に含める() {
+        None
+    } else if form.新しい契約() {
+        let number = crate::server::catalog::正規化(&form.contract_number);
+        if number.is_empty() {
+            return Ok(Err("costs.error_contract_number"));
+        }
+        let (Some(start), Some(end)) = (日付(&form.contract_start), 日付(&form.contract_end))
+        else {
+            return Ok(Err("costs.error_date"));
+        };
+        // **期間が0以下は按分できない**（24.2.2）
+        if end < start {
+            return Ok(Err("costs.error_period"));
+        }
+        let Some(amount) = crate::currency::最小単位へ(&form.contract_amount, 通貨) else {
+            return Ok(Err("costs.error_amount"));
+        };
+        let Ok(vendor_id) = form.contract_vendor_id.trim().parse::<i32>() else {
+            return Ok(Err("cables.error_vendor"));
+        };
+        let ベンダー = vendor::Entity::find_by_id(vendor_id)
+            .one(&state.db)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+        if ベンダー.is_none() {
+            return Ok(Err("cables.error_vendor"));
+        }
+        Some(保守契約::新規(Box::new(
+            maintenance_contract::ActiveModel {
+                contract_number: Set(number),
+                vendor_id: Set(vendor_id),
+                start_date: Set(start),
+                end_date: Set(end),
+                amount: Set(amount),
+                quote_contact: Set(crate::server::catalog::正規化(&form.quote_contact)),
+                failure_contact: Set(crate::server::catalog::正規化(&form.failure_contact)),
+                order_number: Set(None),
+                ..Default::default()
+            },
+        )))
+    } else {
+        let Ok(id) = form.maintenance_contract_id.trim().parse::<i32>() else {
+            return Ok(Err("costs.error_contract"));
+        };
+        // **このプロジェクトから見える契約に限る**（コスト画面の一覧と同じ範囲）
+        let 見える = super::cost::このプロジェクトの契約(state, project.id)
+            .await?
+            .iter()
+            .any(|c| c.id == id);
+        if !見える {
+            return Ok(Err("costs.error_contract"));
+        }
+        Some(保守契約::既存(id))
+    };
+
+    Ok(Ok(費用 {
+        購入, 資産, 保守
+    }))
+}
+
+/// 「もう1台」で戻るときの引き継ぎ（設計書16.1）。
+#[derive(Debug, Default, Deserialize)]
+pub struct NewQuery {
+    /// 直前に登録した機器。形態・構成・状態・保守契約をここから引き継ぐ
+    #[serde(default)]
+    pub again: Option<i32>,
+}
+
 pub async fn new_form(
     State(state): State<AppState>,
     Extension(current): Extension<CurrentUser>,
     Path(project_id): Path<i32>,
+    Query(query): Query<NewQuery>,
 ) -> AppResult<Response> {
     let project = 編集入場(&state, &current, project_id).await?;
-    let form = DeviceForm {
-        hostname: String::new(),
-        device_type: "Physical".to_owned(),
-        configuration_id: String::new(),
-        device_category: String::new(),
-        serial_number: String::new(),
-        asset_number: String::new(),
-        power_watt: "0".to_owned(),
-        status: "provisioning".to_owned(),
+    let mut form = NewDeviceForm {
+        device: DeviceForm {
+            device_type: PHYSICAL.to_owned(),
+            status: "provisioning".to_owned(),
+            ..Default::default()
+        },
+        maintenance_mode: "existing".to_owned(),
+        depreciation_method: crate::cost::STRAIGHT_LINE.to_owned(),
+        ..Default::default()
     };
-    render(&フォーム(&state, &current, &project, None, &form, None).await?)
+
+    // **ホスト名・シリアル番号・資産番号は引き継がない。**1台ごとに違う値である
+    let mut registered = None;
+    if let Some(id) = query.again {
+        let 前 = 対象(&state, project_id, id).await?;
+        form.device.device_type = 前.device_type.clone();
+        form.device.configuration_id = 前
+            .configuration_id
+            .map(|v| v.to_string())
+            .unwrap_or_default();
+        form.device.device_category = 前.device_category.clone().unwrap_or_default();
+        form.device.status = 前.status.clone();
+        if let Some(item) = maintenance_contract_item::Entity::find()
+            .filter(maintenance_contract_item::Column::ItemType.eq(DEVICE_ITEM))
+            .filter(maintenance_contract_item::Column::ItemId.eq(前.id))
+            .one(&state.db)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        {
+            form.register_maintenance = "1".to_owned();
+            form.maintenance_contract_id = item.maintenance_contract_id.to_string();
+        }
+        registered = Some(前.hostname);
+    }
+
+    render(&フォーム(&state, &current, &project, None, &form, registered, None).await?)
 }
 
 async fn フォーム(
@@ -1244,11 +1555,41 @@ async fn フォーム(
     current: &CurrentUser,
     project: &project::Model,
     device_id: Option<i32>,
-    form: &DeviceForm,
+    form: &NewDeviceForm,
+    registered: Option<String>,
     error: Option<String>,
 ) -> AppResult<DeviceFormPage> {
     let l = Locale::parse(&current.user.locale).as_str();
     let 新規 = device_id.is_none();
+    let t = |key: &str| rust_i18n::t!(key, locale = l).to_string();
+    let d = &form.device;
+
+    let (contracts, vendors) = if 新規 {
+        let contracts = super::cost::このプロジェクトの契約(state, project.id)
+            .await?
+            .into_iter()
+            .map(|c| Labeled {
+                label: format!("{} / {} 〜 {}", c.contract_number, c.start_date, c.end_date),
+                value: c.id.to_string(),
+            })
+            .collect();
+        let vendors = vendor::Entity::find()
+            .filter(vendor::Column::RetiredAt.is_null())
+            .filter(vendor::Column::MergedIntoVendorId.is_null())
+            .order_by_asc(vendor::Column::Name)
+            .all(&state.db)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+            .into_iter()
+            .map(|v| Labeled {
+                label: v.name,
+                value: v.id.to_string(),
+            })
+            .collect();
+        (contracts, vendors)
+    } else {
+        (Vec::new(), Vec::new())
+    };
 
     Ok(DeviceFormPage {
         chrome: Chrome::project(
@@ -1261,51 +1602,142 @@ async fn フォーム(
         .await,
         project_id: project.id,
         project_name: project.name.clone(),
-        t_title: if 新規 {
-            rust_i18n::t!("devices.new_title", locale = l).to_string()
-        } else {
-            rust_i18n::t!("devices.edit_title", locale = l).to_string()
-        },
-        t_lead: if 新規 {
-            rust_i18n::t!("devices.new_lead", locale = l).to_string()
-        } else {
-            rust_i18n::t!("devices.edit_lead", locale = l).to_string()
-        },
-        t_back: rust_i18n::t!("devices.back", locale = l).to_string(),
-        t_hostname: rust_i18n::t!("devices.hostname", locale = l).to_string(),
-        t_device_type: rust_i18n::t!("devices.device_type", locale = l).to_string(),
-        t_configuration: rust_i18n::t!("devices.configuration", locale = l).to_string(),
-        t_configuration_hint: rust_i18n::t!("devices.configuration_hint", locale = l).to_string(),
-        t_device_category: rust_i18n::t!("devices.device_category", locale = l).to_string(),
-        t_device_category_hint: rust_i18n::t!("devices.device_category_hint", locale = l)
-            .to_string(),
-        t_serial_number: rust_i18n::t!("devices.serial_number", locale = l).to_string(),
-        t_serial_hint: rust_i18n::t!("devices.serial_hint", locale = l).to_string(),
-        t_asset_number: rust_i18n::t!("devices.asset_number", locale = l).to_string(),
-        t_asset_hint: rust_i18n::t!("devices.asset_hint", locale = l).to_string(),
-        t_power_watt: rust_i18n::t!("devices.power_watt", locale = l).to_string(),
-        t_status: rust_i18n::t!("devices.status", locale = l).to_string(),
-        t_submit: if 新規 {
-            rust_i18n::t!("common.create", locale = l).to_string()
-        } else {
-            rust_i18n::t!("common.save", locale = l).to_string()
+        is_new: 新規,
+        t: FormText {
+            title: t(if 新規 {
+                "devices.new_title"
+            } else {
+                "devices.edit_title"
+            }),
+            lead: t(if 新規 {
+                "devices.new_lead"
+            } else {
+                "devices.edit_lead"
+            }),
+            import_hint: t("devices.import_hint"),
+            back: t("devices.back"),
+            submit: t(if 新規 {
+                "devices.register"
+            } else {
+                "common.save"
+            }),
+            submit_again: t("devices.register_again"),
+            again_hint: t("devices.register_again_hint"),
+            required: t("devices.required"),
+            optional: t("devices.optional"),
+            registered: t("devices.registered"),
+            sec_kind: t("devices.sec_kind"),
+            sec_kind_hint: t("devices.sec_kind_hint"),
+            sec_identity: t("devices.sec_identity"),
+            sec_identity_hint: t("devices.sec_identity_hint"),
+            sec_state: t("devices.sec_state"),
+            sec_money: t("devices.sec_money"),
+            sec_money_hint: t("devices.sec_money_hint"),
+            device_type: t("devices.form_type"),
+            tip_physical: t("devices.tip_physical"),
+            tip_virtual: t("devices.tip_virtual"),
+            tip_container: t("devices.tip_container"),
+            tip_logical: t("devices.tip_logical"),
+            configuration: t("devices.configuration"),
+            configuration_hint: t("devices.configuration_hint"),
+            device_category: t("devices.device_category"),
+            device_category_hint: t("devices.device_category_hint"),
+            hostname: t("devices.hostname"),
+            hostname_hint: t("devices.hostname_hint"),
+            serial_number: t("devices.serial_number"),
+            serial_hint: t("devices.serial_hint"),
+            asset_number: t("devices.asset_number"),
+            asset_hint: t("devices.asset_hint"),
+            status: t("devices.status"),
+            status_hint: t(if 新規 {
+                "devices.status_hint_new"
+            } else {
+                "devices.status_hint_edit"
+            }),
+            power_watt: t("devices.power_watt"),
+            power_hint: t("devices.power_hint"),
+            order_number: t("devices.order_number"),
+            order_number_hint: t("devices.order_number_hint"),
+            supplier: t("devices.supplier"),
+            supplier_hint: t("devices.supplier_hint"),
+            acquisition_cost: t("devices.acquisition_cost"),
+            acquisition_cost_hint: t("costs.amount_hint"),
+            acquisition_date: t("devices.acquisition_date"),
+            acquisition_date_hint: t("devices.acquisition_date_hint"),
+            manage_as_fixed_asset: t("devices.manage_as_fixed_asset"),
+            fixed_asset_hint: t("devices.fixed_asset_hint"),
+            useful_life_years: t("costs.useful_life"),
+            depreciation_method: t("costs.method"),
+            depreciation_hint: t("costs.method_hint"),
+            register_maintenance: t("devices.register_maintenance"),
+            maintenance_existing: t("devices.maintenance_existing"),
+            maintenance_new: t("devices.maintenance_new"),
+            maintenance_contract: t("devices.maintenance_contract"),
+            maintenance_contract_hint: t("devices.maintenance_contract_hint"),
+            contract_number: t("costs.contract_number"),
+            contract_vendor: t("catalog.vendor"),
+            contract_start: t("costs.start_date"),
+            contract_end: t("costs.end_date"),
+            contract_end_hint: t("devices.contract_end_hint"),
+            contract_amount: t("costs.amount"),
+            quote_contact: t("costs.quote_contact"),
+            failure_contact: t("costs.failure_contact"),
+            failure_contact_hint: t("costs.contact_hint"),
+            next_steps: t("devices.next_steps"),
+            next_steps_lead: t("devices.next_steps_lead"),
+            step_register: t("devices.step_register"),
+            step_register_where: t("devices.step_register_where"),
+            step_parts: t("devices.step_parts"),
+            step_parts_where: t("devices.step_parts_where"),
+            step_interfaces: t("devices.step_interfaces"),
+            step_interfaces_where: t("devices.step_interfaces_where"),
+            step_sbom: t("devices.step_sbom"),
+            step_sbom_where: t("devices.step_sbom_where"),
         },
         action: match device_id {
             Some(id) => format!("/projects/{}/devices/{id}", project.id),
             None => format!("/projects/{}/devices", project.id),
         },
-        hostname: form.hostname.clone(),
-        device_type: form.device_type.clone(),
+        hostname: d.hostname.clone(),
+        device_type: d.device_type.clone(),
         device_types: DEVICE_TYPES.to_vec(),
-        configuration_id: form.configuration_id.clone(),
+        configuration_id: d.configuration_id.clone(),
         configurations: 構成の候補(state).await?,
-        device_category: form.device_category.clone(),
+        device_category: d.device_category.clone(),
         categories: 種別の選択肢(l),
-        serial_number: form.serial_number.clone(),
-        asset_number: form.asset_number.clone(),
-        power_watt: form.power_watt.clone(),
-        status: form.status.clone(),
-        statuses: 状態の選択肢(STATUSES, l),
+        serial_number: d.serial_number.clone(),
+        asset_number: d.asset_number.clone(),
+        power_watt: d.power_watt.clone(),
+        status: d.status.clone(),
+        statuses: 状態の選択肢(if 新規 { STATUSES_ON_CREATE } else { STATUSES }, l),
+        registered,
+        currency: project.currency.clone(),
+        order_number: form.purchase.order_number.clone(),
+        supplier: form.purchase.supplier.clone(),
+        acquisition_cost: form.purchase.acquisition_cost.clone(),
+        acquisition_date: form.purchase.acquisition_date.clone(),
+        manage_as_fixed_asset: form.資産として管理する(),
+        useful_life_years: form.useful_life_years.clone(),
+        depreciation_method: form.depreciation_method.clone(),
+        methods: crate::cost::DEPRECIATION_METHODS
+            .iter()
+            .map(|v| Choice {
+                value: v,
+                label: t(&format!("costs.method_{v}")),
+            })
+            .collect(),
+        register_maintenance: form.保守契約に含める(),
+        maintenance_new: form.新しい契約(),
+        maintenance_contract_id: form.maintenance_contract_id.clone(),
+        contracts,
+        contract_number: form.contract_number.clone(),
+        contract_vendor_id: form.contract_vendor_id.clone(),
+        vendors,
+        contract_start: form.contract_start.clone(),
+        contract_end: form.contract_end.clone(),
+        contract_amount: form.contract_amount.clone(),
+        quote_contact: form.quote_contact.clone(),
+        failure_contact: form.failure_contact.clone(),
         error,
     })
 }
@@ -1331,16 +1763,22 @@ async fn 構成の候補(state: &AppState) -> AppResult<Vec<Labeled>> {
         .collect())
 }
 
+/// 機器を登録する（設計書16.1）。
+///
+/// **1回の送信で複数のテーブルに書く**（機器・所在・購入・固定資産・保守契約）。
+/// 途中で失敗したら機器も作らない。
 pub async fn create(
     State(state): State<AppState>,
     Extension(current): Extension<CurrentUser>,
     Path(project_id): Path<i32>,
-    Form(form): Form<DeviceForm>,
+    Form(form): Form<NewDeviceForm>,
 ) -> AppResult<Response> {
     let project = 編集入場(&state, &current, project_id).await?;
     let l = Locale::parse(&current.user.locale).as_str();
 
-    let 入力 = match 検証(&state, &form).await? {
+    // **読み取りはすべてトランザクションの前に済ませる**（SQLiteで自分の
+    // 書き込みロックを待って止まる）。検証が読むのもここまで
+    let 入力 = match 検証(&state, &form.device, true).await? {
         Ok(値) => 値,
         Err(key) => {
             let page = フォーム(
@@ -1349,6 +1787,23 @@ pub async fn create(
                 &project,
                 None,
                 &form,
+                None,
+                Some(rust_i18n::t!(key, locale = l).to_string()),
+            )
+            .await?;
+            return render(&page);
+        }
+    };
+    let 費用 = match 費用を検証(&state, &project, &form).await? {
+        Ok(値) => 値,
+        Err(key) => {
+            let page = フォーム(
+                &state,
+                &current,
+                &project,
+                None,
+                &form,
+                None,
                 Some(rust_i18n::t!(key, locale = l).to_string()),
             )
             .await?;
@@ -1397,11 +1852,65 @@ pub async fn create(
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
+    // --- お金の記録（設計書16.1、10.2） ---
+    if let Some(購入) = 費用.購入 {
+        // **固定資産には購入の値を複製する。**同じ値を2度入力させない
+        let 資産の元 = (購入.amount, 購入.acquired_on);
+        購入を書く(&tx, created.id, None, 購入, now).await?;
+        if let (Some((life, method)), (cost, Some(date))) = (費用.資産, 資産の元) {
+            tx.insert(fixed_asset::ActiveModel {
+                item_type: Set(DEVICE_ITEM.to_owned()),
+                item_id: Set(created.id),
+                acquisition_cost: Set(cost),
+                depreciation_method: Set(method),
+                useful_life_years: Set(life),
+                acquisition_date: Set(date),
+                created_at: Set(now),
+                updated_at: Set(now),
+                ..Default::default()
+            })
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+        }
+    }
+
+    if let Some(保守) = 費用.保守 {
+        let contract_id = match 保守 {
+            保守契約::既存(id) => id,
+            保守契約::新規(active) => {
+                let mut active = *active;
+                active.created_at = Set(now);
+                active.updated_at = Set(now);
+                tx.insert(active)
+                    .await
+                    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+                    .id
+            }
+        };
+        tx.insert(maintenance_contract_item::ActiveModel {
+            maintenance_contract_id: Set(contract_id),
+            item_type: Set(DEVICE_ITEM.to_owned()),
+            item_id: Set(created.id),
+            created_at: Set(now),
+            updated_at: Set(now),
+            ..Default::default()
+        })
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    }
+
     tx.commit()
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
-    Ok(Redirect::to(&format!("/projects/{project_id}/devices")).into_response())
+    // 「もう1台」は同じ画面へ、そうでなければ機器の詳細へ——**このあとの手順
+    // （部品・インターフェース・SBOM）は詳細から始まる**（設計書16.1）
+    let 行き先 = if form.then.trim() == "again" {
+        format!("/projects/{project_id}/devices/new?again={}", created.id)
+    } else {
+        format!("/projects/{project_id}/devices/{}", created.id)
+    };
+    Ok(Redirect::to(&行き先).into_response())
 }
 
 pub async fn edit_form(
@@ -1411,7 +1920,11 @@ pub async fn edit_form(
 ) -> AppResult<Response> {
     let project = 編集入場(&state, &current, project_id).await?;
     let d = 対象(&state, project_id, device_id).await?;
-    let page = フォーム(&state, &current, &project, Some(d.id), &既存の値(&d), None).await?;
+    let form = NewDeviceForm {
+        device: 既存の値(&d),
+        ..Default::default()
+    };
+    let page = フォーム(&state, &current, &project, Some(d.id), &form, None, None).await?;
     render(&page)
 }
 
@@ -1441,15 +1954,20 @@ pub async fn update(
     let l = Locale::parse(&current.user.locale).as_str();
     let target = 対象(&state, project_id, device_id).await?;
 
-    let 入力 = match 検証(&state, &form).await? {
+    let 入力 = match 検証(&state, &form, false).await? {
         Ok(値) => 値,
         Err(key) => {
+            let form = NewDeviceForm {
+                device: form,
+                ..Default::default()
+            };
             let page = フォーム(
                 &state,
                 &current,
                 &project,
                 Some(target.id),
                 &form,
+                None,
                 Some(rust_i18n::t!(key, locale = l).to_string()),
             )
             .await?;

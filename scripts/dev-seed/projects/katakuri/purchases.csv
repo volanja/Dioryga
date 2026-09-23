@@ -1,0 +1,3 @@
+item_type,item_hostname,item_serial_number,order_number,acquired_on,amount,supplier
+Device,katakuri-web01,,PO-KT-2026-001,2026-04-15,850000,ヤマブキ商事
+Device,katakuri-web02,,PO-KT-2026-001,2026-04-15,850000,ヤマブキ商事

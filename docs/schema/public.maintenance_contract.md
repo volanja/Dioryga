@@ -16,7 +16,7 @@
 | amount | bigint | 0 | false |  |  | **最小通貨単位の整数**（24.2.1） |
 | quote_contact | varchar | ''::character varying | false |  |  |  |
 | failure_contact | varchar | ''::character varying | false |  |  |  |
-| purchase_order_id | integer |  | true |  | [public.purchase_order](public.purchase_order.md) |  |
+| order_number | varchar |  | true |  |  |  |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
 
@@ -35,7 +35,6 @@
 | maintenance_contract_updated_at_not_null | n | NOT NULL updated_at |
 | maintenance_contract_vendor_id_not_null | n | NOT NULL vendor_id |
 | maintenance_contract_vendor_id_fkey | FOREIGN KEY | FOREIGN KEY (vendor_id) REFERENCES vendor(id) |
-| maintenance_contract_purchase_order_id_fkey | FOREIGN KEY | FOREIGN KEY (purchase_order_id) REFERENCES purchase_order(id) |
 | maintenance_contract_pkey | PRIMARY KEY | PRIMARY KEY (id) |
 
 ## Indexes
@@ -44,7 +43,6 @@
 | ---- | ---------- |
 | maintenance_contract_pkey | CREATE UNIQUE INDEX maintenance_contract_pkey ON public.maintenance_contract USING btree (id) |
 | idx_maintenance_contract_vendor | CREATE INDEX idx_maintenance_contract_vendor ON public.maintenance_contract USING btree (vendor_id) |
-| idx_maintenance_contract_purchase_order | CREATE INDEX idx_maintenance_contract_purchase_order ON public.maintenance_contract USING btree (purchase_order_id) |
 | idx_maintenance_contract_end_date | CREATE INDEX idx_maintenance_contract_end_date ON public.maintenance_contract USING btree (end_date) |
 
 ## Relations

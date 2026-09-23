@@ -9,8 +9,8 @@ mod support;
 
 use chrono::{NaiveDate, Utc};
 use entity::{
-    app_user, device, fixed_asset, maintenance_contract, milestone, project, purchase_order,
-    purchase_order_item, recurring_cost, vendor,
+    app_user, device, fixed_asset, maintenance_contract, milestone, project, purchase,
+    recurring_cost, vendor,
 };
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
@@ -23,36 +23,15 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, Qu
 /// SQLiteに `DECIMAL` は無く、`REAL` に落とすと丸め誤差が出る。JPYは
 /// 小数点以下を持たないため、円単位の整数がそのまま最小通貨単位になる。
 async fn 金額は整数のまま往復する(db: &DatabaseConnection) {
-    let user = 利用者(db, "money@example.com").await;
-    let v = ベンダー(db, "会計検証", user.id).await;
-    let po = 発注(db, v.id, "PO-0001").await;
-
     // 1台 1,234,567円
-    let item = purchase_order_item::ActiveModel {
-        purchase_order_id: Set(po.id),
-        item_type: Set("Device".to_owned()),
-        item_id: Set(1),
-        quantity: Set(3),
-        unit_price: Set(1_234_567),
-        created_at: Set(Utc::now()),
-        updated_at: Set(Utc::now()),
-        ..Default::default()
-    }
-    .insert(db)
-    .await
-    .unwrap();
+    let p = 購入(db, 1, Some("PO-0001"), 1_234_567).await;
 
-    let 読み直し = purchase_order_item::Entity::find_by_id(item.id)
+    let 読み直し = purchase::Entity::find_by_id(p.id)
         .one(db)
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(読み直し.unit_price, 1_234_567);
-    // 合計も整数のまま。丸め誤差が入る余地がない
-    assert_eq!(
-        読み直し.unit_price * i64::from(読み直し.quantity),
-        3_703_701
-    );
+    assert_eq!(読み直し.amount, 1_234_567);
 }
 
 /// **大きな金額でも桁落ちしないこと**（設計書24.2.1）。
@@ -93,48 +72,25 @@ async fn 大きな金額でも桁落ちしない(db: &DatabaseConnection) {
 // 保存しないもの
 // ---------------------------------------------------------------------------
 
-/// **発注は合計金額を持たないこと**（旧B-5）。
+/// **発注番号は重複してよく、注文単位の合計は番号で寄せて出ること**（10.2）。
 ///
-/// 明細から計算する。持つと明細と合計がずれ、どちらが正か分からなくなる。
-async fn 発注は合計金額を持たない(db: &DatabaseConnection) {
-    let user = 利用者(db, "po@example.com").await;
-    let v = ベンダー(db, "合計検証", user.id).await;
-    let po = 発注(db, v.id, "PO-0002").await;
-
-    for (price, qty) in [(100_000, 2), (50_000, 1)] {
-        purchase_order_item::ActiveModel {
-            purchase_order_id: Set(po.id),
-            item_type: Set("Device".to_owned()),
-            item_id: Set(1),
-            quantity: Set(qty),
-            unit_price: Set(price),
-            created_at: Set(Utc::now()),
-            updated_at: Set(Utc::now()),
-            ..Default::default()
-        }
-        .insert(db)
-        .await
-        .unwrap();
+/// 発注を表すテーブルは持たない。1つの注文で3台買えば、同じ番号の行が3本並ぶ。
+/// **一意の制約を張っていないこと**も、ここで確かめる——張ると2台目が入らない。
+async fn 発注番号は重複してよい(db: &DatabaseConnection) {
+    for (item_id, amount) in [(1, 100_000), (2, 100_000), (3, 50_000)] {
+        購入(db, item_id, Some("PO-0002"), amount).await;
     }
+    購入(db, 4, Some("PO-9999"), 7_000).await;
 
-    // 明細から計算する
-    let 合計: i64 = purchase_order_item::Entity::find()
-        .filter(purchase_order_item::Column::PurchaseOrderId.eq(po.id))
+    let 注文の合計: i64 = purchase::Entity::find()
+        .filter(purchase::Column::OrderNumber.eq("PO-0002"))
         .all(db)
         .await
         .unwrap()
         .iter()
-        .map(|i| i.unit_price * i64::from(i.quantity))
+        .map(|p| p.amount)
         .sum();
-
-    assert_eq!(合計, 250_000);
-
-    // 発注側に合計を持つ列が無いことは、JSON化した内容で確かめる
-    let json = serde_json::to_value(&po).unwrap();
-    assert!(
-        json.get("amount").is_none(),
-        "PURCHASE_ORDER が amount を持っています（旧B-5）"
-    );
+    assert_eq!(注文の合計, 250_000);
 }
 
 /// **固定資産は廃棄日と簿価を持たないこと**（旧B-1、不変条件2）。
@@ -273,7 +229,7 @@ async fn 保守期限で絞り込める(db: &DatabaseConnection) {
             amount: Set(500_000),
             quote_contact: Set(String::new()),
             failure_contact: Set(String::new()),
-            purchase_order_id: Set(None),
+            order_number: Set(None),
             created_at: Set(Utc::now()),
             updated_at: Set(Utc::now()),
             ..Default::default()
@@ -376,12 +332,19 @@ async fn プロジェクト(db: &DatabaseConnection, name: &str) -> project::Mod
     .unwrap()
 }
 
-async fn 発注(db: &DatabaseConnection, vendor_id: i32, number: &str) -> purchase_order::Model {
-    purchase_order::ActiveModel {
-        order_number: Set(number.to_owned()),
-        order_date: Set(NaiveDate::from_ymd_opt(2026, 4, 1).unwrap()),
-        vendor_id: Set(vendor_id),
-        currency: Set("JPY".to_owned()),
+async fn 購入(
+    db: &DatabaseConnection,
+    item_id: i32,
+    order_number: Option<&str>,
+    amount: i64,
+) -> purchase::Model {
+    purchase::ActiveModel {
+        item_type: Set("Device".to_owned()),
+        item_id: Set(item_id),
+        order_number: Set(order_number.map(str::to_owned)),
+        acquired_on: Set(NaiveDate::from_ymd_opt(2026, 4, 1)),
+        amount: Set(amount),
+        supplier: Set(None),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
         ..Default::default()
@@ -420,7 +383,7 @@ macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, 金額は整数のまま往復する);
         全検証!(@one $用意, $属性, 大きな金額でも桁落ちしない);
-        全検証!(@one $用意, $属性, 発注は合計金額を持たない);
+        全検証!(@one $用意, $属性, 発注番号は重複してよい);
         全検証!(@one $用意, $属性, 固定資産は廃棄日と簿価を持たない);
         全検証!(@one $用意, $属性, マイルストーンは予定と実績を別に持つ);
         全検証!(@one $用意, $属性, マイルストーンの日付は日付のまま);

@@ -1,5 +1,5 @@
 {% extends "app_layout.html" %}
-{% block title %}{{ t_title }}{% endblock %}
+{% block title %}{{ t.title }}{% endblock %}
 {% block content %}
 
 <div class="page-head">
@@ -8,67 +8,255 @@
       <a href="/projects">{{ chrome.t_nav_projects }}</a> /
       <a href="/projects/{{ project_id }}/devices">{{ project_name }}</a>
     </p>
-    <h1>{{ t_title }}</h1>
-    <p class="lead">{{ t_lead }}</p>
+    <h1>{{ t.title }}</h1>
+    <p class="lead">{{ t.lead }}</p>
+    {% if is_new %}<p class="hint">{{ t.import_hint }}</p>{% endif %}
   </div>
-  <a class="button ghost" href="/projects/{{ project_id }}/devices">{{ t_back }}</a>
+  <a class="button ghost" href="/projects/{{ project_id }}/devices">{{ t.back }}</a>
 </div>
+
+{% if let Some(host) = registered %}
+<p class="notice"><span class="mono">{{ host }}</span> {{ t.registered }}</p>
+{% endif %}
 
 {% if let Some(message) = error %}
 <p class="error">{{ message }}</p>
 {% endif %}
 
-<form class="card form" method="post" action="{{ action }}">
+{#
+  **JavaScriptを使わない。**開閉と分岐はチェックボックスとラジオに :has() を当てて行う
+  （設計書16.1）。状態がフォームの値そのものなので、検証エラーで描き直したとき、
+  開いていた欄は開いたまま戻る。
+
+  - required は常に見えている欄（ホスト名）だけに付ける。CSSで隠れた欄に付けると、
+    空のまま生き残ってフォーム全体が送信できなくなる
+  - 隠れている欄の値も送信される。形態に合わない項目はサーバーが捨てる
+#}
+<form class="device-form" id="device-form" method="post" action="{{ action }}">
   <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
 
-  <label for="hostname">{{ t_hostname }}</label>
-  <input type="text" id="hostname" name="hostname" value="{{ hostname }}" required>
+  <section class="step">
+    <h2 class="step-head"><span class="step-no">01</span><span class="step-title">{{ t.sec_kind }}</span><span class="step-note">{{ t.sec_kind_hint }}</span></h2>
 
-  <label for="device_type">{{ t_device_type }}</label>
-  <select id="device_type" name="device_type">
-    {% for v in device_types %}
-    <option value="{{ v }}" {% if device_type == *v %}selected{% endif %}>{{ v }}</option>
-    {% endfor %}
-  </select>
+    <fieldset class="field">
+      <legend>{{ t.device_type }} <span class="req">{{ t.required }}</span></legend>
+      {# ラジオは印そのものを押せるようにする。ラベルの当たり判定に頼らない #}
+      <div class="seg">
+        {% for v in device_types %}
+        <label for="type-{{ v }}"><input type="radio" id="type-{{ v }}" name="device_type" value="{{ v }}" {% if device_type == *v %}checked{% endif %}><span>{{ v }}</span></label>
+        {% endfor %}
+      </div>
+      <p class="hint tip tip-Physical">{{ t.tip_physical }}</p>
+      <p class="hint tip tip-Virtual">{{ t.tip_virtual }}</p>
+      <p class="hint tip tip-Container">{{ t.tip_container }}</p>
+      <p class="hint tip tip-Logical">{{ t.tip_logical }}</p>
+    </fieldset>
 
-  <label for="configuration_id">{{ t_configuration }}</label>
-  <select id="configuration_id" name="configuration_id">
-    <option value=""></option>
-    {% for c in configurations %}
-    <option value="{{ c.value }}"
-      {% if configuration_id == c.value %}selected{% endif %}>{{ c.label }}</option>
-    {% endfor %}
-  </select>
-  <p class="hint">{{ t_configuration_hint }}</p>
+    <div class="field only-physical">
+      <label for="configuration_id">{{ t.configuration }} <span class="req srv">{{ t.required }}</span></label>
+      <select id="configuration_id" name="configuration_id">
+        <option value=""></option>
+        {% for c in configurations %}
+        <option value="{{ c.value }}" {% if configuration_id == c.value %}selected{% endif %}>{{ c.label }}</option>
+        {% endfor %}
+      </select>
+      <p class="hint">{{ t.configuration_hint }}</p>
+    </div>
 
-  <label for="device_category">{{ t_device_category }}</label>
-  <select id="device_category" name="device_category">
-    <option value=""></option>
-    {% for c in categories %}
-    <option value="{{ c.value }}" {% if device_category == c.value %}selected{% endif %}>{{ c.label }}</option>
-    {% endfor %}
-  </select>
-  <p class="hint">{{ t_device_category_hint }}</p>
+    <div class="field only-virtual">
+      <label for="device_category">{{ t.device_category }} <span class="req srv">{{ t.required }}</span></label>
+      <select id="device_category" name="device_category">
+        <option value=""></option>
+        {% for c in categories %}
+        <option value="{{ c.value }}" {% if device_category == c.value %}selected{% endif %}>{{ c.label }}</option>
+        {% endfor %}
+      </select>
+      <p class="hint">{{ t.device_category_hint }}</p>
+    </div>
+  </section>
 
-  <label for="serial_number">{{ t_serial_number }}</label>
-  <input type="text" id="serial_number" name="serial_number" value="{{ serial_number }}">
-  <p class="hint">{{ t_serial_hint }}</p>
+  <section class="step">
+    <h2 class="step-head"><span class="step-no">02</span><span class="step-title">{{ t.sec_identity }}</span><span class="step-note">{{ t.sec_identity_hint }}</span></h2>
 
-  <label for="asset_number">{{ t_asset_number }}</label>
-  <input type="text" id="asset_number" name="asset_number" value="{{ asset_number }}">
-  <p class="hint">{{ t_asset_hint }}</p>
+    <div class="field w-host">
+      <label for="hostname">{{ t.hostname }} <span class="req">{{ t.required }}</span></label>
+      <input type="text" class="mono" id="hostname" name="hostname" value="{{ hostname }}" required>
+      <p class="hint">{{ t.hostname_hint }}</p>
+    </div>
 
-  <label for="power_watt">{{ t_power_watt }}</label>
-  <input type="number" id="power_watt" name="power_watt" value="{{ power_watt }}" min="0">
+    <div class="field w-serial only-physical">
+      <label for="serial_number">{{ t.serial_number }} <span class="opt">{{ t.optional }}</span></label>
+      <input type="text" class="mono" id="serial_number" name="serial_number" value="{{ serial_number }}">
+      <p class="hint">{{ t.serial_hint }}</p>
+    </div>
 
-  <label for="status">{{ t_status }}</label>
-  <select id="status" name="status">
-    {% for s in statuses %}
-    <option value="{{ s.value }}" {% if status == s.value %}selected{% endif %}>{{ s.label }}</option>
-    {% endfor %}
-  </select>
+    <div class="field w-asset">
+      <label for="asset_number">{{ t.asset_number }} <span class="opt">{{ t.optional }}</span></label>
+      <input type="text" class="mono" id="asset_number" name="asset_number" value="{{ asset_number }}">
+      <p class="hint">{{ t.asset_hint }}</p>
+    </div>
+  </section>
 
-  <button type="submit">{{ t_submit }}</button>
+  <section class="step">
+    <h2 class="step-head"><span class="step-no">03</span><span class="step-title">{{ t.sec_state }}</span></h2>
+    <div class="grid2">
+      <div class="field">
+        <label for="status">{{ t.status }} <span class="req">{{ t.required }}</span></label>
+        <select id="status" name="status">
+          {% for s in statuses %}
+          <option value="{{ s.value }}" {% if status == s.value %}selected{% endif %}>{{ s.label }}</option>
+          {% endfor %}
+        </select>
+        <p class="hint">{{ t.status_hint }}</p>
+      </div>
+      <div class="field">
+        <label for="power_watt">{{ t.power_watt }} <span class="opt">{{ t.optional }}</span></label>
+        <span class="with-unit"><input type="number" class="mono num" id="power_watt" name="power_watt" value="{{ power_watt }}" min="0"><span class="mono">W</span></span>
+        <p class="hint">{{ t.power_hint }}</p>
+      </div>
+    </div>
+  </section>
+
+  {% if is_new %}
+  <section class="step">
+    <h2 class="step-head"><span class="step-no">04</span><span class="step-title">{{ t.sec_money }}</span><span class="step-note">{{ t.sec_money_hint }}</span></h2>
+
+    <div class="grid2">
+      <div class="field">
+        <label for="order_number">{{ t.order_number }} <span class="opt">{{ t.optional }}</span></label>
+        <input type="text" class="mono" id="order_number" name="order_number" value="{{ order_number }}">
+        <p class="hint">{{ t.order_number_hint }}</p>
+      </div>
+      <div class="field">
+        <label for="supplier">{{ t.supplier }} <span class="opt">{{ t.optional }}</span></label>
+        <input type="text" id="supplier" name="supplier" value="{{ supplier }}">
+        <p class="hint">{{ t.supplier_hint }}</p>
+      </div>
+      <div class="field">
+        <label for="acquisition_cost">{{ t.acquisition_cost }}（{{ currency }}） <span class="opt">{{ t.optional }}</span></label>
+        <input type="text" class="mono num" id="acquisition_cost" name="acquisition_cost" value="{{ acquisition_cost }}" inputmode="decimal">
+        <p class="hint">{{ t.acquisition_cost_hint }}</p>
+      </div>
+      <div class="field">
+        <label for="acquisition_date">{{ t.acquisition_date }} <span class="opt">{{ t.optional }}</span></label>
+        <input type="date" class="mono" id="acquisition_date" name="acquisition_date" value="{{ acquisition_date }}">
+        <p class="hint">{{ t.acquisition_date_hint }}</p>
+      </div>
+    </div>
+
+    {# スイッチの中身は本物のチェックボックス。Tabで届き、Spaceで入切できる #}
+    <div class="switch-row">
+      <input class="switch" type="checkbox" id="manage_as_fixed_asset" name="manage_as_fixed_asset" value="1" {% if manage_as_fixed_asset %}checked{% endif %}>
+      <label for="manage_as_fixed_asset">{{ t.manage_as_fixed_asset }}</label>
+    </div>
+    <div class="sub fa-fields">
+      <p class="hint">{{ t.fixed_asset_hint }}</p>
+      <div class="grid2">
+        <div class="field">
+          <label for="useful_life_years">{{ t.useful_life_years }} <span class="req srv">{{ t.required }}</span></label>
+          <input type="text" class="mono num" id="useful_life_years" name="useful_life_years" value="{{ useful_life_years }}" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label for="depreciation_method">{{ t.depreciation_method }} <span class="req srv">{{ t.required }}</span></label>
+          <select id="depreciation_method" name="depreciation_method">
+            {% for m in methods %}
+            <option value="{{ m.value }}" {% if depreciation_method == m.value %}selected{% endif %}>{{ m.label }}</option>
+            {% endfor %}
+          </select>
+          <p class="hint">{{ t.depreciation_hint }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="switch-row">
+      <input class="switch" type="checkbox" id="register_maintenance" name="register_maintenance" value="1" {% if register_maintenance %}checked{% endif %}>
+      <label for="register_maintenance">{{ t.register_maintenance }}</label>
+    </div>
+    <div class="sub mc-fields">
+      <div class="seg">
+        <label for="mc-existing"><input type="radio" id="mc-existing" name="maintenance_mode" value="existing" {% if !maintenance_new %}checked{% endif %}><span>{{ t.maintenance_existing }}</span></label>
+        <label for="mc-new"><input type="radio" id="mc-new" name="maintenance_mode" value="new" {% if maintenance_new %}checked{% endif %}><span>{{ t.maintenance_new }}</span></label>
+      </div>
+
+      <div class="field mc-existing">
+        <label for="maintenance_contract_id">{{ t.maintenance_contract }} <span class="req srv">{{ t.required }}</span></label>
+        <select id="maintenance_contract_id" name="maintenance_contract_id">
+          <option value=""></option>
+          {% for c in contracts %}
+          <option value="{{ c.value }}" {% if maintenance_contract_id == c.value %}selected{% endif %}>{{ c.label }}</option>
+          {% endfor %}
+        </select>
+        <p class="hint">{{ t.maintenance_contract_hint }}</p>
+      </div>
+
+      <div class="mc-new">
+        <div class="grid2">
+          <div class="field">
+            <label for="contract_number">{{ t.contract_number }} <span class="req srv">{{ t.required }}</span></label>
+            <input type="text" class="mono" id="contract_number" name="contract_number" value="{{ contract_number }}">
+          </div>
+          <div class="field">
+            <label for="contract_vendor_id">{{ t.contract_vendor }} <span class="req srv">{{ t.required }}</span></label>
+            <select id="contract_vendor_id" name="contract_vendor_id">
+              <option value=""></option>
+              {% for v in vendors %}
+              <option value="{{ v.value }}" {% if contract_vendor_id == v.value %}selected{% endif %}>{{ v.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="contract_start">{{ t.contract_start }} <span class="req srv">{{ t.required }}</span></label>
+            <input type="date" class="mono" id="contract_start" name="contract_start" value="{{ contract_start }}">
+          </div>
+          <div class="field">
+            <label for="contract_end">{{ t.contract_end }} <span class="req srv">{{ t.required }}</span></label>
+            <input type="date" class="mono" id="contract_end" name="contract_end" value="{{ contract_end }}">
+            <p class="hint">{{ t.contract_end_hint }}</p>
+          </div>
+          <div class="field">
+            <label for="contract_amount">{{ t.contract_amount }}（{{ currency }}） <span class="req srv">{{ t.required }}</span></label>
+            <input type="text" class="mono num" id="contract_amount" name="contract_amount" value="{{ contract_amount }}" inputmode="decimal">
+          </div>
+          <div class="field">
+            <label for="quote_contact">{{ t.quote_contact }} <span class="opt">{{ t.optional }}</span></label>
+            <input type="text" id="quote_contact" name="quote_contact" value="{{ quote_contact }}">
+          </div>
+        </div>
+        <div class="field">
+          <label for="failure_contact">{{ t.failure_contact }} <span class="opt">{{ t.optional }}</span></label>
+          <input type="text" id="failure_contact" name="failure_contact" value="{{ failure_contact }}">
+          <p class="hint">{{ t.failure_contact_hint }}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <div class="form-actions">
+    {% if is_new %}
+    {# 送信ボタンは2つ。違うのは then の値だけ #}
+    <button type="submit" name="then" value="detail">{{ t.submit }}</button>
+    <button type="submit" class="ghost" name="then" value="again">{{ t.submit_again }}</button>
+    {% else %}
+    <button type="submit">{{ t.submit }}</button>
+    {% endif %}
+  </div>
+
+  {% if is_new %}
+  <p class="hint">{{ t.again_hint }}</p>
+
+  {# 導線を明示する。ネットワークとSBOMはこの画面に置かない（設計書16.1） #}
+  <div class="next-steps">
+    <h2 class="step-head">{{ t.next_steps }}</h2>
+    <p class="hint">{{ t.next_steps_lead }}</p>
+    <ol>
+      <li class="current"><span class="step-no">01</span>{{ t.step_register }}<span class="where">{{ t.step_register_where }}</span></li>
+      <li><span class="step-no">02</span>{{ t.step_parts }}<span class="where">{{ t.step_parts_where }}</span></li>
+      <li><span class="step-no">03</span>{{ t.step_interfaces }}<span class="where">{{ t.step_interfaces_where }}</span></li>
+      <li><span class="step-no">04</span>{{ t.step_sbom }}<span class="where">{{ t.step_sbom_where }}</span></li>
+    </ol>
+  </div>
+  {% endif %}
 </form>
 
 {% endblock %}

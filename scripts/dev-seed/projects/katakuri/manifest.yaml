@@ -13,6 +13,6 @@ files:
   - { entity: interface_stack,      path: bonds.csv }
   - { entity: interface_vlan,       path: interface-vlans.csv }
   - { entity: ip_address,           path: ips.csv }
-  - { entity: purchase_order,       path: orders.csv }
+  - { entity: purchase,             path: purchases.csv }
   - { entity: fixed_asset,          path: assets.csv }
   - { entity: maintenance_contract, path: contracts.csv }

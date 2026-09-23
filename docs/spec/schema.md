@@ -332,13 +332,14 @@
 
 ## 7. QCD（10章）
 
-### PURCHASE_ORDER
-`order_number`, `order_date`(date), `vendor_id`(FK), `currency`
+### PURCHASE
+`item_type`(Device/PartInstance/SoftwareInstance), `item_id`, `order_number`(nullable), `acquired_on`(date nullable), `amount`(**整数、最小通貨単位**。24.2.1), `supplier`(nullable)
 
-**`amount` を持たない**（明細合計から計算。旧B-5）。
+**品目ごとに1行。発注を表すテーブルは持たない。**`order_number` は自由入力で**重複してよい**（一意の索引を張らない）。注文単位の合計は `order_number` で寄せて求める。
 
-### PURCHASE_ORDER_ITEM
-`purchase_order_id`(FK), `item_type`(Device/PartInstance/SoftwareInstance), `item_id`, `quantity`, `unit_price`(**整数、最小通貨単位**。24.2.1)
+- **数量・通貨を持たない。**数えるのは実体（DEVICE / PART_INSTANCE）で、金額は `PROJECT.currency` で表す
+- **`supplier` は `VENDOR` を参照しない。**代理店・商社から買うため、カタログのベンダーに販売店を混ぜない
+- **`acquired_on` は現品を受け取った日。**発注日は持たない
 
 ### FIXED_ASSET
 `item_type`, `item_id`, `acquisition_cost`(**整数、最小通貨単位**), `depreciation_method`(straight_line/declining_balance), `useful_life_years`, `acquisition_date`(date)
@@ -346,7 +347,7 @@
 **`disposal_date` を持たない**（DEVICE_ASSIGNMENT等の`Disposed`行から求める。旧B-1）。簿価も保存しない。
 
 ### MAINTENANCE_CONTRACT
-`contract_number`, `vendor_id`(FK), `start_date`, `end_date`, `amount`(**整数、最小通貨単位**), `quote_contact`, `failure_contact`, `purchase_order_id`(FK nullable)
+`contract_number`, `vendor_id`(FK), `start_date`, `end_date`, `amount`(**整数、最小通貨単位**), `quote_contact`, `failure_contact`, `order_number`(nullable、自由入力)
 
 **保守期限はこの `end_date` のみが正**（旧B-2）。
 

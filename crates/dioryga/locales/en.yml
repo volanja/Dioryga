@@ -295,7 +295,7 @@ import:
   blocked: There are errors, so this cannot be applied. Fix the file and upload it again
   no_file: No file was selected
   too_large: The file is too large (8 MB limit). Use the dioryga import command instead
-  bad_as_of: The effective date is not in a valid format
+  bad_as_of: The effective date cannot be read. Enter it like 2026-09-23
   expired: The staged upload has expired or was already applied. Please upload again
 
 password_change:
@@ -360,7 +360,7 @@ work_orders:
   error_target_project: Transfer requires a target project
   error_target_project_unused: A target project can only be set for Transfer
   error_target_project_same: Choose a different project as the target
-  error_due_date: Enter the due date as YYYY-MM-DD
+  error_due_date: The due date cannot be read. Enter it like 2026-09-23
   error_already_decided: This approval has already been decided
   error_not_planned: Only planned work orders can be approved
   error_self_approval: You cannot approve a work order you are assigned to. Ask another approver
@@ -851,6 +851,9 @@ milestones:
   error_type: Invalid milestone type
   error_change_type: Invalid change type
   error_duplicate: That device is already linked to this milestone
+  error_planned_date_required: Enter the planned date
+  error_planned_date: The planned date cannot be read. Enter it like 2026-09-23
+  error_actual_date: The actual date cannot be read. Enter it like 2026-09-23
 
 power:
   title: Power

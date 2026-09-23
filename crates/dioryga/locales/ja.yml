@@ -295,7 +295,7 @@ import:
   blocked: エラーがあるため反映できません。ファイルを直してから、もう一度アップロードしてください
   no_file: ファイルが選ばれていません
   too_large: ファイルが大きすぎます（上限8MB）。コマンドラインの dioryga import をお使いください
-  bad_as_of: 基準日の形式が正しくありません
+  bad_as_of: 基準日を読めません。2026/09/23 のように入れてください
   expired: 預かった内容の期限が切れたか、既に反映済みです。もう一度アップロードしてください
 
 password_change:
@@ -360,7 +360,7 @@ work_orders:
   error_target_project: Transfer では移譲先プロジェクトを指定してください
   error_target_project_unused: 移譲先プロジェクトは Transfer でのみ指定できます
   error_target_project_same: 移譲先には別のプロジェクトを指定してください
-  error_due_date: 期日は YYYY-MM-DD の形式で入力してください
+  error_due_date: 期日を読めません。2026/09/23 のように入れてください
   error_already_decided: この承認は既に処理済みです
   error_not_planned: 承認できるのは計画中のチケットだけです
   error_self_approval: 自分が担当のチケットは承認できません。他の承認者に依頼してください
@@ -851,6 +851,9 @@ milestones:
   error_type: 種別の値が不正です
   error_change_type: 変更種別の値が不正です
   error_duplicate: その機器は既にこのマイルストーンの対象です
+  error_planned_date_required: 予定日を入れてください
+  error_planned_date: 予定日を読めません。2026/09/23 のように入れてください
+  error_actual_date: 実績日を読めません。2026/09/23 のように入れてください
 
 power:
   title: 電力集計

@@ -209,8 +209,15 @@ pub async fn create(
     if !TYPES.contains(&form.milestone_type.as_str()) {
         return 一覧を描く(&state, &current, project_id, 誤り("milestones.error_type")).await;
     }
+    // **欠けと読めないを分ける。**空欄の利用者に形を直せと伝えても、何を
+    // 直せばよいか分からない
+    if form.planned_date.trim().is_empty() {
+        let e = 誤り("milestones.error_planned_date_required");
+        return 一覧を描く(&state, &current, project_id, e).await;
+    }
     let Some(planned) = 日付(&form.planned_date) else {
-        return 一覧を描く(&state, &current, project_id, 誤り("costs.error_date")).await;
+        let e = 誤り("milestones.error_planned_date");
+        return 一覧を描く(&state, &current, project_id, e).await;
     };
 
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
@@ -274,7 +281,8 @@ pub async fn complete(
             v => match 日付(v) {
                 Some(d) => Some(d),
                 None => {
-                    return 一覧を描く(&state, &current, project_id, 誤り("costs.error_date")).await
+                    let e = 誤り("milestones.error_actual_date");
+                    return 一覧を描く(&state, &current, project_id, e).await;
                 }
             },
         }
@@ -385,8 +393,9 @@ fn 戻り先(project_id: i32) -> Response {
     Redirect::to(&format!("/projects/{project_id}/milestones")).into_response()
 }
 
+/// 画面の日付。`2026-09-23` も `2026/09/23` も読む（[`crate::date::読む`]）。
 fn 日付(value: &str) -> Option<NaiveDate> {
-    NaiveDate::parse_from_str(value.trim(), "%Y-%m-%d").ok()
+    crate::date::読む(value)
 }
 
 async fn 入場(

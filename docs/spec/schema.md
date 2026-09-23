@@ -194,7 +194,7 @@
 | serial_number | string | nullable、Virtual/Containerは無し |
 | asset_number | string | |
 | power_watt | int | |
-| status | string | running/broken/repair/plan/building |
+| status | string | running/failed/repairing/planned/provisioning |
 
 **`in_stock`/`disposed` は `status` に持たない**（DEVICE_ASSIGNMENTから導出。旧B-1）。
 
@@ -304,7 +304,7 @@
 ### SOFTWARE_INSTANCE (9.4, 9.4.1)
 `software_catalog_id`(FK), `license_key`(nullable), `asset_number`(nullable), `retired_at`(datetime nullable、null=保有中)
 
-**`status` を持たない。**「インストールされているか」は `SOFTWARE_INSTALLATION` の現行行から導出する（旧B-1と同じ判断）。ハードウェアの `broken`/`repair` はライセンスに対応物がなく、稼働中サービスの異常は監視ツールの領域でスコープ外。導出できない「まだ保有しているか」だけを `retired_at` で持つ。
+**`status` を持たない。**「インストールされているか」は `SOFTWARE_INSTALLATION` の現行行から導出する（旧B-1と同じ判断）。ハードウェアの `failed`/`repairing` はライセンスに対応物がなく、稼働中サービスの異常は監視ツールの領域でスコープ外。導出できない「まだ保有しているか」だけを `retired_at` で持つ。
 
 ### SOFTWARE_INSTALLATION (9.4) — 履歴
 `software_instance_id`(FK), `device_id`(FK), `work_order_id`, `from_date`, `to_date`
@@ -358,7 +358,9 @@
 `item_type`(MountContainer/Project), `item_id`, `cost_type`, `vendor_id`(FK nullable), `amount`(**整数、最小通貨単位**), `billing_cycle`(Monthly/Annual), `start_date`, `end_date`(nullable), `created_by`(FK User)
 
 ### MILESTONE (10.4)
-`project_id`(FK), `milestone_type`, `planned_date`(**date**), `actual_date`(date nullable), `status`(planned/completed/cancelled), `description`
+`uid`(**unique**), `external_id`(nullable), `project_id`(FK), `milestone_type`, `planned_date`(**date**), `actual_date`(date nullable), `status`(planned/completed/cancelled), `description`
+
+**`uid` / `external_id` は取込の突合に使う**（23.5）。無いと同じファイルを2回流すたびに増える。
 
 **日時粒度は意図的に`date`のまま**（他の履歴テーブルを`datetime`化した理由が当てはまらない。C-5）。
 
@@ -372,6 +374,8 @@
 ### WORK_ORDER
 | カラム | 備考 |
 |---|---|
+| uid | **unique**。取込の突合に使う（23.5） |
+| external_id | nullable。取込元システムでの番号（23.5） |
 | project_id | 起票元プロジェクト |
 | target_project_id | nullable、work_type=Transferの移譲先 |
 | device_id | nullable |
@@ -388,6 +392,8 @@
 `work_order_id`(FK), `required_project_id`(FK), `approver_id`(FK User nullable), `status`(pending/approved/rejected), `approved_at`(nullable)
 
 WORK_ORDERの`status`は、紐づく**全**WORK_ORDER_APPROVALが`approved`になった時点で`approved`へ遷移する。
+
+**人が連絡に使うチケット番号は `W-<id>`。列としては持たない**（11.4-11）。`id` はプロジェクトを横断して一意であり、保存すると二重管理になる。
 
 **`work_order_id` を持つ履歴テーブル**：PART_INSTANCE_LOCATION, DEVICE_ASSIGNMENT, SOFTWARE_INSTALLATION, FIRMWARE_VERSION, SBOM_IMPORT, CABLE_CONNECTION, DEVICE_MOUNT, OS_INTERFACE, INTERFACE_VLAN, IP_ADDRESS, MILESTONE_DEVICE
 

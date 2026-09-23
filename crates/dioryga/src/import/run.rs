@@ -17,8 +17,8 @@ use entity::{app_user, import_run};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
 use super::{
-    catalog, costs, file_hash, instances, network, organization, parts, placement, ImportError,
-    Outcome, Report,
+    catalog, costs, file_hash, instances, network, organization, parts, placement, workflow,
+    ImportError, Outcome, Report,
 };
 use crate::auth::authorization;
 use crate::repository::AuditedTx;
@@ -260,6 +260,9 @@ struct 束 {
     purchases: Vec<costs::PurchaseRow>,
     fixed_assets: Vec<costs::FixedAssetRow>,
     contracts: Vec<costs::MaintenanceContractRow>,
+    milestones: Vec<workflow::MilestoneRow>,
+    work_orders: Vec<workflow::WorkOrderRow>,
+    approvals: Vec<workflow::ApprovalRow>,
 }
 
 /// マニフェストの `files` を読み分ける。
@@ -291,6 +294,9 @@ fn 読み分ける(manifest_path: &Path, files: &[instances::FileRef]) -> Result
             "maintenance_contract" => out
                 .contracts
                 .extend(costs::parse_maintenance_contracts(&csv)?),
+            "milestone" => out.milestones.extend(workflow::parse_milestones(&csv)?),
+            "work_order" => out.work_orders.extend(workflow::parse_work_orders(&csv)?),
+            "work_order_approval" => out.approvals.extend(workflow::parse_approvals(&csv)?),
             other => return Err(RunError::UnsupportedEntity(other.to_owned())),
         }
     }
@@ -384,6 +390,20 @@ async fn 通しで取り込む(
     束ねる(
         &mut report,
         costs::保守契約を取り込む(tx, project_id, &束.contracts, currency).await?,
+    );
+    // **マイルストーンとチケットは最後。**チケットは機器を指し、承認はチケットを
+    // 指す（23.5）。承認の整合（11.4-7）も、全チケットが入った状態で見る
+    束ねる(
+        &mut report,
+        workflow::マイルストーンを取り込む(tx, project_id, &束.milestones).await?,
+    );
+    束ねる(
+        &mut report,
+        workflow::チケットを取り込む(tx, project_id, &束.work_orders, as_of).await?,
+    );
+    束ねる(
+        &mut report,
+        workflow::承認を取り込む(tx, project_id, &束.approvals, as_of).await?,
     );
     Ok(report)
 }

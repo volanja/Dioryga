@@ -587,7 +587,7 @@ async fn 実行すると予約が実機になる(db: &DatabaseConnection) {
 
 /// **稼働中の機器の状態を勝手に書き換えないこと**。
 ///
-/// 修理（Repair）の実行で `broken` が `running` に変わってはいけない。
+/// 修理（Repair）の実行で `failed` が `running` に変わってはいけない。
 async fn 予約でない機器の状態は変えない(db: &DatabaseConnection) {
     let 場 = 増設の舞台(db, "keepstatus@example.com").await;
     let 承認者 = 利用者(db, "keep-approver@example.com").await;
@@ -813,6 +813,7 @@ async fn 増設の舞台(db: &DatabaseConnection, email: &str) -> 増設の舞�
     場.device_id = 予約対象の機器(db, &場, "new-srv", "planned").await;
 
     let w = work_order::ActiveModel {
+        uid: Set(uuid::Uuid::new_v4().to_string()),
         project_id: Set(p.id),
         device_id: Set(Some(場.device_id)),
         work_type: Set("Addition".to_owned()),
@@ -953,6 +954,7 @@ async fn 起票(
     primary: Option<i32>,
 ) -> work_order::Model {
     work_order::ActiveModel {
+        uid: Set(uuid::Uuid::new_v4().to_string()),
         project_id: Set(project_id),
         target_project_id: Set(target_project_id),
         work_type: Set(work_type.to_owned()),

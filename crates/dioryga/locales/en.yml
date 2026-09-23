@@ -319,6 +319,7 @@ work_orders:
   status_open: In progress
   status_all: Include completed and cancelled
   mine: Assigned to me
+  number: Number
   ticket: Title
   work_type: Type
   work_type_hint: A target project is required only when the type is Transfer

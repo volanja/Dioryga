@@ -218,6 +218,9 @@ pub async fn create(
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     let now = Utc::now();
     tx.insert(milestone::ActiveModel {
+        // **画面から作る行にも採番する。**取込が突合に使う（23.5）
+        uid: Set(uuid::Uuid::new_v4().to_string()),
+        external_id: Set(None),
         project_id: Set(project_id),
         milestone_type: Set(form.milestone_type.clone()),
         planned_date: Set(planned),

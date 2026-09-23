@@ -67,7 +67,9 @@ use crate::auth::authorization::{self, ADMINISTRATOR, APPROVER};
 use crate::auth::middleware::CurrentUser;
 use crate::error::{AppError, AppResult};
 use crate::repository::{Actor, AuditedTx};
-use crate::server::view::{render, チケットの状態の表示, Chrome, Locale};
+use crate::server::view::{
+    render, チケットの状態の表示, チケット番号, Chrome, Locale
+};
 use crate::server::AppState;
 
 /// 語彙（`vocabularies.md`、設計書11.3）。DB制約にはせず、画面はリストから選ばせる。
@@ -250,6 +252,8 @@ impl Transition {
 
 struct WorkOrderRow {
     id: i32,
+    /// 人が連絡に使う番号（11.4-11）。`id` から作る
+    number: String,
     title: String,
     work_type: String,
     status: String,
@@ -277,6 +281,7 @@ struct WorkOrdersPage {
     t_status_open: String,
     t_status_all: String,
     t_mine: String,
+    t_number: String,
     t_ticket: String,
     t_work_type: String,
     t_assignee: String,
@@ -317,6 +322,8 @@ struct WorkOrderDetailPage {
     project_id: i32,
     project_name: String,
     work_order_id: i32,
+    /// 見出しに添える番号（11.4-11）。
+    number: String,
     t_back: String,
     t_basic: String,
     t_approvals: String,
@@ -489,6 +496,7 @@ pub async fn list(
                     .and_then(|id| 氏名.iter().find(|(i, _)| *i == id).map(|(_, n)| n.clone()))
                     .unwrap_or_else(|| "—".to_owned()),
                 due_date: w.due_date.map(|d| d.to_string()).unwrap_or_default(),
+                number: チケット番号(w.id),
                 id: w.id,
                 title: w.title,
                 work_type: w.work_type,
@@ -517,6 +525,7 @@ pub async fn list(
         t_status_open: rust_i18n::t!("work_orders.status_open", locale = l).to_string(),
         t_status_all: rust_i18n::t!("work_orders.status_all", locale = l).to_string(),
         t_mine: rust_i18n::t!("work_orders.mine", locale = l).to_string(),
+        t_number: rust_i18n::t!("work_orders.number", locale = l).to_string(),
         t_ticket: rust_i18n::t!("work_orders.ticket", locale = l).to_string(),
         t_work_type: rust_i18n::t!("work_orders.work_type", locale = l).to_string(),
         t_assignee: rust_i18n::t!("work_orders.assignee", locale = l).to_string(),
@@ -639,6 +648,7 @@ async fn 詳細を描く(
         t_none: rust_i18n::t!("devices.none", locale = l).to_string(),
         t_all_approved_hint: rust_i18n::t!("work_orders.all_approved_hint", locale = l).to_string(),
         title: w.title.clone(),
+        number: チケット番号(w.id),
         // 訳すのは表示だけ。保存する値は語彙のまま（#172）
         status: チケットの状態の表示(&w.status, l),
         basic,
@@ -911,6 +921,9 @@ pub async fn create(
     let now = Utc::now();
     let created = tx
         .insert(work_order::ActiveModel {
+            // **画面から起票した行にも採番する。**取込が突合に使う（23.5）
+            uid: Set(uuid::Uuid::new_v4().to_string()),
+            external_id: Set(None),
             project_id: Set(project_id),
             target_project_id: Set(target_project_id),
             device_id: Set(数値(&form.device_id)),
@@ -1306,7 +1319,7 @@ async fn 予約を解放する(
 
 /// 実行開始時に、予約中の機器を稼働中にする（設計書16.2のフロー）。
 ///
-/// **`plan` のときだけ動かす。**既に `running` の機器（移設等）や、`broken` の
+/// **`planned` のときだけ動かす。**既に `running` の機器（移設等）や、`failed` の
 /// まま修理しているものを勝手に書き換えない。
 async fn 予約を実機にする(
     tx: &AuditedTx,

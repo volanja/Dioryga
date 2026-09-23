@@ -1,4 +1,6 @@
 uid,external_id,hostname,serial_number,asset_number,device_type,configuration_vendor,configuration_model,configuration_name,power_watt,status
-,SV-0001,web01,JP1234567,,Physical,Fujitsu,PRIMERGY RX4770 M8,標準構成,450,running
-,SV-0002,web02,JP1234568,,Physical,Fujitsu,PRIMERGY RX4770 M8,標準構成,450,running
-,SV-0003,vm-app01,,,Virtual,,,,0,running
+,MZ-1001,mizubasho-app01,HM44-1001,B-2001,Physical,ハイマツ電機,HM-4400,標準構成,650,running
+,MZ-1002,mizubasho-app02,HM44-1002,B-2002,Physical,ハイマツ電機,HM-4400,標準構成,650,running
+,MZ-1003,mizubasho-db01,HM44-1003,B-2003,Physical,ハイマツ電機,HM-4400,DB構成,900,provisioning
+,MZ-2001,mizubasho-tor01,KS24-2001,,Physical,,,,150,running
+,MZ-3001,mizubasho-vm01,,,Virtual,,,,0,running

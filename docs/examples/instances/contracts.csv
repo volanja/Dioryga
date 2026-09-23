@@ -1,0 +1,4 @@
+contract_number,vendor,start_date,end_date,amount,quote_contact,failure_contact,item_type,item_hostname,item_serial_number
+MC-MZ-2026-01,ハイマツ電機,2026-06-01,2029-05-31,360000,見積窓口（架空）,障害窓口（架空）,Device,mizubasho-app01,
+MC-MZ-2026-01,ハイマツ電機,2026-06-01,2029-05-31,360000,見積窓口（架空）,障害窓口（架空）,Device,mizubasho-app02,
+MC-MZ-2026-01,ハイマツ電機,2026-06-01,2029-05-31,360000,見積窓口（架空）,障害窓口（架空）,Device,mizubasho-db01,

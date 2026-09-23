@@ -1,0 +1,5 @@
+serial_number,part_vendor,part_number,status,location_type,location_hostname,location_name,chassis_slot
+HMD5-1001,ハイマツ電機,HM-DIMM-64G5,running,Device,mizubasho-app01,,DIMM1
+HMD5-1002,ハイマツ電機,HM-DIMM-64G5,running,Device,mizubasho-app01,,DIMM2
+HMS-1001,ハイマツ電機,HM-SSD-3840,running,Device,mizubasho-db01,,Bay1
+HMS-1002,ハイマツ電機,HM-SSD-3840,running,Device,mizubasho-db01,,Bay2

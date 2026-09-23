@@ -1,0 +1,5 @@
+uid,external_id,work_type,title,description,device_uid,device_external_id,device_hostname,device_serial_number,target_project,primary_assignee,secondary_assignee,due_date,status,cancelled_reason
+,MZ-WO-01,Relocation,mizubasho-app01 を新しいラックへ移す,移設の第1陣。,,,mizubasho-app01,,,yarigatake,,2026-06-20,completed,
+,MZ-WO-02,Repair,mizubasho-db01 のSSDを交換する,Bay2 のSSDで障害の予兆を検知した。,,,mizubasho-db01,,,yarigatake,,2026-09-30,approved,
+,MZ-WO-03,Addition,DB用のサーバーを1台増やす,対象の機器はまだ無い。,,,,,,yarigatake,,2026-12-01,planned,
+,MZ-WO-04,Disposal,mizubasho-vm01 を廃止する,,,,mizubasho-vm01,,,yarigatake,,2026-08-31,cancelled,移行先が決まらず当面は現行のまま運用する

@@ -1,0 +1,4 @@
+uid,external_id,milestone_type,planned_date,actual_date,status,description
+,MZ-MS-01,ServiceStart,2026-07-01,2026-07-08,completed,移設後のサービス再開
+,MZ-MS-02,ServiceMaintenance,2026-10-15,,planned,ファームウェアの定期更新
+,MZ-MS-03,ServiceEnd,2031-03-31,,planned,旧環境の利用終了

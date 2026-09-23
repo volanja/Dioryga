@@ -1,0 +1,4 @@
+cidr,vlan_tag,vlan_name,zone,description
+10.30.10.0/24,310,mz-app,,業務系
+10.30.20.0/24,320,mz-db,,データベース
+10.30.90.0/24,390,mz-mgmt,,管理系

@@ -1,0 +1,7 @@
+hostname,os_interface_name,interface_type,aggregation_mode
+mizubasho-app01,ens1f0,Physical,
+mizubasho-app01,ens1f1,Physical,
+mizubasho-app01,bond0,Bond,LACP
+mizubasho-app01,eno1,Physical,
+mizubasho-db01,ens1f0,Physical,
+mizubasho-vm01,eth0,Virtual,

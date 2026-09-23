@@ -1523,15 +1523,14 @@ fn 数値(value: &str) -> Option<i32> {
     value.trim().parse().ok()
 }
 
-/// 空なら未設定、書式が違えば誤り。**黙って未設定に落とさない**（Q-21）。
+/// 空なら未設定、読めなければ誤り。**黙って未設定に落とさない**（Q-21）。
+///
+/// `2026-09-23` も `2026/09/23` も読む（[`crate::date::読む`]）。
 fn 日付(value: &str) -> Result<Option<NaiveDate>, ()> {
-    let value = value.trim();
-    if value.is_empty() {
+    if value.trim().is_empty() {
         return Ok(None);
     }
-    NaiveDate::parse_from_str(value, "%Y-%m-%d")
-        .map(Some)
-        .map_err(|_| ())
+    crate::date::読む(value).map(Some).ok_or(())
 }
 
 async fn 入場(

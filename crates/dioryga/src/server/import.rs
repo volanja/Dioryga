@@ -356,14 +356,16 @@ async fn 受け取る(mut multipart: Multipart) -> Result<Upload, &'static str> 
             "as_of" => {
                 if let Ok(v) = field.text().await {
                     if !v.trim().is_empty() {
-                        // `<input type="date">` は YYYY-MM-DD を送る
-                        match chrono::NaiveDate::parse_from_str(v.trim(), "%Y-%m-%d") {
-                            Ok(d) => {
+                        // **画面の欄であり、ファイルの中身ではない。**画面の
+                        // 日付と同じく `2026/09/23` も読む（[`crate::date::読む`]）。
+                        // マニフェストの `as_of`（23.5）はこの寛容さを持たない
+                        match crate::date::読む(&v) {
+                            Some(d) => {
                                 upload.as_of = d
                                     .and_hms_opt(0, 0, 0)
                                     .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc))
                             }
-                            Err(_) => return Err("import.bad_as_of"),
+                            None => return Err("import.bad_as_of"),
                         }
                     }
                 }

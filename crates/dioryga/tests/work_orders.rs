@@ -62,6 +62,71 @@ async fn 起票すると承認待ちになる(db: &DatabaseConnection) {
     assert_eq!(承認[0].status, "pending");
 }
 
+/// **期日は見えている形（`2026/09/23`）で入れても通ること。**
+///
+/// `<input type="date">` は送信時には `2026-09-23` を送るが、画面に見えているのは
+/// `2026/09/23` であり、日付入力に対応していないブラウザでは利用者がその形で打つ。
+async fn 期日は斜線区切りでも通る(db: &DatabaseConnection) {
+    let (user, p) = 準備(db, "slash@example.com", "Operator").await;
+    let (状態, token) = 認証済み(db, &user).await;
+
+    let (status, body) = 送信(
+        状態,
+        &format!("/projects/{}/work-orders", p.id),
+        &token,
+        &[
+            ("work_type", "Repair"),
+            ("title", "電源ユニット交換"),
+            ("due_date", "2026/09/23"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "拒否されました: {body}");
+
+    let w = 唯一のチケット(db).await;
+    assert_eq!(w.due_date, chrono::NaiveDate::from_ymd_opt(2026, 9, 23));
+}
+
+/// **期日は任意。**空なら未設定で通り、読めなければ黙って未設定に落とさず
+/// 拒否すること（Q-21）。
+async fn 期日は空なら未設定で読めなければ拒否する(db: &DatabaseConnection) {
+    let (user, p) = 準備(db, "due@example.com", "Operator").await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 送信(
+        状態,
+        &format!("/projects/{}/work-orders", p.id),
+        &token,
+        &[
+            ("work_type", "Repair"),
+            ("title", "読めない期日"),
+            ("due_date", "2026.09.23"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains("期日を読めません"),
+        "読めないことが伝わっていません"
+    );
+    assert_eq!(チケット数(db).await, 0);
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 送信(
+        状態,
+        &format!("/projects/{}/work-orders", p.id),
+        &token,
+        &[
+            ("work_type", "Repair"),
+            ("title", "期日なし"),
+            ("due_date", ""),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "拒否されました: {body}");
+    assert!(唯一のチケット(db).await.due_date.is_none());
+}
+
 /// **Transferでは承認行が2件できること**（設計書11.5）。
 ///
 /// 移譲元・移譲先の両方が承認しないと進まない。
@@ -1167,6 +1232,8 @@ async fn メンバー(db: &DatabaseConnection, user_id: i32, project_id: i32, ro
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, 起票すると承認待ちになる);
+        全検証!(@one $用意, $属性, 期日は斜線区切りでも通る);
+        全検証!(@one $用意, $属性, 期日は空なら未設定で読めなければ拒否する);
         全検証!(@one $用意, $属性, 移譲では承認が二件になる);
         全検証!(@one $用意, $属性, 移譲先はtransferでしか指定できない);
         全検証!(@one $用意, $属性, 語彙外の種別は拒否される);

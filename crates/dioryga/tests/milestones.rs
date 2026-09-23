@@ -106,6 +106,52 @@ async fn 中止には実績日を付けない(db: &DatabaseConnection) {
     assert_eq!(m.planned_date, 日(2026, 4, 1));
 }
 
+/// **日付は見えている形（`2026/09/23`）で入れても通ること。**
+///
+/// `<input type="date">` は送信時には `2026-09-23` を送るが、画面に見えているのは
+/// `2026/09/23` であり、日付入力に対応していないブラウザでは利用者がその形で打つ。
+async fn 日付は斜線区切りでも通る(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "slash@example.com").await;
+    let m = マイルストーンを作る(db, &場, "ServiceStart", "2026/09/23").await;
+    assert_eq!(m.planned_date, 日(2026, 9, 23));
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 送信(
+        状態,
+        &format!("/projects/{}/milestones/complete", 場.project.id),
+        &token,
+        &[("id", &m.id.to_string()), ("actual_date", "2026/10/1")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "拒否されました: {body}");
+
+    let m = マイルストーン一覧(db).await.remove(0);
+    assert_eq!(m.actual_date, Some(日(2026, 10, 1)));
+}
+
+/// **予定日の欠けと読めないを分けて伝えること。**どちらでも作らない。
+async fn 予定日の欠けと読めないを分ける(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "planned-missing@example.com").await;
+
+    for (値, 文言) in [
+        ("", "予定日を入れてください"),
+        ("2026.09.23", "予定日を読めません"),
+    ] {
+        let (状態, token) = 認証済み(db, &場.user).await;
+        let (status, body) = 送信(
+            状態,
+            &format!("/projects/{}/milestones", 場.project.id),
+            &token,
+            &[("milestone_type", "ServiceStart"), ("planned_date", 値)],
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        // **空欄の利用者に形を直せと言っても、何を直せばよいか分からない**
+        assert!(body.contains(文言), "{値:?} に「{文言}」が出ていません");
+    }
+    assert!(マイルストーン一覧(db).await.is_empty());
+}
+
 /// 機器を結べること（設計書10.4）。
 async fn 対象機器を結べる(db: &DatabaseConnection) {
     let 場 = 舞台(db, "ms-device@example.com").await;
@@ -577,6 +623,8 @@ macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, 完了しても予定日は残る);
         全検証!(@one $用意, $属性, 中止には実績日を付けない);
+        全検証!(@one $用意, $属性, 日付は斜線区切りでも通る);
+        全検証!(@one $用意, $属性, 予定日の欠けと読めないを分ける);
         全検証!(@one $用意, $属性, 対象機器を結べる);
         全検証!(@one $用意, $属性, 他プロジェクトのマイルストーンは操作できない);
         全検証!(@one $用意, $属性, 仮想マシンは電力を数えない);

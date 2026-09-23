@@ -112,6 +112,69 @@ async fn 差分を見てから反映できる(db: &DatabaseConnection) {
         .is_empty());
 }
 
+/// **基準日は見えている形（`2026/09/23`）で入れても通ること。**
+///
+/// 基準日はアップロード画面の `<input type="date">` であり、ファイルの中身では
+/// ない。画面の日付として `-` と `/` の両方を読む。
+async fn 基準日は斜線区切りでも通る(db: &DatabaseConnection) {
+    let (user, p) = 準備(db, "as-of@example.com", "Operator").await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 送信(
+        状態,
+        &format!("/projects/{}/import", p.id),
+        &token,
+        multipart(
+            "devices.csv",
+            CSV,
+            &[("match_on", "serial_number"), ("as_of", "2026/4/1")],
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    let 預かり = 預かりトークン(&body);
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = フォーム送信(
+        状態,
+        &format!("/projects/{}/import/apply", p.id),
+        &token,
+        &[("token", &預かり)],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let run = import_run::Entity::find().one(db).await.unwrap().unwrap();
+    assert_eq!(
+        run.as_of.date_naive(),
+        chrono::NaiveDate::from_ymd_opt(2026, 4, 1).unwrap()
+    );
+}
+
+/// 基準日が読めなければ、預からずに伝えること。
+async fn 読めない基準日は預からない(db: &DatabaseConnection) {
+    let (user, p) = 準備(db, "bad-as-of@example.com", "Operator").await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 送信(
+        状態,
+        &format!("/projects/{}/import", p.id),
+        &token,
+        multipart(
+            "devices.csv",
+            CSV,
+            &[("match_on", "serial_number"), ("as_of", "2026.04.01")],
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains("基準日を読めません"),
+        "読めないことが伝わっていません"
+    );
+    assert!(!body.contains(r#"name="token" value=""#), "預かっています");
+}
+
 /// **反映は一度きりであること。**
 ///
 /// 同じトークンで二度流せると、履歴と IMPORT_RUN が二重に入る。
@@ -517,6 +580,8 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, ヘッダー無しでも取り込める);
         全検証!(@one $用意, $属性, multipartでも不正なトークンは弾く);
         全検証!(@one $用意, $属性, 差分を見てから反映できる);
+        全検証!(@one $用意, $属性, 基準日は斜線区切りでも通る);
+        全検証!(@one $用意, $属性, 読めない基準日は預からない);
         全検証!(@one $用意, $属性, 同じ預かりで二度は反映できない);
         全検証!(@one $用意, $属性, エラーがあれば反映できない);
         全検証!(@one $用意, $属性, 他人の預かりは反映できない);

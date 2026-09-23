@@ -383,16 +383,8 @@ impl Audited for entity::cable_connection::Model {
 // **金額は伏せない。**プロジェクト内の費用は、誰がいつ変えたかを追える
 // ことに価値がある。機微なのは認証情報であって金額ではない（不変条件8）。
 
-impl Audited for entity::purchase_order::Model {
-    const TABLE: &'static str = "purchase_order";
-
-    fn audit_id(&self) -> i32 {
-        self.id
-    }
-}
-
-impl Audited for entity::purchase_order_item::Model {
-    const TABLE: &'static str = "purchase_order_item";
+impl Audited for entity::purchase::Model {
+    const TABLE: &'static str = "purchase";
 
     fn audit_id(&self) -> i32 {
         self.id

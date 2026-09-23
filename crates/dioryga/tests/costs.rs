@@ -22,8 +22,8 @@ use dioryga::config::Config;
 use dioryga::server::{router, AppState};
 use entity::{
     app_user, chassis_model, configuration, device, device_assignment, fixed_asset,
-    maintenance_contract, mount_container, project, project_member, purchase_order,
-    purchase_order_item, recurring_cost, vendor,
+    maintenance_contract, mount_container, project, project_member, purchase, recurring_cost,
+    vendor,
 };
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, QueryOrder, Set};
 use std::sync::Arc;
@@ -95,7 +95,7 @@ async fn 期間が逆の契約は列挙される(db: &DatabaseConnection) {
         amount: Set(120_000),
         quote_contact: Set(String::new()),
         failure_contact: Set(String::new()),
-        purchase_order_id: Set(None),
+        order_number: Set(None),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
         ..Default::default()
@@ -325,32 +325,30 @@ async fn 他プロジェクトの什器は指定できない(db: &DatabaseConnec
 }
 
 // ---------------------------------------------------------------------------
-// 発注（設計書10.2、10.3）
+// 購入（設計書10.2、10.3）
 // ---------------------------------------------------------------------------
 
-/// **発注は機器詳細から登録し、そこに明細として出ること**（設計書10.2）。
+/// **購入の記録は機器詳細から入れ、そこに出ること**（設計書10.2）。
 ///
-/// `FIXED_ASSET` を持たない品目は、購入した年に全額を即時費用として計上する。
-async fn 発注は機器詳細から登録する(db: &DatabaseConnection) {
+/// `FIXED_ASSET` を持たない品目は、取得した年に全額を即時費用として計上する。
+async fn 購入は機器詳細から記録する(db: &DatabaseConnection) {
     let 場 = 舞台(db, "order@example.com").await;
 
     let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, body) = 発注を送る(
+    let (status, body) = 購入を送る(
         状態,
         &token,
         &場,
         &[
             ("order_number", "PO-001"),
-            ("order_date", "2026-04-01"),
-            ("vendor_id", &場.vendor_id.to_string()),
-            ("quantity", "2"),
-            ("unit_price", "50000"),
+            ("acquisition_date", "2026-04-01"),
+            ("acquisition_cost", "100000"),
+            ("supplier", "〇〇商事"),
         ],
     )
     .await;
     assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
 
-    // 機器詳細に明細が出る
     let (状態, token) = 認証済み(db, &場.user).await;
     let (_, body) = 取得(
         状態,
@@ -359,49 +357,33 @@ async fn 発注は機器詳細から登録する(db: &DatabaseConnection) {
     )
     .await;
     assert!(body.contains("PO-001"));
-    assert!(body.contains("100000"), "小計が出ていない");
+    assert!(body.contains("100000"));
+    assert!(body.contains("〇〇商事"), "購入元が出ていない");
 
     // **資産計上していないので即時費用として合算される**（10.3）
     let body = ダッシュボード(db, &場, 2026).await;
     assert!(body.contains("100000"));
 }
 
-/// **既存の発注を選べば明細だけを足せること**（設計書10.2）。
-async fn 既存の発注に明細を足せる(db: &DatabaseConnection) {
+/// **購入の記録は機器1台につき1行で、保存し直すと上書きすること**（設計書10.2）。
+async fn 購入の記録は上書きする(db: &DatabaseConnection) {
     let 場 = 舞台(db, "order-item@example.com").await;
 
-    let (状態, token) = 認証済み(db, &場.user).await;
-    発注を送る(
-        状態,
-        &token,
-        &場,
-        &[
-            ("order_number", "PO-002"),
-            ("order_date", "2026-04-01"),
-            ("vendor_id", &場.vendor_id.to_string()),
-            ("quantity", "1"),
-            ("unit_price", "1000"),
-        ],
-    )
-    .await;
-    let order = 発注一覧(db).await.remove(0);
+    for amount in ["1000", "2000"] {
+        let (状態, token) = 認証済み(db, &場.user).await;
+        let (status, _) = 購入を送る(
+            状態,
+            &token,
+            &場,
+            &[("order_number", "PO-002"), ("acquisition_cost", amount)],
+        )
+        .await;
+        assert_eq!(status, StatusCode::SEE_OTHER);
+    }
 
-    let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, _) = 発注を送る(
-        状態,
-        &token,
-        &場,
-        &[
-            ("purchase_order_id", &order.id.to_string()),
-            ("quantity", "3"),
-            ("unit_price", "2000"),
-        ],
-    )
-    .await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
-
-    assert_eq!(発注一覧(db).await.len(), 1, "発注が2件になっている");
-    assert_eq!(明細一覧(db).await.len(), 2);
+    let 行 = 購入一覧(db).await;
+    assert_eq!(行.len(), 1, "購入の記録が2行になっている");
+    assert_eq!(行[0].amount, 2000);
 }
 
 /// **資産計上した機器は即時費用に含めないこと**（設計書10.3）。
@@ -411,16 +393,14 @@ async fn 資産計上した機器は即時費用にしない(db: &DatabaseConnec
     let 場 = 舞台(db, "double@example.com").await;
 
     let (状態, token) = 認証済み(db, &場.user).await;
-    発注を送る(
+    購入を送る(
         状態,
         &token,
         &場,
         &[
             ("order_number", "PO-003"),
-            ("order_date", "2026-04-01"),
-            ("vendor_id", &場.vendor_id.to_string()),
-            ("quantity", "1"),
-            ("unit_price", "500000"),
+            ("acquisition_date", "2026-04-01"),
+            ("acquisition_cost", "500000"),
         ],
     )
     .await;
@@ -446,41 +426,31 @@ async fn 資産計上した機器は即時費用にしない(db: &DatabaseConnec
     assert!(!body.contains("600000"), "二重に数えている");
 }
 
-/// **プロジェクトと通貨が違う発注は合算せず列挙すること**（Q-6、設計書10.3）。
-async fn 通貨が違う発注は列挙される(db: &DatabaseConnection) {
+/// **取得日の無い購入は合算せず列挙すること**（設計書10.3）。
+///
+/// どの年に計上するか決められない。黙って落とすと、金額が小さいのが実態なのか
+/// 入力漏れなのかを利用者が判別できない。
+async fn 取得日の無い購入は列挙される(db: &DatabaseConnection) {
     let 場 = 舞台(db, "currency@example.com").await;
 
-    // 画面はプロジェクトの通貨で固定するため、取込由来の行を直接入れる
-    let order = purchase_order::ActiveModel {
-        order_number: Set("PO-USD".to_owned()),
-        order_date: Set(日(2026, 4, 1)),
-        vendor_id: Set(場.vendor_id),
-        currency: Set("USD".to_owned()),
-        created_at: Set(Utc::now()),
-        updated_at: Set(Utc::now()),
-        ..Default::default()
-    }
-    .insert(db)
-    .await
-    .unwrap();
-
-    purchase_order_item::ActiveModel {
-        purchase_order_id: Set(order.id),
-        item_type: Set("Device".to_owned()),
-        item_id: Set(場.device.id),
-        quantity: Set(1),
-        unit_price: Set(100_000),
-        created_at: Set(Utc::now()),
-        updated_at: Set(Utc::now()),
-        ..Default::default()
-    }
-    .insert(db)
-    .await
-    .unwrap();
+    let (状態, token) = 認証済み(db, &場.user).await;
+    購入を送る(
+        状態,
+        &token,
+        &場,
+        &[
+            ("order_number", "PO-NODATE"),
+            ("acquisition_cost", "100000"),
+        ],
+    )
+    .await;
 
     let body = ダッシュボード(db, &場, 2026).await;
-    assert!(body.contains("PO-USD"), "通貨違いが列挙されていない");
-    assert!(body.contains("通貨と異なる"));
+    assert!(
+        body.contains(&場.device.hostname),
+        "取得日の無い購入が列挙されていない"
+    );
+    assert!(body.contains("取得日が無い"));
 }
 
 // ---------------------------------------------------------------------------
@@ -722,7 +692,7 @@ async fn 定期費用を送る(
     .await
 }
 
-async fn 発注を送る(
+async fn 購入を送る(
     state: AppState,
     token: &str,
     場: &舞台情報,
@@ -731,7 +701,7 @@ async fn 発注を送る(
     送信(
         state,
         &format!(
-            "/projects/{}/devices/{}/orders",
+            "/projects/{}/devices/{}/purchase",
             場.project.id, 場.device.id
         ),
         token,
@@ -760,16 +730,12 @@ async fn 定期費用一覧(db: &DatabaseConnection) -> Vec<recurring_cost::Mode
         .unwrap()
 }
 
-async fn 発注一覧(db: &DatabaseConnection) -> Vec<purchase_order::Model> {
-    purchase_order::Entity::find()
-        .order_by_asc(purchase_order::Column::Id)
+async fn 購入一覧(db: &DatabaseConnection) -> Vec<purchase::Model> {
+    purchase::Entity::find()
+        .order_by_asc(purchase::Column::Id)
         .all(db)
         .await
         .unwrap()
-}
-
-async fn 明細一覧(db: &DatabaseConnection) -> Vec<purchase_order_item::Model> {
-    purchase_order_item::Entity::find().all(db).await.unwrap()
 }
 
 async fn 利用者(db: &DatabaseConnection, email: &str) -> app_user::Model {
@@ -919,10 +885,10 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 終了日が空なら継続中);
         全検証!(@one $用意, $属性, 什器に付く定期費用を登録できる);
         全検証!(@one $用意, $属性, 他プロジェクトの什器は指定できない);
-        全検証!(@one $用意, $属性, 発注は機器詳細から登録する);
-        全検証!(@one $用意, $属性, 既存の発注に明細を足せる);
+        全検証!(@one $用意, $属性, 購入は機器詳細から記録する);
+        全検証!(@one $用意, $属性, 購入の記録は上書きする);
         全検証!(@one $用意, $属性, 資産計上した機器は即時費用にしない);
-        全検証!(@one $用意, $属性, 通貨が違う発注は列挙される);
+        全検証!(@one $用意, $属性, 取得日の無い購入は列挙される);
         全検証!(@one $用意, $属性, 円に小数は入れられない);
         全検証!(@one $用意, $属性, 閲覧者はコストを編集できない);
     };

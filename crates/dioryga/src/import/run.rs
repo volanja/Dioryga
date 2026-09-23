@@ -257,7 +257,7 @@ struct 束 {
     stacks: Vec<network::StackRow>,
     interface_vlans: Vec<network::InterfaceVlanRow>,
     ips: Vec<network::IpRow>,
-    purchase_orders: Vec<costs::PurchaseOrderRow>,
+    purchases: Vec<costs::PurchaseRow>,
     fixed_assets: Vec<costs::FixedAssetRow>,
     contracts: Vec<costs::MaintenanceContractRow>,
 }
@@ -286,9 +286,7 @@ fn 読み分ける(manifest_path: &Path, files: &[instances::FileRef]) -> Result
                 .interface_vlans
                 .extend(network::parse_interface_vlans(&csv)?),
             "ip_address" => out.ips.extend(network::parse_ips(&csv)?),
-            "purchase_order" => out
-                .purchase_orders
-                .extend(costs::parse_purchase_orders(&csv)?),
+            "purchase" => out.purchases.extend(costs::parse_purchases(&csv)?),
             "fixed_asset" => out.fixed_assets.extend(costs::parse_fixed_assets(&csv)?),
             "maintenance_contract" => out
                 .contracts
@@ -374,10 +372,10 @@ async fn 通しで取り込む(
         &mut report,
         network::ipアドレスを取り込む(tx, project_id, &束.ips, as_of).await?,
     );
-    // **費用は最後。**発注も資産も契約も、機器と部品を指す（23.5）
+    // **費用は最後。**購入も資産も契約も、機器と部品を指す（23.5）
     束ねる(
         &mut report,
-        costs::発注を取り込む(tx, project_id, &束.purchase_orders, currency).await?,
+        costs::購入を取り込む(tx, project_id, &束.purchases, currency).await?,
     );
     束ねる(
         &mut report,

@@ -210,15 +210,64 @@ devices:
   location_unknown: No location on record
   section_pending: Purchase order lines and software inventory will appear once those tables are implemented
 
-  orders_hint: Purchase order lines for this device. There is no separate list of orders; they are seen from the item
+  purchase: Purchase record
+  purchase_hint: The purchase record of this one device. There is no separate list of orders; they are seen from the item. The same order number may be entered on other devices
   order_number: Order number
-  order_number_hint: Create a new order
-  order_date: Order date
-  unit_price: Unit price
-  subtotal: Subtotal
-  add_order: Add order line
-  no_order: No order lines
-  error_order_number: Enter an order number
+  order_number_hint: Enter the number as written on the documents. The same number may be used for any number of devices
+  supplier: Supplier
+  supplier_hint: Devices are often bought through resellers, so this is not chosen from the vendor list. Write it as on the documents
+  acquisition_cost: Acquisition cost
+  acquisition_date: Acquisition date
+  acquisition_date_hint: The day the item was received. Depreciation starts on this day
+  no_purchase: No purchase record
+  import_hint: To add many devices of the same configuration at once, the bulk import is faster
+  register: Register
+  register_again: Register and add another
+  register_again_hint: “Add another” keeps the form, configuration, status and maintenance contract, and clears only the hostname, serial number and asset number
+  registered: was registered. You can continue
+  required: Required
+  optional: Optional
+  sec_kind: What it is
+  sec_kind_hint: The fields below change with this choice
+  sec_identity: What identifies this unit
+  sec_identity_hint: Copy these from the label on the item
+  sec_state: Current state
+  sec_money: Money
+  sec_money_hint: The order and the cost are recorded whether or not the device is managed as a fixed asset. If the documents are at hand, enter them here
+  form_type: Form
+  tip_physical: A unit with a chassis. It takes a configuration from the catalog and has a serial number
+  tip_virtual: Runs on a hypervisor. It has no configuration or serial number
+  tip_container: A container. It has no configuration or serial number
+  tip_logical: Several chassis acting as one (a stack or HA pair). It has no configuration or serial number
+  hostname_hint: The name used in operation
+  status_hint_new: Defaults to “Provisioning”. “Planned” cannot be chosen here; reservations are made by addition work orders
+  status_hint_edit: A planned device becomes running when its addition work order is carried out
+  power_hint: Enter a measured value if there is one, otherwise an expected value
+  manage_as_fixed_asset: Manage as a fixed asset
+  fixed_asset_hint: The acquisition cost and date above are used. Add only the two values depreciation needs
+  register_maintenance: Include in a maintenance contract
+  maintenance_existing: Add to an existing contract
+  maintenance_new: Create a new contract
+  maintenance_contract: Contract
+  maintenance_contract_hint: One contract covers several devices. This device is added as an item
+  contract_end_hint: It appears on the dashboard from 90 days before it ends
+  configuration_required: Choose a configuration for a Physical device
+  device_category_required: Choose a category for a device without a configuration
+  error_acquisition_date: The acquisition date cannot be read. Enter it like 2026-09-23
+  error_asset_cost_required: Enter the acquisition cost to manage this as a fixed asset
+  error_asset_date_required: Enter the acquisition date to manage this as a fixed asset (depreciation starts on that day)
+  error_contract_dates_required: A new maintenance contract needs a start date and an end date
+  error_contract_dates: The contract start or end date cannot be read. Enter it like 2026-09-23
+  next_steps: What comes next
+  next_steps_lead: Network and software are not set on this screen. After registering you move to the device details; continue from there in order
+  step_register: Register the device
+  step_register_where: This screen
+  step_parts: Register the parts
+  step_parts_where: Device details / when the serial numbers are known. Planned parts can be created first
+  step_interfaces: Set interfaces and IP addresses
+  step_interfaces_where: The interfaces screen of the device / physical ports are linked here
+  step_sbom: Import the SBOM
+  step_sbom_where: After the build is done
 import:
   title: Bulk import
   lead: Import a file. Review the differences first, then apply
@@ -727,14 +776,17 @@ costs:
   contracts: Maintenance contracts
   recurring: Recurring costs
   fixed_assets: Fixed assets
-  purchase_orders: Purchase orders
+  purchases: Purchases
   excluded: Not included in the total
   excluded_lead: Rows that could not be computed. They are listed rather than silently dropped, so you can tell a small figure from missing data
   kind: Kind
   reason: Reason
   no_excluded: Nothing was excluded
   excluded_declining: Declining balance cannot be computed; the rate table is not implemented
-  excluded_currency: A different currency from the project, so it cannot be summed
+  excluded_no_date: No acquisition date, so the year it belongs to cannot be decided
+  method_straight_line: Straight-line
+  method_declining_balance: Declining-balance
+  error_contract: Choose the contract again
   excluded_period: Invalid period (the end date precedes the start date)
   excluded_life: Useful life is 0 or less
   excluded_negative: The amount is negative
@@ -769,7 +821,7 @@ costs:
   new_recurring: Register a recurring cost
   amount_hint: Stored as an integer in the smallest currency unit. The yen has no decimal places
   error_contract_number: Enter a contract number
-  error_date: Enter the date as YYYY-MM-DD
+  error_date: The date cannot be read. Enter it like 2026-09-23
   error_period: The end date precedes the start date
   error_amount: Invalid amount. More decimal places than the currency allows are not accepted
   error_method: Invalid depreciation method

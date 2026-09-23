@@ -70,8 +70,8 @@
 <text text-anchor="start" x="73.7" y="-147.8" font-family="Arial" font-size="14.00">failure_contact </text>
 <text text-anchor="start" x="168.64" y="-147.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 <polygon fill="none" stroke="black" points="66.7,-104.8 66.7,-135.6 412.59,-135.6 412.59,-104.8 66.7,-104.8"/>
-<text text-anchor="start" x="73.7" y="-117" font-family="Arial" font-size="14.00">purchase_order_id </text>
-<text text-anchor="start" x="194.33" y="-117" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<text text-anchor="start" x="73.7" y="-117" font-family="Arial" font-size="14.00">order_number </text>
+<text text-anchor="start" x="165.52" y="-117" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 <polygon fill="none" stroke="black" points="66.7,-74 66.7,-104.8 412.59,-104.8 412.59,-74 66.7,-74"/>
 <text text-anchor="start" x="73.7" y="-86.2" font-family="Arial" font-size="14.00">created_at </text>
 <text text-anchor="start" x="143.74" y="-86.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>

@@ -308,16 +308,18 @@ comments:
   #
   # **金額はすべて最小通貨単位の整数**（24.2.1）。SQLiteにDECIMALが無く、
   # REALでは丸め誤差が累積するため。桁数は PROJECT.currency から決まる。
-  - table: purchase_order
+  - table: purchase
     tableComment: |
-      発注（10章）。**`amount` を持たない**——明細の合計から計算する（旧B-5）。
-      持つと明細と合計がずれ、どちらが正か分からなくなる。
-  - table: purchase_order_item
-    tableComment: 発注明細（10章）。
+      購入の記録（10章）。**品目ごとに1行。発注を表すテーブルは持たない**——
+      発注番号は重複してよく、注文単位の合計は order_number で寄せて求める。
+      数量と通貨も持たない（数えるのは実体、金額は PROJECT.currency）。
     columnComments:
       item_type: Device / PartInstance / SoftwareInstance。**多態的参照のため外部キーを持てない**
-      unit_price: |
-        **最小通貨単位の整数**（24.2.1）。DECIMALにしない
+      order_number: "**自由入力で、重複してよい。**一意の索引を張らない"
+      acquired_on: 現品を受け取った日。**償却の開始日はこちら**（発注日は持たない）
+      amount: |
+        その品目1つの金額。**最小通貨単位の整数**（24.2.1）。DECIMALにしない
+      supplier: 買った相手。**VENDOR を参照しない**——代理店・商社から買うのが普通で、カタログのベンダーに販売店が混ざる
   - table: fixed_asset
     tableComment: |
       固定資産（10章）。**`disposal_date` と簿価を持たない**——廃棄は

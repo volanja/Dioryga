@@ -100,82 +100,58 @@
   {% endif %}
 </div>
 
-{# 発注は専用の一覧画面を持たず、ここに出す（設計書10.2） #}
-<h2 class="section">{{ order_form.t_orders }}</h2>
-<p class="hint">{{ order_form.t_orders_hint }}</p>
+{# 購入の記録は専用の一覧画面を持たず、ここに出す。**機器1台につき1行**（設計書10.2） #}
+<h2 class="section">{{ purchase_form.t_title }}</h2>
+<p class="hint">{{ purchase_form.t_hint }}</p>
 
-{% if orders.is_empty() %}
-<p class="empty">{{ order_form.t_empty }}</p>
-{% else %}
+{% match purchase %}
+{% when Some with (p) %}
 <div class="table-scroll">
 <table>
   <thead>
     <tr>
-      <th>{{ order_form.t_order_number }}</th>
-      <th>{{ order_form.t_order_date }}</th>
-      <th>{{ order_form.t_vendor }}</th>
-      <th>{{ order_form.t_quantity }}</th>
-      <th>{{ order_form.t_unit_price }}</th>
-      <th>{{ order_form.t_subtotal }}</th>
+      <th>{{ purchase_form.t_order_number }}</th>
+      <th>{{ purchase_form.t_acquired_on }}</th>
+      <th>{{ purchase_form.t_amount }}</th>
+      <th>{{ purchase_form.t_supplier }}</th>
     </tr>
   </thead>
   <tbody>
-    {% for row in orders %}
-    {# プロジェクトの通貨と違うものは年間コストの合算から外れる（Q-6） #}
-    <tr class="{% if !row.other_currency.is_empty() %}is-warn{% endif %}">
-      <td>{{ row.order_number }}</td>
-      <td>{{ row.order_date }}</td>
-      <td>{{ row.vendor }}</td>
-      <td>{{ row.quantity }}</td>
-      <td>{{ row.unit_price }}</td>
-      <td>
-        {{ row.subtotal }}
-        {% if !row.other_currency.is_empty() %}
-        <span class="badge">{{ row.other_currency }}</span>
-        {% endif %}
-      </td>
+    <tr>
+      <td class="mono">{{ p.order_number }}</td>
+      <td class="mono">{{ p.acquired_on }}</td>
+      <td class="mono">{{ p.amount }} {{ purchase_form.currency }}</td>
+      <td>{{ p.supplier }}</td>
     </tr>
-    {% endfor %}
   </tbody>
 </table>
 </div>
-{% endif %}
+{% when None %}
+<p class="empty">{{ purchase_form.t_empty }}</p>
+{% endmatch %}
 
 {% if can_edit %}
 <div class="card">
-  <form method="post" action="/projects/{{ project_id }}/devices/{{ device_id }}/orders" class="form">
+  <form method="post" action="/projects/{{ project_id }}/devices/{{ device_id }}/purchase" class="form">
     <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
 
-    {# 既存の発注を選べば明細だけを足す（設計書10.2） #}
-    <label for="purchase_order_id">{{ order_form.t_order_number }}</label>
-    <select id="purchase_order_id" name="purchase_order_id">
-      <option value="">{{ order_form.t_order_number_hint }}</option>
-      {% for o in order_form.existing %}
-      <option value="{{ o.value }}">{{ o.label }}</option>
-      {% endfor %}
-    </select>
+    <label for="order_number">{{ purchase_form.t_order_number }}</label>
+    <input type="text" class="mono" id="order_number" name="order_number" value="{{ purchase_form.order_number }}">
+    <p class="hint">{{ purchase_form.t_order_number_hint }}</p>
 
-    <label for="order_number">{{ order_form.t_order_number }}</label>
-    <input type="text" id="order_number" name="order_number">
+    <label for="acquisition_date">{{ purchase_form.t_acquired_on }}</label>
+    <input type="date" id="acquisition_date" name="acquisition_date" value="{{ purchase_form.acquired_on }}">
+    <p class="hint">{{ purchase_form.t_acquired_on_hint }}</p>
 
-    <label for="order_date">{{ order_form.t_order_date }}</label>
-    <input type="date" id="order_date" name="order_date">
+    <label for="acquisition_cost">{{ purchase_form.t_amount }}（{{ purchase_form.currency }}）</label>
+    <input type="text" class="mono" id="acquisition_cost" name="acquisition_cost" value="{{ purchase_form.amount }}" inputmode="decimal">
+    <p class="hint">{{ purchase_form.t_amount_hint }}</p>
 
-    <label for="vendor_id">{{ order_form.t_vendor }}</label>
-    <select id="vendor_id" name="vendor_id">
-      {% for v in order_form.vendors %}
-      <option value="{{ v.value }}">{{ v.label }}</option>
-      {% endfor %}
-    </select>
+    <label for="supplier">{{ purchase_form.t_supplier }}</label>
+    <input type="text" id="supplier" name="supplier" value="{{ purchase_form.supplier }}">
+    <p class="hint">{{ purchase_form.t_supplier_hint }}</p>
 
-    <label for="quantity">{{ order_form.t_quantity }}</label>
-    <input type="text" id="quantity" name="quantity" inputmode="numeric" value="1">
-
-    <label for="unit_price">{{ order_form.t_unit_price }}（{{ order_form.currency }}）</label>
-    <input type="text" id="unit_price" name="unit_price" inputmode="decimal" required>
-    <p class="hint">{{ order_form.t_amount_hint }}</p>
-
-    <button type="submit">{{ order_form.t_add }}</button>
+    <button type="submit">{{ purchase_form.t_save }}</button>
   </form>
 </div>
 {% endif %}

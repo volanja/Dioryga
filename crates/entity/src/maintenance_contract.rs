@@ -19,7 +19,8 @@ pub struct Model {
     pub amount: i64,
     pub quote_contact: String,
     pub failure_contact: String,
-    pub purchase_order_id: Option<i32>,
+    /// 契約自体の発注番号。**自由入力**（10.2。発注のテーブルは持たない）。
+    pub order_number: Option<String>,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,
 }
@@ -32,23 +33,11 @@ pub enum Relation {
         to = "super::vendor::Column::Id"
     )]
     Vendor,
-    #[sea_orm(
-        belongs_to = "super::purchase_order::Entity",
-        from = "Column::PurchaseOrderId",
-        to = "super::purchase_order::Column::Id"
-    )]
-    PurchaseOrder,
 }
 
 impl Related<super::vendor::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Vendor.def()
-    }
-}
-
-impl Related<super::purchase_order::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::PurchaseOrder.def()
     }
 }
 

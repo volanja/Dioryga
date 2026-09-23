@@ -34,7 +34,7 @@ use axum::{Extension, Form};
 use chrono::Utc;
 use entity::{
     cable_catalog, chassis_model, configuration_part, maintenance_contract, part_catalog,
-    part_instance, purchase_order, recurring_cost, software_catalog, vendor,
+    part_instance, recurring_cost, software_catalog, vendor,
 };
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, Set};
 use serde::Deserialize;
@@ -188,13 +188,13 @@ pub async fn merge_vendor(
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     let now = Utc::now();
 
-    // 18.3の各テーブルの `vendor_id` を付け替える
+    // 18.3の各テーブルの `vendor_id` を付け替える。**購入（`PURCHASE`）は含まない**
+    // ——購入元は自由入力で `VENDOR` を参照しない（10.2）
     let mut 件数 = 0;
     件数 += 付け替え_chassis_model(&tx, source.id, target.id, now).await?;
     件数 += 付け替え_part_catalog(&tx, source.id, target.id, now).await?;
     件数 += 付け替え_cable_catalog(&tx, source.id, target.id, now).await?;
     件数 += 付け替え_software_catalog(&tx, source.id, target.id, now).await?;
-    件数 += 付け替え_purchase_order(&tx, source.id, target.id, now).await?;
     件数 += 付け替え_maintenance_contract(&tx, source.id, target.id, now).await?;
     件数 += 付け替え_recurring_cost(&tx, source.id, target.id, now).await?;
 
@@ -491,7 +491,6 @@ async fn 付け替え_part_catalog(
 }
 付け替え!(付け替え_cable_catalog, cable_catalog, vendor_id);
 付け替え!(付け替え_software_catalog, software_catalog, vendor_id);
-付け替え!(付け替え_purchase_order, purchase_order, vendor_id);
 付け替え!(
     付け替え_maintenance_contract,
     maintenance_contract,

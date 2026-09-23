@@ -409,7 +409,7 @@ async fn 契約(db: &DatabaseConnection, user_id: i32, number: &str, device_id: 
         amount: Set(120_000),
         quote_contact: Set(String::new()),
         failure_contact: Set(String::new()),
-        purchase_order_id: Set(None),
+        order_number: Set(None),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
         ..Default::default()

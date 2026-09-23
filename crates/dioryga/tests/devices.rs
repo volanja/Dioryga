@@ -10,7 +10,10 @@ use dioryga::auth::session;
 use dioryga::auth::setup::SetupState;
 use dioryga::config::Config;
 use dioryga::server::{router, AppState};
-use entity::{app_user, device, device_assignment, project, project_member};
+use entity::{
+    app_user, chassis_model, configuration, device, device_assignment, fixed_asset,
+    maintenance_contract, maintenance_contract_item, project, project_member, purchase, vendor,
+};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use std::sync::Arc;
 use tower::ServiceExt;
@@ -159,15 +162,17 @@ async fn operatorは登録できる(db: &DatabaseConnection) {
     let user = 利用者(db, "operator@example.com").await;
     let p = プロジェクト(db, "登録検証").await;
     メンバー(db, user.id, p.id, "Operator").await;
+    let cfg = 構成(db, user.id, "operator").await;
 
     let (状態, token) = 認証済み(db, &user).await;
-    let (status, _) = 送信(
+    let (status, location, _) = 送信して行き先(
         状態,
         &format!("/projects/{}/devices", p.id),
         &token,
         &[
             ("hostname", "srv-new"),
             ("device_type", "Physical"),
+            ("configuration_id", &cfg.to_string()),
             ("status", "provisioning"),
             ("power_watt", "350"),
         ],
@@ -181,6 +186,13 @@ async fn operatorは登録できる(db: &DatabaseConnection) {
         .await
         .unwrap()
         .expect("機器が作られていません");
+
+    // **登録後は機器の詳細へ移る。**このあとの手順（部品・インターフェース・SBOM）は
+    // 詳細から始まる（設計書16.1）
+    assert_eq!(
+        location,
+        format!("/projects/{}/devices/{}", p.id, created.id)
+    );
 
     // 採番待ちでも登録できる（設計書23.2）
     assert!(created.asset_number.is_none());
@@ -196,6 +208,9 @@ async fn operatorは登録できる(db: &DatabaseConnection) {
         .expect("所在の割当がありません");
     assert_eq!(割当.location_type, "Project");
     assert_eq!(割当.location_id, Some(p.id));
+
+    // お金の記録を何も入れなければ、購入の記録は作らない
+    assert!(purchase::Entity::find().all(db).await.unwrap().is_empty());
 }
 
 /// **不正な入力は拒否すること**（設計書8.6、Q-21）。
@@ -207,11 +222,13 @@ async fn 不正な入力は拒否される(db: &DatabaseConnection) {
     let user = 利用者(db, "invalid@example.com").await;
     let p = プロジェクト(db, "検証").await;
     メンバー(db, user.id, p.id, "Operator").await;
+    let cfg = 構成(db, user.id, "invalid").await.to_string();
 
     let 検証項目: &[(&str, &str, &str)] = &[
         ("device_type", "でたらめ", "種別の値が不正です"),
         ("status", "でたらめ", "状態の値が不正です"),
-        ("device_category", "でたらめ", "種別分類の値が不正です"),
+        // **予約は登録から作らない**（設計書11.6）
+        ("status", "planned", "状態の値が不正です"),
         // 数値として読めない
         ("configuration_id", "abc", "構成の指定が不正です"),
         // **存在しないID。**確かめないと外部キー違反で500になる
@@ -226,6 +243,7 @@ async fn 不正な入力は拒否される(db: &DatabaseConnection) {
         let mut fields: Vec<(&str, &str)> = vec![
             ("hostname", "invalid-01"),
             ("device_type", "Physical"),
+            ("configuration_id", &cfg),
             ("status", "provisioning"),
         ];
         match fields.iter_mut().find(|(k, _)| k == key) {
@@ -250,6 +268,23 @@ async fn 不正な入力は拒否される(db: &DatabaseConnection) {
         assert!(body.contains(期待), "{key}={value} のエラーが出ていません");
     }
 
+    // 種別分類は構成を持たない機器でだけ見る（Physical では捨てる）
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 送信(
+        状態,
+        &format!("/projects/{}/devices", p.id),
+        &token,
+        &[
+            ("hostname", "invalid-02"),
+            ("device_type", "Virtual"),
+            ("device_category", "でたらめ"),
+            ("status", "provisioning"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("種別分類の値が不正です"));
+
     assert_eq!(
         device::Entity::find().all(db).await.unwrap().len(),
         0,
@@ -259,12 +294,13 @@ async fn 不正な入力は拒否される(db: &DatabaseConnection) {
 
 /// 空欄が許される項目と、許されない項目を取り違えないこと。
 ///
-/// 構成・種別分類・シリアル番号・資産番号は空でよい。仮想機器は構成も
-/// シリアル番号も持たず（設計書6.2）、資産番号は採番待ちがありうる（23.2）。
+/// 資産番号・消費電力は空でよい（資産番号は採番待ちがありうる、23.2）。
+/// **仮想機器は構成もシリアル番号も持たない**（設計書6.2）ため、届いても捨てる。
 async fn 空欄が許される項目は通ること(db: &DatabaseConnection) {
     let user = 利用者(db, "blank@example.com").await;
     let p = プロジェクト(db, "空欄検証").await;
     メンバー(db, user.id, p.id, "Operator").await;
+    let cfg = 構成(db, user.id, "blank").await.to_string();
 
     let (状態, token) = 認証済み(db, &user).await;
     let (status, body) = 送信(
@@ -275,9 +311,10 @@ async fn 空欄が許される項目は通ること(db: &DatabaseConnection) {
             ("hostname", "vm-blank"),
             ("device_type", "Virtual"),
             ("status", "running"),
-            ("configuration_id", ""),
-            ("device_category", ""),
-            ("serial_number", ""),
+            // **隠れている欄の値も送信される。**形態に合わないので捨てる
+            ("configuration_id", &cfg),
+            ("serial_number", "SN-HIDDEN"),
+            ("device_category", "Server"),
             ("asset_number", ""),
             ("power_watt", ""),
         ],
@@ -292,7 +329,396 @@ async fn 空欄が許される項目は通ること(db: &DatabaseConnection) {
         .unwrap()
         .unwrap();
     assert_eq!(created.power_watt, 0);
-    assert!(created.configuration_id.is_none());
+    assert!(
+        created.configuration_id.is_none(),
+        "仮想機器に構成が入っている"
+    );
+    assert!(
+        created.serial_number.is_none(),
+        "仮想機器にシリアル番号が入っている"
+    );
+    assert_eq!(created.device_category.as_deref(), Some("Server"));
+}
+
+/// **形態によって必須が変わること**（設計書16.1）。
+///
+/// 画面の `required` は常に見えている欄にしか付けられない（隠れた欄に付けると
+/// フォーム全体が送信できなくなる）。形態ごとの必須はサーバーが確かめる。
+async fn 形態によって必須が変わる(db: &DatabaseConnection) {
+    let user = 利用者(db, "kind@example.com").await;
+    let p = プロジェクト(db, "形態検証").await;
+    メンバー(db, user.id, p.id, "Operator").await;
+
+    for (device_type, 期待) in [
+        ("Physical", "構成を選んでください"),
+        ("Virtual", "種別分類を選んでください"),
+        ("Logical", "種別分類を選んでください"),
+    ] {
+        let (状態, token) = 認証済み(db, &user).await;
+        let (status, body) = 送信(
+            状態,
+            &format!("/projects/{}/devices", p.id),
+            &token,
+            &[
+                ("hostname", "kind-01"),
+                ("device_type", device_type),
+                ("status", "provisioning"),
+            ],
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{device_type} が通ってしまった");
+        assert!(body.contains(期待), "{device_type} のエラーが出ていません");
+    }
+    assert!(device::Entity::find().all(db).await.unwrap().is_empty());
+}
+
+// ---------------------------------------------------------------------------
+// 登録時のお金の記録（設計書16.1、10.2）
+// ---------------------------------------------------------------------------
+
+/// **固定資産として管理しなくても、金額と発注番号が記録されること**（設計書16.1）。
+async fn 固定資産でなくても購入は記録される(db: &DatabaseConnection) {
+    let (user, p, cfg) = 登録の舞台(db, "purchase-only").await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _, body) = 送信して行き先(
+        状態,
+        &format!("/projects/{}/devices", p.id),
+        &token,
+        &[
+            ("hostname", "po-01"),
+            ("device_type", "Physical"),
+            ("configuration_id", &cfg.to_string()),
+            ("status", "provisioning"),
+            ("order_number", "PO-2026-118"),
+            ("supplier", "〇〇商事"),
+            ("acquisition_cost", "1,250,000"),
+            ("acquisition_date", "2026-09-18"),
+            // 管理しないので、送られてきても資産は作らない
+            ("useful_life_years", "5"),
+            ("depreciation_method", "straight_line"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+
+    let d = 登録された(db, "po-01").await;
+    let 購入 = purchase::Entity::find()
+        .one(db)
+        .await
+        .unwrap()
+        .expect("購入の記録が無い");
+    assert_eq!(購入.item_id, d.id);
+    assert_eq!(購入.amount, 1_250_000);
+    assert_eq!(購入.order_number.as_deref(), Some("PO-2026-118"));
+    assert_eq!(購入.supplier.as_deref(), Some("〇〇商事"));
+    assert!(fixed_asset::Entity::find()
+        .all(db)
+        .await
+        .unwrap()
+        .is_empty());
+}
+
+/// **固定資産として管理するなら、取得原価と取得日を複製して資産を作ること。**
+/// 同じ値を2度入力させない（設計書16.1）。
+async fn 固定資産として管理すると資産ができる(db: &DatabaseConnection) {
+    let (user, p, cfg) = 登録の舞台(db, "asset").await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _, body) = 送信して行き先(
+        状態,
+        &format!("/projects/{}/devices", p.id),
+        &token,
+        &[
+            ("hostname", "fa-01"),
+            ("device_type", "Physical"),
+            ("configuration_id", &cfg.to_string()),
+            ("status", "provisioning"),
+            ("acquisition_cost", "1200000"),
+            ("acquisition_date", "2026-04-01"),
+            ("manage_as_fixed_asset", "1"),
+            ("useful_life_years", "5"),
+            ("depreciation_method", "straight_line"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+
+    let d = 登録された(db, "fa-01").await;
+    let 資産 = fixed_asset::Entity::find()
+        .one(db)
+        .await
+        .unwrap()
+        .expect("資産が無い");
+    assert_eq!(資産.item_id, d.id);
+    assert_eq!(資産.acquisition_cost, 1_200_000);
+    assert_eq!(
+        資産.acquisition_date,
+        chrono::NaiveDate::from_ymd_opt(2026, 4, 1).unwrap()
+    );
+    assert_eq!(資産.useful_life_years, 5);
+    // 購入の記録にも同じ値が入る
+    let 購入 = purchase::Entity::find().one(db).await.unwrap().unwrap();
+    assert_eq!(購入.amount, 1_200_000);
+}
+
+/// **固定資産として管理するなら、取得原価と取得日は必須。**欠けていれば、
+/// 機器も作らない（途中まで書かない）。
+async fn 固定資産には取得日が要る(db: &DatabaseConnection) {
+    let (user, p, cfg) = 登録の舞台(db, "asset-date").await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 送信(
+        状態,
+        &format!("/projects/{}/devices", p.id),
+        &token,
+        &[
+            ("hostname", "fa-02"),
+            ("device_type", "Physical"),
+            ("configuration_id", &cfg.to_string()),
+            ("status", "provisioning"),
+            ("acquisition_cost", "1200000"),
+            ("manage_as_fixed_asset", "1"),
+            ("useful_life_years", "5"),
+            ("depreciation_method", "straight_line"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    // **「形が違う」ではなく「入れてください」と伝える。**空欄のまま送った利用者に、
+    // 日付の形を直せと言っても何を直せばよいか分からない
+    assert!(
+        body.contains("取得日を入れてください"),
+        "取得日が欠けていることが伝わっていません"
+    );
+    // **開いていた欄は開いたまま戻る**（チェックボックスが checked で描き直される）
+    assert!(body
+        .contains(r#"id="manage_as_fixed_asset" name="manage_as_fixed_asset" value="1" checked"#));
+    assert!(device::Entity::find().all(db).await.unwrap().is_empty());
+}
+
+/// **日付は見えている形（`2026/09/23`）で入れても通ること。**
+///
+/// `<input type="date">` は送信時には `2026-09-23` を送るが、画面に見えているのは
+/// `2026/09/23` であり、日付入力に対応していないブラウザでは利用者がその形で打つ。
+async fn 日付は斜線区切りでも通る(db: &DatabaseConnection) {
+    let (user, p, cfg) = 登録の舞台(db, "slash").await;
+    let v = ベンダー(db, "斜線保守", user.id).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _, body) = 送信して行き先(
+        状態,
+        &format!("/projects/{}/devices", p.id),
+        &token,
+        &[
+            ("hostname", "slash-01"),
+            ("device_type", "Physical"),
+            ("configuration_id", &cfg.to_string()),
+            ("status", "provisioning"),
+            ("acquisition_cost", "1200000"),
+            ("acquisition_date", "2026/4/1"),
+            ("manage_as_fixed_asset", "1"),
+            ("useful_life_years", "5"),
+            ("depreciation_method", "straight_line"),
+            ("register_maintenance", "1"),
+            ("maintenance_mode", "new"),
+            ("contract_number", "MC-SLASH"),
+            ("contract_vendor_id", &v.to_string()),
+            ("contract_start", "2026/04/01"),
+            ("contract_end", "2029/03/31"),
+            ("contract_amount", "240000"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "拒否されました: {body}");
+
+    let 資産 = fixed_asset::Entity::find().one(db).await.unwrap().unwrap();
+    assert_eq!(
+        資産.acquisition_date,
+        chrono::NaiveDate::from_ymd_opt(2026, 4, 1).unwrap()
+    );
+    let 契約 = maintenance_contract::Entity::find()
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        契約.end_date,
+        chrono::NaiveDate::from_ymd_opt(2029, 3, 31).unwrap()
+    );
+}
+
+/// **保守契約の日付が欠けていれば、そう伝えること。**
+async fn 保守契約の日付が欠けていれば伝える(db: &DatabaseConnection) {
+    let (user, p, cfg) = 登録の舞台(db, "contract-date").await;
+    let v = ベンダー(db, "日付保守", user.id).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 送信(
+        状態,
+        &format!("/projects/{}/devices", p.id),
+        &token,
+        &[
+            ("hostname", "cd-01"),
+            ("device_type", "Physical"),
+            ("configuration_id", &cfg.to_string()),
+            ("status", "provisioning"),
+            ("register_maintenance", "1"),
+            ("maintenance_mode", "new"),
+            ("contract_number", "MC-NODATE"),
+            ("contract_vendor_id", &v.to_string()),
+            ("contract_start", "2026-04-01"),
+            ("contract_end", ""),
+            ("contract_amount", "240000"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("開始日と満了日を入れてください"), "{body}");
+    assert!(device::Entity::find().all(db).await.unwrap().is_empty());
+}
+
+/// **保守契約は、既にある契約に足すことも、新しく作ることもできること**（設計書16.1）。
+async fn 登録時に保守契約へ含められる(db: &DatabaseConnection) {
+    let (user, p, cfg) = 登録の舞台(db, "contract").await;
+    let v = ベンダー(db, "保守業者", user.id).await;
+
+    // 新しい契約を作って足す
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _, body) = 送信して行き先(
+        状態,
+        &format!("/projects/{}/devices", p.id),
+        &token,
+        &[
+            ("hostname", "mc-01"),
+            ("device_type", "Physical"),
+            ("configuration_id", &cfg.to_string()),
+            ("status", "provisioning"),
+            ("register_maintenance", "1"),
+            ("maintenance_mode", "new"),
+            ("contract_number", "MC-2026-018"),
+            ("contract_vendor_id", &v.to_string()),
+            ("contract_start", "2026-04-01"),
+            ("contract_end", "2029-03-31"),
+            ("contract_amount", "240000"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    let 契約 = maintenance_contract::Entity::find().all(db).await.unwrap();
+    assert_eq!(契約.len(), 1);
+    assert_eq!(契約[0].contract_number, "MC-2026-018");
+
+    // 既にある契約に足す。**契約は増えず、品目だけが増える**
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _, body) = 送信して行き先(
+        状態,
+        &format!("/projects/{}/devices", p.id),
+        &token,
+        &[
+            ("hostname", "mc-02"),
+            ("device_type", "Physical"),
+            ("configuration_id", &cfg.to_string()),
+            ("status", "provisioning"),
+            ("register_maintenance", "1"),
+            ("maintenance_mode", "existing"),
+            ("maintenance_contract_id", &契約[0].id.to_string()),
+            // 開いていない側の欄に値が残っていても、使わない
+            ("contract_number", "MC-IGNORED"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    assert_eq!(
+        maintenance_contract::Entity::find()
+            .all(db)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        maintenance_contract_item::Entity::find()
+            .all(db)
+            .await
+            .unwrap()
+            .len(),
+        2
+    );
+}
+
+/// **見えない契約には足せず、そのときは機器も作らないこと。**
+async fn 見えない契約には足せない(db: &DatabaseConnection) {
+    let (user, p, cfg) = 登録の舞台(db, "contract-hidden").await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 送信(
+        状態,
+        &format!("/projects/{}/devices", p.id),
+        &token,
+        &[
+            ("hostname", "mc-03"),
+            ("device_type", "Physical"),
+            ("configuration_id", &cfg.to_string()),
+            ("status", "provisioning"),
+            ("register_maintenance", "1"),
+            ("maintenance_mode", "existing"),
+            ("maintenance_contract_id", "9999"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("契約を選び直してください"));
+    assert!(device::Entity::find().all(db).await.unwrap().is_empty());
+}
+
+/// **「もう1台」は、形態・構成・状態を引き継いだ空のフォームへ戻すこと**（設計書16.1）。
+/// ホスト名・シリアル番号・資産番号は引き継がない。
+async fn もう1台は選択を引き継ぐ(db: &DatabaseConnection) {
+    let (user, p, cfg) = 登録の舞台(db, "again").await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, location, _) = 送信して行き先(
+        状態,
+        &format!("/projects/{}/devices", p.id),
+        &token,
+        &[
+            ("hostname", "again-01"),
+            ("device_type", "Physical"),
+            ("configuration_id", &cfg.to_string()),
+            ("serial_number", "SN-AGAIN-01"),
+            ("status", "running"),
+            ("then", "again"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let d = 登録された(db, "again-01").await;
+    assert_eq!(
+        location,
+        format!("/projects/{}/devices/new?again={}", p.id, d.id)
+    );
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 取得(状態, &location, &token).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("again-01"), "直前の登録が知らされていない");
+    assert!(
+        body.contains(&format!(r#"<option value="{cfg}" selected>"#)),
+        "構成が引き継がれていない"
+    );
+    assert!(
+        body.contains(r#"<option value="running" selected>"#),
+        "状態が引き継がれていない"
+    );
+    assert!(
+        !body.contains("SN-AGAIN-01"),
+        "シリアル番号まで引き継いでいる"
+    );
+    assert!(
+        body.contains(r#"id="hostname" name="hostname" value="""#),
+        "ホスト名が空になっていない"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -563,12 +989,114 @@ async fn 送信(
     分解(res).await
 }
 
+/// 送信して、状態・リダイレクト先・本文を返す。
+async fn 送信して行き先(
+    state: AppState,
+    uri: &str,
+    token: &str,
+    fields: &[(&str, &str)],
+) -> (StatusCode, String, String) {
+    let csrf = dioryga::auth::csrf::derive(token);
+    let mut pairs: Vec<(String, String)> = vec![(dioryga::auth::csrf::FIELD_NAME.to_owned(), csrf)];
+    for (key, value) in fields {
+        pairs.push(((*key).to_owned(), (*value).to_owned()));
+    }
+    let body = serde_urlencoded::to_string(&pairs).unwrap();
+
+    let res = router(state)
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(uri)
+                .header(header::COOKIE, cookie_header(token))
+                .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let location = res
+        .headers()
+        .get(header::LOCATION)
+        .map(|v| v.to_str().unwrap().to_owned())
+        .unwrap_or_default();
+    let (status, body) = 分解(res).await;
+    (status, location, body)
+}
+
 async fn 分解(res: Response<Body>) -> (StatusCode, String) {
     let status = res.status();
     let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
         .await
         .unwrap();
     (status, String::from_utf8_lossy(&bytes).into_owned())
+}
+
+async fn ベンダー(db: &DatabaseConnection, name: &str, user_id: i32) -> i32 {
+    vendor::ActiveModel {
+        name: Set(name.to_owned()),
+        created_by: Set(user_id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap()
+    .id
+}
+
+/// 共有カタログの構成を1つ作り、そのIDを返す。**Physical の登録には構成が要る。**
+async fn 構成(db: &DatabaseConnection, user_id: i32, name: &str) -> i32 {
+    let v = ベンダー(db, &format!("ベンダー-{name}"), user_id).await;
+    let m = chassis_model::ActiveModel {
+        vendor_id: Set(v),
+        model_name: Set(format!("型-{name}")),
+        device_category: Set("Server".to_owned()),
+        height_u: Set(1),
+        mount_form: Set("RackU".to_owned()),
+        rack_width: Set(Some("Full".to_owned())),
+        created_by: Set(user_id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    configuration::ActiveModel {
+        chassis_model_id: Set(m.id),
+        name: Set(format!("構成-{name}")),
+        created_by: Set(user_id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap()
+    .id
+}
+
+/// 登録を試す場。Operator の利用者、プロジェクト、構成。
+async fn 登録の舞台(
+    db: &DatabaseConnection,
+    name: &str,
+) -> (app_user::Model, project::Model, i32) {
+    let user = 利用者(db, &format!("{name}@example.com")).await;
+    let p = プロジェクト(db, &format!("登録-{name}")).await;
+    メンバー(db, user.id, p.id, "Operator").await;
+    let cfg = 構成(db, user.id, name).await;
+    (user, p, cfg)
+}
+
+async fn 登録された(db: &DatabaseConnection, hostname: &str) -> device::Model {
+    device::Entity::find()
+        .filter(device::Column::Hostname.eq(hostname))
+        .one(db)
+        .await
+        .unwrap()
+        .expect("機器が作られていません")
 }
 
 async fn 利用者(db: &DatabaseConnection, email: &str) -> app_user::Model {
@@ -682,6 +1210,15 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, operatorは登録できる);
         全検証!(@one $用意, $属性, 不正な入力は拒否される);
         全検証!(@one $用意, $属性, 空欄が許される項目は通ること);
+        全検証!(@one $用意, $属性, 形態によって必須が変わる);
+        全検証!(@one $用意, $属性, 固定資産でなくても購入は記録される);
+        全検証!(@one $用意, $属性, 固定資産として管理すると資産ができる);
+        全検証!(@one $用意, $属性, 固定資産には取得日が要る);
+        全検証!(@one $用意, $属性, 日付は斜線区切りでも通る);
+        全検証!(@one $用意, $属性, 保守契約の日付が欠けていれば伝える);
+        全検証!(@one $用意, $属性, 登録時に保守契約へ含められる);
+        全検証!(@one $用意, $属性, 見えない契約には足せない);
+        全検証!(@one $用意, $属性, もう1台は選択を引き継ぐ);
         全検証!(@one $用意, $属性, 予約中の機器は区別表示される);
         全検証!(@one $用意, $属性, 統合された機器は一覧に出ない);
         全検証!(@one $用意, $属性, 所属するプロジェクトだけ見える);

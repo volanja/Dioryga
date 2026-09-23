@@ -340,10 +340,10 @@ async fn 費用をまとめて取り込める(db: &DatabaseConnection) {
                  ,,web01,SN-COST-1,,Physical,400,running\n",
             ),
             (
-                "purchase_order",
-                "orders.csv",
-                "order_number,order_date,vendor,item_type,item_hostname,item_serial_number,quantity,unit_price\n\
-                 PO-1,2026-04-01,Fujitsu,Device,web01,,1,1200000\n",
+                "purchase",
+                "purchases.csv",
+                "item_type,item_hostname,item_serial_number,order_number,acquired_on,amount,supplier\n\
+                 Device,web01,,PO-1,2026-04-01,1200000,〇〇商事\n",
             ),
             (
                 "fixed_asset",
@@ -391,11 +391,11 @@ async fn 費用をまとめて取り込める(db: &DatabaseConnection) {
         .expect("固定資産が入っていません");
     assert_eq!(asset.acquisition_cost, 1_200_000);
 
-    let item = entity::purchase_order_item::Entity::find()
+    let item = entity::purchase::Entity::find()
         .one(db)
         .await
         .unwrap()
-        .expect("発注明細が入っていません");
+        .expect("購入の記録が入っていません");
     // **同じファイルで作られた機器を指せていること**
     assert_eq!(item.item_id, asset.item_id);
 

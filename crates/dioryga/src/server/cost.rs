@@ -7,17 +7,16 @@
 //!
 //! # 計算できない行は合算から外して画面に列挙する（10.3）
 //!
-//! 定率法の資産（Q-12）、プロジェクトと異なる通貨の発注（Q-6）、期間や耐用年数が
-//! 不正な行。**黙って除外しない**——金額が小さいのが実態なのかデータ不備なのかを、
+//! 定率法の資産（Q-12）、取得日の無い購入、期間や耐用年数が不正な行。**黙って除外しない**——金額が小さいのが実態なのかデータ不備なのかを、
 //! 利用者が判別できる必要がある。23.5で部分的な粒度の取込に「分母を表示する」と
 //! したのと同じ考え方である。
 //!
-//! **選択肢からは外さない。**定率法の資産も別通貨の発注も実在し、記録できなく
-//! すると事実を書けなくなる（不変条件6）。
+//! **選択肢からは外さない。**定率法の資産も取得日の分からない購入も実在し、
+//! 記録できなくすると事実を書けなくなる（不変条件6）。
 //!
-//! # 発注は専用の一覧画面を持たない（10.2）
+//! # 購入の記録は専用の一覧画面を持たない（10.2）
 //!
-//! 機器詳細の明細として表示し、登録もそこから行う。この画面群が扱うのは
+//! 機器の登録と機器詳細から入れる。この画面群が扱うのは
 //! 保守契約・固定資産・定期費用と、年間コストのダッシュボードである。
 //!
 //! # 多態的な参照（10.2）
@@ -32,7 +31,7 @@ use axum::{Extension, Form};
 use chrono::{Datelike, NaiveDate, Utc};
 use entity::{
     device, device_assignment, fixed_asset, maintenance_contract, maintenance_contract_item,
-    mount_container, project, recurring_cost, vendor,
+    mount_container, project, purchase, recurring_cost, vendor,
 };
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, Set};
 use serde::Deserialize;
@@ -170,14 +169,14 @@ pub async fn dashboard(
     }
     合計 += 定期;
 
-    // **非資産計上品の即時費用**（10.3）と、通貨の食い違い（Q-6）
-    let (即時, 通貨違い) = 即時費用(&state, project_id, &通貨, year).await?;
+    // **非資産計上品の即時費用**（10.3）。取得日の無い購入は年に寄せられない
+    let (即時, 取得日なし) = 即時費用(&state, project_id, year).await?;
     合計 += 即時;
-    for name in 通貨違い {
+    for name in 取得日なし {
         excluded.push(除外行 {
-            kind: rust_i18n::t!("costs.purchase_orders", locale = l).to_string(),
+            kind: rust_i18n::t!("costs.purchases", locale = l).to_string(),
             name,
-            reason: rust_i18n::t!(除外の理由::通貨違い.key(), locale = l).to_string(),
+            reason: rust_i18n::t!(除外の理由::取得日が無い.key(), locale = l).to_string(),
         });
     }
 
@@ -236,15 +235,14 @@ pub async fn dashboard(
 
 /// 非資産計上品の即時費用（10.3）。
 ///
-/// **`FIXED_ASSET` を持たない品目**（ケーブル等）は、購入した年に
-/// `quantity × unit_price` を全額計上する。
+/// **`FIXED_ASSET` を持たない品目**（ケーブル等）は、取得した年
+/// （`PURCHASE.acquired_on` の年）に `amount` を全額計上する。
 ///
-/// **プロジェクトと異なる通貨の発注は合算しない**（Q-6）。換算レートを持たない
-/// ため、混ぜると意味のない数字になる。除外した発注番号を返す。
+/// **取得日の無い購入は合算しない。**どの年に計上するか決められないため、
+/// 除外した機器のホスト名を返して画面に列挙する。
 async fn 即時費用(
     state: &AppState,
     project_id: i32,
-    通貨: &str,
     year: i32,
 ) -> AppResult<(i64, Vec<String>)> {
     let device_ids = このプロジェクトの機器id(state, project_id).await?;
@@ -258,37 +256,33 @@ async fn 即時費用(
         .collect::<Vec<_>>();
 
     let mut 合計 = 0i64;
-    let mut 通貨違い = Vec::new();
+    let mut 取得日なし = Vec::new();
 
-    for item in entity::purchase_order_item::Entity::find()
-        .filter(entity::purchase_order_item::Column::ItemType.eq(DEVICE))
+    for p in purchase::Entity::find()
+        .filter(purchase::Column::ItemType.eq(DEVICE))
         .all(&state.db)
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
     {
-        if !device_ids.contains(&item.item_id) || 資産あり.contains(&item.item_id) {
+        if !device_ids.contains(&p.item_id) || 資産あり.contains(&p.item_id) {
             continue;
         }
-        let Some(order) = entity::purchase_order::Entity::find_by_id(item.purchase_order_id)
-            .one(&state.db)
-            .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-        else {
-            continue;
-        };
-        if order.order_date.year() != year {
-            continue;
-        }
-        if order.currency != 通貨 {
-            if !通貨違い.contains(&order.order_number) {
-                通貨違い.push(order.order_number.clone());
+        match p.acquired_on {
+            Some(d) if d.year() == year => 合計 += p.amount,
+            Some(_) => {}
+            None => {
+                let name = device::Entity::find_by_id(p.item_id)
+                    .one(&state.db)
+                    .await
+                    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+                    .map(|d| d.hostname)
+                    .unwrap_or_default();
+                取得日なし.push(name);
             }
-            continue;
         }
-        合計 += item.quantity as i64 * item.unit_price;
     }
 
-    Ok((合計, 通貨違い))
+    Ok((合計, 取得日なし))
 }
 
 // ---------------------------------------------------------------------------
@@ -464,7 +458,7 @@ pub async fn create_contract(
         amount: Set(amount),
         quote_contact: Set(正規化(&form.quote_contact)),
         failure_contact: Set(正規化(&form.failure_contact)),
-        purchase_order_id: Set(None),
+        order_number: Set(None),
         created_at: Set(now),
         updated_at: Set(now),
         ..Default::default()
@@ -1016,8 +1010,9 @@ pub async fn create_recurring(
 // ---------------------------------------------------------------------------
 
 /// `2026-04-01`。**曖昧な書式を受け付けない。**
+/// 画面の日付。`2026-09-23` も `2026/09/23` も読む（[`crate::date::読む`]）。
 fn 日付(value: &str) -> Option<NaiveDate> {
-    NaiveDate::parse_from_str(value.trim(), "%Y-%m-%d").ok()
+    crate::date::読む(value)
 }
 
 async fn 入場(

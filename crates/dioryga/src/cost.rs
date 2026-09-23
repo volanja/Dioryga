@@ -17,8 +17,8 @@
 //!
 //! # 計算できない行は合算から外して列挙する（10.3）
 //!
-//! 期間が0以下、耐用年数が0以下、金額が負、定率法（Q-12）、プロジェクトと
-//! 異なる通貨（Q-6）。**黙って除外しない**——金額が小さいのが実態なのか
+//! 期間が0以下、耐用年数が0以下、金額が負、定率法（Q-12）、取得日の無い購入。
+//! **黙って除外しない**——金額が小さいのが実態なのか
 //! データ不備なのかを、利用者が判別できる必要がある。
 
 use chrono::{Datelike, NaiveDate};
@@ -36,8 +36,8 @@ pub const BILLING_CYCLES: &[&str] = &["Monthly", "Annual"];
 pub enum 除外の理由 {
     /// 定率法。償却率テーブルが未実装（Q-12）。
     定率法,
-    /// プロジェクトと異なる通貨（Q-6）。
-    通貨違い,
+    /// 取得日の無い購入。**どの年に計上するか決められない**（10.3）。
+    取得日が無い,
     /// `end_date` が `start_date` より前、など。
     期間が不正,
     /// `useful_life_years <= 0`。
@@ -50,7 +50,7 @@ impl 除外の理由 {
     pub fn key(self) -> &'static str {
         match self {
             Self::定率法 => "costs.excluded_declining",
-            Self::通貨違い => "costs.excluded_currency",
+            Self::取得日が無い => "costs.excluded_no_date",
             Self::期間が不正 => "costs.excluded_period",
             Self::耐用年数が不正 => "costs.excluded_life",
             Self::金額が負 => "costs.excluded_negative",

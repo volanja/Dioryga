@@ -146,7 +146,7 @@ Planned / Approved / InProgress --> Cancelled : 中止
 | `PART_INSTANCE_LOCATION.location_type` | `Warehouse` / `Device` / `Disposed` |
 | `MOUNT_CONTAINER.location_type` | `Warehouse` / `Project` |
 | `FIRMWARE_VERSION.item_type` | `Device` / `PartInstance` |
-| `PURCHASE_ORDER_ITEM.item_type` | `Device` / `PartInstance` / `SoftwareInstance` |
+| `PURCHASE.item_type` | `Device` / `PartInstance` / `SoftwareInstance` |
 | `FIXED_ASSET.item_type` | 同上 |
 | `MAINTENANCE_CONTRACT_ITEM.item_type` | 同上 |
 | `RECURRING_COST.item_type` | `MountContainer` / `Project` |

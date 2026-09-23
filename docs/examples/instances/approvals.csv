@@ -1,0 +1,5 @@
+work_order,required_project,approver,status
+MZ-WO-01,MIZUBASHO-01,hakuba,approved
+MZ-WO-02,MIZUBASHO-01,hakuba,approved
+MZ-WO-03,MIZUBASHO-01,,pending
+MZ-WO-04,MIZUBASHO-01,,pending

@@ -1,0 +1,3 @@
+hostname,upper_interface,lower_interface
+mizubasho-app01,bond0,ens1f0
+mizubasho-app01,bond0,ens1f1

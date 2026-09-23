@@ -1,0 +1,5 @@
+hostname,os_interface_name,vlan_tag,vlan_name,tagging_mode
+mizubasho-app01,bond0,310,mz-app,Untagged
+mizubasho-app01,bond0,320,mz-db,Tagged
+mizubasho-app01,eno1,390,mz-mgmt,Untagged
+mizubasho-db01,ens1f0,320,mz-db,Untagged

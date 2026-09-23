@@ -1,0 +1,5 @@
+hostname,os_interface_name,ip_address,prefix_length,subnet_cidr
+mizubasho-app01,bond0,10.30.10.11,24,10.30.10.0/24
+mizubasho-app01,eno1,10.30.90.11,24,10.30.90.0/24
+mizubasho-db01,ens1f0,10.30.20.21,24,10.30.20.0/24
+mizubasho-vm01,eth0,10.30.10.101,24,10.30.10.0/24

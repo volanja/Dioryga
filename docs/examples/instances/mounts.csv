@@ -1,0 +1,6 @@
+uid,external_id,hostname,serial_number,container,position,horizontal_position,depth_position,host_hostname
+,,mizubasho-app01,,A01,10,Full,Full,
+,,mizubasho-app02,,A01,12,Full,Full,
+,,mizubasho-db01,,A01,14,Full,Full,
+,,mizubasho-tor01,,A01,42,Full,Front,
+,,mizubasho-vm01,,,,,,mizubasho-app01

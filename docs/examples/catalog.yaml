@@ -1,18 +1,21 @@
-# カタログの取込例（設計書23.4）。
+# カタログの取込例（設計書23.4）。Operator 以上が流す。
 #
-#   dioryga import docs/examples/catalog.yaml --as-user you
-#   dioryga import docs/examples/catalog.yaml --as-user you --apply
+#   dioryga import docs/examples/catalog.yaml --as-user hotaka
+#   dioryga import docs/examples/catalog.yaml --as-user hotaka --apply
 #
 # 既定はドライラン。差分を確認してから --apply を付ける。
+#
+# 名前はすべて架空（ベンダーは高山植物の名前）。
 format_version: 1
 kind: catalog
 
 vendors:
-  - name: Fujitsu
+  - name: ハイマツ電機
+  - name: コマクサ通信
 
 chassis_models:
-  - vendor: Fujitsu
-    model_name: PRIMERGY RX4770 M8
+  - vendor: ハイマツ電機
+    model_name: HM-4400
     device_category: Server
     height_u: 2
     mount_form: RackU
@@ -24,19 +27,75 @@ chassis_models:
       - { slot_type: DRIVE_BAY,  count: 24, label_format: "Bay{n}" }
       # 連番でないものは明示列挙する
       - { slot_type: PCIE,       labels: [Slot1, Slot2, Slot9, Slot10] }
+      - { slot_type: PSU_BAY,    count: 2,  label_format: "PSU{n}" }
+  # スロットを持たない機器は slots を省く
+  - vendor: コマクサ通信
+    model_name: KS-2400
+    device_category: Switch
+    height_u: 1
+    mount_form: RackU
+    rack_width: Full
 
 part_catalogs:
   # & でアンカーを付けると、同じファイル内から * で参照できる
+  - &cpu
+    vendor: ハイマツ電機
+    part_number: HM-CPU-32C
+    category: CPU
+    core_count: 32
   - &dimm64
-    vendor: Fujitsu
-    part_number: UCS-MRX64G2RE5
+    vendor: ハイマツ電機
+    part_number: HM-DIMM-64G5
     category: Memory
     capacity_gb: 64
     # 集計しない仕様は spec_json へ入れる
     spec_json: { speed: "DDR5-6400", rank: 2 }
+  - &ssd
+    vendor: ハイマツ電機
+    part_number: HM-SSD-3840
+    category: Storage
+    capacity_gb: 3840
+  - &nic
+    vendor: コマクサ通信
+    part_number: KS-NIC-10G4
+    category: NIC
+    # ポートも count と label_format で展開できる
+    ports:
+      - { port_kind: Network, count: 4, label_format: "Port{n}", connector_type: SFP+ケージ, port_speed: 10G }
+  - &psu
+    vendor: ハイマツ電機
+    part_number: HM-PSU-1600
+    category: PSU
+    # 給電の定格は電源ポートにだけ書ける（12.7）
+    ports:
+      - port_kind: Power
+        count: 1
+        label_format: "Inlet{n}"
+        connector_type: "IEC C14"
+        power_ratings:
+          - { current_type: AC, voltage_min: 200, voltage_max: 240 }
 
+# 同じ機種に複数の構成を定義できる
 configurations:
-  - chassis_model: { vendor: Fujitsu, model_name: PRIMERGY RX4770 M8 }
+  - chassis_model: { vendor: ハイマツ電機, model_name: HM-4400 }
     name: 標準構成
     parts:
+      - { part: *cpu,    quantity: 2 }
       - { part: *dimm64, quantity: 16 }
+      - { part: *ssd,    quantity: 2 }
+      - { part: *nic,    quantity: 1 }
+      - { part: *psu,    quantity: 2 }
+  - chassis_model: { vendor: ハイマツ電機, model_name: HM-4400 }
+    name: DB構成
+    parts:
+      - { part: *cpu,    quantity: 4 }
+      - { part: *dimm64, quantity: 32 }
+      - { part: *ssd,    quantity: 8 }
+      - { part: *nic,    quantity: 1 }
+      - { part: *psu,    quantity: 2 }
+
+# zone は DMZ / WAN / LAN / Management / Isolated
+vlans:
+  - { vlan_tag: 310, name: mz-app, zone: LAN,        description: 業務系 }
+  - { vlan_tag: 320, name: mz-db,  zone: LAN,        description: データベース }
+  - { vlan_tag: 390, name: mz-mgmt, zone: Management, description: 管理系 }

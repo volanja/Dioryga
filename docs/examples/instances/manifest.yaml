@@ -1,21 +1,43 @@
-# インスタンス取込のマニフェスト（設計書23.5）。
+# プロジェクトのデータの取込例（設計書23.5）。プロジェクトの編集者が流す。
 #
-#   dioryga import docs/examples/instances/manifest.yaml --as-user you
-#   dioryga import docs/examples/instances/manifest.yaml --as-user you --apply
+#   dioryga import docs/examples/instances/manifest.yaml --as-user hotaka
+#   dioryga import docs/examples/instances/manifest.yaml --as-user hotaka --apply
 #
 # 既定はドライラン。差分を確認してから --apply を付ける。
+#
+# 先に次のものが要る。
+#   - 組織データ（docs/examples/organization/）：プロジェクト、利用者、メンバー
+#   - カタログ（docs/examples/catalog.yaml）：ベンダー、機種、構成、部品、VLAN
+#   - 什器「A01」：プロジェクトのラック画面から作る（什器は取込では作れない）
+#
+# 名前はすべて架空（プロジェクトは植物、利用者は山の名前）。
 format_version: 1
 kind: instances
 
 # uid → code → name の順で解決する（5.3）。name で複数該当すればエラー
-project: "2026年度 基盤更改"
+project: "MIZUBASHO-01"
 
-# 履歴行の from_date に使う基準時刻。過去に遡って登録する場合に指定する
-as_of: 2026-04-01T00:00:00+09:00
+# 履歴行の from_date に使う基準時刻。過去に遡って登録する場合に指定する。
+# マイルストーンとチケットの予定・実行・完了・中止の時刻にもこれを使う
+as_of: 2026-05-01T00:00:00+09:00
 
 # uid / external_id が無い行の突合キー（23.2 の③）
 match_on:
   device: [serial_number]
 
+# files の順序は問わない。取込が依存順に並べ替えて流す
 files:
-  - { entity: device, path: devices.csv }
+  - { entity: device,               path: devices.csv }
+  - { entity: device_mount,         path: mounts.csv }
+  - { entity: part_instance,        path: parts.csv }
+  - { entity: subnet,               path: subnets.csv }
+  - { entity: os_interface,         path: interfaces.csv }
+  - { entity: interface_stack,      path: bonds.csv }
+  - { entity: interface_vlan,       path: interface-vlans.csv }
+  - { entity: ip_address,           path: ips.csv }
+  - { entity: purchase,             path: purchases.csv }
+  - { entity: fixed_asset,          path: assets.csv }
+  - { entity: maintenance_contract, path: contracts.csv }
+  - { entity: milestone,            path: milestones.csv }
+  - { entity: work_order,           path: work-orders.csv }
+  - { entity: work_order_approval,  path: approvals.csv }

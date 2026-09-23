@@ -1,0 +1,4 @@
+item_type,item_hostname,item_serial_number,acquisition_cost,depreciation_method,useful_life_years,acquisition_date
+Device,mizubasho-app01,,1200000,straight_line,5,2026-05-10
+Device,mizubasho-app02,,1200000,straight_line,5,2026-05-10
+Device,mizubasho-db01,,2400000,declining_balance,5,2026-05-20

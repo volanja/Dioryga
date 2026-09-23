@@ -30,6 +30,7 @@ mod db;
 mod dev_autologin;
 mod device_schema;
 mod devices;
+mod examples;
 mod import_ui;
 mod instance_import;
 mod links;

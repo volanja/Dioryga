@@ -1,0 +1,4 @@
+item_type,item_hostname,item_serial_number,order_number,acquired_on,amount,supplier
+Device,mizubasho-app01,,PO-MZ-2026-001,2026-05-10,1200000,リンドウ商事
+Device,mizubasho-app02,,PO-MZ-2026-001,2026-05-10,1200000,リンドウ商事
+Device,mizubasho-db01,,PO-MZ-2026-002,2026-05-20,2400000,リンドウ商事

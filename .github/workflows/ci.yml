@@ -58,7 +58,8 @@ jobs:
     runs-on: ubuntu-latest
     # **octocov を動かすこのジョブにだけ権限を足す**（ワークフロー全体は contents: read）。
     permissions:
-      # バッジSVGを main へpushする（PRIVATEのため外部バッジサービスが使えない）
+      # バッジSVGを main へpushする（外部のバッジサービスには頼らない。
+      # PRIVATEだった頃に選んだ形で、公開後もそのまま使っている）
       contents: write
       # PRコメント
       pull-requests: write
@@ -287,21 +288,9 @@ jobs:
   macos-build:
     name: Macビルド確認
     runs-on: macos-latest
-    # **毎回は走らせない。**macOSランナーはUbuntuの7.75倍の単価で、実測すると
-    # 67秒しか使っていないのにCI費用の61%を占めていた（しかも分単位の切り上げで
-    # 実質2分ぶん課金されるため、速くしても効かない）。
-    #
-    # 一方で守備範囲は狭い。依存はすべてクロスプラットフォームなpure Rustであり、
-    # **開発機がMacで日常的にビルドしている**ため、macOS固有の破損は数分で気付く。
-    # releaseプロファイル固有の問題も、windows-smokeの `[profile.ci]`
-    # （`debug-assertions = false`）が毎回検証している。
-    #
-    # よって、配布物を実際に建てるリリースタグ時と、環境ドリフトを拾う週次、
-    # および手動実行に絞る。
-    if: >-
-      startsWith(github.ref, 'refs/tags/') ||
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch'
+    # **毎回走らせる**（#199）。PRIVATEだった頃は、macOSランナーの単価が
+    # Ubuntuの7.75倍でCI費用の61%を占めていたため、タグ・週次・手動に絞って
+    # いた。公開リポジトリでは標準ランナーの利用が無料になり、絞る理由が無い。
     steps:
       - uses: actions/checkout@v4
 

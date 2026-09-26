@@ -11,8 +11,10 @@ async fn main() -> anyhow::Result<()> {
     // **設定の読み込みより前に処理する。**ライセンス表示は設定ファイルにも
     // DBにも依存せず、配布物を受け取った人が最初に確認しうるものである。
     // 設定が無いと出せない、という状態にしてはならない。
+    //
+    // **ページャーに渡されうる**（約290KB）。閉じられても panic しない（#193）
     if let Some(Command::Licenses) = cli.command {
-        print!("{}", dioryga::licenses::notices());
+        dioryga::console::書く(&dioryga::licenses::notices())?;
         return Ok(());
     }
 
@@ -57,7 +59,7 @@ async fn main() -> anyhow::Result<()> {
             let conn = db::connect(&config.database).await?;
             // ファイルの kind で、カタログとインスタンスを振り分ける
             let executed = import::run::run(&conn, &path, &as_user, apply).await?;
-            import::run::print_report(&executed, apply);
+            import::run::print_report(&executed, apply)?;
             Ok(())
         }
         Command::Export { .. } => Err(cli::not_implemented("export", "設計書23章")),

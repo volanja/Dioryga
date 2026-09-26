@@ -7,6 +7,8 @@ match_on:
   device: [serial_number]
 files:
   - { entity: device,               path: devices.csv }
+  - { entity: mount_container,      path: containers.csv }
+  - { entity: device_mount,         path: mounts.csv }
   - { entity: part_instance,        path: parts.csv }
   - { entity: subnet,               path: subnets.csv }
   - { entity: os_interface,         path: interfaces.csv }

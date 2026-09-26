@@ -11,7 +11,7 @@ use dioryga::import::run;
 use dioryga::import::{Outcome, Report};
 use entity::{
     app_user, device, device_mount, ip_address, maintenance_contract_item, milestone,
-    mount_container, part_instance, project, work_order, work_order_approval,
+    mount_container, part_instance, work_order, work_order_approval,
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
@@ -26,6 +26,7 @@ async fn 例をすべて取り込める(db: &DatabaseConnection) {
 
     // 誤りが出ないだけでなく、書いた行が入っていること
     assert_eq!(device::Entity::find().count(db).await.unwrap(), 5);
+    assert_eq!(mount_container::Entity::find().count(db).await.unwrap(), 1);
     assert_eq!(device_mount::Entity::find().count(db).await.unwrap(), 5);
     assert_eq!(part_instance::Entity::find().count(db).await.unwrap(), 4);
     assert_eq!(ip_address::Entity::find().count(db).await.unwrap(), 4);
@@ -68,8 +69,6 @@ async fn 例を流す(db: &DatabaseConnection) -> String {
     let 取込者 = "hotaka";
     流す(db, "catalog.yaml", 取込者).await;
 
-    // **什器は取込では作れない。**例のコメントどおり、画面で作った状態にする
-    什器(db, "MIZUBASHO-01", "A01", 取込者).await;
     流す(db, "instances/manifest.yaml", 取込者).await;
 
     取込者.to_owned()
@@ -121,35 +120,6 @@ async fn 利用者(db: &DatabaseConnection, username: &str, system_admin: bool) 
     .insert(db)
     .await
     .unwrap()
-}
-
-async fn 什器(db: &DatabaseConnection, code: &str, name: &str, created_by: &str) {
-    let p = project::Entity::find()
-        .filter(project::Column::Code.eq(code))
-        .one(db)
-        .await
-        .unwrap()
-        .unwrap_or_else(|| panic!("プロジェクト {code} がありません"));
-    let u = app_user::Entity::find()
-        .filter(app_user::Column::Username.eq(created_by))
-        .one(db)
-        .await
-        .unwrap()
-        .unwrap();
-    mount_container::ActiveModel {
-        name: Set(name.to_owned()),
-        container_type: Set("Rack".to_owned()),
-        location_type: Set("Project".to_owned()),
-        location_id: Set(p.id),
-        capacity: Set(Some(42)),
-        created_by: Set(u.id),
-        created_at: Set(Utc::now()),
-        updated_at: Set(Utc::now()),
-        ..Default::default()
-    }
-    .insert(db)
-    .await
-    .unwrap();
 }
 
 macro_rules! 全検証 {

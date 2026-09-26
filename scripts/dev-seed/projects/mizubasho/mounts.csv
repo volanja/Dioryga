@@ -1,0 +1,3 @@
+uid,external_id,hostname,serial_number,container,position,horizontal_position,depth_position,host_hostname
+,,mizubasho-web01,,M01,20,Full,Full,
+,,mizubasho-sw01,,M01,42,Full,Front,

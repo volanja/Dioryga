@@ -8,7 +8,6 @@
 # 先に次のものが要る。
 #   - 組織データ（docs/examples/organization/）：プロジェクト、利用者、メンバー
 #   - カタログ（docs/examples/catalog.yaml）：ベンダー、機種、構成、部品、VLAN
-#   - 什器「A01」：プロジェクトのラック画面から作る（什器は取込では作れない）
 #
 # 名前はすべて架空（プロジェクトは植物、利用者は山の名前）。
 format_version: 1
@@ -28,6 +27,7 @@ match_on:
 # files の順序は問わない。取込が依存順に並べ替えて流す
 files:
   - { entity: device,               path: devices.csv }
+  - { entity: mount_container,      path: containers.csv }
   - { entity: device_mount,         path: mounts.csv }
   - { entity: part_instance,        path: parts.csv }
   - { entity: subnet,               path: subnets.csv }

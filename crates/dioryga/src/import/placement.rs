@@ -27,6 +27,17 @@
 //! | `Warehouse` | 倉庫。`location_name` に倉庫名が要る |
 //! | `Disposed` | 廃棄。参照先を持たない |
 //!
+//! # 什器はプロジェクトのものだけを作る（#139）
+//!
+//! `MOUNT_CONTAINER` も同じファイルで書ける。**置き場所はマニフェストの
+//! プロジェクトに限る。**1つの取込ファイルは1プロジェクトに閉じ（23.5）、
+//! 倉庫の中の配置は倉庫領域の担当である（16.1のC領域）。搭載のCSVが倉庫の
+//! 什器を指せないのと同じ線引きになる。
+//!
+//! 什器は履歴を持たない。**プロジェクトの中の名前で突き合わせ、違っていれば
+//! その行を更新する**（サブネットと同じ扱い）。ファイルに書かれていない什器
+//! には触らない。
+//!
 //! # 重複配置は警告に留める（12.3、不変条件6）
 //!
 //! 同じUに置けるのは左右の組か前後の組のときだけ、という規則がある。
@@ -41,6 +52,7 @@ use entity::{device, device_assignment, device_mount, mount_container, warehouse
 use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
 
+use super::instances::語彙;
 use super::{Entry, ImportError, Outcome, Report};
 use crate::repository::{Actor, AuditedTx};
 
@@ -92,6 +104,149 @@ pub(super) fn 空ならnone(value: &str) -> Option<&str> {
         "" => None,
         v => Some(v),
     }
+}
+
+// ---------------------------------------------------------------------------
+// 什器（MOUNT_CONTAINER）
+// ---------------------------------------------------------------------------
+
+/// 語彙（`vocabularies.md`、設計書12.1）。**画面（`server::rack`）と同じ値を
+/// 持つ。**片方だけ足すと、画面で選べない値が取込から入る。
+const CONTAINER_TYPES: &[&str] = &["Rack", "Desk", "Shelving"];
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ContainerRow {
+    /// プロジェクトの中で什器を指す名前。搭載のCSVの `container` と同じもの。
+    pub name: String,
+    /// Rack / Desk / Shelving。
+    pub container_type: String,
+    /// Rackなら総U数、Shelvingなら段数。Deskは空。**制約ではなく目安**
+    /// （超過は警告、不変条件6）。
+    #[serde(default)]
+    pub capacity: String,
+}
+
+pub fn parse_containers(source: &str) -> Result<Vec<ContainerRow>, ImportError> {
+    読み取る(source)
+}
+
+/// 什器を取り込む。**履歴ではない**ため、変更はその行の更新になる。
+///
+/// **搭載より先に流す**（呼び出し側が依存順に並べる、23.5）。同じ取込で作った
+/// 什器を、搭載のCSVが名前で指せる。
+pub async fn 什器を取り込む(
+    tx: &AuditedTx,
+    project_id: i32,
+    rows: &[ContainerRow],
+    actor: i32,
+) -> Result<Report, ImportError> {
+    let mut report = Report::default();
+    let now = Utc::now();
+    let mut 書いた名前: Vec<String> = Vec::new();
+
+    for row in rows {
+        let name = row.name.trim().to_owned();
+        let target = format!("MOUNT_CONTAINER {name}");
+
+        if name.is_empty() {
+            report.push(Entry::new(Outcome::Error, target, "name が空です"));
+            continue;
+        }
+        // **同じファイルに同じ名前を2回書かない。**後の行が前の行を黙って
+        // 上書きし、どちらが正か分からなくなる
+        if 書いた名前.contains(&name) {
+            report.push(Entry::new(
+                Outcome::Error,
+                target,
+                "同じ name の行がファイルの中に複数あります",
+            ));
+            continue;
+        }
+        書いた名前.push(name.clone());
+
+        // **語彙外は既定へ寄せず拒否する**（Q-21）。空も既定を持たない
+        let container_type = match 語彙(&row.container_type, CONTAINER_TYPES, "") {
+            Ok(t) if !t.is_empty() => t,
+            Ok(_) => {
+                report.push(Entry::new(
+                    Outcome::Error,
+                    target,
+                    format!("container_type が空です（{}）", CONTAINER_TYPES.join(" / ")),
+                ));
+                continue;
+            }
+            Err(理由) => {
+                report.push(Entry::new(
+                    Outcome::Error,
+                    target,
+                    format!("container_type: {理由}"),
+                ));
+                continue;
+            }
+        };
+
+        // 画面と同じく、正の整数か空（Deskは格子を持たない、12.3）
+        let capacity = match 空ならnone(&row.capacity) {
+            None => None,
+            Some(v) => match v.parse::<i32>() {
+                Ok(n) if n > 0 => Some(n),
+                _ => {
+                    report.push(Entry::new(
+                        Outcome::Error,
+                        target,
+                        format!("capacity「{v}」は正の整数で書いてください"),
+                    ));
+                    continue;
+                }
+            },
+        };
+
+        let 既存 = mount_container::Entity::find()
+            .filter(mount_container::Column::LocationType.eq(PROJECT))
+            .filter(mount_container::Column::LocationId.eq(project_id))
+            .filter(mount_container::Column::Name.eq(&name))
+            .all(tx.reader())
+            .await?;
+
+        match 既存.as_slice() {
+            [] => {
+                tx.insert(mount_container::ActiveModel {
+                    name: Set(name),
+                    container_type: Set(container_type),
+                    location_type: Set(PROJECT.to_owned()),
+                    location_id: Set(project_id),
+                    capacity: Set(capacity),
+                    created_by: Set(actor),
+                    created_at: Set(now),
+                    updated_at: Set(now),
+                    ..Default::default()
+                })
+                .await?;
+                report.push(Entry::new(Outcome::Created, target, ""));
+            }
+            [c] => {
+                if c.container_type == container_type && c.capacity == capacity {
+                    report.push(Entry::new(Outcome::Unchanged, target, ""));
+                    continue;
+                }
+                let mut active: mount_container::ActiveModel = c.clone().into();
+                active.container_type = Set(container_type);
+                active.capacity = Set(capacity);
+                active.updated_at = Set(now);
+                tx.update(c, active).await?;
+                report.push(Entry::new(Outcome::Updated, target, ""));
+            }
+            // 画面は名前の重複を止めていないため、既に2つありうる。**どちらを
+            // 指すか決められないので書かない**
+            _ => report.push(Entry::new(
+                Outcome::Error,
+                target,
+                "このプロジェクトに同じ名前の什器が複数あります。画面で名前を分けてから取り込んでください",
+            )),
+        }
+    }
+
+    Ok(report)
 }
 
 // ---------------------------------------------------------------------------

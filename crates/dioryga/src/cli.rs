@@ -7,8 +7,6 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-use crate::config::DEFAULT_CONFIG_PATH;
-
 #[derive(Debug, Parser)]
 #[command(
     name = "dioryga",
@@ -16,9 +14,13 @@ use crate::config::DEFAULT_CONFIG_PATH;
     about = "システム構築・運用プロジェクトのためのインフラ台帳"
 )]
 pub struct Cli {
-    /// 設定ファイルのパス。
-    #[arg(long, short, global = true, default_value = DEFAULT_CONFIG_PATH)]
-    pub config: PathBuf,
+    /// 設定ファイルのパス。省略すると `dioryga.toml` を読み、無ければ既定値で動く。
+    /// 指定したファイルが無ければエラーで終了する。
+    ///
+    /// **既定値を持たせず `Option` にする**（#189）。既定値を持たせると、
+    /// 「指定されなかった」と「指定されたが存在しない」を区別できない。
+    #[arg(long, short, global = true, value_name = "PATH")]
+    pub config: Option<PathBuf>,
 
     #[command(subcommand)]
     pub command: Option<Command>,
@@ -132,6 +134,21 @@ mod tests {
     fn サブコマンドを省略できる() {
         let cli = Cli::try_parse_from(["dioryga"]).unwrap();
         assert!(cli.command.is_none());
+    }
+
+    /// **`-c` の指定の有無を区別できること**（#189）。既定値を持たせると、
+    /// 指定されたが存在しないパスを「指定されなかった」と見分けられない。
+    #[test]
+    fn 設定ファイルの指定の有無を区別できる() {
+        let cli = Cli::try_parse_from(["dioryga", "migrate"]).unwrap();
+        assert!(cli.config.is_none());
+
+        // サブコマンドの後ろでも受け付ける（global）
+        let cli = Cli::try_parse_from(["dioryga", "migrate", "-c", "prod.toml"]).unwrap();
+        assert_eq!(
+            cli.config.as_deref(),
+            Some(std::path::Path::new("prod.toml"))
+        );
     }
 
     /// **既定はドライラン**（設計書23.6）。

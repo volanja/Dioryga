@@ -126,9 +126,32 @@ impl Config {
     ///
     /// 環境変数は `DIORYGA_BIND` のようにプレフィックス付きで、
     /// ネストは `DIORYGA_DATABASE__URL` のように `__` で区切る。
-    pub fn load(path: &Path) -> anyhow::Result<Self> {
+    ///
+    /// `explicit` は `-c` で明示されたパス。**明示されたファイルが無ければ
+    /// 誤りにする**（設計書24.1、#189）。読み飛ばすと、パスを打ち間違えたまま
+    /// 既定値で起動する。既定値の接続先はカレントディレクトリのSQLiteなので、
+    /// PostgreSQLを使うつもりの環境で空のSQLiteを作って動いてしまう。
+    ///
+    /// 明示しなければ既定のパス（[`DEFAULT_CONFIG_PATH`]）を読み、無ければ
+    /// 読み飛ばす。ファイルを置かずに起動できることを優先する。
+    pub fn load(explicit: Option<&Path>) -> anyhow::Result<Self> {
+        let file = match explicit {
+            Some(path) => {
+                if !path.is_file() {
+                    anyhow::bail!(
+                        "設定ファイルが見つかりません: {}（-c で指定したパス）",
+                        path.display()
+                    );
+                }
+                // **指定されたパスだけを読む。**`Toml::file` は親ディレクトリまで
+                // 探すため、別の場所の同名ファイルを読みうる
+                Toml::file_exact(path)
+            }
+            None => Toml::file(DEFAULT_CONFIG_PATH),
+        };
+
         let config = Figment::from(Serialized::defaults(Config::default()))
-            .merge(Toml::file(path))
+            .merge(file)
             .merge(Env::prefixed("DIORYGA_").split("__"))
             .extract()?;
         Ok(config)
@@ -149,7 +172,7 @@ mod tests {
     #[test]
     fn 設定ファイルが無くても既定値で読み込める() {
         figment::Jail::expect_with(|_| {
-            let config = Config::load(Path::new("存在しない.toml")).unwrap();
+            let config = Config::load(None).unwrap();
             assert_eq!(config.bind.port(), 8080);
             assert_eq!(config.timezone, "Asia/Tokyo");
             assert!(config.database.auto_migrate);
@@ -163,7 +186,7 @@ mod tests {
             jail.create_file("dioryga.toml", r#"bind = "0.0.0.0:9999""#)?;
             jail.set_env("DIORYGA_BIND", "127.0.0.1:7777");
 
-            let config = Config::load(Path::new("dioryga.toml")).unwrap();
+            let config = Config::load(None).unwrap();
             assert_eq!(config.bind.port(), 7777);
             Ok(())
         });
@@ -174,8 +197,60 @@ mod tests {
         figment::Jail::expect_with(|jail| {
             jail.set_env("DIORYGA_DATABASE__URL", "postgres://localhost/dioryga");
 
-            let config = Config::load(Path::new("存在しない.toml")).unwrap();
+            let config = Config::load(None).unwrap();
             assert_eq!(config.database.url, "postgres://localhost/dioryga");
+            Ok(())
+        });
+    }
+
+    /// **明示したファイルが無ければ誤りにする**（#189）。打ち間違えたパスで
+    /// 既定値のまま動かない。
+    #[test]
+    fn 明示したファイルが無ければ誤りにする() {
+        figment::Jail::expect_with(|_| {
+            let e = Config::load(Some(Path::new("typo.toml"))).unwrap_err();
+            let message = e.to_string();
+            assert!(
+                message.contains("typo.toml"),
+                "パスが示されていません: {message}"
+            );
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn 明示したファイルを読む() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_file("custom.toml", r#"bind = "0.0.0.0:9999""#)?;
+
+            let config = Config::load(Some(Path::new("custom.toml"))).unwrap();
+            assert_eq!(config.bind.port(), 9999);
+            Ok(())
+        });
+    }
+
+    /// **明示したパスは、親ディレクトリを探さない。**探すと、打ち間違えたパスが
+    /// 別の場所の同名ファイルに当たって黙って読まれる。
+    #[test]
+    fn 明示したパスは親ディレクトリを探さない() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_file("custom.toml", r#"bind = "0.0.0.0:9999""#)?;
+            jail.change_dir(jail.create_dir("sub")?)?;
+
+            assert!(Config::load(Some(Path::new("custom.toml"))).is_err());
+            Ok(())
+        });
+    }
+
+    /// 明示したファイルがあっても、環境変数が優先する（優先順位は変わらない）。
+    #[test]
+    fn 明示したファイルより環境変数が優先される() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_file("custom.toml", r#"bind = "0.0.0.0:9999""#)?;
+            jail.set_env("DIORYGA_BIND", "127.0.0.1:7777");
+
+            let config = Config::load(Some(Path::new("custom.toml"))).unwrap();
+            assert_eq!(config.bind.port(), 7777);
             Ok(())
         });
     }

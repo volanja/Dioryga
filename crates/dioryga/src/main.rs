@@ -18,7 +18,7 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let config = Config::load(&cli.config)?;
+    let config = Config::load(cli.config.as_deref())?;
 
     telemetry::init(&config.log_filter);
 

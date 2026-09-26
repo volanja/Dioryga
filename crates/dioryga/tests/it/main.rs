@@ -24,6 +24,7 @@ mod catalog_merge;
 mod catalog_rest;
 mod catalog_schema;
 mod components;
+mod config_cli;
 mod costs;
 mod costs_import;
 mod dashboard;

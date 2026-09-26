@@ -72,7 +72,7 @@ After logging in, members can register devices and do other work in the projects
 Settings are loaded in the following order, and later sources override earlier ones:
 
 1. Defaults
-2. The configuration file `dioryga.toml` (use `-c` to specify another path)
+2. The configuration file `dioryga.toml` (use `-c` to specify another path). If `dioryga.toml` is missing, it is skipped; if a file given with `-c` is missing, Dioryga exits with an error
 3. Environment variables `DIORYGA_*` (separate nested keys with `__`, as in `DIORYGA_DATABASE__URL`)
 
 An example configuration file is in [`dioryga.toml.example`](dioryga.toml.example). To use PostgreSQL, specify the connection as a URL:

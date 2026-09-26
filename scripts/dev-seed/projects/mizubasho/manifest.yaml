@@ -6,4 +6,6 @@ as_of: 2026-05-01T00:00:00+09:00
 match_on:
   device: [serial_number]
 files:
-  - { entity: device, path: devices.csv }
+  - { entity: device,          path: devices.csv }
+  - { entity: mount_container, path: containers.csv }
+  - { entity: device_mount,    path: mounts.csv }

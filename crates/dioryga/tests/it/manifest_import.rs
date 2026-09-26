@@ -408,6 +408,224 @@ async fn 費用をまとめて取り込める(db: &DatabaseConnection) {
 }
 
 // ---------------------------------------------------------------------------
+// 什器（#139）
+// ---------------------------------------------------------------------------
+
+const 什器見出し: &str = "name,container_type,capacity\n";
+const 機器見出し: &str =
+    "uid,external_id,hostname,serial_number,asset_number,device_type,power_watt,status\n";
+const 搭載見出し: &str =
+    "uid,external_id,hostname,serial_number,container,position,horizontal_position,depth_position,host_hostname\n";
+
+/// **什器と、そこへの搭載を1つのマニフェストで取り込めること**（#139）。
+///
+/// 什器を画面でしか作れないと、取込だけではラック図が空になる。**同じ取込で
+/// 作る什器を搭載が名前で指せる**ことが要点で、ドライランの時点で通らなければ
+/// 反映もできない（23.6）。
+async fn 什器と搭載を同じ取込で入れられる(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "什器同梱").await;
+    let 取込者 = 場.email.replace('@', "_");
+    let dir = 取込ファイル(
+        &場,
+        &[
+            (
+                "mount_container",
+                "containers.csv",
+                &format!("{什器見出し}Rack-02,Rack,42\n"),
+            ),
+            (
+                "device",
+                "devices.csv",
+                &format!("{機器見出し},,web01,SN-C-1,,Physical,400,running\n"),
+            ),
+            (
+                "device_mount",
+                "mounts.csv",
+                &format!("{搭載見出し},,web01,,Rack-02,10,Full,Front,\n"),
+            ),
+        ],
+    );
+
+    let 下見 = run::run(db, &dir.join("manifest.yaml"), &取込者, false)
+        .await
+        .unwrap();
+    assert!(!下見.report.has_error(), "{}", 下見.report);
+    assert_eq!(下見.report.count(Outcome::Created), 3, "{}", 下見.report);
+    // **ドライランは何も残さない**（23.6）
+    assert_eq!(什器の数(db, 場.project.id).await, 1);
+
+    run::run(db, &dir.join("manifest.yaml"), &取込者, true)
+        .await
+        .unwrap();
+
+    let c = 什器(db, 場.project.id, "Rack-02").await;
+    assert_eq!(c.container_type, "Rack");
+    assert_eq!(c.capacity, Some(42));
+    let u = app_user::Entity::find()
+        .filter(app_user::Column::Username.eq(&取込者))
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(c.created_by, u.id, "登録者が取込者になっていません");
+
+    let d = device::Entity::find()
+        .filter(device::Column::Hostname.eq("web01"))
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    let m = device_mount::Entity::find()
+        .filter(device_mount::Column::DeviceId.eq(d.id))
+        .one(db)
+        .await
+        .unwrap()
+        .expect("搭載されていません");
+    assert_eq!(
+        m.container_id,
+        Some(c.id),
+        "同じ取込で作った什器に載っていません"
+    );
+}
+
+/// **2回流しても結果が変わらないこと**（23.1）。什器が増えない。
+async fn 什器を二度流しても変わらない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "什器二度").await;
+    let 取込者 = 場.email.replace('@', "_");
+    let dir = 取込ファイル(
+        &場,
+        &[(
+            "mount_container",
+            "containers.csv",
+            &format!("{什器見出し}Rack-02,Rack,42\nDesk-01,Desk,\nShelf-01,Shelving,5\n"),
+        )],
+    );
+
+    run::run(db, &dir.join("manifest.yaml"), &取込者, true)
+        .await
+        .unwrap();
+    let 二度目 = run::run(db, &dir.join("manifest.yaml"), &取込者, true)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        二度目.report.count(Outcome::Created),
+        0,
+        "{}",
+        二度目.report
+    );
+    assert_eq!(
+        二度目.report.count(Outcome::Updated),
+        0,
+        "{}",
+        二度目.report
+    );
+    // 舞台の Rack-01 ＋ 3件。**ファイルに無い Rack-01 には触らない**
+    assert_eq!(什器の数(db, 場.project.id).await, 4);
+}
+
+/// **値が違えば、同じ行を更新すること。**什器は履歴を持たない。
+async fn 什器の値を変えると同じ行が更新される(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "什器更新").await;
+    let 取込者 = 場.email.replace('@', "_");
+    let 前 = 什器(db, 場.project.id, "Rack-01").await;
+
+    let dir = 取込ファイル(
+        &場,
+        &[(
+            "mount_container",
+            "containers.csv",
+            &format!("{什器見出し}Rack-01,Rack,48\n"),
+        )],
+    );
+    let 実行 = run::run(db, &dir.join("manifest.yaml"), &取込者, true)
+        .await
+        .unwrap();
+
+    assert_eq!(実行.report.count(Outcome::Updated), 1, "{}", 実行.report);
+    let 後 = 什器(db, 場.project.id, "Rack-01").await;
+    assert_eq!(後.id, 前.id, "行が作り直されています");
+    assert_eq!(後.capacity, Some(48));
+    assert_eq!(什器の数(db, 場.project.id).await, 1);
+}
+
+/// **語彙外・読めない数・空の名前・ファイル内の重複を拒否すること**（Q-21）。
+async fn 什器の誤りは取り込まない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "什器誤り").await;
+    let 取込者 = 場.email.replace('@', "_");
+    let dir = 取込ファイル(
+        &場,
+        &[(
+            "mount_container",
+            "containers.csv",
+            &format!(
+                "{什器見出し}Cab-01,Cabinet,42\nRack-09,Rack,0\n,Rack,42\nRack-10,,42\nDesk-01,Desk,\nDesk-01,Desk,\n"
+            ),
+        )],
+    );
+
+    let 下見 = run::run(db, &dir.join("manifest.yaml"), &取込者, false)
+        .await
+        .unwrap();
+    // 語彙外・0・空の名前・空の種別・2つ目の Desk-01
+    assert_eq!(下見.report.count(Outcome::Error), 5, "{}", 下見.report);
+    assert!(run::run(db, &dir.join("manifest.yaml"), &取込者, true)
+        .await
+        .is_err());
+    assert_eq!(
+        什器の数(db, 場.project.id).await,
+        1,
+        "誤りがあるのに書かれています"
+    );
+}
+
+/// **同じ名前の什器が既に2つあれば、どちらも書き換えないこと。**
+///
+/// 画面は名前の重複を止めていない。どちらを指すか決められないまま片方を
+/// 書き換えると、利用者の意図しない什器が変わる。
+async fn 同じ名前の什器が複数あれば取り込まない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "什器重複").await;
+    let 取込者 = 場.email.replace('@', "_");
+    let 既存 = 什器(db, 場.project.id, "Rack-01").await;
+    let mut 二つ目: mount_container::ActiveModel = 既存.clone().into();
+    二つ目.id = sea_orm::ActiveValue::NotSet;
+    二つ目.insert(db).await.unwrap();
+
+    let dir = 取込ファイル(
+        &場,
+        &[(
+            "mount_container",
+            "containers.csv",
+            &format!("{什器見出し}Rack-01,Rack,48\n"),
+        )],
+    );
+    let 下見 = run::run(db, &dir.join("manifest.yaml"), &取込者, false)
+        .await
+        .unwrap();
+    assert_eq!(下見.report.count(Outcome::Error), 1, "{}", 下見.report);
+}
+
+async fn 什器の数(db: &DatabaseConnection, project_id: i32) -> u64 {
+    mount_container::Entity::find()
+        .filter(mount_container::Column::LocationType.eq("Project"))
+        .filter(mount_container::Column::LocationId.eq(project_id))
+        .count(db)
+        .await
+        .unwrap()
+}
+
+async fn 什器(db: &DatabaseConnection, project_id: i32, name: &str) -> mount_container::Model {
+    mount_container::Entity::find()
+        .filter(mount_container::Column::LocationType.eq("Project"))
+        .filter(mount_container::Column::LocationId.eq(project_id))
+        .filter(mount_container::Column::Name.eq(name))
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap_or_else(|| panic!("什器「{name}」がありません"))
+}
+
+// ---------------------------------------------------------------------------
 // 用意
 // ---------------------------------------------------------------------------
 
@@ -545,6 +763,11 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, エラーがあれば何も残らない);
         全検証!(@one $用意, $属性, ネットワークをまとめて取り込める);
         全検証!(@one $用意, $属性, 費用をまとめて取り込める);
+        全検証!(@one $用意, $属性, 什器と搭載を同じ取込で入れられる);
+        全検証!(@one $用意, $属性, 什器を二度流しても変わらない);
+        全検証!(@one $用意, $属性, 什器の値を変えると同じ行が更新される);
+        全検証!(@one $用意, $属性, 什器の誤りは取り込まない);
+        全検証!(@one $用意, $属性, 同じ名前の什器が複数あれば取り込まない);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

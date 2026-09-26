@@ -1,0 +1,7 @@
+uid,external_id,hostname,serial_number,container,position,horizontal_position,depth_position,host_hostname
+,,katakuri-web01,,R01,10,Full,Full,
+,,katakuri-app01,,R01,12,Full,Full,
+,,katakuri-app02,,R01,14,Full,Full,
+,,katakuri-batch01,,R01,16,Full,Full,
+,,katakuri-web02,,R02,10,Full,Full,
+,,katakuri-vm01,,,,,,katakuri-web01

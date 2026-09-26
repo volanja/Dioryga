@@ -250,6 +250,7 @@ async fn 締める(
 struct 束 {
     devices: Vec<instances::DeviceRow>,
     assignments: Vec<placement::AssignmentRow>,
+    containers: Vec<placement::ContainerRow>,
     mounts: Vec<placement::MountRow>,
     parts: Vec<parts::PartRow>,
     subnets: Vec<network::SubnetRow>,
@@ -280,6 +281,7 @@ fn 読み分ける(manifest_path: &Path, files: &[instances::FileRef]) -> Result
         match file.entity.as_str() {
             "device" => out.devices.extend(instances::parse_devices(&csv)?),
             "device_assignment" => out.assignments.extend(placement::parse_assignments(&csv)?),
+            "mount_container" => out.containers.extend(placement::parse_containers(&csv)?),
             "device_mount" => out.mounts.extend(placement::parse_mounts(&csv)?),
             "part_instance" => out.parts.extend(parts::parse_parts(&csv)?),
             "subnet" => out.subnets.extend(network::parse_subnets(&csv)?),
@@ -326,7 +328,7 @@ fn 組織を読み分ける(
 
 /// 依存順に、同じトランザクションの中で流す。
 ///
-/// **機器 → 所属 → 搭載 → 部品 → サブネット → インタフェース → 束ね →
+/// **機器 → 所属 → 什器 → 搭載 → 部品 → サブネット → インタフェース → 束ね →
 /// VLAN → IPアドレス → 費用の順。**後のエンティティは前のエンティティが書いた行を、
 /// 同じトランザクションの中で参照する。
 async fn 通しで取り込む(
@@ -342,6 +344,11 @@ async fn 通しで取り込む(
     束ねる(
         &mut report,
         placement::所属を取り込む(tx, project_id, &束.assignments, as_of).await?,
+    );
+    // **什器は搭載より先。**同じ取込で作る什器を、搭載が名前で指す（#139）
+    束ねる(
+        &mut report,
+        placement::什器を取り込む(tx, project_id, &束.containers, actor).await?,
     );
     束ねる(
         &mut report,

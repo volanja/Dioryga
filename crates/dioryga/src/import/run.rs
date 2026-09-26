@@ -523,26 +523,41 @@ async fn プロジェクトの取込者(
 }
 
 /// 差分レポートを標準出力へ書く。
-pub fn print_report(executed: &Executed, apply: bool) {
-    println!();
-    println!("  {}", executed.report);
-    println!();
+///
+/// **読み手が先に閉じても panic しない**（[`crate::console`]、#193）。差分は
+/// 長くなりうるため、ページャーに渡されることがある。
+pub fn print_report(executed: &Executed, apply: bool) -> std::io::Result<()> {
+    crate::console::書く(&報告の文面(executed, apply))
+}
+
+fn 報告の文面(executed: &Executed, apply: bool) -> String {
+    use std::fmt::Write as _;
+
+    let mut out = String::new();
+    // String への書き込みは失敗しない
+    let _ = writeln!(out);
+    let _ = writeln!(out, "  {}", executed.report);
+    let _ = writeln!(out);
 
     for entry in executed.report.errors() {
-        println!("  エラー  {} — {}", entry.target, entry.detail);
+        let _ = writeln!(out, "  エラー  {} — {}", entry.target, entry.detail);
     }
     for entry in executed.report.warnings() {
-        println!("  警告    {} — {}", entry.target, entry.detail);
+        let _ = writeln!(out, "  警告    {} — {}", entry.target, entry.detail);
     }
 
     if executed.report.errors().count() > 0 || executed.report.warnings().count() > 0 {
-        println!();
+        let _ = writeln!(out);
     }
 
-    match executed.import_run_id {
-        Some(id) => println!("  反映しました（IMPORT_RUN #{id}）"),
-        None if apply => println!("  反映していません"),
-        None => println!("  ドライランです。反映するには --apply を付けてください"),
-    }
-    println!();
+    let _ = match executed.import_run_id {
+        Some(id) => writeln!(out, "  反映しました（IMPORT_RUN #{id}）"),
+        None if apply => writeln!(out, "  反映していません"),
+        None => writeln!(
+            out,
+            "  ドライランです。反映するには --apply を付けてください"
+        ),
+    };
+    let _ = writeln!(out);
+    out
 }

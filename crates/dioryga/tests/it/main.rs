@@ -17,6 +17,7 @@ mod admin_projects;
 mod admin_users;
 mod audit;
 mod authz;
+mod broken_pipe;
 mod catalog;
 mod catalog_import;
 mod catalog_merge;

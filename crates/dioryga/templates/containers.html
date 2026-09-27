@@ -31,6 +31,7 @@
   <thead>
     <tr>
       <th>{{ t_name }}</th>
+      <th>{{ t_model }}</th>
       <th>{{ t_container_type }}</th>
       <th>{{ t_capacity }}</th>
       <th>{{ t_mounted }}</th>
@@ -44,6 +45,7 @@
         {{ row.name }}
         {% if row.retired %}<span class="badge">{{ t_retired }}</span>{% endif %}
       </td>
+      <td>{{ row.model }}</td>
       <td>{{ row.container_type }}</td>
       <td>{{ row.capacity }}</td>
       <td>{{ row.mounted }}</td>
@@ -77,16 +79,15 @@
     <label for="name">{{ t_name }}</label>
     <input type="text" id="name" name="name" value="{{ form.name }}" required>
 
-    <label for="container_type">{{ t_container_type }}</label>
-    <select id="container_type" name="container_type">
-      {% for t in container_types %}
-      <option value="{{ t }}" {% if form.container_type == **t %}selected{% endif %}>{{ t }}</option>
+    {# 種別と収容能力は型番が持つ（#205）。共有カタログで登録した型番を選ぶ #}
+    <label for="container_model_id">{{ t_model }}</label>
+    <select id="container_model_id" name="container_model_id" required>
+      <option value="">{{ t_unset }}</option>
+      {% for m in models %}
+      <option value="{{ m.value }}" {% if form.container_model_id == m.value %}selected{% endif %}>{{ m.label }}</option>
       {% endfor %}
     </select>
-
-    <label for="capacity">{{ t_capacity }}</label>
-    <input type="text" id="capacity" name="capacity" value="{{ form.capacity }}" inputmode="numeric">
-    <p class="hint">{{ t_capacity_hint }}</p>
+    <p class="hint">{{ t_model_hint }}</p>
 
     <button type="submit">{{ t_submit }}</button>
   </form>

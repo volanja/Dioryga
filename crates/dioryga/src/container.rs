@@ -3,8 +3,53 @@
 //! **名前の比べ方と撤去の判定を1か所に置く。**画面と取込で別々に書くと、
 //! 片方だけ直したときに「画面では重複、取込では別物」のように食い違う。
 
-use entity::{device_mount, mount_container, recurring_cost};
+use entity::{container_model, device_mount, mount_container, recurring_cost};
 use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, PaginatorTrait, QueryFilter};
+
+/// 語彙（`vocabularies.md`、設計書12.10）。**表は `dioryga_catalog_format` にだけ置き、
+/// 画面・取込・カタログが同じものを見る**（機器の種別と同じ、8.6）。
+pub use dioryga_catalog_format::CONTAINER_TYPES;
+pub const RACK: &str = "Rack";
+pub const DESK: &str = "Desk";
+pub const SHELVING: &str = "Shelving";
+
+/// 設備・什器の種別と収容能力。**型番（`CONTAINER_MODEL`）から引く**（#205）。
+#[derive(Debug, Clone, Default)]
+pub struct 型 {
+    pub container_type: String,
+    /// Rack なら総U数、Shelving なら段数、Desk は `None`。
+    pub capacity: Option<i32>,
+    pub model: Option<container_model::Model>,
+}
+
+/// 型番の種別に応じた収容能力（12.10）。
+pub fn 収容能力(m: &container_model::Model) -> Option<i32> {
+    match m.container_type.as_str() {
+        RACK => m.height_u,
+        SHELVING => m.shelf_count,
+        _ => None,
+    }
+}
+
+/// 設備・什器の型番を引く。**型番が無い行**（DB上は NULL を許す、移行の都合）は
+/// 種別も収容能力も空として扱う。
+pub async fn 型を引く<C: ConnectionTrait>(
+    db: &C,
+    container: &mount_container::Model,
+) -> Result<型, DbErr> {
+    let Some(id) = container.container_model_id else {
+        return Ok(型::default());
+    };
+    let model = container_model::Entity::find_by_id(id).one(db).await?;
+    Ok(match model {
+        Some(m) => 型 {
+            container_type: m.container_type.clone(),
+            capacity: 収容能力(&m),
+            model: Some(m),
+        },
+        None => 型::default(),
+    })
+}
 
 /// 継続費用が設備・什器を指すときの `item_type`（10章）。
 const MOUNT_CONTAINER: &str = "MountContainer";

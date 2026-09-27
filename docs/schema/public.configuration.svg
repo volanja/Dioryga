@@ -52,50 +52,53 @@
 <!-- public.chassis_model -->
 <g id="node4" class="node">
 <title>public.chassis_model</title>
-<polygon fill="#efefef" stroke="none" points="131.75,-412.8 131.75,-448.4 424.72,-448.4 424.72,-412.8 131.75,-412.8"/>
-<polygon fill="none" stroke="black" points="131.75,-412.8 131.75,-448.4 424.72,-448.4 424.72,-412.8 131.75,-412.8"/>
-<text text-anchor="start" x="138.75" y="-426.2" font-family="Arial Bold" font-size="18.00">public.chassis_model</text>
-<text text-anchor="start" x="293.23" y="-426.2" font-family="Arial" font-size="14.00">    </text>
-<text text-anchor="start" x="324.34" y="-426.2" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
-<polygon fill="none" stroke="black" points="131.75,-382 131.75,-412.8 424.72,-412.8 424.72,-382 131.75,-382"/>
-<text text-anchor="start" x="138.75" y="-394.2" font-family="Arial" font-size="14.00">id </text>
-<text text-anchor="start" x="153.54" y="-394.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="131.75,-351.2 131.75,-382 424.72,-382 424.72,-351.2 131.75,-351.2"/>
-<text text-anchor="start" x="138.75" y="-363.4" font-family="Arial" font-size="14.00">vendor_id </text>
-<text text-anchor="start" x="204.13" y="-363.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="131.75,-320.4 131.75,-351.2 424.72,-351.2 424.72,-320.4 131.75,-320.4"/>
-<text text-anchor="start" x="138.75" y="-332.6" font-family="Arial" font-size="14.00">model_name </text>
-<text text-anchor="start" x="223.58" y="-332.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="131.75,-289.6 131.75,-320.4 424.72,-320.4 424.72,-289.6 131.75,-289.6"/>
-<text text-anchor="start" x="138.75" y="-301.8" font-family="Arial" font-size="14.00">device_category </text>
-<text text-anchor="start" x="244.59" y="-301.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="131.75,-258.8 131.75,-289.6 424.72,-289.6 424.72,-258.8 131.75,-258.8"/>
-<text text-anchor="start" x="138.75" y="-271" font-family="Arial" font-size="14.00">height_u </text>
-<text text-anchor="start" x="196.36" y="-271" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="131.75,-228 131.75,-258.8 424.72,-258.8 424.72,-228 131.75,-228"/>
-<text text-anchor="start" x="138.75" y="-240.2" font-family="Arial" font-size="14.00">mount_form </text>
-<text text-anchor="start" x="217.34" y="-240.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="131.75,-197.2 131.75,-228 424.72,-228 424.72,-197.2 131.75,-197.2"/>
-<text text-anchor="start" x="138.75" y="-209.4" font-family="Arial" font-size="14.00">rack_width </text>
-<text text-anchor="start" x="209.56" y="-209.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="131.75,-166.4 131.75,-197.2 424.72,-197.2 424.72,-166.4 131.75,-166.4"/>
-<text text-anchor="start" x="138.75" y="-178.6" font-family="Arial" font-size="14.00">created_by </text>
-<text text-anchor="start" x="211.91" y="-178.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="131.75,-135.6 131.75,-166.4 424.72,-166.4 424.72,-135.6 131.75,-135.6"/>
-<text text-anchor="start" x="138.75" y="-147.8" font-family="Arial" font-size="14.00">created_at </text>
-<text text-anchor="start" x="208.8" y="-147.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="131.75,-104.8 131.75,-135.6 424.72,-135.6 424.72,-104.8 131.75,-104.8"/>
-<text text-anchor="start" x="138.75" y="-117" font-family="Arial" font-size="14.00">updated_at </text>
-<text text-anchor="start" x="212.71" y="-117" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="131.75,-74 131.75,-104.8 424.72,-104.8 424.72,-74 131.75,-74"/>
-<text text-anchor="start" x="138.75" y="-86.2" font-family="Arial" font-size="14.00">retired_at </text>
-<text text-anchor="start" x="201.78" y="-86.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="#efefef" stroke="none" points="131.75,-428.2 131.75,-463.8 424.72,-463.8 424.72,-428.2 131.75,-428.2"/>
+<polygon fill="none" stroke="black" points="131.75,-428.2 131.75,-463.8 424.72,-463.8 424.72,-428.2 131.75,-428.2"/>
+<text text-anchor="start" x="138.75" y="-441.6" font-family="Arial Bold" font-size="18.00">public.chassis_model</text>
+<text text-anchor="start" x="293.23" y="-441.6" font-family="Arial" font-size="14.00">    </text>
+<text text-anchor="start" x="324.34" y="-441.6" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
+<polygon fill="none" stroke="black" points="131.75,-397.4 131.75,-428.2 424.72,-428.2 424.72,-397.4 131.75,-397.4"/>
+<text text-anchor="start" x="138.75" y="-409.6" font-family="Arial" font-size="14.00">id </text>
+<text text-anchor="start" x="153.54" y="-409.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="131.75,-366.6 131.75,-397.4 424.72,-397.4 424.72,-366.6 131.75,-366.6"/>
+<text text-anchor="start" x="138.75" y="-378.8" font-family="Arial" font-size="14.00">vendor_id </text>
+<text text-anchor="start" x="204.13" y="-378.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="131.75,-335.8 131.75,-366.6 424.72,-366.6 424.72,-335.8 131.75,-335.8"/>
+<text text-anchor="start" x="138.75" y="-348" font-family="Arial" font-size="14.00">model_name </text>
+<text text-anchor="start" x="223.58" y="-348" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="131.75,-305 131.75,-335.8 424.72,-335.8 424.72,-305 131.75,-305"/>
+<text text-anchor="start" x="138.75" y="-317.2" font-family="Arial" font-size="14.00">device_category </text>
+<text text-anchor="start" x="244.59" y="-317.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="131.75,-274.2 131.75,-305 424.72,-305 424.72,-274.2 131.75,-274.2"/>
+<text text-anchor="start" x="138.75" y="-286.4" font-family="Arial" font-size="14.00">height_u </text>
+<text text-anchor="start" x="196.36" y="-286.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="131.75,-243.4 131.75,-274.2 424.72,-274.2 424.72,-243.4 131.75,-243.4"/>
+<text text-anchor="start" x="138.75" y="-255.6" font-family="Arial" font-size="14.00">mount_form </text>
+<text text-anchor="start" x="217.34" y="-255.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="131.75,-212.6 131.75,-243.4 424.72,-243.4 424.72,-212.6 131.75,-212.6"/>
+<text text-anchor="start" x="138.75" y="-224.8" font-family="Arial" font-size="14.00">rack_width </text>
+<text text-anchor="start" x="209.56" y="-224.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="131.75,-181.8 131.75,-212.6 424.72,-212.6 424.72,-181.8 131.75,-181.8"/>
+<text text-anchor="start" x="138.75" y="-194" font-family="Arial" font-size="14.00">created_by </text>
+<text text-anchor="start" x="211.91" y="-194" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="131.75,-151 131.75,-181.8 424.72,-181.8 424.72,-151 131.75,-151"/>
+<text text-anchor="start" x="138.75" y="-163.2" font-family="Arial" font-size="14.00">created_at </text>
+<text text-anchor="start" x="208.8" y="-163.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="131.75,-120.2 131.75,-151 424.72,-151 424.72,-120.2 131.75,-120.2"/>
+<text text-anchor="start" x="138.75" y="-132.4" font-family="Arial" font-size="14.00">updated_at </text>
+<text text-anchor="start" x="212.71" y="-132.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="131.75,-89.4 131.75,-120.2 424.72,-120.2 424.72,-89.4 131.75,-89.4"/>
+<text text-anchor="start" x="138.75" y="-101.6" font-family="Arial" font-size="14.00">retired_at </text>
+<text text-anchor="start" x="201.78" y="-101.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="131.75,-58.6 131.75,-89.4 424.72,-89.4 424.72,-58.6 131.75,-58.6"/>
+<text text-anchor="start" x="138.75" y="-70.8" font-family="Arial" font-size="14.00">weight_g </text>
+<text text-anchor="start" x="198.68" y="-70.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
 </g>
 <!-- public.configuration&#45;&gt;public.chassis_model -->
 <g id="edge3" class="edge">
 <title>public.configuration:chassis_model_id&#45;&gt;public.chassis_model:id</title>
-<path fill="none" stroke="black" d="M315.36,-866.01C192.75,-856.58 264.29,-676.14 326.76,-558.4 351.45,-511.85 399.85,-538.06 424.72,-491.6 444.47,-454.69 467.58,-397.4 425.72,-397.4"/>
-<polygon fill="black" stroke="black" points="315.43,-866.02 325.26,-870.88 320.76,-866.21 325.09,-866.38 325.09,-866.38 325.09,-866.38 320.76,-866.21 325.59,-861.89 315.43,-866.02"/>
+<path fill="none" stroke="black" d="M315.35,-866.01C192.4,-856.38 257.62,-672.34 326.76,-558.4 352.26,-516.37 399.06,-548.94 424.72,-507 446.57,-471.29 467.58,-412.8 425.72,-412.8"/>
+<polygon fill="black" stroke="black" points="315.43,-866.01 325.25,-870.88 320.76,-866.21 325.09,-866.37 325.09,-866.37 325.09,-866.37 320.76,-866.21 325.59,-861.89 315.43,-866.01"/>
 <text text-anchor="start" x="7" y="-876.4" font-family="Arial" font-size="10.00">FOREIGN KEY (chassis_model_id) REFERENCES chassis_model(id)</text>
 </g>
 <!-- public.app_user -->

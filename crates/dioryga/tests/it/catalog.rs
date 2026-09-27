@@ -1135,6 +1135,176 @@ async fn スロットを登録できる(db: &DatabaseConnection) {
 }
 
 // ---------------------------------------------------------------------------
+// 設備・什器の型番（設計書12.10、#205）
+// ---------------------------------------------------------------------------
+
+async fn 型番を送る(
+    state: AppState,
+    token: &str,
+    vendor_id: i32,
+    fields: &[(&str, &str)],
+) -> (StatusCode, String) {
+    let mut all: Vec<(&str, String)> = vec![("vendor_id", vendor_id.to_string())];
+    for (k, v) in fields {
+        all.push((k, (*v).to_owned()));
+    }
+    let borrowed: Vec<(&str, &str)> = all.iter().map(|(k, v)| (*k, v.as_str())).collect();
+    送信(state, "/catalog/container-models", token, &borrowed).await
+}
+
+/// **ラックの型番を登録できること。**重量は kg で受けて g で持つ（24.2.1）。
+async fn 設備の型番を登録できる(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "cm@example.com", "Operator").await;
+    let v = ベンダー(db, "チングルマ製作所", user.id).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = 型番を送る(
+        状態,
+        &token,
+        v.id,
+        &[
+            ("container_type", "Rack"),
+            ("model_name", "CG-42U"),
+            ("height_u", "42"),
+            ("width_mm", "600"),
+            ("depth_mm", "1200"),
+            ("height_mm", "2000"),
+            ("weight_kg", "130.5"),
+            ("static_load_kg", "1000"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let m = entity::container_model::Entity::find()
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(m.height_u, Some(42));
+    assert_eq!(m.shelf_count, None);
+    assert_eq!(m.weight_g, Some(130_500));
+    assert_eq!(m.static_load_g, Some(1_000_000));
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, body) = 取得(状態, &format!("/catalog/container-models/{}", m.id), &token).await;
+    assert!(body.contains("130.5kg") && body.contains("600×1200×2000mm"));
+}
+
+/// **種別に合わない収容能力と、合う収容能力の欠けを拒否すること**（12.10、Q-21）。
+async fn 種別に合わない収容能力は拒否される(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "cm-cap@example.com", "Operator").await;
+    let v = ベンダー(db, "チングルマ製作所", user.id).await;
+
+    for (fields, 誤り) in [
+        (
+            vec![
+                ("container_type", "Desk"),
+                ("model_name", "D"),
+                ("height_u", "1"),
+            ],
+            "入力できない",
+        ),
+        (
+            vec![("container_type", "Rack"), ("model_name", "R")],
+            "収容能力を入力",
+        ),
+        (
+            vec![
+                ("container_type", "Shelving"),
+                ("model_name", "S"),
+                ("height_u", "4"),
+            ],
+            "入力できない",
+        ),
+        (
+            vec![("container_type", "Cabinet"), ("model_name", "C")],
+            "種別の値が不正",
+        ),
+        (
+            vec![
+                ("container_type", "Rack"),
+                ("model_name", "R"),
+                ("height_u", "42"),
+                ("weight_kg", "-1"),
+            ],
+            "0より大きい",
+        ),
+    ] {
+        let (状態, token) = 認証済み(db, &user).await;
+        let (status, body) = 型番を送る(状態, &token, v.id, &fields).await;
+        assert_eq!(status, StatusCode::OK, "{fields:?}");
+        assert!(body.contains(誤り), "{fields:?} に「{誤り}」が出ていません");
+    }
+    assert!(entity::container_model::Entity::find()
+        .all(db)
+        .await
+        .unwrap()
+        .is_empty());
+}
+
+/// **同じベンダーの同じ型番は登録できないこと**（自然キー）。
+async fn 同じ設備の型番は登録できない(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "cm-dup@example.com", "Operator").await;
+    let v = ベンダー(db, "チングルマ製作所", user.id).await;
+    for 期待 in [StatusCode::SEE_OTHER, StatusCode::OK] {
+        let (状態, token) = 認証済み(db, &user).await;
+        let (status, _) = 型番を送る(
+            状態,
+            &token,
+            v.id,
+            &[("container_type", "Desk"), ("model_name", "DK-1600")],
+        )
+        .await;
+        assert_eq!(status, 期待);
+    }
+}
+
+/// **廃番の型番は、設備・什器の登録の候補に出ないこと**（18.5）。
+async fn 廃番の設備の型番は候補に出ない(db: &DatabaseConnection) {
+    let user = メンバーの利用者(db, "cm-retire@example.com", "Operator").await;
+    let v = ベンダー(db, "チングルマ製作所", user.id).await;
+    let (状態, token) = 認証済み(db, &user).await;
+    型番を送る(
+        状態,
+        &token,
+        v.id,
+        &[("container_type", "Desk"), ("model_name", "DK-OLD")],
+    )
+    .await;
+    let m = entity::container_model::Entity::find()
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = 送信(
+        状態,
+        "/catalog/container-models/retire",
+        &token,
+        &[("id", &m.id.to_string())],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let p = project_member::Entity::find()
+        .filter(project_member::Column::UserId.eq(user.id))
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, body) = 取得(
+        状態,
+        &format!("/projects/{}/containers", p.project_id),
+        &token,
+    )
+    .await;
+    assert!(!body.contains("DK-OLD"), "廃番が登録の候補に出ています");
+}
+
+// ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
 
@@ -1880,6 +2050,10 @@ async fn 登録後は詳細へ進む(db: &DatabaseConnection) {
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, 操作者はカタログを編集できる);
+        全検証!(@one $用意, $属性, 設備の型番を登録できる);
+        全検証!(@one $用意, $属性, 種別に合わない収容能力は拒否される);
+        全検証!(@one $用意, $属性, 同じ設備の型番は登録できない);
+        全検証!(@one $用意, $属性, 廃番の設備の型番は候補に出ない);
         全検証!(@one $用意, $属性, 閲覧者はカタログを編集できない);
         全検証!(@one $用意, $属性, システム管理者はカタログに入れない);
         全検証!(@one $用意, $属性, 同名のベンダーは登録できない);

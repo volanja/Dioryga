@@ -40,8 +40,8 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::{Extension, Form};
 use chrono::Utc;
 use entity::{
-    cable_catalog, chassis_model, chassis_slot, configuration, configuration_part, device,
-    part_catalog, part_port_slot, port_power_rating, software_catalog, vendor, vlan,
+    cable_catalog, chassis_model, chassis_slot, configuration, configuration_part, container_model,
+    device, part_catalog, part_port_slot, port_power_rating, software_catalog, vendor, vlan,
 };
 use sea_orm::{
     ColumnTrait, ConnectionTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set,
@@ -251,6 +251,9 @@ struct ChassisModelFormPage {
     v_height_u: String,
     v_mount_form: String,
     v_rack_width: String,
+    t_weight: String,
+    t_weight_hint: String,
+    v_weight_kg: String,
     error: Option<String>,
 }
 
@@ -351,6 +354,7 @@ pub async fn index(
     );
     let configurations = 件数!(db, configuration, configuration::Entity::find());
     let cables = 件数!(db, cable_catalog, cable_catalog::Entity::find());
+    let containers = 件数!(db, container_model, container_model::Entity::find());
     let software = 件数!(db, software_catalog, software_catalog::Entity::find());
     let vlans = 件数!(db, vlan, vlan::Entity::find());
 
@@ -371,6 +375,12 @@ pub async fn index(
             configurations,
         ),
         ("cables", "cables.title", "/catalog/cables", cables),
+        (
+            "container_models",
+            "container_models.title",
+            "/catalog/container-models",
+            containers,
+        ),
         ("software", "software.title", "/catalog/software", software),
         ("vlans", "vlans.title", "/catalog/vlans", vlans),
     ];
@@ -525,12 +535,17 @@ async fn ベンダーの詳細を描く(
         .filter(software_catalog::Column::VendorId.eq(id))
         .count(db)
         .await;
+    let 設備 = container_model::Entity::find()
+        .filter(container_model::Column::VendorId.eq(id))
+        .count(db)
+        .await;
 
     let mut counts = Vec::new();
     for (key, 結果) in [
         ("catalog.chassis_models", 筐体),
         ("parts.title", 部品),
         ("cables.title", ケーブル),
+        ("container_models.title", 設備),
         ("software.title", ソフトウェア),
     ] {
         let n = 結果.map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
@@ -749,6 +764,10 @@ pub struct ChassisModelForm {
     pub mount_form: String,
     #[serde(default)]
     pub rack_width: String,
+    /// 重量（kg で受け、g の整数で保存する、24.2.1）。設備・什器の静荷重と
+    /// 比べるため（12.10、#205）。
+    #[serde(default)]
+    pub weight_kg: String,
 }
 
 /// 登録画面を描く（#124）。**Viewerは入れない**（18.1）。
@@ -785,6 +804,9 @@ async fn 筐体型の登録を描く(
         v_model_name: form.model_name.clone(),
         v_device_category: form.device_category.clone(),
         v_height_u: form.height_u.clone(),
+        t_weight: rust_i18n::t!("container_models.weight", locale = l).to_string(),
+        t_weight_hint: rust_i18n::t!("catalog.weight_hint", locale = l).to_string(),
+        v_weight_kg: form.weight_kg.clone(),
         v_mount_form: form.mount_form.clone(),
         v_rack_width: form.rack_width.clone(),
         error,
@@ -892,6 +914,10 @@ pub async fn create_chassis_model(
         }
     };
 
+    let Ok(weight_g) = crate::server::container_model::kgをgに(&form.weight_kg) else {
+        return 筐体型の登録を描く(&state, &current, &form, 誤り("catalog.error_weight")).await;
+    };
+
     // 自然キーは `(vendor_id, model_name)`（6.2）。**別ベンダーなら同じ型番を持てる**
     let 重複 = chassis_model::Entity::find()
         .filter(chassis_model::Column::VendorId.eq(form.vendor_id))
@@ -921,6 +947,7 @@ pub async fn create_chassis_model(
             height_u: Set(height_u),
             mount_form: Set(form.mount_form.clone()),
             rack_width: Set(rack_width),
+            weight_g: Set(weight_g),
             retired_at: Set(None),
             created_by: Set(current.user.id),
             created_at: Set(now),
@@ -1266,6 +1293,12 @@ async fn 筐体型の詳細を描く(
         basic.push(Labeled {
             label: rust_i18n::t!("catalog.rack_width", locale = l).to_string(),
             value: w.clone(),
+        });
+    }
+    if m.weight_g.is_some() {
+        basic.push(Labeled {
+            label: rust_i18n::t!("container_models.weight", locale = l).to_string(),
+            value: crate::server::container_model::kg(m.weight_g),
         });
     }
 

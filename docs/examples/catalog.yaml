@@ -12,6 +12,7 @@ kind: catalog
 vendors:
   - name: ハイマツ電機
   - name: コマクサ通信
+  - name: チングルマ製作所
 
 chassis_models:
   - vendor: ハイマツ電機
@@ -20,6 +21,8 @@ chassis_models:
     height_u: 2
     mount_form: RackU
     rack_width: Full
+    # 重量はグラムの整数。設備・什器の静荷重と比べるのに使う
+    weight_g: 28500
     # 64個のDIMMスロットを手書きしない。count と label_format で展開する
     slots:
       - { slot_type: CPU_SOCKET, count: 4,  label_format: "CPU{n}" }
@@ -35,6 +38,7 @@ chassis_models:
     height_u: 1
     mount_form: RackU
     rack_width: Full
+    weight_g: 7200
 
 part_catalogs:
   # & でアンカーを付けると、同じファイル内から * で参照できる
@@ -99,3 +103,27 @@ vlans:
   - { vlan_tag: 310, name: mz-app, zone: LAN,        description: 業務系 }
   - { vlan_tag: 320, name: mz-db,  zone: LAN,        description: データベース }
   - { vlan_tag: 390, name: mz-mgmt, zone: Management, description: 管理系 }
+
+# 設備・什器の型番（ラック・机・棚）。種別で収容能力の列が分かれる——
+# Rack は height_u（U数）、Shelving は shelf_count（段数）、Desk はどちらも持たない。
+# 寸法はミリメートル、重量と静荷重はグラムの整数
+container_models:
+  - vendor: チングルマ製作所
+    model_name: CG-42U-1200
+    container_type: Rack
+    height_u: 42
+    width_mm: 600
+    depth_mm: 1200
+    height_mm: 2000
+    weight_g: 130000
+    static_load_g: 1000000
+  - vendor: チングルマ製作所
+    model_name: CG-SH5
+    container_type: Shelving
+    shelf_count: 5
+    static_load_g: 300000
+  - vendor: チングルマ製作所
+    model_name: CG-DK1600
+    container_type: Desk
+    width_mm: 1600
+    depth_mm: 800

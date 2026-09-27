@@ -58,6 +58,11 @@
   </select>
   <p class="hint">{{ t_rack_width_hint }}</p>
 
+  {# 設備・什器の静荷重と比べるため（設計書12.10） #}
+  <label for="weight_kg">{{ t_weight }}</label>
+  <input type="text" id="weight_kg" name="weight_kg" inputmode="decimal" value="{{ v_weight_kg }}">
+  <p class="hint">{{ t_weight_hint }}</p>
+
   <button type="submit">{{ t_submit }}</button>
 </form>
 {% endif %}

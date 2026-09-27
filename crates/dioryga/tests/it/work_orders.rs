@@ -851,10 +851,11 @@ async fn 増設の舞台(db: &DatabaseConnection, email: &str) -> 増設の舞�
 
     let container = mount_container::ActiveModel {
         name: Set("Rack-01".to_owned()),
-        container_type: Set("Rack".to_owned()),
+        container_model_id: Set(Some(
+            crate::support::設備の型番(db, user.id, "Rack".to_owned(), Some(42)).await,
+        )),
         location_type: Set("Project".to_owned()),
         location_id: Set(p.id),
-        capacity: Set(Some(42)),
         created_by: Set(user.id),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),

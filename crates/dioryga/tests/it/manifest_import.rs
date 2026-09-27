@@ -411,7 +411,52 @@ async fn 費用をまとめて取り込める(db: &DatabaseConnection) {
 // 什器（#139）
 // ---------------------------------------------------------------------------
 
-const 什器見出し: &str = "name,container_type,capacity\n";
+const 什器見出し: &str = "name,container_vendor,container_model\n";
+/// 取込の什器が指す型番のベンダー（#205）。
+const 什器ベンダー: &str = "什器メーカー";
+
+/// 型番を作る。ベンダーは [`什器ベンダー`]（無ければ作る）。
+async fn 型番(
+    db: &DatabaseConnection,
+    model_name: &str,
+    container_type: &str,
+    capacity: Option<i32>,
+) -> i32 {
+    let u = app_user::Entity::find().one(db).await.unwrap().unwrap();
+    let v = match entity::vendor::Entity::find()
+        .filter(entity::vendor::Column::Name.eq(什器ベンダー))
+        .one(db)
+        .await
+        .unwrap()
+    {
+        Some(v) => v,
+        None => entity::vendor::ActiveModel {
+            name: Set(什器ベンダー.to_owned()),
+            created_by: Set(u.id),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
+            ..Default::default()
+        }
+        .insert(db)
+        .await
+        .unwrap(),
+    };
+    entity::container_model::ActiveModel {
+        vendor_id: Set(v.id),
+        model_name: Set(model_name.to_owned()),
+        container_type: Set(container_type.to_owned()),
+        height_u: Set((container_type == "Rack").then_some(capacity).flatten()),
+        shelf_count: Set((container_type == "Shelving").then_some(capacity).flatten()),
+        created_by: Set(u.id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap()
+    .id
+}
 const 機器見出し: &str =
     "uid,external_id,hostname,serial_number,asset_number,device_type,power_watt,status\n";
 const 搭載見出し: &str =
@@ -425,13 +470,14 @@ const 搭載見出し: &str =
 async fn 什器と搭載を同じ取込で入れられる(db: &DatabaseConnection) {
     let 場 = 舞台(db, "什器同梱").await;
     let 取込者 = 場.email.replace('@', "_");
+    let r42 = 型番(db, "R42", "Rack", Some(42)).await;
     let dir = 取込ファイル(
         &場,
         &[
             (
                 "mount_container",
                 "containers.csv",
-                &format!("{什器見出し}Rack-02,Rack,42\n"),
+                &format!("{什器見出し}Rack-02,{什器ベンダー},R42\n"),
             ),
             (
                 "device",
@@ -459,8 +505,7 @@ async fn 什器と搭載を同じ取込で入れられる(db: &DatabaseConnectio
         .unwrap();
 
     let c = 什器(db, 場.project.id, "Rack-02").await;
-    assert_eq!(c.container_type, "Rack");
-    assert_eq!(c.capacity, Some(42));
+    assert_eq!(c.container_model_id, Some(r42), "型番を指していません");
     let u = app_user::Entity::find()
         .filter(app_user::Column::Username.eq(&取込者))
         .one(db)
@@ -492,12 +537,17 @@ async fn 什器と搭載を同じ取込で入れられる(db: &DatabaseConnectio
 async fn 什器を二度流しても変わらない(db: &DatabaseConnection) {
     let 場 = 舞台(db, "什器二度").await;
     let 取込者 = 場.email.replace('@', "_");
+    型番(db, "R42", "Rack", Some(42)).await;
+    型番(db, "D1", "Desk", None).await;
+    型番(db, "S5", "Shelving", Some(5)).await;
     let dir = 取込ファイル(
         &場,
         &[(
             "mount_container",
             "containers.csv",
-            &format!("{什器見出し}Rack-02,Rack,42\nDesk-01,Desk,\nShelf-01,Shelving,5\n"),
+            &format!(
+                "{什器見出し}Rack-02,{什器ベンダー},R42\nDesk-01,{什器ベンダー},D1\nShelf-01,{什器ベンダー},S5\n"
+            ),
         )],
     );
 
@@ -529,13 +579,14 @@ async fn 什器の値を変えると同じ行が更新される(db: &DatabaseCon
     let 場 = 舞台(db, "什器更新").await;
     let 取込者 = 場.email.replace('@', "_");
     let 前 = 什器(db, 場.project.id, "Rack-01").await;
+    let r48 = 型番(db, "R48", "Rack", Some(48)).await;
 
     let dir = 取込ファイル(
         &場,
         &[(
             "mount_container",
             "containers.csv",
-            &format!("{什器見出し}Rack-01,Rack,48\n"),
+            &format!("{什器見出し}Rack-01,{什器ベンダー},R48\n"),
         )],
     );
     let 実行 = run::run(db, &dir.join("manifest.yaml"), &取込者, true)
@@ -545,21 +596,31 @@ async fn 什器の値を変えると同じ行が更新される(db: &DatabaseCon
     assert_eq!(実行.report.count(Outcome::Updated), 1, "{}", 実行.report);
     let 後 = 什器(db, 場.project.id, "Rack-01").await;
     assert_eq!(後.id, 前.id, "行が作り直されています");
-    assert_eq!(後.capacity, Some(48));
+    assert_eq!(後.container_model_id, Some(r48));
     assert_eq!(什器の数(db, 場.project.id).await, 1);
 }
 
-/// **語彙外・読めない数・空の名前・ファイル内の重複を拒否すること**（Q-21）。
+/// **見つからない型番・廃番・空の名前・ファイル内の重複を拒否すること**（Q-21、18.5）。
 async fn 什器の誤りは取り込まない(db: &DatabaseConnection) {
     let 場 = 舞台(db, "什器誤り").await;
     let 取込者 = 場.email.replace('@', "_");
+    型番(db, "D1", "Desk", None).await;
+    let 廃番 = 型番(db, "OLD", "Rack", Some(42)).await;
+    let m = entity::container_model::Entity::find_by_id(廃番)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    let mut active: entity::container_model::ActiveModel = m.into();
+    active.retired_at = Set(Some(Utc::now()));
+    active.update(db).await.unwrap();
     let dir = 取込ファイル(
         &場,
         &[(
             "mount_container",
             "containers.csv",
             &format!(
-                "{什器見出し}Cab-01,Cabinet,42\nRack-09,Rack,0\n,Rack,42\nRack-10,,42\nDesk-01,Desk,\nDesk-01,Desk,\n"
+                "{什器見出し}Cab-01,無いメーカー,X\nRack-09,{什器ベンダー},無い型番\n,{什器ベンダー},D1\nRack-10,,\nRack-11,{什器ベンダー},OLD\nDesk-01,{什器ベンダー},D1\nDesk-01,{什器ベンダー},D1\n"
             ),
         )],
     );
@@ -567,8 +628,8 @@ async fn 什器の誤りは取り込まない(db: &DatabaseConnection) {
     let 下見 = run::run(db, &dir.join("manifest.yaml"), &取込者, false)
         .await
         .unwrap();
-    // 語彙外・0・空の名前・空の種別・2つ目の Desk-01
-    assert_eq!(下見.report.count(Outcome::Error), 5, "{}", 下見.report);
+    // ベンダーが無い・型番が無い・空の名前・型番の列が空・廃番・2つ目の Desk-01
+    assert_eq!(下見.report.count(Outcome::Error), 6, "{}", 下見.report);
     assert!(run::run(db, &dir.join("manifest.yaml"), &取込者, true)
         .await
         .is_err());
@@ -584,12 +645,13 @@ async fn 什器の誤りは取り込まない(db: &DatabaseConnection) {
 async fn 什器の名前は大文字小文字を区別しない(db: &DatabaseConnection) {
     let 場 = 舞台(db, "什器大小").await;
     let 取込者 = 場.email.replace('@', "_");
+    型番(db, "R48", "Rack", Some(48)).await;
     let dir = 取込ファイル(
         &場,
         &[(
             "mount_container",
             "containers.csv",
-            &format!("{什器見出し}rack-01,Rack,48\n"),
+            &format!("{什器見出し}rack-01,{什器ベンダー},R48\n"),
         )],
     );
     let 実行 = run::run(db, &dir.join("manifest.yaml"), &取込者, true)
@@ -605,6 +667,7 @@ async fn 什器の名前は大文字小文字を区別しない(db: &DatabaseCon
 async fn 撤去した什器は突き合わせない(db: &DatabaseConnection) {
     let 場 = 舞台(db, "什器撤去").await;
     let 取込者 = 場.email.replace('@', "_");
+    型番(db, "R42", "Rack", Some(42)).await;
     let 旧 = 什器(db, 場.project.id, "Rack-01").await;
     let mut active: mount_container::ActiveModel = 旧.clone().into();
     active.retired_at = Set(Some(Utc::now()));
@@ -616,7 +679,7 @@ async fn 撤去した什器は突き合わせない(db: &DatabaseConnection) {
             (
                 "mount_container",
                 "containers.csv",
-                &format!("{什器見出し}Rack-01,Rack,42\n"),
+                &format!("{什器見出し}Rack-01,{什器ベンダー},R42\n"),
             ),
             (
                 "device",
@@ -638,10 +701,11 @@ async fn 撤去した什器は突き合わせない(db: &DatabaseConnection) {
     // 撤去した設備にしか無い名前へは載せられない
     let 古い = mount_container::ActiveModel {
         name: Set("Old-01".to_owned()),
-        container_type: Set("Rack".to_owned()),
+        container_model_id: Set(Some(
+            crate::support::設備の型番(db, 旧.created_by, "Rack".to_owned(), Some(42)).await,
+        )),
         location_type: Set("Project".to_owned()),
         location_id: Set(場.project.id),
-        capacity: Set(Some(42)),
         retired_at: Set(Some(Utc::now())),
         created_by: Set(旧.created_by),
         created_at: Set(Utc::now()),
@@ -742,10 +806,11 @@ async fn 舞台(db: &DatabaseConnection, name: &str) -> 舞台情報 {
 
     mount_container::ActiveModel {
         name: Set("Rack-01".to_owned()),
-        container_type: Set("Rack".to_owned()),
+        container_model_id: Set(Some(
+            crate::support::設備の型番(db, u.id, "Rack".to_owned(), Some(42)).await,
+        )),
         location_type: Set("Project".to_owned()),
         location_id: Set(p.id),
-        capacity: Set(Some(42)),
         created_by: Set(u.id),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),

@@ -688,6 +688,97 @@ async fn 件数(db: &DatabaseConnection) -> usize {
 }
 
 // ---------------------------------------------------------------------------
+// 設備・什器の型番と機種の重量（設計書12.10、#205）
+// ---------------------------------------------------------------------------
+
+const 設備の型番: &str = r#"
+format_version: 1
+kind: catalog
+vendors:
+  - name: チングルマ製作所
+container_models:
+  - { vendor: チングルマ製作所, model_name: CG-42U, container_type: Rack, height_u: 42, static_load_g: 1000000 }
+  - { vendor: チングルマ製作所, model_name: CG-SH5, container_type: Shelving, shelf_count: 5 }
+  - { vendor: チングルマ製作所, model_name: CG-DK, container_type: Desk }
+"#;
+
+/// **設備・什器の型番を取り込め、二度流しても変わらないこと。**
+async fn 設備の型番を取り込める(db: &DatabaseConnection) {
+    let user = 利用者(db, "cm-import@example.com").await;
+    let file = catalog::parse(設備の型番).unwrap();
+    let report = catalog::apply(db, &file, user.id, 1).await.unwrap();
+    assert_eq!(report.count(Outcome::Created), 4, "{report}");
+
+    let rack = entity::container_model::Entity::find()
+        .filter(entity::container_model::Column::ModelName.eq("CG-42U"))
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(rack.height_u, Some(42));
+    assert_eq!(rack.static_load_g, Some(1_000_000));
+
+    let 二度目 = catalog::apply(db, &file, user.id, 2).await.unwrap();
+    assert_eq!(二度目.count(Outcome::Created), 0, "{二度目}");
+    assert_eq!(二度目.count(Outcome::Updated), 0, "{二度目}");
+}
+
+/// **種別に合わない収容能力はエラーにすること**（画面と同じ規則、8.6）。
+async fn 設備の型番の誤りはエラー(db: &DatabaseConnection) {
+    let 誤り = r#"
+format_version: 1
+kind: catalog
+vendors:
+  - name: チングルマ製作所
+container_models:
+  - { vendor: チングルマ製作所, model_name: A, container_type: Rack }
+  - { vendor: チングルマ製作所, model_name: B, container_type: Desk, height_u: 1 }
+  - { vendor: チングルマ製作所, model_name: C, container_type: rack, height_u: 42 }
+  - { vendor: 無いメーカー, model_name: D, container_type: Desk }
+"#;
+    let report = catalog::dry_run(db, &catalog::parse(誤り).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(report.count(Outcome::Error), 4, "{report}");
+}
+
+/// **機種の重量は、空なら足し、値があれば上書きしないこと**（23.4と同じ考え方）。
+async fn 機種の重量は空なら足す(db: &DatabaseConnection) {
+    let user = 利用者(db, "weight@example.com").await;
+    catalog::apply(db, &catalog::parse(基本).unwrap(), user.id, 1)
+        .await
+        .unwrap();
+
+    let 重量つき = 基本.replace(
+        "    height_u: 2\n",
+        "    height_u: 2\n    weight_g: 28500\n",
+    );
+    let file = catalog::parse(&重量つき).unwrap();
+    let report = catalog::dry_run(db, &file).await.unwrap();
+    assert_eq!(report.count(Outcome::Updated), 1, "{report}");
+    catalog::apply(db, &file, user.id, 2).await.unwrap();
+    let m = chassis_model::Entity::find()
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(m.weight_g, Some(28_500));
+
+    // 値があれば上書きしない
+    let 別の重量 = 基本.replace("    height_u: 2\n", "    height_u: 2\n    weight_g: 1\n");
+    let report = catalog::apply(db, &catalog::parse(&別の重量).unwrap(), user.id, 3)
+        .await
+        .unwrap();
+    assert_eq!(report.count(Outcome::Updated), 0, "{report}");
+    let m = chassis_model::Entity::find()
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(m.weight_g, Some(28_500), "重量が上書きされました");
+}
+
+// ---------------------------------------------------------------------------
 // VLAN（設計書23.5、8.5）
 // ---------------------------------------------------------------------------
 
@@ -812,6 +903,9 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, vlanを取り込める);
         全検証!(@one $用意, $属性, 同じタグの別名は警告);
         全検証!(@one $用意, $属性, vlanタグの範囲外は拒否);
+        全検証!(@one $用意, $属性, 設備の型番を取り込める);
+        全検証!(@one $用意, $属性, 設備の型番の誤りはエラー);
+        全検証!(@one $用意, $属性, 機種の重量は空なら足す);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

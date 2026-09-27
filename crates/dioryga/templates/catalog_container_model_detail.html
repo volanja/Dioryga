@@ -1,0 +1,25 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/catalog/container-models">{{ t_back }}</a></p>
+    <h1>{{ title }}{% if retired %} <span class="badge">{{ t_retired }}</span>{% endif %}</h1>
+  </div>
+</div>
+
+{# 登録した後は変えない。参照されたカタログ行はスペックを編集できない（設計書18.2） #}
+<div class="panels">
+  <div class="card">
+    <h2>{{ t_basic }}</h2>
+    <dl>
+      {% for item in basic %}
+      <dt>{{ item.label }}</dt>
+      <dd>{{ item.value }}</dd>
+      {% endfor %}
+    </dl>
+  </div>
+</div>
+
+{% endblock %}

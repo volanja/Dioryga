@@ -1,3 +1,3 @@
-name,container_type,capacity
-R01,Rack,42
-R02,Rack,42
+name,container_vendor,container_model
+R01,チングルマ製作所,CG-42U-1000
+R02,チングルマ製作所,CG-42U-1000

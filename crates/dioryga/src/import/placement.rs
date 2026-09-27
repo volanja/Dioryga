@@ -49,11 +49,12 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
-use entity::{device, device_assignment, device_mount, mount_container, warehouse};
+use entity::{
+    container_model, device, device_assignment, device_mount, mount_container, vendor, warehouse,
+};
 use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
 
-use super::instances::語彙;
 use super::{Entry, ImportError, Outcome, Report};
 use crate::repository::{Actor, AuditedTx};
 
@@ -111,20 +112,15 @@ pub(super) fn 空ならnone(value: &str) -> Option<&str> {
 // 什器（MOUNT_CONTAINER）
 // ---------------------------------------------------------------------------
 
-/// 語彙（`vocabularies.md`、設計書12.1）。**画面（`server::rack`）と同じ値を
-/// 持つ。**片方だけ足すと、画面で選べない値が取込から入る。
-const CONTAINER_TYPES: &[&str] = &["Rack", "Desk", "Shelving"];
-
 #[derive(Debug, Clone, Deserialize)]
 pub struct ContainerRow {
     /// プロジェクトの中で什器を指す名前。搭載のCSVの `container` と同じもの。
     pub name: String,
-    /// Rack / Desk / Shelving。
-    pub container_type: String,
-    /// Rackなら総U数、Shelvingなら段数。Deskは空。**制約ではなく目安**
-    /// （超過は警告、不変条件6）。
-    #[serde(default)]
-    pub capacity: String,
+    /// 型番（`CONTAINER_MODEL`、#205）のベンダー名。種別と収容能力は型番が持つ。
+    pub container_vendor: String,
+    /// 型番。機器の `configuration_vendor` / `configuration_model` と同じく
+    /// 「ベンダー＋型番」で指す。
+    pub container_model: String,
 }
 
 pub fn parse_containers(source: &str) -> Result<Vec<ContainerRow>, ImportError> {
@@ -166,41 +162,12 @@ pub async fn 什器を取り込む(
         }
         書いた名前.push(鍵);
 
-        // **語彙外は既定へ寄せず拒否する**（Q-21）。空も既定を持たない
-        let container_type = match 語彙(&row.container_type, CONTAINER_TYPES, "") {
-            Ok(t) if !t.is_empty() => t,
-            Ok(_) => {
-                report.push(Entry::new(
-                    Outcome::Error,
-                    target,
-                    format!("container_type が空です（{}）", CONTAINER_TYPES.join(" / ")),
-                ));
-                continue;
-            }
+        let model = match 型番を解決する(tx.reader(), row).await? {
+            Ok(m) => m,
             Err(理由) => {
-                report.push(Entry::new(
-                    Outcome::Error,
-                    target,
-                    format!("container_type: {理由}"),
-                ));
+                report.push(Entry::new(Outcome::Error, target, 理由));
                 continue;
             }
-        };
-
-        // 画面と同じく、正の整数か空（Deskは格子を持たない、12.3）
-        let capacity = match 空ならnone(&row.capacity) {
-            None => None,
-            Some(v) => match v.parse::<i32>() {
-                Ok(n) if n > 0 => Some(n),
-                _ => {
-                    report.push(Entry::new(
-                        Outcome::Error,
-                        target,
-                        format!("capacity「{v}」は正の整数で書いてください"),
-                    ));
-                    continue;
-                }
-            },
         };
 
         // **撤去していない設備の中で、大文字小文字を区別せずに突き合わせる**（12.10）。
@@ -208,14 +175,26 @@ pub async fn 什器を取り込む(
         let 既存 =
             crate::container::同じ名前の設備(tx.reader(), PROJECT, project_id, &name, None).await?;
 
+        // **廃番は新たに指せない**（18.5）。既に指している設備はそのまま残る
+        let 同じ型番 = 既存
+            .as_ref()
+            .is_some_and(|c| c.container_model_id == Some(model.id));
+        if model.retired_at.is_some() && !同じ型番 {
+            report.push(Entry::new(
+                Outcome::Error,
+                target,
+                format!("型番「{}」は廃番です", model.model_name),
+            ));
+            continue;
+        }
+
         match 既存 {
             None => {
                 tx.insert(mount_container::ActiveModel {
                     name: Set(name),
-                    container_type: Set(container_type),
+                    container_model_id: Set(Some(model.id)),
                     location_type: Set(PROJECT.to_owned()),
                     location_id: Set(project_id),
-                    capacity: Set(capacity),
                     created_by: Set(actor),
                     created_at: Set(now),
                     updated_at: Set(now),
@@ -225,13 +204,12 @@ pub async fn 什器を取り込む(
                 report.push(Entry::new(Outcome::Created, target, ""));
             }
             Some(c) => {
-                if c.container_type == container_type && c.capacity == capacity {
+                if 同じ型番 {
                     report.push(Entry::new(Outcome::Unchanged, target, ""));
                     continue;
                 }
                 let mut active: mount_container::ActiveModel = c.clone().into();
-                active.container_type = Set(container_type);
-                active.capacity = Set(capacity);
+                active.container_model_id = Set(Some(model.id));
                 active.updated_at = Set(now);
                 tx.update(&c, active).await?;
                 report.push(Entry::new(Outcome::Updated, target, ""));
@@ -240,6 +218,34 @@ pub async fn 什器を取り込む(
     }
 
     Ok(report)
+}
+
+/// 「ベンダー＋型番」で型番を引く（自然キー、#205）。
+async fn 型番を解決する<C: ConnectionTrait>(
+    db: &C,
+    row: &ContainerRow,
+) -> Result<Result<container_model::Model, String>, sea_orm::DbErr> {
+    let (Some(vendor_name), Some(model_name)) = (
+        空ならnone(&row.container_vendor),
+        空ならnone(&row.container_model),
+    ) else {
+        return Ok(Err(
+            "container_vendor と container_model が要ります".to_owned()
+        ));
+    };
+    let Some(v) = vendor::Entity::find()
+        .filter(vendor::Column::Name.eq(vendor_name))
+        .one(db)
+        .await?
+    else {
+        return Ok(Err(format!("ベンダー「{vendor_name}」が見つかりません")));
+    };
+    Ok(container_model::Entity::find()
+        .filter(container_model::Column::VendorId.eq(v.id))
+        .filter(container_model::Column::ModelName.eq(model_name))
+        .one(db)
+        .await?
+        .ok_or_else(|| format!("型番「{vendor_name} / {model_name}」が見つかりません")))
 }
 
 // ---------------------------------------------------------------------------

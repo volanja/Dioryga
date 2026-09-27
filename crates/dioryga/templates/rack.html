@@ -10,11 +10,16 @@
     </p>
     <h1>{{ container_name }}</h1>
     <p class="lead">{{ container_type }}</p>
+    {# 載せた重量と静荷重（#205）。超えても止めず、警告する（不変条件6） #}
+    <p class="lead">{{ t_load }}：{{ load }}</p>
   </div>
 </div>
 
 {% if let Some(message) = error %}
 <p class="error">{{ message }}</p>
+{% endif %}
+{% if overloaded %}
+<p class="warn">{{ t_overloaded }}</p>
 {% endif %}
 {% if retired %}
 <p class="warn">{{ t_retired_note }}</p>

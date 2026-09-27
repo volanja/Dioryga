@@ -33,8 +33,8 @@ use axum::response::Response;
 use axum::{Extension, Form};
 use chrono::Utc;
 use entity::{
-    cable_catalog, chassis_model, configuration_part, maintenance_contract, part_catalog,
-    part_instance, recurring_cost, software_catalog, vendor,
+    cable_catalog, chassis_model, configuration_part, container_model, maintenance_contract,
+    part_catalog, part_instance, recurring_cost, software_catalog, vendor,
 };
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, Set};
 use serde::Deserialize;
@@ -192,6 +192,7 @@ pub async fn merge_vendor(
     // ——購入元は自由入力で `VENDOR` を参照しない（10.2）
     let mut 件数 = 0;
     件数 += 付け替え_chassis_model(&tx, source.id, target.id, now).await?;
+    件数 += 付け替え_container_model(&tx, source.id, target.id, now).await?;
     件数 += 付け替え_part_catalog(&tx, source.id, target.id, now).await?;
     件数 += 付け替え_cable_catalog(&tx, source.id, target.id, now).await?;
     件数 += 付け替え_software_catalog(&tx, source.id, target.id, now).await?;
@@ -367,6 +368,24 @@ async fn 衝突を調べる<C: ConnectionTrait>(
         }
     }
 
+    // UNIQUE(vendor_id, model_name)（設備・什器の型番、#205）
+    let 元 = container_model::Entity::find()
+        .filter(container_model::Column::VendorId.eq(source))
+        .all(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    for m in 元 {
+        let 先 = container_model::Entity::find()
+            .filter(container_model::Column::VendorId.eq(target))
+            .filter(container_model::Column::ModelName.eq(&m.model_name))
+            .one(db)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+        if 先.is_some() {
+            return Ok(Some(("CONTAINER_MODEL".to_owned(), m.model_name)));
+        }
+    }
+
     // UNIQUE(vendor_id, part_number)
     let 元 = part_catalog::Entity::find()
         .filter(part_catalog::Column::VendorId.eq(source))
@@ -452,6 +471,7 @@ macro_rules! 付け替え {
 }
 
 付け替え!(付け替え_chassis_model, chassis_model, vendor_id);
+付け替え!(付け替え_container_model, container_model, vendor_id);
 /// `PART_CATALOG` だけ専用にするのは、**統合済みの行を付け替えないため**である。
 ///
 /// 吸収された側の行は削除せず残るが（23.9.4）、`UNIQUE(vendor_id, part_number)`

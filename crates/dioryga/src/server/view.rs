@@ -203,6 +203,11 @@ const カタログの画面: &[(&str, &str, &str)] = &[
         "catalog.configurations",
     ),
     ("cables", "/catalog/cables", "cables.title"),
+    (
+        "container_models",
+        "/catalog/container-models",
+        "container_models.title",
+    ),
     ("software", "/catalog/software", "software.title"),
     ("vlans", "/catalog/vlans", "vlans.title"),
     ("merge", "/catalog/merge", "merge.title"),

@@ -35,7 +35,7 @@ nav:
   password: パスワード
   dashboard: ダッシュボード
   devices: 機器
-  containers: 什器（ラック等）
+  containers: 設備・什器
   ip_addresses: IPアドレス
   components: コンポーネント
   work_orders: 変更管理チケット
@@ -183,7 +183,7 @@ devices:
   parts: 搭載部品
   firmware: ファームウェア
   stack: スタック構成
-  container: 什器
+  container: 設備・什器
   host_device: 搭載先の機器
   position: 位置
   serial_number: シリアル番号
@@ -371,7 +371,7 @@ work_orders:
   reservations: 予約している配置
   reservations_hint: 計画の時点でラック位置を確保します。ラック図に予約中として現れ、他の担当者が同じ場所を使えなくなります。中止すると解放されます
   reserve: ラック位置を予約する
-  container: 什器
+  container: 設備・什器
   released: 解放済み
   relocation_hint: 移設での予約は未対応です。稼働中の機器は移設元で動いたままである必要があり、増設と同じ方式を当てられません
   error_reserve_not_planned: 予約を作れるのは計画中のチケットだけです
@@ -399,7 +399,7 @@ members:
   error_disabled: 無効化された利用者は追加できません
 
 containers:
-  title: 什器
+  title: 設備・什器
   lead: ラック・机・棚を登録します。ラック図はここから開きます
   name: 名前
   container_type: 種別
@@ -407,13 +407,25 @@ containers:
   capacity_hint: ラックなら総U数、棚なら段数。机は空のままにします
   mounted: 搭載数
   open: ラック図
-  empty: 什器がありません
-  new: 什器を登録
+  empty: 設備・什器がありません
+  new: 設備・什器を登録
   submit: 登録する
-  back: 什器一覧へ戻る
+  back: 設備・什器の一覧へ戻る
   error_name: 名前を入力してください
   error_type: 種別の値が不正です
   error_capacity: 収容能力は1以上の整数で入力してください
+  error_name_taken: 同じ名前の設備・什器が既にあります。大文字と小文字は区別しません
+  error_in_use: 機器が載っているため撤去できません。先に機器を降ろすか移してください
+  error_unretire_taken: 同じ名前の設備・什器が既にあるため、撤去を取り消せません。先に名前を分けてください
+  retired: 撤去済み
+  show_retired: 撤去済みも含める
+  retire: 撤去
+  unretire: 撤去を取り消す
+  retire_title: 設備・什器の撤去
+  retire_in_use: この設備・什器には機器が載っています。先に降ろすか移してから撤去してください
+  retire_hard: この設備・什器には一度も機器が載っておらず、費用の記録もないため、行ごと消えます。戻せません
+  retire_soft: この設備・什器は過去に使われているため、撤去済みにします。搭載の履歴と費用の記録は残り、あとから取り消せます
+  retired_note: この設備・什器は撤去済みです。機器を搭載できません
 
 rack:
   diagram: ラック図
@@ -436,9 +448,10 @@ rack:
   mounted: 搭載中の機器
   unmount: 降ろす
   empty: 搭載されている機器がありません
-  no_grid: この什器は格子を持ちません
+  no_grid: この設備・什器は格子を持ちません
   error_not_in_project: このプロジェクトにない機器は搭載できません
   error_already_mounted: この機器は既にどこかに搭載されています。先に降ろしてください
+  error_retired: 撤去済みの設備・什器には搭載できません
   error_position: 位置は1以上の整数で入力してください
   error_rack_side: 0Uサイドマウントの機器に位置は指定できません
   error_host_and_position: 載せる先の機器を指定する場合、位置は空にしてください
@@ -813,7 +826,7 @@ costs:
   this_year: 当年の償却費
   new_asset: 固定資産を登録
   recurring_lead: ラックレンタル等、購入ではなく継続課金される費用です
-  recurring_item_hint: プロジェクト全体に付くものと、特定の什器に付くものがあります
+  recurring_item_hint: プロジェクト全体に付くものと、特定の設備・什器に付くものがあります
   cost_type: 費目
   cost_type_hint: RackRental など。自由に書けます
   billing_cycle: 課金周期
@@ -858,8 +871,8 @@ milestones:
 
 power:
   title: 電力集計
-  lead: 什器ごとに、搭載されている機器の消費電力を合算します
-  v2_hint: v1は什器単位のみです。回路単位の集計・冗長喪失時の負荷・電流ベースの容量管理は、ケーブルの接続記録に依存するためv2になります
+  lead: 設備・什器ごとに、搭載されている機器の消費電力を合算します
+  v2_hint: v1は設備・什器単位のみです。回路単位の集計・冗長喪失時の負荷・電流ベースの容量管理は、ケーブルの接続記録に依存するためv2になります
   virtual_hint: 仮想マシンとコンテナは合算しません。電力を引いているのはホストであり、数えると二重になります
   running: 稼働中の台数
   watt: 稼働中の消費電力

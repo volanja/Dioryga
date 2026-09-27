@@ -183,7 +183,7 @@ devices:
   parts: Installed parts
   firmware: Firmware
   stack: Stack members
-  container: Container
+  container: Rack or furniture
   host_device: Host device
   position: Position
   serial_number: Serial number
@@ -371,7 +371,7 @@ work_orders:
   reservations: Reserved placement
   reservations_hint: Hold a rack position while the work is still planned. It appears in the rack diagram as reserved so nobody else takes the spot, and it is released if the work order is cancelled
   reserve: Reserve a rack position
-  container: Container
+  container: Rack or furniture
   released: Released
   relocation_hint: Reservations are not supported for relocations. A running device must stay running at its origin, so the addition scheme does not apply
   error_reserve_not_planned: Only a planned work order can hold a reservation
@@ -399,7 +399,7 @@ members:
   error_disabled: A disabled user cannot be added
 
 containers:
-  title: Containers
+  title: Racks and furniture
   lead: Register racks, desks and shelving. Rack diagrams open from here
   name: Name
   container_type: Type
@@ -407,13 +407,25 @@ containers:
   capacity_hint: Total U for a rack, number of shelves for shelving. Leave empty for a desk
   mounted: Mounted
   open: Diagram
-  empty: No containers yet
-  new: Add container
+  empty: No racks or furniture yet
+  new: Add rack or furniture
   submit: Create
-  back: Back to containers
+  back: Back to racks and furniture
   error_name: Enter a name
-  error_type: Invalid container type
+  error_type: Invalid type
   error_capacity: Capacity must be a positive integer
+  error_name_taken: A rack or furniture with the same name already exists. Names are not case-sensitive
+  error_in_use: Devices are mounted, so this cannot be removed. Unmount or move them first
+  error_unretire_taken: A rack or furniture with the same name already exists, so the removal cannot be undone. Rename one of them first
+  retired: Removed
+  show_retired: Include removed
+  retire: Remove
+  unretire: Undo removal
+  retire_title: Remove rack or furniture
+  retire_in_use: Devices are mounted here. Unmount or move them before removing it
+  retire_hard: Nothing has ever been mounted here and no costs are recorded, so the row will be deleted. This cannot be undone
+  retire_soft: This has been used before, so it will be marked as removed. Mount history and cost records remain, and you can undo this later
+  retired_note: This rack or furniture has been removed. Devices cannot be mounted
 
 rack:
   diagram: Rack diagram
@@ -436,9 +448,10 @@ rack:
   mounted: Mounted devices
   unmount: Unmount
   empty: No devices mounted
-  no_grid: This container has no grid
+  no_grid: This rack or furniture has no grid
   error_not_in_project: A device outside this project cannot be mounted
   error_already_mounted: This device is already mounted somewhere. Unmount it first
+  error_retired: Devices cannot be mounted on a removed rack or furniture
   error_position: Position must be a positive integer
   error_rack_side: A zero-U side mount cannot have a position
   error_host_and_position: Leave the position empty when a host device is set
@@ -813,7 +826,7 @@ costs:
   this_year: Depreciation this year
   new_asset: Register a fixed asset
   recurring_lead: Costs billed continuously rather than purchased, such as rack rental
-  recurring_item_hint: Some apply to the whole project, others to a particular container
+  recurring_item_hint: Some apply to the whole project, others to a particular rack or furniture
   cost_type: Cost type
   cost_type_hint: Free text, e.g. RackRental
   billing_cycle: Billing cycle
@@ -858,8 +871,8 @@ milestones:
 
 power:
   title: Power
-  lead: Total power draw of the devices mounted in each container
-  v2_hint: v1 covers containers only. Per-circuit totals, load on loss of redundancy and current-based capacity management depend on cable connection records and are v2
+  lead: Total power draw of the devices mounted in each rack or furniture
+  v2_hint: v1 covers racks and furniture only. Per-circuit totals, load on loss of redundancy and current-based capacity management depend on cable connection records and are v2
   virtual_hint: Virtual machines and containers are not counted. The host draws the power; counting them would double-count
   running: Running devices
   watt: Power (running)

@@ -361,9 +361,10 @@ comments:
     columnComments:
       retired_at: null = 現役。所在の履歴が指し続けるため、使ったことのある倉庫は消さず廃止する（#133）
   - table: mount_container
-    tableComment: 機器を載せる什器（12章）。
+    tableComment: 機器を載せる設備・什器（ラック・机・棚、12章）。名前は置き場所の中で一意で、大文字小文字を区別しない（撤去していないものに限る、#204）
     columnComments:
       location_type: Warehouse / Project。多態的参照のため外部キーを持てない
+      retired_at: null = 現役。搭載の履歴や費用の記録が指し続けるため、使ったことのある設備は消さず撤去済みにする（#204）
       capacity: |
         ラックのU数、棚の段数。**制約ではなく目安。**超過はエラーではなく警告として扱う（不変条件6）
   - table: device_mount
@@ -372,7 +373,7 @@ comments:
       **1行で `container_id` と `host_device_id` のどちらか一方だけが埋まる。**
       この排他はDB制約にせず、アプリケーション層で検証する。
     columnComments:
-      container_id: 什器に直接搭載する場合。`host_device_id` とは排他
+      container_id: 設備・什器に直接搭載する場合。`host_device_id` とは排他
       host_device_id: 他の機器の上に載る場合（棚板、VMの実行ホスト）。`container_id` とは排他
       position: Rack なら開始U番号、Shelving なら段番号
       to_date: null が現在有効な行

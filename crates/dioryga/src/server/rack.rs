@@ -24,7 +24,7 @@
 //! 色だけでは色覚特性によっては区別できない**ため、両方を使い、凡例に文字の
 //! ラベルも置く（12.9）。
 
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::{Extension, Form};
 use chrono::Utc;
@@ -37,6 +37,7 @@ use serde::Deserialize;
 
 use crate::auth::authorization;
 use crate::auth::middleware::CurrentUser;
+use crate::container::{self as 設備, 撤去の結末};
 use crate::error::{AppError, AppResult};
 use crate::repository::{Actor, AuditedTx};
 use crate::server::view::{render, Chrome, Locale};
@@ -88,6 +89,8 @@ struct ContainerRow {
     container_type: String,
     capacity: String,
     mounted: usize,
+    /// 撤去済み（#204）。一覧の既定では出さない。
+    retired: bool,
 }
 
 #[derive(askama::Template)]
@@ -108,10 +111,35 @@ struct ContainersPage {
     t_empty: String,
     t_new: String,
     t_submit: String,
+    t_retired: String,
+    t_show_retired: String,
+    t_apply: String,
+    t_retire: String,
+    t_unretire: String,
     rows: Vec<ContainerRow>,
     container_types: Vec<&'static str>,
     can_edit: bool,
+    show_retired: bool,
+    /// **誤りのときは入力を保ったまま戻す**（16.1）。
+    form: ContainerForm,
     error: Option<String>,
+}
+
+/// 撤去の確認画面（#204）。**何が起きるかを示してから実行させる**——同じ
+/// 「撤去」が、設備によって行ごと消えるか、撤去として残るかに分かれる。
+#[derive(askama::Template)]
+#[template(path = "container_retire.html")]
+struct ContainerRetirePage {
+    chrome: Chrome,
+    project_id: i32,
+    project_name: String,
+    container_id: i32,
+    name: String,
+    t_title: String,
+    t_back: String,
+    t_lead: String,
+    t_submit: String,
+    can_retire: bool,
 }
 
 /// 図に描く1つの箱。**座標計算はRust側で終える**（テンプレートに算術を持ち込まない）。
@@ -199,6 +227,9 @@ struct RackPage {
     /// 格子を持たない什器（Desk）。並べるだけ（設計書12.9）。
     loose: Vec<SideItem>,
     has_grid: bool,
+    /// 撤去済み（#204）。搭載の欄を出さない。
+    retired: bool,
+    t_retired_note: String,
     devices: Vec<Labeled>,
     hosts: Vec<Labeled>,
     mounted: Vec<MountedRow>,
@@ -224,18 +255,37 @@ struct MountedRow {
 // 什器の一覧・登録
 // ---------------------------------------------------------------------------
 
+#[derive(Debug, Default, Deserialize)]
+pub struct ListQuery {
+    /// `1` なら撤去済みも出す（#204）。
+    #[serde(default)]
+    pub retired: Option<String>,
+}
+
 pub async fn list(
     State(state): State<AppState>,
     Extension(current): Extension<CurrentUser>,
     Path(project_id): Path<i32>,
+    Query(query): Query<ListQuery>,
 ) -> AppResult<Response> {
-    一覧を描く(&state, &current, project_id, None).await
+    let show_retired = query.retired.as_deref() == Some("1");
+    一覧を描く(
+        &state,
+        &current,
+        project_id,
+        show_retired,
+        ContainerForm::default(),
+        None,
+    )
+    .await
 }
 
 async fn 一覧を描く(
     state: &AppState,
     current: &CurrentUser,
     project_id: i32,
+    show_retired: bool,
+    form: ContainerForm,
     error: Option<String>,
 ) -> AppResult<Response> {
     let (project, can_edit) = 入場(state, current, project_id).await?;
@@ -250,7 +300,11 @@ async fn 一覧を描く(
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
     let mut rows = Vec::new();
-    for c in containers {
+    // **撤去した設備は既定で隠す**（12.10）。履歴から名前を引くために行は残っている
+    for c in containers
+        .into_iter()
+        .filter(|c| show_retired || c.retired_at.is_none())
+    {
         let mounted = device_mount::Entity::find()
             .filter(device_mount::Column::ContainerId.eq(c.id))
             .filter(device_mount::Column::ToDate.is_null())
@@ -265,6 +319,7 @@ async fn 一覧を描く(
             container_type: c.container_type,
             capacity: c.capacity.map(|v| v.to_string()).unwrap_or_default(),
             mounted,
+            retired: c.retired_at.is_some(),
         });
     }
 
@@ -291,14 +346,21 @@ async fn 一覧を描く(
         t_empty: rust_i18n::t!("containers.empty", locale = l).to_string(),
         t_new: rust_i18n::t!("containers.new", locale = l).to_string(),
         t_submit: rust_i18n::t!("containers.submit", locale = l).to_string(),
+        t_retired: rust_i18n::t!("containers.retired", locale = l).to_string(),
+        t_show_retired: rust_i18n::t!("containers.show_retired", locale = l).to_string(),
+        t_apply: rust_i18n::t!("catalog.apply", locale = l).to_string(),
+        t_retire: rust_i18n::t!("containers.retire", locale = l).to_string(),
+        t_unretire: rust_i18n::t!("containers.unretire", locale = l).to_string(),
         rows,
         container_types: CONTAINER_TYPES.to_vec(),
         can_edit,
+        show_retired,
+        form,
         error,
     })
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct ContainerForm {
     #[serde(default)]
     pub name: String,
@@ -323,11 +385,23 @@ pub async fn create(
     let 誤り = |key: &str| Some(rust_i18n::t!(key, locale = l).to_string());
 
     if form.name.trim().is_empty() {
-        return 一覧を描く(&state, &current, project_id, 誤り("containers.error_name")).await;
+        let e = 誤り("containers.error_name");
+        return 一覧を描く(&state, &current, project_id, false, form, e).await;
     }
     // **語彙外は既定へ寄せず拒否する**（Q-21）
     if !CONTAINER_TYPES.contains(&form.container_type.as_str()) {
-        return 一覧を描く(&state, &current, project_id, 誤り("containers.error_type")).await;
+        let e = 誤り("containers.error_type");
+        return 一覧を描く(&state, &current, project_id, false, form, e).await;
+    }
+    // **名前はプロジェクトの中で一意、大文字小文字を区別しない**（12.10、#204）。
+    // DBの一意インデックスでも止まるが、500ではなく入力に戻す
+    if 設備::同じ名前の設備(&state.db, PROJECT, project_id, &form.name, None)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .is_some()
+    {
+        let e = 誤り("containers.error_name_taken");
+        return 一覧を描く(&state, &current, project_id, false, form, e).await;
     }
 
     let capacity = match form.capacity.trim() {
@@ -336,13 +410,8 @@ pub async fn create(
         v => match v.parse::<i32>() {
             Ok(n) if n > 0 => Some(n),
             _ => {
-                return 一覧を描く(
-                    &state,
-                    &current,
-                    project_id,
-                    誤り("containers.error_capacity"),
-                )
-                .await;
+                let e = 誤り("containers.error_capacity");
+                return 一覧を描く(&state, &current, project_id, false, form, e).await;
             }
         },
     };
@@ -532,6 +601,8 @@ async fn 図を描く(
         t_unmount: rust_i18n::t!("rack.unmount", locale = l).to_string(),
         t_empty: rust_i18n::t!("rack.empty", locale = l).to_string(),
         t_no_grid: rust_i18n::t!("rack.no_grid", locale = l).to_string(),
+        retired: container.retired_at.is_some(),
+        t_retired_note: rust_i18n::t!("containers.retired_note", locale = l).to_string(),
         svg_width,
         svg_height: grid_height + 見出し高,
         grid_top: 見出し高,
@@ -725,6 +796,10 @@ pub(crate) async fn 搭載を試みる(
     req: 搭載要求<'_>,
 ) -> AppResult<Result<Vec<&'static str>, &'static str>> {
     let container = 什器(state, req.project_id, req.container_id).await?;
+    // **撤去した設備には載せない**（12.10）。予約（変更管理チケット）もこの経路を通る
+    if container.retired_at.is_some() {
+        return Ok(Err("rack.error_retired"));
+    }
 
     let 対象 = device::Entity::find_by_id(req.device_id)
         .one(&state.db)
@@ -1117,6 +1192,164 @@ fn 語彙(value: &str, allowed: &[&str]) -> Option<String> {
         return None;
     }
     Some(v.to_owned())
+}
+
+// ---------------------------------------------------------------------------
+// 撤去（#204、設計書12.10）
+// ---------------------------------------------------------------------------
+
+/// 撤去の確認画面。
+pub async fn retire_form(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path((project_id, container_id)): Path<(i32, i32)>,
+) -> AppResult<Response> {
+    let (project, _) = 入場(&state, &current, project_id).await?;
+    編集権(&state, &current, project_id).await?;
+    let l = Locale::parse(&current.user.locale).as_str();
+    let c = 什器(&state, project_id, container_id).await?;
+    let 結末 = 設備::撤去の判定(&state.db, container_id)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    let lead = match 結末 {
+        撤去の結末::使用中 => "containers.retire_in_use",
+        撤去の結末::物理削除 => "containers.retire_hard",
+        撤去の結末::撤去 => "containers.retire_soft",
+    };
+    render(&ContainerRetirePage {
+        chrome: Chrome::project(
+            &state.db,
+            &current.user,
+            current.csrf_token.clone(),
+            &project,
+            "containers",
+        )
+        .await,
+        project_id,
+        project_name: project.name,
+        container_id,
+        name: c.name,
+        t_title: rust_i18n::t!("containers.retire_title", locale = l).to_string(),
+        t_back: rust_i18n::t!("containers.back", locale = l).to_string(),
+        t_lead: rust_i18n::t!(lead, locale = l).to_string(),
+        t_submit: rust_i18n::t!("containers.retire", locale = l).to_string(),
+        can_retire: 結末 != 撤去の結末::使用中,
+    })
+}
+
+/// 撤去を実行する。**載っていれば拒否し、使ったことが無ければ行ごと消し、
+/// 使ったことがあれば `retired_at` を立てる**（12.10）。
+pub async fn retire(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path((project_id, container_id)): Path<(i32, i32)>,
+) -> AppResult<Response> {
+    入場(&state, &current, project_id).await?;
+    編集権(&state, &current, project_id).await?;
+    let l = Locale::parse(&current.user.locale).as_str();
+    let c = 什器(&state, project_id, container_id).await?;
+
+    let 結末 = 設備::撤去の判定(&state.db, container_id)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    if 結末 == 撤去の結末::使用中 {
+        let e = Some(rust_i18n::t!("containers.error_in_use", locale = l).to_string());
+        return 一覧を描く(
+            &state,
+            &current,
+            project_id,
+            false,
+            ContainerForm::default(),
+            e,
+        )
+        .await;
+    }
+
+    // **読み取りは開く前に済ませてある**（SQLiteで自分のロックを待たないため）
+    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    match 結末 {
+        撤去の結末::物理削除 => tx
+            .delete(c.clone())
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?,
+        _ => {
+            tx.update(
+                &c,
+                mount_container::ActiveModel {
+                    id: Set(container_id),
+                    retired_at: Set(Some(Utc::now())),
+                    updated_at: Set(Utc::now()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+        }
+    }
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    Ok(Redirect::to(&format!("/projects/{project_id}/containers")).into_response())
+}
+
+/// 撤去を取り消す。**同じ名前の設備が既にあれば取り消せない**——撤去の間に
+/// 同じ名前で新しい設備が作られていると、名前の一意（12.10）が崩れる。
+pub async fn unretire(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path((project_id, container_id)): Path<(i32, i32)>,
+) -> AppResult<Response> {
+    入場(&state, &current, project_id).await?;
+    編集権(&state, &current, project_id).await?;
+    let l = Locale::parse(&current.user.locale).as_str();
+    let c = 什器(&state, project_id, container_id).await?;
+
+    if 設備::同じ名前の設備(&state.db, PROJECT, project_id, &c.name, Some(c.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .is_some()
+    {
+        let e = Some(rust_i18n::t!("containers.error_unretire_taken", locale = l).to_string());
+        return 一覧を描く(
+            &state,
+            &current,
+            project_id,
+            true,
+            ContainerForm::default(),
+            e,
+        )
+        .await;
+    }
+
+    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.update(
+        &c,
+        mount_container::ActiveModel {
+            id: Set(container_id),
+            retired_at: Set(None),
+            updated_at: Set(Utc::now()),
+            ..Default::default()
+        },
+    )
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    Ok(Redirect::to(&format!("/projects/{project_id}/containers?retired=1")).into_response())
+}
+
+async fn 編集権(state: &AppState, current: &CurrentUser, project_id: i32) -> AppResult<()> {
+    authorization::require_project_editor(&state.db, &current.user, project_id)
+        .await
+        .map_err(|_| AppError::Forbidden)
 }
 
 async fn 什器(

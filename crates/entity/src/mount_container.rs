@@ -19,6 +19,9 @@ pub struct Model {
     pub location_id: i32,
     /// ラックのU数、棚の段数。**超過はエラーではなく警告**として扱う（不変条件6）。
     pub capacity: Option<i32>,
+    /// 撤去（#204）。**過去に使った設備は行を残す**——搭載の履歴が指し続けている。
+    /// 名前の一意（置き場所の中、大文字小文字を区別しない）は撤去していないものに限る。
+    pub retired_at: Option<DateTimeUtc>,
     pub created_by: i32,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,

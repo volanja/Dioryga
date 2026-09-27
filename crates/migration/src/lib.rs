@@ -33,6 +33,7 @@ pub mod m20260922_000001_rename_device_status;
 pub mod m20260922_000002_rename_work_order_status;
 mod m20260923_000001_fold_purchase_order;
 mod m20260923_000002_add_workflow_uid;
+mod m20260927_000001_container_retire_unique;
 
 pub struct Migrator;
 
@@ -64,6 +65,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260922_000002_rename_work_order_status::Migration),
             Box::new(m20260923_000001_fold_purchase_order::Migration),
             Box::new(m20260923_000002_add_workflow_uid::Migration),
+            Box::new(m20260927_000001_container_retire_unique::Migration),
         ]
     }
 }

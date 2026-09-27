@@ -447,6 +447,268 @@ async fn 机には格子を描かない(db: &DatabaseConnection) {
 }
 
 // ---------------------------------------------------------------------------
+// 名前の一意と撤去（#204、設計書12.10）
+// ---------------------------------------------------------------------------
+
+/// **名前はプロジェクトの中で一意、大文字小文字を区別しないこと。**
+/// 別のプロジェクトなら同じ名前でよい。誤りのときは入力を保ったまま戻す。
+async fn 名前は大文字小文字を区別せずに一意(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "unique@example.com").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 送信(
+        状態,
+        &format!("/projects/{}/containers", 場.project.id),
+        &token,
+        &[
+            ("name", "rack-01"),
+            ("container_type", "Rack"),
+            ("capacity", "42"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains("同じ名前の設備・什器が既にあります"),
+        "重複が伝わっていません"
+    );
+    assert!(
+        body.contains(r#"value="rack-01""#),
+        "入力が保たれていません"
+    );
+    assert_eq!(設備の数(db, 場.project.id).await, 1);
+
+    // 別のプロジェクトなら通る
+    let 別 = プロジェクト(db, "別のプロジェクト").await;
+    メンバー(db, 場.user.id, 別.id, "Operator").await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 送信(
+        状態,
+        &format!("/projects/{}/containers", 別.id),
+        &token,
+        &[
+            ("name", "Rack-01"),
+            ("container_type", "Rack"),
+            ("capacity", "42"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+}
+
+/// **DBの一意インデックスでも止まること。**画面を通らない書き込み（取込の
+/// 不具合など）に対する最後の守り。
+async fn 同じ名前はdbでも拒否される(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "unique-db@example.com").await;
+    let 結果 = mount_container::ActiveModel {
+        name: Set("RACK-01".to_owned()),
+        container_type: Set("Rack".to_owned()),
+        location_type: Set("Project".to_owned()),
+        location_id: Set(場.project.id),
+        capacity: Set(Some(42)),
+        created_by: Set(場.user.id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await;
+    assert!(結果.is_err(), "大文字小文字だけ違う名前が入りました");
+}
+
+/// **一度も使っていない設備は行ごと消えること。**
+async fn 使っていない設備は行ごと消える(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "retire-hard@example.com").await;
+    let (status, _) = 撤去する(db, &場).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(設備の数(db, 場.project.id).await, 0);
+}
+
+/// **機器が載っていれば撤去できないこと。**
+async fn 載っていれば撤去できない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "retire-in-use@example.com").await;
+    let d = 機器(db, &場, "srv-r", 1, "RackU", None, "running").await;
+    搭載行(db, &場, d.id, Some(3), None, None, None).await;
+
+    // 確認画面は撤去のボタンを出さない
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &format!("{}/retire", 図のあて先(&場)), &token).await;
+    assert!(body.contains("機器が載っています"));
+    assert!(
+        !body.contains(r#"class="ghost danger""#),
+        "撤去のボタンが出ています"
+    );
+
+    let (status, body) = 撤去する(db, &場).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("撤去できません"));
+    let c = 設備(db, 場.container.id).await.expect("消えています");
+    assert!(c.retired_at.is_none());
+}
+
+/// **過去に使った設備は、撤去済みとして行を残すこと。**搭載の履歴が指している。
+async fn 使ったことがある設備は撤去済みになる(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "retire-soft@example.com").await;
+    let d = 機器(db, &場, "srv-s", 1, "RackU", None, "running").await;
+    let 行 = 搭載行(db, &場, d.id, Some(3), None, None, None).await;
+    降ろす(db, &場, 行).await;
+
+    let (status, _) = 撤去する(db, &場).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let c = 設備(db, 場.container.id).await.expect("行が消えています");
+    assert!(c.retired_at.is_some());
+}
+
+/// **レンタル費の記録がある設備も、行を残すこと。**消すと費用の記録が
+/// 参照先を失う（多態的参照のため外部キーが止めない）。
+async fn 費用の記録がある設備は撤去済みになる(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "retire-cost@example.com").await;
+    entity::recurring_cost::ActiveModel {
+        item_type: Set("MountContainer".to_owned()),
+        item_id: Set(場.container.id),
+        cost_type: Set("RackRental".to_owned()),
+        vendor_id: Set(None),
+        amount: Set(50_000),
+        billing_cycle: Set("Monthly".to_owned()),
+        start_date: Set(chrono::NaiveDate::from_ymd_opt(2026, 4, 1).unwrap()),
+        end_date: Set(None),
+        created_by: Set(場.user.id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    撤去する(db, &場).await;
+    let c = 設備(db, 場.container.id).await.expect("行が消えています");
+    assert!(c.retired_at.is_some());
+}
+
+/// **撤去した設備は、一覧の既定から隠れ、搭載先にできないこと。**
+/// 同じ名前で新しい設備を登録できる。
+async fn 撤去した設備は隠れて搭載できない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "retired@example.com").await;
+    撤去済みにする(db, 場.container.id).await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(
+        状態,
+        &format!("/projects/{}/containers", 場.project.id),
+        &token,
+    )
+    .await;
+    assert!(
+        !body.contains("Rack-01"),
+        "撤去した設備が既定の一覧に出ています"
+    );
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(
+        状態,
+        &format!("/projects/{}/containers?retired=1", 場.project.id),
+        &token,
+    )
+    .await;
+    assert!(body.contains("Rack-01") && body.contains("撤去済み"));
+
+    let d = 機器(db, &場, "srv-t", 1, "RackU", None, "running").await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 搭載(状態, &token, &場, d.id, &[("position", "1")]).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("撤去済みの設備・什器には搭載できません"));
+    assert!(現行の搭載(db, d.id).await.is_none());
+
+    // **撤去した設備の名前は再び使える**
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 送信(
+        状態,
+        &format!("/projects/{}/containers", 場.project.id),
+        &token,
+        &[
+            ("name", "rack-01"),
+            ("container_type", "Rack"),
+            ("capacity", "42"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+}
+
+/// **撤去は取り消せること。**ただし同じ名前の設備が既にあれば取り消せない。
+async fn 撤去は取り消せるが名前がふさがっていれば拒否する(
+    db: &DatabaseConnection,
+) {
+    let 場 = 舞台(db, "unretire@example.com").await;
+    撤去済みにする(db, 場.container.id).await;
+
+    let (status, _) = 取り消す(db, &場).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert!(設備(db, 場.container.id)
+        .await
+        .unwrap()
+        .retired_at
+        .is_none());
+
+    // 撤去し直し、その間に同じ名前の設備を作る
+    撤去済みにする(db, 場.container.id).await;
+    什器(db, 場.project.id, "RACK-01", "Rack", Some(42), 場.user.id).await;
+    let (status, body) = 取り消す(db, &場).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("撤去を取り消せません"));
+    assert!(設備(db, 場.container.id)
+        .await
+        .unwrap()
+        .retired_at
+        .is_some());
+}
+
+async fn 撤去する(db: &DatabaseConnection, 場: &舞台情報) -> (StatusCode, String) {
+    let (状態, token) = 認証済み(db, &場.user).await;
+    送信(状態, &format!("{}/retire", 図のあて先(場)), &token, &[]).await
+}
+
+async fn 取り消す(db: &DatabaseConnection, 場: &舞台情報) -> (StatusCode, String) {
+    let (状態, token) = 認証済み(db, &場.user).await;
+    送信(状態, &format!("{}/unretire", 図のあて先(場)), &token, &[]).await
+}
+
+async fn 降ろす(db: &DatabaseConnection, 場: &舞台情報, mount_id: i32) {
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 送信(
+        状態,
+        &format!("{}/unmount", 図のあて先(場)),
+        &token,
+        &[("mount_id", &mount_id.to_string())],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+}
+
+async fn 撤去済みにする(db: &DatabaseConnection, id: i32) {
+    let c = 設備(db, id).await.unwrap();
+    let mut active: mount_container::ActiveModel = c.into();
+    active.retired_at = Set(Some(Utc::now()));
+    active.update(db).await.unwrap();
+}
+
+async fn 設備(db: &DatabaseConnection, id: i32) -> Option<mount_container::Model> {
+    mount_container::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .unwrap()
+}
+
+async fn 設備の数(db: &DatabaseConnection, project_id: i32) -> usize {
+    mount_container::Entity::find()
+        .filter(mount_container::Column::LocationId.eq(project_id))
+        .all(db)
+        .await
+        .unwrap()
+        .len()
+}
+
+// ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
 
@@ -824,6 +1086,14 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 他プロジェクトの機器は搭載できない);
         全検証!(@one $用意, $属性, 閲覧者は搭載できない);
         全検証!(@one $用意, $属性, 机には格子を描かない);
+        全検証!(@one $用意, $属性, 名前は大文字小文字を区別せずに一意);
+        全検証!(@one $用意, $属性, 同じ名前はdbでも拒否される);
+        全検証!(@one $用意, $属性, 使っていない設備は行ごと消える);
+        全検証!(@one $用意, $属性, 載っていれば撤去できない);
+        全検証!(@one $用意, $属性, 使ったことがある設備は撤去済みになる);
+        全検証!(@one $用意, $属性, 費用の記録がある設備は撤去済みになる);
+        全検証!(@one $用意, $属性, 撤去した設備は隠れて搭載できない);
+        全検証!(@one $用意, $属性, 撤去は取り消せるが名前がふさがっていれば拒否する);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

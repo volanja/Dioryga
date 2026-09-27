@@ -1,0 +1,31 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+{# 何が起きるか（行ごと消えるか、撤去として残るか）を示してから実行する（#204） #}
+<div class="page-head">
+  <div>
+    <p class="crumb">
+      <a href="/projects">{{ chrome.t_nav_projects }}</a> / <a href="/projects/{{ project_id }}">{{ project_name }}</a> /
+      <a href="/projects/{{ project_id }}/containers">{{ t_back }}</a>
+    </p>
+    <h1>{{ t_title }}</h1>
+  </div>
+</div>
+
+<div class="card">
+  <p><strong>{{ name }}</strong></p>
+  <p class="lead">{{ t_lead }}</p>
+
+  <div class="head-actions">
+    {% if can_retire %}
+    <form method="post" action="/projects/{{ project_id }}/containers/{{ container_id }}/retire" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+      <button type="submit" class="ghost danger">{{ t_submit }}</button>
+    </form>
+    {% endif %}
+    <a class="button ghost" href="/projects/{{ project_id }}/containers">{{ t_back }}</a>
+  </div>
+</div>
+
+{% endblock %}

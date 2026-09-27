@@ -132,6 +132,14 @@ pub fn router(state: AppState) -> Router {
             "/projects/{id}/containers/{container_id}/unmount",
             post(rack::unmount),
         )
+        .route(
+            "/projects/{id}/containers/{container_id}/retire",
+            get(rack::retire_form).post(rack::retire),
+        )
+        .route(
+            "/projects/{id}/containers/{container_id}/unretire",
+            post(rack::unretire),
+        )
         .route("/projects/{id}/devices/new", get(device::new_form))
         .route(
             "/projects/{id}/devices/{device_id}",

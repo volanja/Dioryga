@@ -579,24 +579,82 @@ async fn 什器の誤りは取り込まない(db: &DatabaseConnection) {
     );
 }
 
-/// **同じ名前の什器が既に2つあれば、どちらも書き換えないこと。**
-///
-/// 画面は名前の重複を止めていない。どちらを指すか決められないまま片方を
-/// 書き換えると、利用者の意図しない什器が変わる。
-async fn 同じ名前の什器が複数あれば取り込まない(db: &DatabaseConnection) {
-    let 場 = 舞台(db, "什器重複").await;
+/// **名前は大文字小文字を区別せずに突き合わせること**（12.10、#204）。
+/// 「rack-01」は既存の「Rack-01」を指し、2つ目を作らない。
+async fn 什器の名前は大文字小文字を区別しない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "什器大小").await;
     let 取込者 = 場.email.replace('@', "_");
-    let 既存 = 什器(db, 場.project.id, "Rack-01").await;
-    let mut 二つ目: mount_container::ActiveModel = 既存.clone().into();
-    二つ目.id = sea_orm::ActiveValue::NotSet;
-    二つ目.insert(db).await.unwrap();
-
     let dir = 取込ファイル(
         &場,
         &[(
             "mount_container",
             "containers.csv",
-            &format!("{什器見出し}Rack-01,Rack,48\n"),
+            &format!("{什器見出し}rack-01,Rack,48\n"),
+        )],
+    );
+    let 実行 = run::run(db, &dir.join("manifest.yaml"), &取込者, true)
+        .await
+        .unwrap();
+
+    assert_eq!(実行.report.count(Outcome::Updated), 1, "{}", 実行.report);
+    assert_eq!(什器の数(db, 場.project.id).await, 1);
+}
+
+/// **撤去した設備は突き合わせの対象にしないこと。**同じ名前の行は新しい
+/// 設備になり、撤去した設備だけが持つ名前へは載せられない。
+async fn 撤去した什器は突き合わせない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "什器撤去").await;
+    let 取込者 = 場.email.replace('@', "_");
+    let 旧 = 什器(db, 場.project.id, "Rack-01").await;
+    let mut active: mount_container::ActiveModel = 旧.clone().into();
+    active.retired_at = Set(Some(Utc::now()));
+    active.update(db).await.unwrap();
+
+    let dir = 取込ファイル(
+        &場,
+        &[
+            (
+                "mount_container",
+                "containers.csv",
+                &format!("{什器見出し}Rack-01,Rack,42\n"),
+            ),
+            (
+                "device",
+                "devices.csv",
+                &format!("{機器見出し},,web01,SN-R-1,,Physical,400,running\n"),
+            ),
+        ],
+    );
+    let 実行 = run::run(db, &dir.join("manifest.yaml"), &取込者, true)
+        .await
+        .unwrap();
+    assert_eq!(実行.report.count(Outcome::Created), 2, "{}", 実行.report);
+    assert_eq!(
+        什器の数(db, 場.project.id).await,
+        2,
+        "撤去した設備を書き換えています"
+    );
+
+    // 撤去した設備にしか無い名前へは載せられない
+    let 古い = mount_container::ActiveModel {
+        name: Set("Old-01".to_owned()),
+        container_type: Set("Rack".to_owned()),
+        location_type: Set("Project".to_owned()),
+        location_id: Set(場.project.id),
+        capacity: Set(Some(42)),
+        retired_at: Set(Some(Utc::now())),
+        created_by: Set(旧.created_by),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    };
+    古い.insert(db).await.unwrap();
+    let dir = 取込ファイル(
+        &場,
+        &[(
+            "device_mount",
+            "mounts.csv",
+            &format!("{搭載見出し},,web01,,Old-01,10,Full,Front,\n"),
         )],
     );
     let 下見 = run::run(db, &dir.join("manifest.yaml"), &取込者, false)
@@ -767,7 +825,8 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 什器を二度流しても変わらない);
         全検証!(@one $用意, $属性, 什器の値を変えると同じ行が更新される);
         全検証!(@one $用意, $属性, 什器の誤りは取り込まない);
-        全検証!(@one $用意, $属性, 同じ名前の什器が複数あれば取り込まない);
+        全検証!(@one $用意, $属性, 什器の名前は大文字小文字を区別しない);
+        全検証!(@one $用意, $属性, 撤去した什器は突き合わせない);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

@@ -2,7 +2,7 @@
 
 ## Description
 
-機器を載せる什器（12章）。
+機器を載せる設備・什器（ラック・机・棚、12章）。名前は置き場所の中で一意で、大文字小文字を区別しない（撤去していないものに限る、#204）
 
 ## Columns
 
@@ -17,6 +17,7 @@
 | created_by | integer |  | false |  | [public.app_user](public.app_user.md) |  |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
+| retired_at | timestamp with time zone |  | true |  |  | null = 現役。搭載の履歴や費用の記録が指し続けるため、使ったことのある設備は消さず撤去済みにする（#204） |
 
 ## Constraints
 
@@ -39,6 +40,7 @@
 | ---- | ---------- |
 | mount_container_pkey | CREATE UNIQUE INDEX mount_container_pkey ON public.mount_container USING btree (id) |
 | idx_mount_container_location | CREATE INDEX idx_mount_container_location ON public.mount_container USING btree (location_type, location_id) |
+| idx_mount_container_name_active | CREATE UNIQUE INDEX idx_mount_container_name_active ON public.mount_container USING btree (location_type, location_id, lower((name)::text)) WHERE (retired_at IS NULL) |
 
 ## Relations
 

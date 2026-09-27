@@ -1,0 +1,60 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+{# 登録は一覧と別の画面で行う（#124）。種別は一覧から引き継ぐ #}
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/catalog/container-models?type={{ container_type }}">{{ t_back }}</a></p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ container_type }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<form class="card form" method="post" action="/catalog/container-models">
+  <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+  <input type="hidden" name="container_type" value="{{ container_type }}">
+
+  <label for="vendor_id">{{ t_vendor }}</label>
+  <select id="vendor_id" name="vendor_id" required>
+    <option value="">{{ t_unset }}</option>
+    {% for v in vendors %}
+    <option value="{{ v.value }}" {% if v.value == form.vendor_id %}selected{% endif %}>{{ v.label }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="model_name">{{ t_model_name }}</label>
+  <input type="text" id="model_name" name="model_name" value="{{ form.model_name }}" required>
+
+  {# 収容能力は種別で欄を分ける。Desk は持たない（設計書12.10） #}
+  {% if is_rack %}
+  <label for="height_u">{{ t_height_u }}</label>
+  <input type="text" id="height_u" name="height_u" inputmode="numeric" value="{{ form.height_u }}" required>
+  {% endif %}
+  {% if is_shelving %}
+  <label for="shelf_count">{{ t_shelf_count }}</label>
+  <input type="text" id="shelf_count" name="shelf_count" inputmode="numeric" value="{{ form.shelf_count }}" required>
+  {% endif %}
+
+  <label for="width_mm">{{ t_width }}</label>
+  <input type="text" id="width_mm" name="width_mm" inputmode="numeric" value="{{ form.width_mm }}">
+  <label for="depth_mm">{{ t_depth }}</label>
+  <input type="text" id="depth_mm" name="depth_mm" inputmode="numeric" value="{{ form.depth_mm }}">
+  <label for="height_mm">{{ t_height }}</label>
+  <input type="text" id="height_mm" name="height_mm" inputmode="numeric" value="{{ form.height_mm }}">
+  <p class="hint">{{ t_size_hint }}</p>
+
+  <label for="weight_kg">{{ t_weight }}</label>
+  <input type="text" id="weight_kg" name="weight_kg" inputmode="decimal" value="{{ form.weight_kg }}">
+  <label for="static_load_kg">{{ t_static_load }}</label>
+  <input type="text" id="static_load_kg" name="static_load_kg" inputmode="decimal" value="{{ form.static_load_kg }}">
+  <p class="hint">{{ t_weight_hint }}</p>
+
+  <button type="submit">{{ t_submit }}</button>
+</form>
+
+{% endblock %}

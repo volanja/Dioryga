@@ -15,14 +15,14 @@ The name comes from διώρυγα, Greek for "canal", and is pronounced *dee-OH
 ## Features
 
 - Device register: record physical machines, virtual machines and containers. Changes to a device's project, mounting position, IP addresses and similar attributes do not overwrite earlier values; they are kept as history
-- Racks: record where devices are mounted and show them as rack diagrams
+- Racks and furniture: record where devices are mounted, show them as rack diagrams, and compare the mounted weight with the static load
 - Network: manage subnets, IP addresses and device interfaces (VLANs, IP addresses, bonding)
 - Software: import an SBOM for each device and search its components across devices
 - Costs and contracts: manage purchase records, fixed assets, maintenance contracts and recurring costs
 - Milestones: record planned and actual dates for service start, renewal, maintenance and end, and show delays against the plan
 - Change management tickets: raise tickets for adding, relocating or removing devices, and carry them out after approval
 - Warehouses: manage, across projects, where devices and parts not assigned to any project are kept
-- Shared catalog: share definitions of vendors, models, configurations, parts, cables, software and VLANs across all projects
+- Shared catalog: share definitions of vendors, device models, configurations, parts, cables, rack and furniture models, software and VLANs across all projects
 - Users and projects: add members to each project and assign them roles (Administrator, Operator, Approver, Viewer)
 
 Dioryga runs as a single executable and works with either SQLite or PostgreSQL.

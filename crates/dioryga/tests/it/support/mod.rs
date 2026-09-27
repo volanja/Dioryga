@@ -235,3 +235,43 @@ async fn 接続(url: &str) -> DatabaseConnection {
         .await
         .expect("PostgreSQLへ接続できませんでした")
 }
+
+/// テスト用の設備・什器の型番を作り、その id を返す（#205）。
+///
+/// 設備・什器は型番（`CONTAINER_MODEL`）を必須で指すため、什器を直接作る
+/// テストが共通で使う。**呼ぶたびに別のベンダーで作る**（ベンダー名は一意）。
+pub async fn 設備の型番(
+    db: &DatabaseConnection,
+    created_by: i32,
+    container_type: String,
+    capacity: Option<i32>,
+) -> i32 {
+    use chrono::Utc;
+    use sea_orm::{ActiveModelTrait, Set};
+
+    let v = entity::vendor::ActiveModel {
+        name: Set(format!("テスト用ベンダー-{}", uuid::Uuid::new_v4())),
+        created_by: Set(created_by),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    entity::container_model::ActiveModel {
+        vendor_id: Set(v.id),
+        model_name: Set(format!("{container_type}-{}", capacity.unwrap_or(0))),
+        height_u: Set((container_type == "Rack").then_some(capacity).flatten()),
+        shelf_count: Set((container_type == "Shelving").then_some(capacity).flatten()),
+        container_type: Set(container_type),
+        created_by: Set(created_by),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap()
+    .id
+}

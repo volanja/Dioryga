@@ -232,8 +232,16 @@
 ### WAREHOUSE
 `name`, `address`, `created_by`(FK User)
 
+### CONTAINER_MODEL（12.10）
+設備・什器の型番（共有カタログ）。`vendor_id`(FK Vendor), `model_name`（自然キーは `(vendor_id, model_name)`）, `container_type`(Rack/Desk/Shelving), `height_u`（Rackのみ）, `shelf_count`（Shelvingのみ）, `width_mm` / `depth_mm` / `height_mm`, `weight_g`, `static_load_g`（静荷重）, `retired_at`, `created_by`(FK User)
+
+種別に合わない収容能力は持たせない（Rackは `height_u` が必須で `shelf_count` を持たない、Shelvingはその逆、Deskはどちらも持たない）。
+
 ### MOUNT_CONTAINER
-`name`, `container_type`(Rack/Desk/Shelving), `location_type`(Warehouse/Project), `location_id`, `capacity`(nullable), `created_by`(FK User)
+`name`, `container_model_id`(FK CONTAINER_MODEL), `location_type`(Warehouse/Project), `location_id`, `retired_at`, `created_by`(FK User)
+
+- 種別と収容能力は型番が持つ。`container_model_id` はDB上 NULL を許すが（SQLiteで外部キー列を後から足すため）、アプリケーション層では必須
+- 名前は置き場所の中で一意で、大文字小文字を区別しない。一意の範囲は `retired_at IS NULL` の行に限る
 
 ### DEVICE_MOUNT (12.2, 13.2) — 履歴
 | カラム | 備考 |

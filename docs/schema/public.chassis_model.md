@@ -19,6 +19,7 @@
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
 | retired_at | timestamp with time zone |  | true |  |  |  |
+| weight_g | integer |  | true |  |  | 重量（g）。設備・什器の静荷重と、載せた機器の重量の合計を比べるため（#205） |
 
 ## Constraints
 

@@ -29,7 +29,8 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::{Extension, Form};
 use chrono::Utc;
 use entity::{
-    chassis_model, configuration, device, device_assignment, device_mount, mount_container, project,
+    chassis_model, configuration, container_model, device, device_assignment, device_mount,
+    mount_container, project, vendor,
 };
 use sea_orm::sea_query::{Expr, Query as SeaQuery};
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, ExprTrait, QueryFilter, QueryOrder, Set};
@@ -43,10 +44,7 @@ use crate::repository::{Actor, AuditedTx};
 use crate::server::view::{render, Chrome, Locale};
 use crate::server::AppState;
 
-/// 語彙（`vocabularies.md`、設計書12.2）。
-const CONTAINER_TYPES: &[&str] = &["Rack", "Desk", "Shelving"];
-const RACK: &str = "Rack";
-const DESK: &str = "Desk";
+use crate::container::{DESK, RACK};
 
 /// `MOUNT_CONTAINER.location_type` / `DEVICE_ASSIGNMENT.location_type`。
 const PROJECT: &str = "Project";
@@ -86,6 +84,8 @@ const 見出し高: i32 = 20;
 struct ContainerRow {
     id: i32,
     name: String,
+    /// 型番（ベンダー＋型番、#205）。
+    model: String,
     container_type: String,
     capacity: String,
     mounted: usize,
@@ -102,9 +102,11 @@ struct ContainersPage {
     t_title: String,
     t_lead: String,
     t_name: String,
+    t_model: String,
+    t_model_hint: String,
     t_container_type: String,
     t_capacity: String,
-    t_capacity_hint: String,
+    t_unset: String,
     t_mounted: String,
     t_actions: String,
     t_open: String,
@@ -117,7 +119,8 @@ struct ContainersPage {
     t_retire: String,
     t_unretire: String,
     rows: Vec<ContainerRow>,
-    container_types: Vec<&'static str>,
+    /// 登録で選べる型番（廃番を除く、18.5）。
+    models: Vec<Labeled>,
     can_edit: bool,
     show_retired: bool,
     /// **誤りのときは入力を保ったまま戻す**（16.1）。
@@ -227,6 +230,12 @@ struct RackPage {
     /// 格子を持たない什器（Desk）。並べるだけ（設計書12.9）。
     loose: Vec<SideItem>,
     has_grid: bool,
+    /// 載せた機器の重量の合計と静荷重（#205）。
+    load: String,
+    /// 静荷重を超えている。**警告に留める**（不変条件6）。
+    overloaded: bool,
+    t_load: String,
+    t_overloaded: String,
     /// 撤去済み（#204）。搭載の欄を出さない。
     retired: bool,
     t_retired_note: String,
@@ -313,11 +322,15 @@ async fn 一覧を描く(
             .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
             .len();
 
+        let 型 = 設備::型を引く(&state.db, &c)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
         rows.push(ContainerRow {
             id: c.id,
             name: c.name,
-            container_type: c.container_type,
-            capacity: c.capacity.map(|v| v.to_string()).unwrap_or_default(),
+            model: 型番の表示(&state.db, 型.model.as_ref()).await?,
+            container_type: 型.container_type,
+            capacity: 型.capacity.map(|v| v.to_string()).unwrap_or_default(),
             mounted,
             retired: c.retired_at.is_some(),
         });
@@ -337,9 +350,11 @@ async fn 一覧を描く(
         t_title: rust_i18n::t!("containers.title", locale = l).to_string(),
         t_lead: rust_i18n::t!("containers.lead", locale = l).to_string(),
         t_name: rust_i18n::t!("containers.name", locale = l).to_string(),
+        t_model: rust_i18n::t!("containers.model", locale = l).to_string(),
+        t_model_hint: rust_i18n::t!("containers.model_hint", locale = l).to_string(),
         t_container_type: rust_i18n::t!("containers.container_type", locale = l).to_string(),
         t_capacity: rust_i18n::t!("containers.capacity", locale = l).to_string(),
-        t_capacity_hint: rust_i18n::t!("containers.capacity_hint", locale = l).to_string(),
+        t_unset: rust_i18n::t!("catalog.unset", locale = l).to_string(),
         t_mounted: rust_i18n::t!("containers.mounted", locale = l).to_string(),
         t_actions: rust_i18n::t!("projects.actions", locale = l).to_string(),
         t_open: rust_i18n::t!("containers.open", locale = l).to_string(),
@@ -352,7 +367,7 @@ async fn 一覧を描く(
         t_retire: rust_i18n::t!("containers.retire", locale = l).to_string(),
         t_unretire: rust_i18n::t!("containers.unretire", locale = l).to_string(),
         rows,
-        container_types: CONTAINER_TYPES.to_vec(),
+        models: 選べる型番(&state.db).await?,
         can_edit,
         show_retired,
         form,
@@ -364,10 +379,9 @@ async fn 一覧を描く(
 pub struct ContainerForm {
     #[serde(default)]
     pub name: String,
+    /// 型番（`CONTAINER_MODEL.id`、#205）。種別と収容能力は型番が持つ。
     #[serde(default)]
-    pub container_type: String,
-    #[serde(default)]
-    pub capacity: String,
+    pub container_model_id: String,
 }
 
 pub async fn create(
@@ -388,11 +402,19 @@ pub async fn create(
         let e = 誤り("containers.error_name");
         return 一覧を描く(&state, &current, project_id, false, form, e).await;
     }
-    // **語彙外は既定へ寄せず拒否する**（Q-21）
-    if !CONTAINER_TYPES.contains(&form.container_type.as_str()) {
-        let e = 誤り("containers.error_type");
+    // **型番は必須。廃番は選べない**（12.10、18.5）。画面は候補を絞るが、POSTは直接叩ける
+    let model = match form.container_model_id.trim().parse::<i32>() {
+        Ok(id) => container_model::Entity::find_by_id(id)
+            .one(&state.db)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+            .filter(|m| m.retired_at.is_none()),
+        Err(_) => None,
+    };
+    let Some(model) = model else {
+        let e = 誤り("containers.error_model");
         return 一覧を描く(&state, &current, project_id, false, form, e).await;
-    }
+    };
     // **名前はプロジェクトの中で一意、大文字小文字を区別しない**（12.10、#204）。
     // DBの一意インデックスでも止まるが、500ではなく入力に戻す
     if 設備::同じ名前の設備(&state.db, PROJECT, project_id, &form.name, None)
@@ -404,27 +426,14 @@ pub async fn create(
         return 一覧を描く(&state, &current, project_id, false, form, e).await;
     }
 
-    let capacity = match form.capacity.trim() {
-        // Desk は格子を持たない（12.3）。空でよい
-        "" => None,
-        v => match v.parse::<i32>() {
-            Ok(n) if n > 0 => Some(n),
-            _ => {
-                let e = 誤り("containers.error_capacity");
-                return 一覧を描く(&state, &current, project_id, false, form, e).await;
-            }
-        },
-    };
-
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     tx.insert(mount_container::ActiveModel {
         name: Set(form.name.trim().to_owned()),
-        container_type: Set(form.container_type.clone()),
+        container_model_id: Set(Some(model.id)),
         location_type: Set(PROJECT.to_owned()),
         location_id: Set(project_id),
-        capacity: Set(capacity),
         created_by: Set(current.user.id),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
@@ -474,8 +483,13 @@ async fn 図を描く(
     let 搭載一覧 = 搭載を引く(&state.db, container_id).await?;
     let 棚上 = 棚の上の機器(&state.db, &搭載一覧).await?;
 
-    let 格子 = container.container_type != DESK;
-    let capacity = container.capacity.unwrap_or(0);
+    // 種別と収容能力は型番から引く（#205）
+    let 型 = 設備::型を引く(&state.db, &container)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let 格子 = 型.container_type != DESK;
+    let capacity = 型.capacity.unwrap_or(0);
+    let 重さ = 重量を集計する(&state.db, &搭載一覧).await?;
 
     let mut side_items = Vec::new();
     let mut out_of_range = Vec::new();
@@ -534,7 +548,7 @@ async fn 図を描く(
         .collect();
 
     // Rack だけ前面・背面を分ける。Shelving に前後の区別は無い（12.9）
-    let 前後を分ける = container.container_type == RACK;
+    let 前後を分ける = 型.container_type == RACK;
     let mut panels = vec![Panel {
         x: 0,
         frame_x: 番号欄,
@@ -578,7 +592,19 @@ async fn 図を描く(
         project_id,
         container_id,
         container_name: container.name.clone(),
-        container_type: container.container_type.clone(),
+        container_type: format!(
+            "{}（{}）",
+            型番の表示(&state.db, 型.model.as_ref()).await?,
+            型.container_type
+        ),
+        load: 荷重の表示(&重さ, 型.model.as_ref().and_then(|m| m.static_load_g), l),
+        overloaded: 型
+            .model
+            .as_ref()
+            .and_then(|m| m.static_load_g)
+            .is_some_and(|limit| 重さ.total_g > i64::from(limit)),
+        t_load: rust_i18n::t!("containers.load", locale = l).to_string(),
+        t_overloaded: rust_i18n::t!("containers.overloaded", locale = l).to_string(),
         project_name: project.name,
         t_back: rust_i18n::t!("containers.back", locale = l).to_string(),
         t_diagram: rust_i18n::t!("rack.diagram", locale = l).to_string(),
@@ -870,7 +896,10 @@ pub(crate) async fn 搭載を試みる(
         }
 
         // **超過はエラーではなく警告**（不変条件6、12.3）
-        if container.capacity.is_some_and(|cap| p + height_u - 1 > cap) {
+        let 型 = 設備::型を引く(&state.db, &container)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+        if 型.capacity.is_some_and(|cap| p + height_u - 1 > cap) {
             warnings.push("rack.warn_capacity");
         }
     }
@@ -1086,6 +1115,127 @@ async fn 棚の上の機器<C: ConnectionTrait>(
         }
     }
     Ok(out)
+}
+
+/// 登録で選べる型番（廃番を除く）。表示は「ベンダー 型番（種別）」。
+async fn 選べる型番<C: ConnectionTrait>(db: &C) -> AppResult<Vec<Labeled>> {
+    let models = container_model::Entity::find()
+        .filter(container_model::Column::RetiredAt.is_null())
+        .order_by_asc(container_model::Column::ModelName)
+        .all(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let mut out = Vec::new();
+    for m in models {
+        out.push(Labeled {
+            label: format!(
+                "{}（{}）",
+                型番の表示(db, Some(&m)).await?,
+                m.container_type
+            ),
+            value: m.id.to_string(),
+        });
+    }
+    Ok(out)
+}
+
+/// 「ベンダー 型番」。型番が無ければ空。
+async fn 型番の表示<C: ConnectionTrait>(
+    db: &C,
+    m: Option<&container_model::Model>,
+) -> AppResult<String> {
+    let Some(m) = m else {
+        return Ok(String::new());
+    };
+    let v = vendor::Entity::find_by_id(m.vendor_id)
+        .one(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .map(|v| v.name)
+        .unwrap_or_default();
+    Ok(format!("{v} {}", m.model_name).trim().to_owned())
+}
+
+/// 載せた物理機器の重量の合計（#205）。棚板の上の機器も含める。
+struct 重量 {
+    total_g: i64,
+    /// 重量が未入力（機種に `weight_g` が無い）で、合計から外した台数。
+    unknown: usize,
+}
+
+async fn 重量を集計する<C: ConnectionTrait>(
+    db: &C, 搭載一覧: &[搭載]
+) -> AppResult<重量> {
+    let mut 対象: Vec<device::Model> = 搭載一覧.iter().map(|m| m.device.clone()).collect();
+
+    // 棚板の上の機器（12.3）。ラックの荷重になる
+    let hosts: Vec<i32> = 搭載一覧.iter().map(|m| m.device.id).collect();
+    if !hosts.is_empty() {
+        for m in device_mount::Entity::find()
+            .filter(device_mount::Column::HostDeviceId.is_in(hosts))
+            .filter(device_mount::Column::ToDate.is_null())
+            .all(db)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        {
+            if let Some(d) = device::Entity::find_by_id(m.device_id)
+                .one(db)
+                .await
+                .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+            {
+                対象.push(d);
+            }
+        }
+    }
+
+    let mut total_g = 0i64;
+    let mut unknown = 0;
+    for d in 対象 {
+        // **重さを持つのは物理機器だけ。**VM・コンテナは数えない（12.5と同じ）
+        if d.device_type != "Physical" {
+            continue;
+        }
+        match 機器の重量(db, &d).await? {
+            Some(g) => total_g += i64::from(g),
+            None => unknown += 1,
+        }
+    }
+    Ok(重量 { total_g, unknown })
+}
+
+async fn 機器の重量<C: ConnectionTrait>(db: &C, d: &device::Model) -> AppResult<Option<i32>> {
+    let Some(cid) = d.configuration_id else {
+        return Ok(None);
+    };
+    let Some(c) = configuration::Entity::find_by_id(cid)
+        .one(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+    else {
+        return Ok(None);
+    };
+    Ok(chassis_model::Entity::find_by_id(c.chassis_model_id)
+        .one(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .and_then(|m| m.weight_g))
+}
+
+/// 「載せた重量 123.4kg / 静荷重 1,000.0kg（重量が未入力の機器 2台）」。
+/// **未入力の台数を必ず出す**——合計が小さいのが実態なのか未入力なのかを
+/// 判別できるようにする（12.7の「分母を出す」と同じ）。
+fn 荷重の表示(重さ: &重量, static_load_g: Option<i32>, l: &str) -> String {
+    let kg = |g: i64| format!("{:.1}kg", g as f64 / 1000.0);
+    let mut s = kg(重さ.total_g);
+    if let Some(limit) = static_load_g {
+        s.push_str(&format!(" / {}", kg(i64::from(limit))));
+    }
+    if 重さ.unknown > 0 {
+        s.push_str(
+            rust_i18n::t!("containers.load_unknown", count = 重さ.unknown, locale = l).as_ref(),
+        );
+    }
+    s
 }
 
 /// `CHASSIS_MODEL` から高さ・搭載形態・幅を引く。

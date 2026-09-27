@@ -404,7 +404,6 @@ containers:
   name: 名前
   container_type: 種別
   capacity: 収容能力
-  capacity_hint: ラックなら総U数、棚なら段数。机は空のままにします
   mounted: 搭載数
   open: ラック図
   empty: 設備・什器がありません
@@ -412,8 +411,6 @@ containers:
   submit: 登録する
   back: 設備・什器の一覧へ戻る
   error_name: 名前を入力してください
-  error_type: 種別の値が不正です
-  error_capacity: 収容能力は1以上の整数で入力してください
   error_name_taken: 同じ名前の設備・什器が既にあります。大文字と小文字は区別しません
   error_in_use: 機器が載っているため撤去できません。先に機器を降ろすか移してください
   error_unretire_taken: 同じ名前の設備・什器が既にあるため、撤去を取り消せません。先に名前を分けてください
@@ -426,6 +423,12 @@ containers:
   retire_hard: この設備・什器には一度も機器が載っておらず、費用の記録もないため、行ごと消えます。戻せません
   retire_soft: この設備・什器は過去に使われているため、撤去済みにします。搭載の履歴と費用の記録は残り、あとから取り消せます
   retired_note: この設備・什器は撤去済みです。機器を搭載できません
+  model: 型番
+  model_hint: 種別と収容能力は型番が持ちます。型番は共有カタログの「設備・什器の型番」で登録します
+  error_model: 型番を選んでください（廃番は選べません）
+  load: 載せた重量 / 静荷重
+  load_unknown: （重量が未入力の機器 %{count}台）
+  overloaded: 載せた機器の重量の合計が、静荷重を超えています
 
 rack:
   diagram: ラック図
@@ -542,6 +545,8 @@ catalog:
   error_voltage_zero: 想定電圧に0は指定できません
   error_va_positive: 想定皮相電力は1以上で入力してください
   warn_power_range: "%{current_type} の %{voltage}V は、この構成のPSUが対応する範囲から外れています。保存は行いましたが確認してください。"
+  weight_hint: kg で入力します。設備・什器の静荷重と、載せた機器の重量の合計を比べるのに使います
+  error_weight: 重量は0より大きい数で入力してください
 
 parts:
   title: 部品カタログ
@@ -966,3 +971,29 @@ device_categories:
   kvm: KVM
   console_server: コンソールサーバー
   other: その他
+
+container_models:
+  title: 設備・什器の型番
+  lead: ラック・机・棚の型番を登録します。種別と収容能力、寸法・重量・静荷重は型番で決まります
+  container_type: 種別
+  model_name: 型番
+  height_u: U数
+  shelf_count: 段数
+  size: 寸法（W×D×H）
+  width: 幅（mm）
+  depth: 奥行き（mm）
+  height: 高さ（mm）
+  size_hint: ミリメートルの整数で入力します
+  weight: 重量
+  static_load: 静荷重
+  weight_hint: kg で入力します。静荷重は設置した状態で載せられる重さです
+  used: 使っている設備・什器
+  new: 型番を登録
+  back: 設備・什器の型番の一覧へ戻る
+  error_type: 種別の値が不正です
+  error_vendor: ベンダーを選んでください
+  error_model_name: 型番を入力してください
+  error_duplicate: 同じベンダーに同じ型番が既にあります
+  error_number: 数値は0より大きい数で入力してください
+  error_capacity_required: 収容能力を入力してください（ラックはU数、棚は段数）
+  error_capacity_unused: この種別には入力できない収容能力が含まれています

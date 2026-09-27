@@ -10,20 +10,18 @@
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
 | id | integer |  | false | [public.device_mount](public.device_mount.md) |  |  |
 | name | varchar |  | false |  |  |  |
-| container_type | varchar |  | false |  |  |  |
 | location_type | varchar |  | false |  |  | Warehouse / Project。多態的参照のため外部キーを持てない |
 | location_id | integer |  | false |  |  |  |
-| capacity | integer |  | true |  |  | ラックのU数、棚の段数。**制約ではなく目安。**超過はエラーではなく警告として扱う（不変条件6）<br /> |
 | created_by | integer |  | false |  | [public.app_user](public.app_user.md) |  |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
 | retired_at | timestamp with time zone |  | true |  |  | null = 現役。搭載の履歴や費用の記録が指し続けるため、使ったことのある設備は消さず撤去済みにする（#204） |
+| container_model_id | integer |  | true |  | [public.container_model](public.container_model.md) | 型番（#205）。種別と収容能力は型番が持つ。SQLiteで外部キー列を後から足したためDB上は NULL を許すが、アプリケーション層では必須 |
 
 ## Constraints
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
-| mount_container_container_type_not_null | n | NOT NULL container_type |
 | mount_container_created_at_not_null | n | NOT NULL created_at |
 | mount_container_created_by_not_null | n | NOT NULL created_by |
 | mount_container_id_not_null | n | NOT NULL id |
@@ -33,6 +31,7 @@
 | mount_container_updated_at_not_null | n | NOT NULL updated_at |
 | mount_container_created_by_fkey | FOREIGN KEY | FOREIGN KEY (created_by) REFERENCES app_user(id) |
 | mount_container_pkey | PRIMARY KEY | PRIMARY KEY (id) |
+| mount_container_container_model_id_fkey | FOREIGN KEY | FOREIGN KEY (container_model_id) REFERENCES container_model(id) |
 
 ## Indexes
 
@@ -41,6 +40,7 @@
 | mount_container_pkey | CREATE UNIQUE INDEX mount_container_pkey ON public.mount_container USING btree (id) |
 | idx_mount_container_location | CREATE INDEX idx_mount_container_location ON public.mount_container USING btree (location_type, location_id) |
 | idx_mount_container_name_active | CREATE UNIQUE INDEX idx_mount_container_name_active ON public.mount_container USING btree (location_type, location_id, lower((name)::text)) WHERE (retired_at IS NULL) |
+| idx_mount_container_container_model_id | CREATE INDEX idx_mount_container_container_model_id ON public.mount_container USING btree (container_model_id) |
 
 ## Relations
 

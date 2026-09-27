@@ -171,10 +171,11 @@ async fn 収容能力なしの什器も登録できる(db: &DatabaseConnection) 
 
     let 結果 = mount_container::ActiveModel {
         name: Set("作業机".to_owned()),
-        container_type: Set("Desk".to_owned()),
+        container_model_id: Set(Some(
+            crate::support::設備の型番(db, user.id, "Desk".to_owned(), None).await,
+        )),
         location_type: Set("Warehouse".to_owned()),
         location_id: Set(w.id),
-        capacity: Set(None),
         created_by: Set(user.id),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
@@ -246,10 +247,11 @@ async fn 什器(
 ) -> mount_container::Model {
     mount_container::ActiveModel {
         name: Set(name.to_owned()),
-        container_type: Set(container_type.to_owned()),
+        container_model_id: Set(Some(
+            crate::support::設備の型番(db, user_id, container_type.to_owned(), capacity).await,
+        )),
         location_type: Set(location_type.to_owned()),
         location_id: Set(location_id),
-        capacity: Set(capacity),
         created_by: Set(user_id),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),

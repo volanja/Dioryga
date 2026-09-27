@@ -1303,6 +1303,12 @@
           "name": "retired_at",
           "type": "timestamp with time zone",
           "nullable": true
+        },
+        {
+          "name": "weight_g",
+          "type": "integer",
+          "nullable": true,
+          "comment": "重量（g）。設備・什器の静荷重と、載せた機器の重量の合計を比べるため（#205）"
         }
       ],
       "indexes": [
@@ -4093,11 +4099,6 @@
           "nullable": false
         },
         {
-          "name": "container_type",
-          "type": "varchar",
-          "nullable": false
-        },
-        {
           "name": "location_type",
           "type": "varchar",
           "nullable": false,
@@ -4107,12 +4108,6 @@
           "name": "location_id",
           "type": "integer",
           "nullable": false
-        },
-        {
-          "name": "capacity",
-          "type": "integer",
-          "nullable": true,
-          "comment": "ラックのU数、棚の段数。**制約ではなく目安。**超過はエラーではなく警告として扱う（不変条件6）\n"
         },
         {
           "name": "created_by",
@@ -4134,6 +4129,12 @@
           "type": "timestamp with time zone",
           "nullable": true,
           "comment": "null = 現役。搭載の履歴や費用の記録が指し続けるため、使ったことのある設備は消さず撤去済みにする（#204）"
+        },
+        {
+          "name": "container_model_id",
+          "type": "integer",
+          "nullable": true,
+          "comment": "型番（#205）。種別と収容能力は型番が持つ。SQLiteで外部キー列を後から足したためDB上は NULL を許すが、アプリケーション層では必須"
         }
       ],
       "indexes": [
@@ -4163,19 +4164,17 @@
             "location_id",
             "lower"
           ]
+        },
+        {
+          "name": "idx_mount_container_container_model_id",
+          "def": "CREATE INDEX idx_mount_container_container_model_id ON public.mount_container USING btree (container_model_id)",
+          "table": "public.mount_container",
+          "columns": [
+            "container_model_id"
+          ]
         }
       ],
       "constraints": [
-        {
-          "name": "mount_container_container_type_not_null",
-          "type": "n",
-          "def": "NOT NULL container_type",
-          "table": "public.mount_container",
-          "referenced_table": "",
-          "columns": [
-            "container_type"
-          ]
-        },
         {
           "name": "mount_container_created_at_not_null",
           "type": "n",
@@ -4266,6 +4265,19 @@
           "table": "public.mount_container",
           "referenced_table": "",
           "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "mount_container_container_model_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (container_model_id) REFERENCES container_model(id)",
+          "table": "public.mount_container",
+          "referenced_table": "public.container_model",
+          "columns": [
+            "container_model_id"
+          ],
+          "referenced_columns": [
             "id"
           ]
         }
@@ -9258,6 +9270,220 @@
           ]
         }
       ]
+    },
+    {
+      "name": "public.container_model",
+      "type": "BASE TABLE",
+      "comment": "設備・什器の型番（12.10、#205）。自然キーは `(vendor_id, model_name)`。種別で収容能力の列が分かれる",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "vendor_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "model_name",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "container_type",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "Rack / Desk / Shelving（閉じた語彙）"
+        },
+        {
+          "name": "height_u",
+          "type": "integer",
+          "nullable": true,
+          "comment": "Rack のみ。総U数。**制約ではなく目安**で、超過は警告（不変条件6）"
+        },
+        {
+          "name": "shelf_count",
+          "type": "integer",
+          "nullable": true,
+          "comment": "Shelving のみ。段数"
+        },
+        {
+          "name": "width_mm",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "depth_mm",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "height_mm",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "weight_g",
+          "type": "integer",
+          "nullable": true,
+          "comment": "本体の重量（g）"
+        },
+        {
+          "name": "static_load_g",
+          "type": "integer",
+          "nullable": true,
+          "comment": "静荷重（耐荷重、g）。移動時の動荷重は持たない"
+        },
+        {
+          "name": "retired_at",
+          "type": "timestamp with time zone",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "container_model_pkey",
+          "def": "CREATE UNIQUE INDEX container_model_pkey ON public.container_model USING btree (id)",
+          "table": "public.container_model",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "uq_container_model_vendor_model_name",
+          "def": "CREATE UNIQUE INDEX uq_container_model_vendor_model_name ON public.container_model USING btree (vendor_id, model_name)",
+          "table": "public.container_model",
+          "columns": [
+            "vendor_id",
+            "model_name"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "container_model_container_type_not_null",
+          "type": "n",
+          "def": "NOT NULL container_type",
+          "table": "public.container_model",
+          "referenced_table": "",
+          "columns": [
+            "container_type"
+          ]
+        },
+        {
+          "name": "container_model_created_at_not_null",
+          "type": "n",
+          "def": "NOT NULL created_at",
+          "table": "public.container_model",
+          "referenced_table": "",
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "container_model_created_by_not_null",
+          "type": "n",
+          "def": "NOT NULL created_by",
+          "table": "public.container_model",
+          "referenced_table": "",
+          "columns": [
+            "created_by"
+          ]
+        },
+        {
+          "name": "container_model_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.container_model",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "container_model_model_name_not_null",
+          "type": "n",
+          "def": "NOT NULL model_name",
+          "table": "public.container_model",
+          "referenced_table": "",
+          "columns": [
+            "model_name"
+          ]
+        },
+        {
+          "name": "container_model_updated_at_not_null",
+          "type": "n",
+          "def": "NOT NULL updated_at",
+          "table": "public.container_model",
+          "referenced_table": "",
+          "columns": [
+            "updated_at"
+          ]
+        },
+        {
+          "name": "container_model_vendor_id_not_null",
+          "type": "n",
+          "def": "NOT NULL vendor_id",
+          "table": "public.container_model",
+          "referenced_table": "",
+          "columns": [
+            "vendor_id"
+          ]
+        },
+        {
+          "name": "container_model_created_by_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)",
+          "table": "public.container_model",
+          "referenced_table": "public.app_user",
+          "columns": [
+            "created_by"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "container_model_vendor_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)",
+          "table": "public.container_model",
+          "referenced_table": "public.vendor",
+          "columns": [
+            "vendor_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "container_model_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.container_model",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
     }
   ],
   "relations": [
@@ -9663,6 +9889,19 @@
       ],
       "parent_cardinality": "exactly_one",
       "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.mount_container",
+      "columns": [
+        "container_model_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.container_model",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "zero_or_one",
+      "def": "FOREIGN KEY (container_model_id) REFERENCES container_model(id)"
     },
     {
       "table": "public.device_mount",
@@ -10339,6 +10578,32 @@
       ],
       "parent_cardinality": "exactly_one",
       "def": "FOREIGN KEY (maintenance_contract_id) REFERENCES maintenance_contract(id)"
+    },
+    {
+      "table": "public.container_model",
+      "columns": [
+        "created_by"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.app_user",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (created_by) REFERENCES app_user(id)"
+    },
+    {
+      "table": "public.container_model",
+      "columns": [
+        "vendor_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.vendor",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)"
     }
   ],
   "driver": {

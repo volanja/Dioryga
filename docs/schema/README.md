@@ -11,7 +11,7 @@
 | [public.login_attempt](public.login_attempt.md) | 5 | ログイン試行。レート制限に使う。**存在しない利用者への試行も記録する**ため<br />app_user への外部キーを持たない（20.4）。<br /> | BASE TABLE |
 | [public.audit_log](public.audit_log.md) | 9 | 監査ログ。全ての書き込みがリポジトリ層を通り、同一トランザクション内で記録される（15.2、24.4）。<br />**認証情報の平文を含めない**（不変条件8）。<br /> | BASE TABLE |
 | [public.vendor](public.vendor.md) | 8 | ベンダーのマスタ。**名称の表記ゆれを防ぐために存在する**（18.3）。<br />**18.2の「参照されたら編集不可」は適用しない**——誤字訂正は構成そのものを変えないため。<br /> | BASE TABLE |
-| [public.chassis_model](public.chassis_model.md) | 11 | 筐体モデル。自然キーは `(vendor_id, model_name)`。**別ベンダーなら同じ型番を持てる**（6.2）。 | BASE TABLE |
+| [public.chassis_model](public.chassis_model.md) | 12 | 筐体モデル。自然キーは `(vendor_id, model_name)`。**別ベンダーなら同じ型番を持てる**（6.2）。 | BASE TABLE |
 | [public.chassis_slot](public.chassis_slot.md) | 6 | 筐体モデルが持つスロット。**無条件の一覧である。**「4CPU構成でなければ使えない」といった<br />条件付き制約は表現しない（6.1で対応しないと決着済み）。<br /> | BASE TABLE |
 | [public.part_catalog](public.part_catalog.md) | 13 | 部品カタログ。**集計に使う値だけをカラム化する**ハイブリッド方針（6.4）。<br /> | BASE TABLE |
 | [public.part_port_slot](public.part_port_slot.md) | 8 | 部品が備えるポート（8.3、8.7）。 | BASE TABLE |
@@ -27,7 +27,7 @@
 | [public.firmware_version](public.firmware_version.md) | 9 | ファームウェアの版 — 履歴テーブル（6.2）。 | BASE TABLE |
 | [public.device_stack](public.device_stack.md) | 6 | スタック構成 — 履歴テーブル（8.6）。スタック全体を `device_type="Logical"` の DEVICE として<br />登録し、物理筐体は `Physical` として別に登録する。hostname や OS_INTERFACE は論理側、<br />DEVICE_MOUNT や power_watt は物理側が持つ。<br /> | BASE TABLE |
 | [public.warehouse](public.warehouse.md) | 7 | 倉庫。プロジェクトを横断する未割当機器の置き場（12章）。 | BASE TABLE |
-| [public.mount_container](public.mount_container.md) | 10 | 機器を載せる設備・什器（ラック・机・棚、12章）。名前は置き場所の中で一意で、大文字小文字を区別しない（撤去していないものに限る、#204） | BASE TABLE |
+| [public.mount_container](public.mount_container.md) | 9 | 機器を載せる設備・什器（ラック・机・棚、12章）。名前は置き場所の中で一意で、大文字小文字を区別しない（撤去していないものに限る、#204） | BASE TABLE |
 | [public.device_mount](public.device_mount.md) | 10 | 機器の搭載位置 — 履歴テーブル（12.2、13.2）。<br />**1行で `container_id` と `host_device_id` のどちらか一方だけが埋まる。**<br />この排他はDB制約にせず、アプリケーション層で検証する。<br /> | BASE TABLE |
 | [public.import_run](public.import_run.md) | 10 | 取込の実行記録（23.7）。**「この不正なデータはどの取込で入ったか」を辿る**ためにある。<br />取込では行ごとの監査ログを書かないため（24.4）、追跡はこのテーブルが担う。<br /> | BASE TABLE |
 | [public.vlan](public.vlan.md) | 9 | VLAN（8.3）。**一意制約を張っていない。**VLANタグはL2ドメインごとに独立しており、<br />拠点が違えば同じタグを使える。<br /> | BASE TABLE |
@@ -56,6 +56,7 @@
 | [public.purchase](public.purchase.md) | 9 | 購入の記録（10章）。**品目ごとに1行。発注を表すテーブルは持たない**——<br />発注番号は重複してよく、注文単位の合計は order_number で寄せて求める。<br />数量と通貨も持たない（数えるのは実体、金額は PROJECT.currency）。<br /> | BASE TABLE |
 | [public.maintenance_contract](public.maintenance_contract.md) | 11 | 保守契約（10章）。 | BASE TABLE |
 | [public.maintenance_contract_item](public.maintenance_contract_item.md) | 6 | 保守契約の対象（10章）。多態的参照のため外部キーを持てない。 | BASE TABLE |
+| [public.container_model](public.container_model.md) | 15 | 設備・什器の型番（12.10、#205）。自然キーは `(vendor_id, model_name)`。種別で収容能力の列が分かれる | BASE TABLE |
 
 ## Relations
 

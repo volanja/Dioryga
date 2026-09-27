@@ -116,13 +116,17 @@ pub async fn show(
 
     for c in containers {
         let 集計 = 什器の電力(&state.db, c.id).await?;
+        // 種別は型番から引く（#205）
+        let 型 = crate::container::型を引く(&state.db, &c)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
         total_watt += 集計.watt;
         total_with_plan += 集計.watt_with_plan;
 
         rows.push(ContainerRow {
             id: c.id,
             name: c.name,
-            container_type: c.container_type,
+            container_type: 型.container_type,
             running: 集計.running,
             watt: 集計.watt,
             planned: 集計.planned,

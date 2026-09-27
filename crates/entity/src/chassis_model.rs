@@ -22,6 +22,9 @@ pub struct Model {
     /// いるのはスペックを定義するフィールドの編集であり、選択可否はスペックでは
     /// ない。既存の参照は壊さず、過去の事実として残る。
     pub retired_at: Option<DateTimeUtc>,
+    /// 重量（g）。設備・什器の静荷重と、載せた機器の重量の合計を比べるため
+    /// （設計書12.10、#205）。**消費電力と違い型番でほぼ決まる。**
+    pub weight_g: Option<i32>,
     pub created_by: i32,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,

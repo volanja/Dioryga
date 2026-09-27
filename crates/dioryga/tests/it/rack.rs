@@ -19,9 +19,7 @@ use entity::{
     app_user, chassis_model, configuration, device, device_assignment, device_mount,
     mount_container, project, project_member, vendor,
 };
-use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use std::sync::Arc;
 use tower::ServiceExt;
 
@@ -29,9 +27,10 @@ use tower::ServiceExt;
 // 什器
 // ---------------------------------------------------------------------------
 
-/// 什器を登録できること。**Deskは `capacity` を持たない**（設計書12.3）。
-async fn 什器を登録できる(db: &DatabaseConnection) {
+/// **型番を選んで登録できること**（#205）。種別と収容能力は型番が持つ。
+async fn 型番を選んで登録できる(db: &DatabaseConnection) {
     let (user, p) = 準備(db, "container@example.com", "Operator").await;
+    let rack = crate::support::設備の型番(db, user.id, "Rack".to_owned(), Some(42)).await;
 
     let (状態, token) = 認証済み(db, &user).await;
     let (status, _) = 送信(
@@ -40,47 +39,53 @@ async fn 什器を登録できる(db: &DatabaseConnection) {
         &token,
         &[
             ("name", "Rack-01"),
-            ("container_type", "Rack"),
-            ("capacity", "42"),
+            ("container_model_id", &rack.to_string()),
         ],
     )
     .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
 
-    let (状態, token) = 認証済み(db, &user).await;
-    送信(
-        状態,
-        &format!("/projects/{}/containers", p.id),
-        &token,
-        &[("name", "作業机"), ("container_type", "Desk")],
-    )
-    .await;
+    let 一覧 = mount_container::Entity::find().all(db).await.unwrap();
+    assert_eq!(一覧.len(), 1);
+    assert_eq!(一覧[0].container_model_id, Some(rack));
 
-    let 一覧 = mount_container::Entity::find()
-        .order_by_asc(mount_container::Column::Id)
-        .all(db)
-        .await
-        .unwrap();
-    assert_eq!(一覧.len(), 2);
-    assert_eq!(一覧[0].capacity, Some(42));
-    assert_eq!(一覧[1].capacity, None, "机が格子を持ってしまっている");
+    // 一覧に型番の種別と収容能力が出る
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}/containers", p.id), &token).await;
+    assert!(
+        body.contains("Rack-42") && body.contains("42"),
+        "型番の値が出ていません"
+    );
 }
 
-/// 語彙外の種別を拒否すること（Q-21）。
-async fn 語彙外の種別は拒否される(db: &DatabaseConnection) {
+/// **型番が無い、または廃番なら登録できないこと**（18.5、Q-21）。
+async fn 型番が無いか廃番なら登録できない(db: &DatabaseConnection) {
     let (user, p) = 準備(db, "vocab@example.com", "Operator").await;
+    let 廃番 = crate::support::設備の型番(db, user.id, "Rack".to_owned(), Some(42)).await;
+    let m = entity::container_model::Entity::find_by_id(廃番)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    let mut active: entity::container_model::ActiveModel = m.into();
+    active.retired_at = Set(Some(Utc::now()));
+    active.update(db).await.unwrap();
 
-    let (状態, token) = 認証済み(db, &user).await;
-    let (status, body) = 送信(
-        状態,
-        &format!("/projects/{}/containers", p.id),
-        &token,
-        &[("name", "謎の什器"), ("container_type", "Cabinet")],
-    )
-    .await;
-
-    assert_eq!(status, StatusCode::OK);
-    assert!(body.contains("種別の値が不正"));
+    for model in ["", "999999", &廃番.to_string()] {
+        let (状態, token) = 認証済み(db, &user).await;
+        let (status, body) = 送信(
+            状態,
+            &format!("/projects/{}/containers", p.id),
+            &token,
+            &[("name", "謎の什器"), ("container_model_id", model)],
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(
+            body.contains("型番を選んでください"),
+            "{model:?} を受け付けています"
+        );
+    }
     assert_eq!(
         mount_container::Entity::find().all(db).await.unwrap().len(),
         0
@@ -460,11 +465,7 @@ async fn 名前は大文字小文字を区別せずに一意(db: &DatabaseConnec
         状態,
         &format!("/projects/{}/containers", 場.project.id),
         &token,
-        &[
-            ("name", "rack-01"),
-            ("container_type", "Rack"),
-            ("capacity", "42"),
-        ],
+        &[("name", "rack-01"), ("container_model_id", &型番(&場))],
     )
     .await;
     assert_eq!(status, StatusCode::OK);
@@ -486,11 +487,7 @@ async fn 名前は大文字小文字を区別せずに一意(db: &DatabaseConnec
         状態,
         &format!("/projects/{}/containers", 別.id),
         &token,
-        &[
-            ("name", "Rack-01"),
-            ("container_type", "Rack"),
-            ("capacity", "42"),
-        ],
+        &[("name", "Rack-01"), ("container_model_id", &型番(&場))],
     )
     .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
@@ -502,10 +499,11 @@ async fn 同じ名前はdbでも拒否される(db: &DatabaseConnection) {
     let 場 = 舞台(db, "unique-db@example.com").await;
     let 結果 = mount_container::ActiveModel {
         name: Set("RACK-01".to_owned()),
-        container_type: Set("Rack".to_owned()),
+        container_model_id: Set(Some(
+            crate::support::設備の型番(db, 場.user.id, "Rack".to_owned(), Some(42)).await,
+        )),
         location_type: Set("Project".to_owned()),
         location_id: Set(場.project.id),
-        capacity: Set(Some(42)),
         created_by: Set(場.user.id),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
@@ -625,11 +623,7 @@ async fn 撤去した設備は隠れて搭載できない(db: &DatabaseConnectio
         状態,
         &format!("/projects/{}/containers", 場.project.id),
         &token,
-        &[
-            ("name", "rack-01"),
-            ("container_type", "Rack"),
-            ("capacity", "42"),
-        ],
+        &[("name", "rack-01"), ("container_model_id", &型番(&場))],
     )
     .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
@@ -661,6 +655,11 @@ async fn 撤去は取り消せるが名前がふさがっていれば拒否す�
         .unwrap()
         .retired_at
         .is_some());
+}
+
+/// 舞台の設備・什器と同じ型番（#205）。
+fn 型番(場: &舞台情報) -> String {
+    場.container.container_model_id.unwrap().to_string()
 }
 
 async fn 撤去する(db: &DatabaseConnection, 場: &舞台情報) -> (StatusCode, String) {
@@ -706,6 +705,66 @@ async fn 設備の数(db: &DatabaseConnection, project_id: i32) -> usize {
         .await
         .unwrap()
         .len()
+}
+
+// ---------------------------------------------------------------------------
+// 重量と静荷重（#205、設計書12.10）
+// ---------------------------------------------------------------------------
+
+/// **載せた機器の重量の合計と静荷重を並べ、重量が未入力の台数を出すこと。**
+/// 超えても止めず、警告する（不変条件6）。
+async fn 載せた重量と静荷重が出る(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "load@example.com").await;
+    // 型番の静荷重を 50kg にする
+    let m = entity::container_model::Entity::find_by_id(場.container.container_model_id.unwrap())
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    let mut active: entity::container_model::ActiveModel = m.into();
+    active.static_load_g = Set(Some(50_000));
+    active.update(db).await.unwrap();
+
+    let a = 機器(db, &場, "heavy-01", 2, "RackU", None, "running").await;
+    let b = 機器(db, &場, "heavy-02", 2, "RackU", None, "running").await;
+    let c = 機器(db, &場, "unknown-01", 1, "RackU", None, "running").await;
+    重量を付ける(db, &a, 30_000).await;
+    重量を付ける(db, &b, 25_500).await;
+    搭載行(db, &場, a.id, Some(1), None, None, None).await;
+    搭載行(db, &場, b.id, Some(3), None, None, None).await;
+    搭載行(db, &場, c.id, Some(5), None, None, None).await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &図のあて先(&場), &token).await;
+    assert!(
+        body.contains("55.5kg / 50.0kg"),
+        "重量の合計と静荷重が出ていません"
+    );
+    assert!(
+        body.contains("重量が未入力の機器 1台"),
+        "未入力の台数が出ていません"
+    );
+    assert!(
+        body.contains("静荷重を超えています"),
+        "超過の警告が出ていません"
+    );
+}
+
+/// 機器の機種に重量を付ける。
+async fn 重量を付ける(db: &DatabaseConnection, d: &device::Model, weight_g: i32) {
+    let c = configuration::Entity::find_by_id(d.configuration_id.unwrap())
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    let m = chassis_model::Entity::find_by_id(c.chassis_model_id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    let mut active: chassis_model::ActiveModel = m.into();
+    active.weight_g = Set(Some(weight_g));
+    active.update(db).await.unwrap();
 }
 
 // ---------------------------------------------------------------------------
@@ -903,10 +962,11 @@ async fn 什器(
 ) -> mount_container::Model {
     mount_container::ActiveModel {
         name: Set(name.to_owned()),
-        container_type: Set(container_type.to_owned()),
+        container_model_id: Set(Some(
+            crate::support::設備の型番(db, created_by, container_type.to_owned(), capacity).await,
+        )),
         location_type: Set("Project".to_owned()),
         location_id: Set(project_id),
-        capacity: Set(capacity),
         created_by: Set(created_by),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
@@ -1067,8 +1127,8 @@ async fn メンバー(db: &DatabaseConnection, user_id: i32, project_id: i32, ro
 
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
-        全検証!(@one $用意, $属性, 什器を登録できる);
-        全検証!(@one $用意, $属性, 語彙外の種別は拒否される);
+        全検証!(@one $用意, $属性, 型番を選んで登録できる);
+        全検証!(@one $用意, $属性, 型番が無いか廃番なら登録できない);
         全検証!(@one $用意, $属性, 機器を搭載できる);
         全検証!(@one $用意, $属性, 同じ位置には重ねられない);
         全検証!(@one $用意, $属性, 半幅なら左右に置ける);
@@ -1086,6 +1146,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 他プロジェクトの機器は搭載できない);
         全検証!(@one $用意, $属性, 閲覧者は搭載できない);
         全検証!(@one $用意, $属性, 机には格子を描かない);
+        全検証!(@one $用意, $属性, 載せた重量と静荷重が出る);
         全検証!(@one $用意, $属性, 名前は大文字小文字を区別せずに一意);
         全検証!(@one $用意, $属性, 同じ名前はdbでも拒否される);
         全検証!(@one $用意, $属性, 使っていない設備は行ごと消える);

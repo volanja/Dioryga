@@ -83,6 +83,34 @@ pub struct CatalogFile {
     /// が崩れ、あるプロジェクトの取込が他プロジェクトの見るVLANを書き換える。
     #[serde(default)]
     pub vlans: Vec<VlanInput>,
+    /// 設備・什器の型番（設計書12.10）。ラック・机・棚。
+    #[serde(default)]
+    pub container_models: Vec<ContainerModelInput>,
+}
+
+/// 設備・什器の型番（12.10）。**種別で使う収容能力の列が分かれる**——Rack は
+/// `height_u`、Shelving は `shelf_count`、Desk はどちらも持たない。
+///
+/// 寸法はミリメートル、重量と静荷重はグラムの整数（24.2.1）。
+#[derive(Debug, Deserialize)]
+pub struct ContainerModelInput {
+    pub vendor: String,
+    pub model_name: String,
+    pub container_type: String,
+    #[serde(default)]
+    pub height_u: Option<i32>,
+    #[serde(default)]
+    pub shelf_count: Option<i32>,
+    #[serde(default)]
+    pub width_mm: Option<i32>,
+    #[serde(default)]
+    pub depth_mm: Option<i32>,
+    #[serde(default)]
+    pub height_mm: Option<i32>,
+    #[serde(default)]
+    pub weight_g: Option<i32>,
+    #[serde(default)]
+    pub static_load_g: Option<i32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -111,6 +139,9 @@ pub struct ChassisModelInput {
     pub mount_form: String,
     #[serde(default)]
     pub rack_width: Option<String>,
+    /// 重量（g）。設備・什器の静荷重と比べるため（12.10）。
+    #[serde(default)]
+    pub weight_g: Option<i32>,
     #[serde(default)]
     pub slots: Vec<SlotInput>,
 }
@@ -319,6 +350,8 @@ pub const RACK_WIDTHS: &[&str] = &["Full", "Half"];
 pub const SLOT_TYPES: &[&str] = &["CPU_SOCKET", "DIMM", "DRIVE_BAY", "PCIE", "PSU_BAY"];
 /// `PART_CATALOG.category`（6.4）。**閉じた語彙。**
 pub const PART_CATEGORIES: &[&str] = &["CPU", "Memory", "NIC", "Storage", "PSU", "PDU"];
+/// `CONTAINER_MODEL.container_type`（12.10）。**閉じた語彙。**画面と取込が同じ表を見る。
+pub const CONTAINER_TYPES: &[&str] = &["Rack", "Desk", "Shelving"];
 
 /// 閉じた語彙で検証する。**大文字・小文字を寄せず、既定へも倒さない**（Q-21）。
 fn 閉じた語彙(項目: &str, value: &str, allowed: &[&str]) -> Result<(), String> {
@@ -363,6 +396,59 @@ pub fn 部品カテゴリを検証する(value: &str) -> Result<(), String> {
 /// 語彙外の値は既定へ倒さず拒否する（Q-21）のと同じ扱いにする。
 pub fn 種別を検証する(value: &str) -> Result<(), String> {
     閉じた語彙("device_category", value, DEVICE_CATEGORIES)
+}
+
+/// 重量を検証する。**正の整数か未指定**（24.2.1）。
+pub fn 重量を検証する(項目: &str, value: Option<i32>) -> Result<(), String> {
+    match value {
+        Some(v) if v <= 0 => Err(format!("{項目}「{v}」は正の整数で書いてください")),
+        _ => Ok(()),
+    }
+}
+
+/// 設備・什器の型番を検証する（12.10）。
+///
+/// **種別に合わない収容能力は拒否し、合う収容能力が無くても拒否する。**
+/// 画面と同じ規則にする（8.6「手入力の画面と取込で扱いを揃える」）。
+pub fn 設備の型番を検証する(m: &ContainerModelInput) -> Result<(), String> {
+    閉じた語彙("container_type", &m.container_type, CONTAINER_TYPES)?;
+    if 正規化(&m.model_name).is_empty() {
+        return Err("model_name が空です".to_owned());
+    }
+    let is_rack = m.container_type == "Rack";
+    let is_shelving = m.container_type == "Shelving";
+    match (is_rack, m.height_u) {
+        (true, None) => return Err("Rack には height_u が要ります".to_owned()),
+        (false, Some(_)) => {
+            return Err(format!(
+                "height_u は Rack のときだけ書けます（{}）",
+                m.container_type
+            ))
+        }
+        _ => {}
+    }
+    match (is_shelving, m.shelf_count) {
+        (true, None) => return Err("Shelving には shelf_count が要ります".to_owned()),
+        (false, Some(_)) => {
+            return Err(format!(
+                "shelf_count は Shelving のときだけ書けます（{}）",
+                m.container_type
+            ))
+        }
+        _ => {}
+    }
+    for (項目, v) in [
+        ("height_u", m.height_u),
+        ("shelf_count", m.shelf_count),
+        ("width_mm", m.width_mm),
+        ("depth_mm", m.depth_mm),
+        ("height_mm", m.height_mm),
+        ("weight_g", m.weight_g),
+        ("static_load_g", m.static_load_g),
+    ] {
+        重量を検証する(項目, v)?;
+    }
+    Ok(())
 }
 
 const NETWORK: &str = "Network";
@@ -775,6 +861,42 @@ configurations:
         assert!(部品カテゴリを検証する("PSU").is_ok());
         assert!(部品カテゴリを検証する("Psu").is_err());
         assert!(部品カテゴリを検証する("GPU").is_err());
+    }
+
+    fn 型番(yaml: &str) -> ContainerModelInput {
+        serde_yaml_ng::from_str(yaml).unwrap()
+    }
+
+    /// **種別に合わない収容能力を拒否し、合う収容能力が無くても拒否する**（12.10）。
+    #[test]
+    fn 設備の型番は種別で収容能力の列が分かれる() {
+        let base = "{ vendor: V, model_name: M, ";
+        assert!(設備の型番を検証する(&型番(&format!(
+            "{base}container_type: Rack, height_u: 42 }}"
+        )))
+        .is_ok());
+        assert!(設備の型番を検証する(&型番(&format!("{base}container_type: Rack }}"))).is_err());
+        assert!(設備の型番を検証する(&型番(&format!(
+            "{base}container_type: Rack, height_u: 42, shelf_count: 5 }}"
+        )))
+        .is_err());
+        assert!(設備の型番を検証する(&型番(&format!(
+            "{base}container_type: Shelving, shelf_count: 5 }}"
+        )))
+        .is_ok());
+        assert!(設備の型番を検証する(&型番(&format!("{base}container_type: Desk }}"))).is_ok());
+        assert!(設備の型番を検証する(&型番(&format!(
+            "{base}container_type: Desk, height_u: 1 }}"
+        )))
+        .is_err());
+        assert!(設備の型番を検証する(&型番(&format!(
+            "{base}container_type: rack, height_u: 42 }}"
+        )))
+        .is_err());
+        assert!(設備の型番を検証する(&型番(&format!(
+            "{base}container_type: Rack, height_u: 42, weight_g: 0 }}"
+        )))
+        .is_err());
     }
 
     /// **正規化は仮名・漢字を壊さない**（18.4）。

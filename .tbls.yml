@@ -47,6 +47,7 @@ lint:
       - public.software_catalog.created_by
       - public.warehouse.created_by
       - public.mount_container.created_by
+      - public.container_model.created_by
       - public.audit_log.user_id
       - public.firmware_version.changed_by
 
@@ -126,6 +127,15 @@ comments:
     columnComments:
       height_u: ラック搭載時の高さ。mount_form=Surface では意味を持たない
       rack_width: Full / Half。mount_form=RackU のときのみ意味を持つ
+      weight_g: 重量（g）。設備・什器の静荷重と、載せた機器の重量の合計を比べるため（#205）
+  - table: container_model
+    tableComment: 設備・什器の型番（12.10、#205）。自然キーは `(vendor_id, model_name)`。種別で収容能力の列が分かれる
+    columnComments:
+      container_type: Rack / Desk / Shelving（閉じた語彙）
+      height_u: Rack のみ。総U数。**制約ではなく目安**で、超過は警告（不変条件6）
+      shelf_count: Shelving のみ。段数
+      weight_g: 本体の重量（g）
+      static_load_g: 静荷重（耐荷重、g）。移動時の動荷重は持たない
   - table: chassis_slot
     tableComment: |
       筐体モデルが持つスロット。**無条件の一覧である。**「4CPU構成でなければ使えない」といった
@@ -365,8 +375,7 @@ comments:
     columnComments:
       location_type: Warehouse / Project。多態的参照のため外部キーを持てない
       retired_at: null = 現役。搭載の履歴や費用の記録が指し続けるため、使ったことのある設備は消さず撤去済みにする（#204）
-      capacity: |
-        ラックのU数、棚の段数。**制約ではなく目安。**超過はエラーではなく警告として扱う（不変条件6）
+      container_model_id: 型番（#205）。種別と収容能力は型番が持つ。SQLiteで外部キー列を後から足したためDB上は NULL を許すが、アプリケーション層では必須
   - table: device_mount
     tableComment: |
       機器の搭載位置 — 履歴テーブル（12.2、13.2）。

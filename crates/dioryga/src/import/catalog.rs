@@ -46,8 +46,8 @@
 
 use chrono::Utc;
 use entity::{
-    chassis_model, chassis_slot, configuration, configuration_part, part_catalog, part_port_slot,
-    port_power_rating, vendor,
+    chassis_model, chassis_slot, configuration, configuration_part, container_model, part_catalog,
+    part_port_slot, port_power_rating, vendor,
 };
 use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter, Set};
 use std::collections::HashMap;
@@ -58,11 +58,12 @@ use super::{Entry, ImportError, Outcome, Report};
 use crate::repository::{Actor, AuditedTx};
 pub use dioryga_catalog_format::{
     parse, CatalogFile, ChassisModelInput, ChassisModelRef, ConfigurationInput,
-    ConfigurationPartInput, PartCatalogInput, PartCatalogRef, PortInput, PowerRatingInput,
-    SlotInput, VendorInput,
+    ConfigurationPartInput, ContainerModelInput, PartCatalogInput, PartCatalogRef, PortInput,
+    PowerRatingInput, SlotInput, VendorInput,
 };
 use dioryga_catalog_format::{
-    ポートを検証する, 搭載を検証する, 種別を検証する, 部品カテゴリを検証する,
+    ポートを検証する, 搭載を検証する, 種別を検証する, 設備の型番を検証する, 部品カテゴリを検証する,
+    重量を検証する,
 };
 
 // ---------------------------------------------------------------------------
@@ -140,6 +141,7 @@ pub async fn dry_run<C: ConnectionTrait>(
         // **閉じた語彙は既定へ寄せず拒否する**（8.6、Q-21）
         if let Err(e) = 種別を検証する(&m.device_category)
             .and_then(|_| 搭載を検証する(&m.mount_form, m.rack_width.as_deref()))
+            .and_then(|_| 重量を検証する("weight_g", m.weight_g))
         {
             report.push(Entry::new(Outcome::Error, target, e));
             continue;
@@ -167,11 +169,20 @@ pub async fn dry_run<C: ConnectionTrait>(
             // 足す（23.4）——上書きではなく、無かった定義が増えるだけである
             Some(existing) => {
                 let 既存の本数 = スロット数(db, existing.id).await?;
-                if 既存の本数 == 0 && ラベル数 > 0 {
+                // **重量も、空なら足す**（12.10）。値があれば上書きしない
+                let 重量を足す = existing.weight_g.is_none() && m.weight_g.is_some();
+                if (既存の本数 == 0 && ラベル数 > 0) || 重量を足す {
+                    let mut 足すもの = Vec::new();
+                    if 既存の本数 == 0 && ラベル数 > 0 {
+                        足すもの.push(format!("スロット {ラベル数} 本"));
+                    }
+                    if 重量を足す {
+                        足すもの.push("重量".to_owned());
+                    }
                     report.push(Entry::new(
                         Outcome::Updated,
                         target,
-                        format!("スロット {ラベル数} 本を追加します"),
+                        format!("{}を追加します", 足すもの.join("と")),
                     ));
                 } else {
                     report.push(Entry::new(
@@ -186,6 +197,31 @@ pub async fn dry_run<C: ConnectionTrait>(
                 target,
                 format!("スロット {ラベル数} 本"),
             )),
+        }
+    }
+
+    // 設備・什器の型番（12.10）。**既存は上書きしない**（18.2）
+    for m in &file.container_models {
+        let target = format!("CONTAINER_MODEL {} {}", m.vendor, m.model_name);
+        if !ベンダーを解決できる(db, &m.vendor, &宣言済みベンダー).await? {
+            report.push(Entry::new(
+                Outcome::Error,
+                target,
+                format!("ベンダー「{}」が見つかりません", m.vendor),
+            ));
+            continue;
+        }
+        if let Err(e) = 設備の型番を検証する(m) {
+            report.push(Entry::new(Outcome::Error, target, e));
+            continue;
+        }
+        match 既存の設備型番(db, &m.vendor, &m.model_name).await? {
+            Some(_) => report.push(Entry::new(
+                Outcome::Unchanged,
+                target,
+                "既に登録されています（上書きしません）",
+            )),
+            None => report.push(Entry::new(Outcome::Created, target, "")),
         }
     }
 
@@ -389,6 +425,19 @@ pub async fn apply(
             if スロット数(tx.reader(), existing.id).await? == 0 {
                 スロットを足す(&tx, existing.id, &m.slots, now).await?;
             }
+            // **重量は空なら足す**（12.10）。上書きではなく、無かった値が増えるだけ
+            if existing.weight_g.is_none() && m.weight_g.is_some() {
+                tx.update(
+                    &existing,
+                    chassis_model::ActiveModel {
+                        id: Set(existing.id),
+                        weight_g: Set(m.weight_g),
+                        updated_at: Set(now),
+                        ..Default::default()
+                    },
+                )
+                .await?;
+            }
             continue;
         }
         let vendor_id = match ベンダーid(&m.vendor) {
@@ -411,6 +460,7 @@ pub async fn apply(
                 // 画面と同じく、RackU で幅が無ければ Full にする（#148）
                 rack_width: Set(搭載を検証する(&m.mount_form, m.rack_width.as_deref())
                     .expect("ドライランで検証済み")),
+                weight_g: Set(m.weight_g),
                 created_by: Set(actor),
                 created_at: Set(now),
                 updated_at: Set(now),
@@ -419,6 +469,43 @@ pub async fn apply(
             .await?;
 
         スロットを足す(&tx, model.id, &m.slots, now).await?;
+    }
+
+    for m in &file.container_models {
+        // **既存は上書きしない**（18.2）
+        if 既存の設備型番(tx.reader(), &m.vendor, &m.model_name)
+            .await?
+            .is_some()
+        {
+            continue;
+        }
+        let vendor_id = match ベンダーid(&m.vendor) {
+            Some(id) => id,
+            None => {
+                既存ベンダー(tx.reader(), &m.vendor)
+                    .await?
+                    .expect("ドライランで解決済み")
+                    .id
+            }
+        };
+        tx.insert(container_model::ActiveModel {
+            vendor_id: Set(vendor_id),
+            model_name: Set(dioryga_catalog_format::正規化(&m.model_name)),
+            container_type: Set(m.container_type.clone()),
+            height_u: Set(m.height_u),
+            shelf_count: Set(m.shelf_count),
+            width_mm: Set(m.width_mm),
+            depth_mm: Set(m.depth_mm),
+            height_mm: Set(m.height_mm),
+            weight_g: Set(m.weight_g),
+            static_load_g: Set(m.static_load_g),
+            retired_at: Set(None),
+            created_by: Set(actor),
+            created_at: Set(now),
+            updated_at: Set(now),
+            ..Default::default()
+        })
+        .await?;
     }
 
     for p in &file.part_catalogs {
@@ -640,6 +727,21 @@ async fn 既存モデル<C: ConnectionTrait>(
     chassis_model::Entity::find()
         .filter(chassis_model::Column::VendorId.eq(v.id))
         .filter(chassis_model::Column::ModelName.eq(model_name))
+        .one(db)
+        .await
+}
+
+async fn 既存の設備型番<C: ConnectionTrait>(
+    db: &C,
+    vendor_name: &str,
+    model_name: &str,
+) -> Result<Option<container_model::Model>, sea_orm::DbErr> {
+    let Some(v) = 既存ベンダー(db, vendor_name).await? else {
+        return Ok(None);
+    };
+    container_model::Entity::find()
+        .filter(container_model::Column::VendorId.eq(v.id))
+        .filter(container_model::Column::ModelName.eq(dioryga_catalog_format::正規化(model_name)))
         .one(db)
         .await
 }

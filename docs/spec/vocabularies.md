@@ -52,11 +52,11 @@
 | `CHASSIS_MODEL.rack_width` | `Full` / `Half`（mount_form=RackUの時のみ） |
 | `CHASSIS_SLOT.slot_type` | `CPU_SOCKET` / `DIMM` / `DRIVE_BAY` / `PCIE` / `PSU_BAY` |
 | `PART_CATALOG.category` | `CPU` / `Memory` / `NIC` / `Storage` / `PSU` / `PDU` |
-| `MOUNT_CONTAINER.container_type` | `Rack` / `Desk` / `Shelving` |
+| `CONTAINER_MODEL.container_type` | `Rack` / `Desk` / `Shelving` |
 | `DEVICE_MOUNT.horizontal_position` | `Left` / `Right` / `Full`（nullable） |
 | `DEVICE_MOUNT.depth_position` | `Front` / `Rear` / `Full`（nullable） |
 
-`mount_form` / `rack_width` / `slot_type` / `PART_CATALOG.category` は**閉じた語彙で、画面と取込の両方で語彙外を拒否する**（表は `dioryga_catalog_format` に置く）。`rack_width` は `RackU` で省くと `Full` になり、`RackU` 以外で指定するとエラーになる。
+`mount_form` / `rack_width` / `slot_type` / `PART_CATALOG.category` / `CONTAINER_MODEL.container_type` は**閉じた語彙で、画面と取込の両方で語彙外を拒否する**（表は `dioryga_catalog_format` に置く）。`rack_width` は `RackU` で省くと `Full` になり、`RackU` 以外で指定するとエラーになる。
 
 ## ネットワーク
 

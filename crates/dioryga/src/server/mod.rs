@@ -5,6 +5,7 @@ pub mod admin;
 pub mod cable;
 pub mod catalog;
 pub mod component;
+pub mod container_model;
 pub mod cost;
 pub mod dashboard;
 pub mod device;
@@ -344,6 +345,23 @@ pub fn router(state: AppState) -> Router {
         .route("/catalog/cables/{id}", get(cable::detail))
         .route("/catalog/cables/{id}/ends", post(cable::add_end))
         .route("/catalog/cables/{id}/ends/remove", post(cable::remove_end))
+        // 設備・什器の型番（設計書12.10、#205）
+        .route(
+            "/catalog/container-models",
+            get(container_model::list).post(container_model::create),
+        )
+        .route(
+            "/catalog/container-models/new",
+            get(container_model::new_form),
+        )
+        .route(
+            "/catalog/container-models/retire",
+            post(container_model::retire),
+        )
+        .route(
+            "/catalog/container-models/{id}",
+            get(container_model::detail),
+        )
         .route(
             "/catalog/software",
             get(software_catalog::list).post(software_catalog::create),

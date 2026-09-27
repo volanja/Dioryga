@@ -404,7 +404,6 @@ containers:
   name: Name
   container_type: Type
   capacity: Capacity
-  capacity_hint: Total U for a rack, number of shelves for shelving. Leave empty for a desk
   mounted: Mounted
   open: Diagram
   empty: No racks or furniture yet
@@ -412,8 +411,6 @@ containers:
   submit: Create
   back: Back to racks and furniture
   error_name: Enter a name
-  error_type: Invalid type
-  error_capacity: Capacity must be a positive integer
   error_name_taken: A rack or furniture with the same name already exists. Names are not case-sensitive
   error_in_use: Devices are mounted, so this cannot be removed. Unmount or move them first
   error_unretire_taken: A rack or furniture with the same name already exists, so the removal cannot be undone. Rename one of them first
@@ -426,6 +423,12 @@ containers:
   retire_hard: Nothing has ever been mounted here and no costs are recorded, so the row will be deleted. This cannot be undone
   retire_soft: This has been used before, so it will be marked as removed. Mount history and cost records remain, and you can undo this later
   retired_note: This rack or furniture has been removed. Devices cannot be mounted
+  model: Model
+  model_hint: The type and capacity come from the model. Register models under "Rack and furniture models" in the shared catalog
+  error_model: Choose a model (retired models cannot be chosen)
+  load: Mounted weight / static load
+  load_unknown: " (%{count} devices without a weight)"
+  overloaded: The total weight of mounted devices exceeds the static load
 
 rack:
   diagram: Rack diagram
@@ -542,6 +545,8 @@ catalog:
   error_voltage_zero: Assumed voltage cannot be 0
   error_va_positive: Assumed apparent power must be 1 or more
   warn_power_range: "%{voltage}V %{current_type} is outside the range the PSUs in this configuration accept. It was saved, but please check."
+  weight_hint: Enter in kg. Used to compare the total weight of mounted devices with the static load of racks and furniture
+  error_weight: Enter a weight greater than 0
 
 parts:
   title: Part catalog
@@ -966,3 +971,29 @@ device_categories:
   kvm: KVM
   console_server: ConsoleServer
   other: Other
+
+container_models:
+  title: Rack and furniture models
+  lead: Register models of racks, desks and shelving. The type, capacity, dimensions, weight and static load are determined by the model
+  container_type: Type
+  model_name: Model
+  height_u: Units (U)
+  shelf_count: Shelves
+  size: Dimensions (W×D×H)
+  width: Width (mm)
+  depth: Depth (mm)
+  height: Height (mm)
+  size_hint: Enter whole millimetres
+  weight: Weight
+  static_load: Static load
+  weight_hint: Enter in kg. The static load is the weight that can be placed on it once installed
+  used: Racks and furniture using it
+  new: Add model
+  back: Back to rack and furniture models
+  error_type: Invalid type
+  error_vendor: Choose a vendor
+  error_model_name: Enter the model
+  error_duplicate: This vendor already has the same model
+  error_number: Enter numbers greater than 0
+  error_capacity_required: Enter the capacity (units for racks, shelves for shelving)
+  error_capacity_unused: This type cannot have that capacity

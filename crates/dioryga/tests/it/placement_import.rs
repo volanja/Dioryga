@@ -381,10 +381,11 @@ async fn 倉庫の什器には載せられない(db: &DatabaseConnection) {
 
     mount_container::ActiveModel {
         name: Set("倉庫ラック".to_owned()),
-        container_type: Set("Rack".to_owned()),
+        container_model_id: Set(Some(
+            crate::support::設備の型番(db, 場.user_id, "Rack".to_owned(), Some(42)).await,
+        )),
         location_type: Set("Warehouse".to_owned()),
         location_id: Set(場.warehouse.id),
-        capacity: Set(Some(42)),
         created_by: Set(場.user_id),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
@@ -430,10 +431,11 @@ async fn 舞台(db: &DatabaseConnection, name: &str) -> 舞台情報 {
 
     let c = mount_container::ActiveModel {
         name: Set("Rack-01".to_owned()),
-        container_type: Set("Rack".to_owned()),
+        container_model_id: Set(Some(
+            crate::support::設備の型番(db, user_id, "Rack".to_owned(), Some(42)).await,
+        )),
         location_type: Set("Project".to_owned()),
         location_id: Set(p.id),
-        capacity: Set(Some(42)),
         created_by: Set(user_id),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),

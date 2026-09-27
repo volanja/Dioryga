@@ -12,13 +12,14 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     pub name: String,
-    /// Rack / Desk / Shelving
-    pub container_type: String,
+    /// 型番（`CONTAINER_MODEL`、#205）。種別と収容能力はカタログが持つ。
+    ///
+    /// **DB上はnullableだが、アプリケーション層では必須**——SQLiteは外部キーを
+    /// 持つ列を後から足すとき、既定値を NULL にしか取れない（`cable_kind` と同じ）。
+    pub container_model_id: Option<i32>,
     /// Warehouse / Project
     pub location_type: String,
     pub location_id: i32,
-    /// ラックのU数、棚の段数。**超過はエラーではなく警告**として扱う（不変条件6）。
-    pub capacity: Option<i32>,
     /// 撤去（#204）。**過去に使った設備は行を残す**——搭載の履歴が指し続けている。
     /// 名前の一意（置き場所の中、大文字小文字を区別しない）は撤去していないものに限る。
     pub retired_at: Option<DateTimeUtc>,

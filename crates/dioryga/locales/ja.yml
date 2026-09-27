@@ -429,6 +429,33 @@ containers:
   load: 載せた重量 / 静荷重
   load_unknown: （重量が未入力の機器 %{count}台）
   overloaded: 載せた機器の重量の合計が、静荷重を超えています
+  installation_site: 設置場所
+  installation_site_hint: データセンター・フロア・列など。自由に書けます。所属するプロジェクトとは別です
+  circuits: 給電（回路）
+  circuits_hint: この設備・什器に来ている回路です。A系・B系のように複数持てます。回路ごとの負荷と冗長の判定はまだありません
+  power: 消費電力の合計
+  power_total: 稼働中 %{watt}W（予約を含めると %{with_plan}W）
+  circuit_label: 系統名
+  voltage: 電圧（V）
+  phase: 相
+  breaker: ブレーカー定格（A）
+  continuous: 連続負荷の目安（80%）
+  connector: コンセントの形状
+  since: 開始日
+  end_circuit: 終了する
+  add_circuit: 回路を登録・変更
+  circuit_form_hint: 同じ系統名の回路があれば、その回路を変更します（前の値は履歴として残ります）
+  no_circuits: 回路が登録されていません
+  error_circuit_label: 系統名を入力してください
+  error_voltage: 電圧は正の整数で入力してください
+  error_phase: 相の値が不正です
+  error_breaker: ブレーカー定格は0より大きい数で入力してください
+  costs: 費用
+  costs_hint: 購入の記録はここで、固定資産とレンタル料（継続費用）はコストの画面で記録します。年間コストに合算されます
+  to_assets: 固定資産として記録する
+  to_recurring: レンタル料を記録する
+  purchase_hint: この設備・什器の購入の記録です。1つにつき1行で、保存すると上書きします。資産計上しなければ、取得した年の即時費用として年間コストに入ります
+  order_number_hint: 書類に書かれた番号をそのまま入れます。機器と同じ番号でも構いません
 
 rack:
   diagram: ラック図

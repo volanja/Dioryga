@@ -20,6 +20,9 @@ pub struct Model {
     /// Warehouse / Project
     pub location_type: String,
     pub location_id: i32,
+    /// 設置場所（自由記述、#206）。データセンター・フロア・列など。**置き場所
+    /// （`location_type`）は所有者であり、物理的な場所ではない**（12.10）。
+    pub installation_site: Option<String>,
     /// 撤去（#204）。**過去に使った設備は行を残す**——搭載の履歴が指し続けている。
     /// 名前の一意（置き場所の中、大文字小文字を区別しない）は撤去していないものに限る。
     pub retired_at: Option<DateTimeUtc>,

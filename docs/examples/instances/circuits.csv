@@ -1,0 +1,3 @@
+container,circuit_label,voltage,phase,breaker_current_a,connector_type
+A01,A系,200,Single,30,NEMA L6-30R
+A01,B系,200,Single,30,NEMA L6-30R

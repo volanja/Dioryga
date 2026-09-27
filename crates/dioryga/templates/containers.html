@@ -32,6 +32,7 @@
     <tr>
       <th>{{ t_name }}</th>
       <th>{{ t_model }}</th>
+      <th>{{ t_site }}</th>
       <th>{{ t_container_type }}</th>
       <th>{{ t_capacity }}</th>
       <th>{{ t_mounted }}</th>
@@ -46,6 +47,7 @@
         {% if row.retired %}<span class="badge">{{ t_retired }}</span>{% endif %}
       </td>
       <td>{{ row.model }}</td>
+      <td>{{ row.installation_site }}</td>
       <td>{{ row.container_type }}</td>
       <td>{{ row.capacity }}</td>
       <td>{{ row.mounted }}</td>
@@ -88,6 +90,10 @@
       {% endfor %}
     </select>
     <p class="hint">{{ t_model_hint }}</p>
+
+    <label for="installation_site">{{ t_site }}</label>
+    <input type="text" id="installation_site" name="installation_site" value="{{ form.installation_site }}">
+    <p class="hint">{{ t_site_hint }}</p>
 
     <button type="submit">{{ t_submit }}</button>
   </form>

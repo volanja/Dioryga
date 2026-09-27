@@ -4135,6 +4135,12 @@
           "type": "integer",
           "nullable": true,
           "comment": "型番（#205）。種別と収容能力は型番が持つ。SQLiteで外部キー列を後から足したためDB上は NULL を許すが、アプリケーション層では必須"
+        },
+        {
+          "name": "installation_site",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "設置場所（自由記述、#206）。置き場所（location_type）は所有者であって物理的な場所ではない"
         }
       ],
       "indexes": [
@@ -9484,6 +9490,175 @@
           ]
         }
       ]
+    },
+    {
+      "name": "public.power_circuit",
+      "type": "BASE TABLE",
+      "comment": "設備・什器が受ける給電の回路 — 履歴テーブル（12.7、12.10、#206）。A系・B系のように1つの設備・什器に複数来る。変更は閉じて開く",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "container_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "circuit_label",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "系統名。同じ設備・什器の現在の行の中で一意"
+        },
+        {
+          "name": "voltage",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "phase",
+          "type": "varchar",
+          "nullable": false,
+          "comment": "Single / Three。三相の計算はv2"
+        },
+        {
+          "name": "breaker_current_ma",
+          "type": "integer",
+          "nullable": false,
+          "comment": "ブレーカー定格（mA）。連続負荷の目安（80%）は保存しない"
+        },
+        {
+          "name": "connector_type",
+          "type": "varchar",
+          "nullable": true,
+          "comment": "コンセントの形状（開いた語彙）"
+        },
+        {
+          "name": "from_date",
+          "type": "timestamp with time zone",
+          "nullable": false
+        },
+        {
+          "name": "to_date",
+          "type": "timestamp with time zone",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "power_circuit_pkey",
+          "def": "CREATE UNIQUE INDEX power_circuit_pkey ON public.power_circuit USING btree (id)",
+          "table": "public.power_circuit",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "idx_power_circuit_container_id",
+          "def": "CREATE INDEX idx_power_circuit_container_id ON public.power_circuit USING btree (container_id)",
+          "table": "public.power_circuit",
+          "columns": [
+            "container_id"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "name": "power_circuit_breaker_current_ma_not_null",
+          "type": "n",
+          "def": "NOT NULL breaker_current_ma",
+          "table": "public.power_circuit",
+          "referenced_table": "",
+          "columns": [
+            "breaker_current_ma"
+          ]
+        },
+        {
+          "name": "power_circuit_circuit_label_not_null",
+          "type": "n",
+          "def": "NOT NULL circuit_label",
+          "table": "public.power_circuit",
+          "referenced_table": "",
+          "columns": [
+            "circuit_label"
+          ]
+        },
+        {
+          "name": "power_circuit_container_id_not_null",
+          "type": "n",
+          "def": "NOT NULL container_id",
+          "table": "public.power_circuit",
+          "referenced_table": "",
+          "columns": [
+            "container_id"
+          ]
+        },
+        {
+          "name": "power_circuit_from_date_not_null",
+          "type": "n",
+          "def": "NOT NULL from_date",
+          "table": "public.power_circuit",
+          "referenced_table": "",
+          "columns": [
+            "from_date"
+          ]
+        },
+        {
+          "name": "power_circuit_id_not_null",
+          "type": "n",
+          "def": "NOT NULL id",
+          "table": "public.power_circuit",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "power_circuit_phase_not_null",
+          "type": "n",
+          "def": "NOT NULL phase",
+          "table": "public.power_circuit",
+          "referenced_table": "",
+          "columns": [
+            "phase"
+          ]
+        },
+        {
+          "name": "power_circuit_voltage_not_null",
+          "type": "n",
+          "def": "NOT NULL voltage",
+          "table": "public.power_circuit",
+          "referenced_table": "",
+          "columns": [
+            "voltage"
+          ]
+        },
+        {
+          "name": "power_circuit_container_id_fkey",
+          "type": "FOREIGN KEY",
+          "def": "FOREIGN KEY (container_id) REFERENCES mount_container(id)",
+          "table": "public.power_circuit",
+          "referenced_table": "public.mount_container",
+          "columns": [
+            "container_id"
+          ],
+          "referenced_columns": [
+            "id"
+          ]
+        },
+        {
+          "name": "power_circuit_pkey",
+          "type": "PRIMARY KEY",
+          "def": "PRIMARY KEY (id)",
+          "table": "public.power_circuit",
+          "referenced_table": "",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
     }
   ],
   "relations": [
@@ -10604,6 +10779,19 @@
       ],
       "parent_cardinality": "exactly_one",
       "def": "FOREIGN KEY (vendor_id) REFERENCES vendor(id)"
+    },
+    {
+      "table": "public.power_circuit",
+      "columns": [
+        "container_id"
+      ],
+      "cardinality": "zero_or_more",
+      "parent_table": "public.mount_container",
+      "parent_columns": [
+        "id"
+      ],
+      "parent_cardinality": "exactly_one",
+      "def": "FOREIGN KEY (container_id) REFERENCES mount_container(id)"
     }
   ],
   "driver": {

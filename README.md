@@ -15,10 +15,10 @@ The name comes from διώρυγα, Greek for "canal", and is pronounced *dee-OH
 ## Features
 
 - Device register: record physical machines, virtual machines and containers. Changes to a device's project, mounting position, IP addresses and similar attributes do not overwrite earlier values; they are kept as history
-- Racks and furniture: record where devices are mounted, show them as rack diagrams, and compare the mounted weight with the static load
+- Racks and furniture: record where devices are mounted, the power circuits supplied to each rack and where it is installed, show them as rack diagrams, and compare the mounted weight with the static load
 - Network: manage subnets, IP addresses and device interfaces (VLANs, IP addresses, bonding)
 - Software: import an SBOM for each device and search its components across devices
-- Costs and contracts: manage purchase records, fixed assets, maintenance contracts and recurring costs
+- Costs and contracts: manage purchase records, fixed assets, maintenance contracts and recurring costs for devices and racks
 - Milestones: record planned and actual dates for service start, renewal, maintenance and end, and show delays against the plan
 - Change management tickets: raise tickets for adding, relocating or removing devices, and carry them out after approval
 - Warehouses: manage, across projects, where devices and parts not assigned to any project are kept

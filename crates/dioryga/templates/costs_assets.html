@@ -51,17 +51,27 @@
 {% if can_edit %}
 <h2 class="section">{{ t_new }}</h2>
 <div class="card">
-  {% if devices.is_empty() %}
+  {% if devices.is_empty() && containers.is_empty() %}
   <p class="empty">{{ t_empty }}</p>
   {% else %}
   <form method="post" action="/projects/{{ project_id }}/costs/fixed-assets" class="form">
     <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
 
-    <label for="device_id">{{ t_target }}</label>
-    <select id="device_id" name="device_id">
-      {% for d in devices %}
-      <option value="{{ d.value }}">{{ d.label }}</option>
-      {% endfor %}
+    {# 機器か設備・什器（#206）。設備・什器の詳細から進むと選んだ状態で開く #}
+    <label for="item">{{ t_target }}</label>
+    <select id="item" name="item">
+      <optgroup label="{{ t_devices }}">
+        {% for d in devices %}
+        <option value="{{ d.value }}" {% if selected == d.value %}selected{% endif %}>{{ d.label }}</option>
+        {% endfor %}
+      </optgroup>
+      {% if !containers.is_empty() %}
+      <optgroup label="{{ t_containers }}">
+        {% for c in containers %}
+        <option value="{{ c.value }}" {% if selected == c.value %}selected{% endif %}>{{ c.label }}</option>
+        {% endfor %}
+      </optgroup>
+      {% endif %}
     </select>
 
     <label for="acquisition_cost">{{ t_cost }}（{{ currency }}）</label>

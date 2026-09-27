@@ -727,6 +727,187 @@ async fn 撤去した什器は突き合わせない(db: &DatabaseConnection) {
     assert_eq!(下見.report.count(Outcome::Error), 1, "{}", 下見.report);
 }
 
+/// **回路を取り込めること**（#206）。同じ取込で作る設備・什器を名前で指せ、
+/// 二度流しても変わらず、値を変えると閉じて開く。
+async fn 回路を取り込める(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "回路取込").await;
+    let 取込者 = 場.email.replace('@', "_");
+    型番(db, "R42", "Rack", Some(42)).await;
+    let 回路見出し = "container,circuit_label,voltage,phase,breaker_current_a,connector_type\n";
+    let files = |a系: &str| {
+        vec![
+            (
+                "mount_container",
+                "containers.csv".to_owned(),
+                format!("{什器見出し}Rack-02,{什器ベンダー},R42\n"),
+            ),
+            (
+                "power_circuit",
+                "circuits.csv".to_owned(),
+                format!(
+                    "{回路見出し}rack-02,A系,200,Single,{a系},NEMA L6-30R\nRack-02,B系,200,Single,20,NEMA L6-30R\n"
+                ),
+            ),
+        ]
+    };
+    let 流す = |a系: &'static str| {
+        let files = files(a系);
+        let borrowed: Vec<(&str, &str, &str)> = files
+            .iter()
+            .map(|(e, n, b)| (*e, n.as_str(), b.as_str()))
+            .collect();
+        取込ファイル(&場, &borrowed)
+    };
+
+    let 実行 = run::run(db, &流す("20").join("manifest.yaml"), &取込者, true)
+        .await
+        .unwrap();
+    assert_eq!(実行.report.count(Outcome::Created), 3, "{}", 実行.report);
+
+    let 二度目 = run::run(db, &流す("20").join("manifest.yaml"), &取込者, true)
+        .await
+        .unwrap();
+    assert_eq!(
+        二度目.report.count(Outcome::Created),
+        0,
+        "{}",
+        二度目.report
+    );
+    assert_eq!(
+        二度目.report.count(Outcome::Updated),
+        0,
+        "{}",
+        二度目.report
+    );
+
+    let 変更 = run::run(db, &流す("30").join("manifest.yaml"), &取込者, true)
+        .await
+        .unwrap();
+    assert_eq!(変更.report.count(Outcome::Updated), 1, "{}", 変更.report);
+    let 回路 = entity::power_circuit::Entity::find().all(db).await.unwrap();
+    assert_eq!(回路.len(), 3, "閉じて開いていません");
+    assert_eq!(回路.iter().filter(|r| r.to_date.is_none()).count(), 2);
+    assert!(回路
+        .iter()
+        .any(|r| r.to_date.is_none() && r.breaker_current_ma == 30_000));
+}
+
+/// **回路の誤りを拒否すること。**画面と同じ規則を通す。
+async fn 回路の誤りは取り込まない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "回路誤り").await;
+    let 取込者 = 場.email.replace('@', "_");
+    let dir = 取込ファイル(
+        &場,
+        &[(
+            "power_circuit",
+            "circuits.csv",
+            "container,circuit_label,voltage,phase,breaker_current_a,connector_type\n\
+             無いラック,A系,200,Single,20,\n\
+             Rack-01,A系,200,Triple,20,\n\
+             Rack-01,B系,abc,Single,20,\n\
+             Rack-01,C系,200,Single,0,\n\
+             Rack-01,D系,200,Single,20,\n\
+             Rack-01,D系,100,Single,15,\n",
+        )],
+    );
+    let 下見 = run::run(db, &dir.join("manifest.yaml"), &取込者, false)
+        .await
+        .unwrap();
+    // 無いラック・語彙外の相・読めない電圧・0A・ファイル内の重複
+    assert_eq!(下見.report.count(Outcome::Error), 5, "{}", 下見.report);
+}
+
+/// **設置場所を取り込めること**（#206）。値を変えると同じ行を更新する。
+async fn 設置場所を取り込める(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "設置場所").await;
+    let 取込者 = 場.email.replace('@', "_");
+    型番(db, "R42", "Rack", Some(42)).await;
+    for (site, 期待) in [
+        ("美ヶ原DC 3F", Outcome::Created),
+        ("美ヶ原DC 4F", Outcome::Updated),
+    ] {
+        let dir = 取込ファイル(
+            &場,
+            &[(
+                "mount_container",
+                "containers.csv",
+                &format!(
+                    "name,container_vendor,container_model,installation_site\nRack-02,{什器ベンダー},R42,{site}\n"
+                ),
+            )],
+        );
+        let 実行 = run::run(db, &dir.join("manifest.yaml"), &取込者, true)
+            .await
+            .unwrap();
+        assert_eq!(実行.report.count(期待), 1, "{}", 実行.report);
+    }
+    let c = 什器(db, 場.project.id, "Rack-02").await;
+    assert_eq!(c.installation_site.as_deref(), Some("美ヶ原DC 4F"));
+}
+
+/// **購入と固定資産の取込で、設備・什器を名前で指せること**（#206）。
+/// 保守契約は設備・什器を指せない。
+async fn 設備の費用を取り込める(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "設備費用").await;
+    let 取込者 = 場.email.replace('@', "_");
+    ベンダー(db, "保守会社").await;
+    let dir = 取込ファイル(
+        &場,
+        &[
+            (
+                "purchase",
+                "purchases.csv",
+                "item_type,item_hostname,item_serial_number,item_container,order_number,acquired_on,amount,supplier\n\
+                 MountContainer,,,rack-01,PO-R-1,2026-05-01,300000,リンドウ商事\n",
+            ),
+            (
+                "fixed_asset",
+                "assets.csv",
+                "item_type,item_hostname,item_serial_number,item_container,acquisition_cost,depreciation_method,useful_life_years,acquisition_date\n\
+                 MountContainer,,,Rack-01,300000,straight_line,5,2026-05-01\n",
+            ),
+        ],
+    );
+    let 実行 = run::run(db, &dir.join("manifest.yaml"), &取込者, true)
+        .await
+        .unwrap();
+    assert!(!実行.report.has_error(), "{}", 実行.report);
+    let rack = 什器(db, 場.project.id, "Rack-01").await;
+    let p = entity::purchase::Entity::find()
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (p.item_type.as_str(), p.item_id),
+        ("MountContainer", rack.id)
+    );
+    let a = entity::fixed_asset::Entity::find()
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (a.item_type.as_str(), a.item_id),
+        ("MountContainer", rack.id)
+    );
+
+    // 保守契約は指せない
+    let dir = 取込ファイル(
+        &場,
+        &[(
+            "maintenance_contract",
+            "contracts.csv",
+            "contract_number,vendor,start_date,end_date,amount,quote_contact,failure_contact,item_type,item_hostname,item_serial_number\n\
+             MC-R-1,保守会社,2026-04-01,2027-03-31,100000,,,MountContainer,,\n",
+        )],
+    );
+    let 下見 = run::run(db, &dir.join("manifest.yaml"), &取込者, false)
+        .await
+        .unwrap();
+    assert_eq!(下見.report.count(Outcome::Error), 1, "{}", 下見.report);
+}
+
 async fn 什器の数(db: &DatabaseConnection, project_id: i32) -> u64 {
     mount_container::Entity::find()
         .filter(mount_container::Column::LocationType.eq("Project"))
@@ -892,6 +1073,10 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 什器の誤りは取り込まない);
         全検証!(@one $用意, $属性, 什器の名前は大文字小文字を区別しない);
         全検証!(@one $用意, $属性, 撤去した什器は突き合わせない);
+        全検証!(@one $用意, $属性, 回路を取り込める);
+        全検証!(@one $用意, $属性, 回路の誤りは取り込まない);
+        全検証!(@one $用意, $属性, 設置場所を取り込める);
+        全検証!(@one $用意, $属性, 設備の費用を取り込める);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

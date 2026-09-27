@@ -134,36 +134,38 @@ struct DeviceDetailPage {
     /// 購入の記録（10.2）。**機器1台につき1行。専用の一覧画面を持たず、ここに出す。**
     purchase: Option<PurchaseView>,
     purchase_form: PurchaseForm,
+    /// 購入の記録の送り先（`purchase_block.html` を機器と設備・什器で共有する）。
+    purchase_action: String,
     can_edit: bool,
 }
 
 /// 購入の記録（設計書10.2）。表示用。
-struct PurchaseView {
-    order_number: String,
-    acquired_on: String,
-    amount: String,
-    supplier: String,
+pub(crate) struct PurchaseView {
+    pub(crate) order_number: String,
+    pub(crate) acquired_on: String,
+    pub(crate) amount: String,
+    pub(crate) supplier: String,
 }
 
 /// 購入の記録の入力欄。**1台につき1行なので、既存の値を入れて出し、上書きする。**
-struct PurchaseForm {
-    t_title: String,
-    t_hint: String,
-    t_order_number: String,
-    t_order_number_hint: String,
-    t_acquired_on: String,
-    t_acquired_on_hint: String,
-    t_amount: String,
-    t_amount_hint: String,
-    t_supplier: String,
-    t_supplier_hint: String,
-    t_save: String,
-    t_empty: String,
-    currency: String,
-    order_number: String,
-    acquired_on: String,
-    amount: String,
-    supplier: String,
+pub(crate) struct PurchaseForm {
+    pub(crate) t_title: String,
+    pub(crate) t_hint: String,
+    pub(crate) t_order_number: String,
+    pub(crate) t_order_number_hint: String,
+    pub(crate) t_acquired_on: String,
+    pub(crate) t_acquired_on_hint: String,
+    pub(crate) t_amount: String,
+    pub(crate) t_amount_hint: String,
+    pub(crate) t_supplier: String,
+    pub(crate) t_supplier_hint: String,
+    pub(crate) t_save: String,
+    pub(crate) t_empty: String,
+    pub(crate) currency: String,
+    pub(crate) order_number: String,
+    pub(crate) acquired_on: String,
+    pub(crate) amount: String,
+    pub(crate) supplier: String,
 }
 
 /// 登録・編集の画面（設計書16.1「機器の登録は、手を動かす順に4段へ分ける」）。
@@ -806,7 +808,7 @@ pub async fn detail(
         });
     }
 
-    let 購入 = 購入の記録(&state.db, d.id).await?;
+    let 購入 = 購入の記録(&state.db, DEVICE_ITEM, d.id).await?;
 
     render(&DeviceDetailPage {
         chrome: Chrome::project(
@@ -845,24 +847,29 @@ pub async fn detail(
         stack: スタック構成(&state, &d).await?,
         purchase: 購入の表示(&購入, &project.currency),
         purchase_form: 購入の入力欄(&購入, &project.currency, l),
+        purchase_action: format!("/projects/{project_id}/devices/{}/purchase", d.id),
         can_edit,
     })
 }
 
-/// この機器の購入の記録（設計書10.2）。**機器1台につき1行。**
-async fn 購入の記録<C: ConnectionTrait>(
+/// 品目の購入の記録（設計書10.2）。**品目1つにつき1行。**
+///
+/// **機器と設備・什器で共有する**（#206）。検証と書き込みを2か所に書くと、
+/// 片方だけ直したときに規則が食い違う。
+pub(crate) async fn 購入の記録<C: ConnectionTrait>(
     db: &C,
-    device_id: i32,
+    item_type: &str,
+    item_id: i32,
 ) -> AppResult<Option<purchase::Model>> {
     purchase::Entity::find()
-        .filter(purchase::Column::ItemType.eq(DEVICE_ITEM))
-        .filter(purchase::Column::ItemId.eq(device_id))
+        .filter(purchase::Column::ItemType.eq(item_type))
+        .filter(purchase::Column::ItemId.eq(item_id))
         .one(db)
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))
 }
 
-fn 購入の表示(p: &Option<purchase::Model>, 通貨: &str) -> Option<PurchaseView> {
+pub(crate) fn 購入の表示(p: &Option<purchase::Model>, 通貨: &str) -> Option<PurchaseView> {
     p.as_ref().map(|p| PurchaseView {
         order_number: p.order_number.clone().unwrap_or_default(),
         acquired_on: p.acquired_on.map(|d| d.to_string()).unwrap_or_default(),
@@ -871,7 +878,11 @@ fn 購入の表示(p: &Option<purchase::Model>, 通貨: &str) -> Option<Purchase
     })
 }
 
-fn 購入の入力欄(p: &Option<purchase::Model>, 通貨: &str, l: &'static str) -> PurchaseForm {
+pub(crate) fn 購入の入力欄(
+    p: &Option<purchase::Model>,
+    通貨: &str,
+    l: &'static str,
+) -> PurchaseForm {
     let t = |key: &str| rust_i18n::t!(key, locale = l).to_string();
     PurchaseForm {
         t_title: t("devices.purchase"),
@@ -923,7 +934,7 @@ pub struct PurchaseInput {
 }
 
 /// 検証を通った購入の記録。
-struct 購入の値 {
+pub(crate) struct 購入の値 {
     order_number: Option<String>,
     acquired_on: Option<NaiveDate>,
     amount: i64,
@@ -932,7 +943,7 @@ struct 購入の値 {
 
 impl PurchaseInput {
     /// **どの欄も空なら `Ok(None)`**（購入の記録を作らない）。
-    fn 検証(&self, 通貨: &str) -> Result<Option<購入の値>, &'static str> {
+    pub(crate) fn 検証(&self, 通貨: &str) -> Result<Option<購入の値>, &'static str> {
         let order_number = 空ならnone(&self.order_number);
         let supplier = 空ならnone(&self.supplier);
         let acquired_on = match self.acquisition_date.trim() {
@@ -973,12 +984,12 @@ pub async fn save_purchase(
         );
     };
     // **読み取りはトランザクションを開く前に済ませる**（SQLiteで自分の書き込みロックを待つ）
-    let 既存 = 購入の記録(&state.db, d.id).await?;
+    let 既存 = 購入の記録(&state.db, DEVICE_ITEM, d.id).await?;
 
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
-    購入を書く(&tx, d.id, 既存, 値, Utc::now()).await?;
+    購入を書く(&tx, DEVICE_ITEM, d.id, 既存, 値, Utc::now()).await?;
     tx.commit()
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
@@ -987,9 +998,10 @@ pub async fn save_purchase(
 }
 
 /// 購入の記録を書く。あれば上書き、無ければ作る。
-async fn 購入を書く(
+pub(crate) async fn 購入を書く(
     tx: &AuditedTx,
-    device_id: i32,
+    item_type: &str,
+    item_id: i32,
     既存: Option<purchase::Model>,
     値: 購入の値,
     now: chrono::DateTime<Utc>,
@@ -1008,8 +1020,8 @@ async fn 購入を書く(
         }
         None => {
             tx.insert(purchase::ActiveModel {
-                item_type: Set(DEVICE_ITEM.to_owned()),
-                item_id: Set(device_id),
+                item_type: Set(item_type.to_owned()),
+                item_id: Set(item_id),
                 order_number: Set(値.order_number),
                 acquired_on: Set(値.acquired_on),
                 amount: Set(値.amount),
@@ -1859,7 +1871,7 @@ pub async fn create(
     if let Some(購入) = 費用.購入 {
         // **固定資産には購入の値を複製する。**同じ値を2度入力させない
         let 資産の元 = (購入.amount, 購入.acquired_on);
-        購入を書く(&tx, created.id, None, 購入, now).await?;
+        購入を書く(&tx, DEVICE_ITEM, created.id, None, 購入, now).await?;
         if let (Some((life, method)), (cost, Some(date))) = (費用.資産, 資産の元) {
             tx.insert(fixed_asset::ActiveModel {
                 item_type: Set(DEVICE_ITEM.to_owned()),

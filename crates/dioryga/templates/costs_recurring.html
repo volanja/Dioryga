@@ -55,12 +55,12 @@
   <form method="post" action="/projects/{{ project_id }}/costs/recurring" class="form">
     <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
 
-    {# ラックレンタル等はプロジェクトか什器に付く（設計書10.2） #}
+    {# ラックレンタル等はプロジェクトか設備・什器に付く（設計書10.2）。設備・什器の詳細から進むと選んだ状態で開く（#206） #}
     <label for="item">{{ t_item }}</label>
     <select id="item" name="item">
       <option value="Project">{{ project_name }}</option>
       {% for c in containers %}
-      <option value="{{ c.value }}">{{ c.label }}</option>
+      <option value="{{ c.value }}" {% if selected == c.value %}selected{% endif %}>{{ c.label }}</option>
       {% endfor %}
     </select>
     <p class="hint">{{ t_item_hint }}</p>

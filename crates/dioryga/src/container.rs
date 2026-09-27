@@ -3,7 +3,11 @@
 //! **名前の比べ方と撤去の判定を1か所に置く。**画面と取込で別々に書くと、
 //! 片方だけ直したときに「画面では重複、取込では別物」のように食い違う。
 
-use entity::{container_model, device_mount, mount_container, recurring_cost};
+use chrono::{DateTime, Utc};
+use entity::{container_model, device_mount, mount_container, power_circuit, recurring_cost};
+use sea_orm::Set;
+
+use crate::repository::AuditedTx;
 use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, PaginatorTrait, QueryFilter};
 
 /// 語彙（`vocabularies.md`、設計書12.10）。**表は `dioryga_catalog_format` にだけ置き、
@@ -125,6 +129,117 @@ pub async fn 撤去の判定<C: ConnectionTrait>(
     } else {
         撤去の結末::物理削除
     })
+}
+
+// ---------------------------------------------------------------------------
+// 給電（回路、#206、設計書12.7、12.10）
+// ---------------------------------------------------------------------------
+
+/// `POWER_CIRCUIT.phase`（閉じた語彙、12.7）。**三相の計算はv2**。
+pub const PHASES: &[&str] = &["Single", "Three"];
+pub const SINGLE: &str = "Single";
+
+/// 検証を通った回路の値。
+pub struct 回路の値 {
+    pub circuit_label: String,
+    pub voltage: i32,
+    pub phase: String,
+    pub breaker_current_ma: i32,
+    pub connector_type: Option<String>,
+}
+
+/// 回路を検証する。**返すのは i18n のキー。**画面と取込が同じ規則を通す（8.6）。
+///
+/// ブレーカー定格は A で受けて mA の整数にする（24.2.1）。コンセントの形状は
+/// **開いた語彙**で、正規化はするが語彙外でも拒否しない。
+pub fn 回路を検証する(
+    circuit_label: &str,
+    voltage: &str,
+    phase: &str,
+    breaker_current_a: &str,
+    connector_type: &str,
+) -> Result<回路の値, &'static str> {
+    let circuit_label = dioryga_catalog_format::正規化(circuit_label);
+    if circuit_label.is_empty() {
+        return Err("containers.error_circuit_label");
+    }
+    let voltage = match voltage.trim().parse::<i32>() {
+        Ok(v) if v > 0 => v,
+        _ => return Err("containers.error_voltage"),
+    };
+    // **閉じた語彙は既定へ寄せず拒否する**（Q-21）
+    let phase = phase.trim();
+    if !PHASES.contains(&phase) {
+        return Err("containers.error_phase");
+    }
+    let breaker_current_ma = match breaker_current_a.trim().parse::<f64>() {
+        Ok(a) if a > 0.0 && a < 1_000_000.0 => (a * 1000.0).round() as i32,
+        _ => return Err("containers.error_breaker"),
+    };
+    let connector = dioryga_catalog_format::正規化(connector_type);
+    Ok(回路の値 {
+        circuit_label,
+        voltage,
+        phase: phase.to_owned(),
+        breaker_current_ma,
+        connector_type: (!connector.is_empty()).then_some(connector),
+    })
+}
+
+/// 現在の回路（`to_date IS NULL`）。
+pub async fn 現在の回路<C: ConnectionTrait>(
+    db: &C,
+    container_id: i32,
+) -> Result<Vec<power_circuit::Model>, DbErr> {
+    use sea_orm::QueryOrder;
+    power_circuit::Entity::find()
+        .filter(power_circuit::Column::ContainerId.eq(container_id))
+        .filter(power_circuit::Column::ToDate.is_null())
+        .order_by_asc(power_circuit::Column::CircuitLabel)
+        .all(db)
+        .await
+}
+
+/// 回路を書く。**同じ値なら何もせず `false`、変えたら閉じて開いて `true`**
+/// （履歴、4章）。既存行は書き換えない。画面と取込で共有する。
+pub async fn 回路を書く(
+    tx: &AuditedTx,
+    container_id: i32,
+    現在: Option<power_circuit::Model>,
+    値: 回路の値,
+    at: DateTime<Utc>,
+) -> Result<bool, DbErr> {
+    if let Some(r) = &現在 {
+        if r.voltage == 値.voltage
+            && r.phase == 値.phase
+            && r.breaker_current_ma == 値.breaker_current_ma
+            && r.connector_type == 値.connector_type
+        {
+            return Ok(false);
+        }
+        tx.update(
+            r,
+            power_circuit::ActiveModel {
+                id: Set(r.id),
+                to_date: Set(Some(at)),
+                ..Default::default()
+            },
+        )
+        .await?;
+    }
+    tx.insert(power_circuit::ActiveModel {
+        container_id: Set(container_id),
+        circuit_label: Set(値.circuit_label),
+        voltage: Set(値.voltage),
+        phase: Set(値.phase),
+        breaker_current_ma: Set(値.breaker_current_ma),
+        connector_type: Set(値.connector_type),
+        from_date: Set(at),
+        to_date: Set(None),
+        ..Default::default()
+    })
+    .await?;
+    Ok(true)
 }
 
 #[cfg(test)]

@@ -238,10 +238,17 @@
 種別に合わない収容能力は持たせない（Rackは `height_u` が必須で `shelf_count` を持たない、Shelvingはその逆、Deskはどちらも持たない）。
 
 ### MOUNT_CONTAINER
-`name`, `container_model_id`(FK CONTAINER_MODEL), `location_type`(Warehouse/Project), `location_id`, `retired_at`, `created_by`(FK User)
+`name`, `container_model_id`(FK CONTAINER_MODEL), `location_type`(Warehouse/Project), `location_id`, `installation_site`（nullable、自由記述）, `retired_at`, `created_by`(FK User)
 
 - 種別と収容能力は型番が持つ。`container_model_id` はDB上 NULL を許すが（SQLiteで外部キー列を後から足すため）、アプリケーション層では必須
 - 名前は置き場所の中で一意で、大文字小文字を区別しない。一意の範囲は `retired_at IS NULL` の行に限る
+
+### POWER_CIRCUIT（12.7、12.10）— 履歴
+設備・什器が受ける給電の回路。`container_id`(FK MOUNT_CONTAINER), `circuit_label`（系統名）, `voltage`(V), `phase`(Single/Three), `breaker_current_ma`, `connector_type`（nullable、開いた語彙）, `from_date`, `to_date`
+
+- 同じ設備・什器の現在の行は `circuit_label` で一意。変更は閉じて開く
+- 連続負荷の目安（ブレーカー定格の80%）は保存せず計算する
+- PDU と回路の対応、回路ごとの負荷、冗長の判定はv2
 
 ### DEVICE_MOUNT (12.2, 13.2) — 履歴
 | カラム | 備考 |

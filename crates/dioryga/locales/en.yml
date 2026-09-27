@@ -429,6 +429,33 @@ containers:
   load: Mounted weight / static load
   load_unknown: " (%{count} devices without a weight)"
   overloaded: The total weight of mounted devices exceeds the static load
+  installation_site: Location
+  installation_site_hint: Data centre, floor, row and so on, in free text. This is separate from the project it belongs to
+  circuits: Power circuits
+  circuits_hint: Circuits supplied to this rack or furniture. It can have several, such as feed A and feed B. Per-circuit load and redundancy checks are not available yet
+  power: Total power draw
+  power_total: "%{watt}W running (%{with_plan}W including reservations)"
+  circuit_label: Feed
+  voltage: Voltage (V)
+  phase: Phase
+  breaker: Breaker rating (A)
+  continuous: Continuous load guide (80%)
+  connector: Receptacle
+  since: Since
+  end_circuit: End
+  add_circuit: Add or change circuit
+  circuit_form_hint: If a circuit with the same feed name exists, it is changed (the previous values are kept as history)
+  no_circuits: No circuits registered
+  error_circuit_label: Enter the feed name
+  error_voltage: Enter the voltage as a positive whole number
+  error_phase: Invalid phase
+  error_breaker: Enter a breaker rating greater than 0
+  costs: Costs
+  costs_hint: Record the purchase here, and fixed assets and rental fees (recurring costs) on the costs pages. They are included in the annual cost
+  to_assets: Record as a fixed asset
+  to_recurring: Record a rental fee
+  purchase_hint: The purchase record for this rack or furniture. There is one per item, and saving overwrites it. Unless recorded as a fixed asset, it counts as an expense in the year it was acquired
+  order_number_hint: Enter the number as written on the documents. It may be the same as for a device
 
 rack:
   diagram: Rack diagram

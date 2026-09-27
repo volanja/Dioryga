@@ -121,6 +121,9 @@ pub struct ContainerRow {
     /// 型番。機器の `configuration_vendor` / `configuration_model` と同じく
     /// 「ベンダー＋型番」で指す。
     pub container_model: String,
+    /// 設置場所（自由記述、#206）。空なら未設定。
+    #[serde(default)]
+    pub installation_site: String,
 }
 
 pub fn parse_containers(source: &str) -> Result<Vec<ContainerRow>, ImportError> {
@@ -188,11 +191,15 @@ pub async fn 什器を取り込む(
             continue;
         }
 
+        let site = dioryga_catalog_format::正規化(&row.installation_site);
+        let site = (!site.is_empty()).then_some(site);
+
         match 既存 {
             None => {
                 tx.insert(mount_container::ActiveModel {
                     name: Set(name),
                     container_model_id: Set(Some(model.id)),
+                    installation_site: Set(site),
                     location_type: Set(PROJECT.to_owned()),
                     location_id: Set(project_id),
                     created_by: Set(actor),
@@ -204,12 +211,13 @@ pub async fn 什器を取り込む(
                 report.push(Entry::new(Outcome::Created, target, ""));
             }
             Some(c) => {
-                if 同じ型番 {
+                if 同じ型番 && c.installation_site == site {
                     report.push(Entry::new(Outcome::Unchanged, target, ""));
                     continue;
                 }
                 let mut active: mount_container::ActiveModel = c.clone().into();
                 active.container_model_id = Set(Some(model.id));
+                active.installation_site = Set(site);
                 active.updated_at = Set(now);
                 tx.update(&c, active).await?;
                 report.push(Entry::new(Outcome::Updated, target, ""));
@@ -217,6 +225,107 @@ pub async fn 什器を取り込む(
         }
     }
 
+    Ok(report)
+}
+
+// ---------------------------------------------------------------------------
+// 給電（POWER_CIRCUIT、#206）
+// ---------------------------------------------------------------------------
+
+/// 回路の1行。**設備・什器の名前＋系統名で突き合わせる**（12.10）。
+#[derive(Debug, Clone, Deserialize)]
+pub struct CircuitRow {
+    /// 設備・什器の名前（大文字小文字を区別しない、撤去したものは指せない）。
+    pub container: String,
+    pub circuit_label: String,
+    pub voltage: String,
+    /// Single / Three。
+    pub phase: String,
+    /// A で書き、mA の整数で保存する（画面と同じ、24.2.1）。
+    pub breaker_current_a: String,
+    #[serde(default)]
+    pub connector_type: String,
+}
+
+pub fn parse_circuits(source: &str) -> Result<Vec<CircuitRow>, ImportError> {
+    読み取る(source)
+}
+
+/// 回路を取り込む。**履歴であり、変更は閉じて開く**（4章）。値が同じなら
+/// 何もしない（23.1）。ファイルに無い回路には触らない。
+///
+/// **設備・什器より後に流す**（同じ取込で作った設備・什器を指せる）。検証は
+/// 画面と同じ規則（`crate::container::回路を検証する`）を通す。
+pub async fn 回路を取り込む(
+    tx: &AuditedTx,
+    project_id: i32,
+    rows: &[CircuitRow],
+    as_of: DateTime<Utc>,
+) -> Result<Report, ImportError> {
+    let mut report = Report::default();
+    let 什器 = 什器の索引(tx.reader(), project_id).await?;
+    let mut 書いた: Vec<(i32, String)> = Vec::new();
+
+    for row in rows {
+        let target = format!("回路 {} {}", row.container.trim(), row.circuit_label.trim());
+        let Some(&container_id) = 什器.get(&crate::container::名前の鍵(&row.container))
+        else {
+            report.push(Entry::new(
+                Outcome::Error,
+                target,
+                format!(
+                    "設備・什器「{}」がこのプロジェクトにありません（撤去済みのものは指せません）",
+                    row.container.trim()
+                ),
+            ));
+            continue;
+        };
+        let 値 = match crate::container::回路を検証する(
+            &row.circuit_label,
+            &row.voltage,
+            &row.phase,
+            &row.breaker_current_a,
+            &row.connector_type,
+        ) {
+            Ok(v) => v,
+            Err(key) => {
+                report.push(Entry::new(
+                    Outcome::Error,
+                    target,
+                    rust_i18n::t!(key, locale = "ja").to_string(),
+                ));
+                continue;
+            }
+        };
+        // **同じ回路を2回書かない。**後の行が前の行を黙って上書きする
+        let 鍵 = (container_id, 値.circuit_label.clone());
+        if 書いた.contains(&鍵) {
+            report.push(Entry::new(
+                Outcome::Error,
+                target,
+                "同じ設備・什器と系統名の行がファイルの中に複数あります",
+            ));
+            continue;
+        }
+        書いた.push(鍵);
+
+        let 現在 = crate::container::現在の回路(tx.reader(), container_id)
+            .await?
+            .into_iter()
+            .find(|r| r.circuit_label == 値.circuit_label);
+        let 新規 = 現在.is_none();
+        let outcome = if crate::container::回路を書く(tx, container_id, 現在, 値, as_of).await?
+        {
+            if 新規 {
+                Outcome::Created
+            } else {
+                Outcome::Updated
+            }
+        } else {
+            Outcome::Unchanged
+        };
+        report.push(Entry::new(outcome, target, ""));
+    }
     Ok(report)
 }
 

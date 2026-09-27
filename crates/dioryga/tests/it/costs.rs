@@ -518,6 +518,112 @@ async fn 閲覧者はコストを編集できない(db: &DatabaseConnection) {
 }
 
 // ---------------------------------------------------------------------------
+// 設備・什器の費用（#206、設計書12.10）
+// ---------------------------------------------------------------------------
+
+/// **設備・什器の購入は、資産計上しなければ即時費用として年間コストに入ること。**
+async fn 設備の購入は年間コストに入る(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "rack-purchase@example.com").await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 送信(
+        状態,
+        &format!(
+            "/projects/{}/containers/{}/purchase",
+            場.project.id, 場.container_id
+        ),
+        &token,
+        &[
+            ("order_number", "PO-RACK-1"),
+            ("acquisition_date", "2026-05-01"),
+            ("acquisition_cost", "300000"),
+            ("supplier", "リンドウ商事"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let p = 購入一覧(db).await.pop().unwrap();
+    assert_eq!(p.item_type, "MountContainer");
+    assert_eq!(p.item_id, 場.container_id);
+
+    let body = ダッシュボード(db, &場, 2026).await;
+    assert!(
+        body.contains("300000"),
+        "設備・什器の購入が即時費用に入っていません"
+    );
+}
+
+/// **設備・什器を固定資産として記録でき、償却費が年間コストに入ること。**
+/// 設備・什器の詳細から進むと、対象を選んだ状態で開く。
+async fn 設備を固定資産にできる(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "rack-asset@example.com").await;
+    let item = format!("MountContainer:{}", 場.container_id);
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(
+        状態,
+        &format!("/projects/{}/costs/fixed-assets?item={item}", 場.project.id),
+        &token,
+    )
+    .await;
+    assert!(
+        body.contains(&format!(r#"value="{item}" selected"#)),
+        "対象を選んだ状態で開いていません"
+    );
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 資産を送る(
+        状態,
+        &token,
+        &場,
+        &[
+            ("item", &item),
+            ("acquisition_cost", "1000000"),
+            ("depreciation_method", "straight_line"),
+            ("useful_life_years", "5"),
+            ("acquisition_date", "2026-01-01"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let a = 資産一覧(db).await.pop().unwrap();
+    assert_eq!(a.item_type, "MountContainer");
+
+    let body = ダッシュボード(db, &場, 2026).await;
+    assert!(
+        body.contains("200000"),
+        "設備・什器の償却費が入っていません"
+    );
+}
+
+/// **設備・什器のレンタル料（継続費用）が年間コストに入ること。**
+async fn 設備のレンタル料は年間コストに入る(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "rack-rent@example.com").await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 定期費用を送る(
+        状態,
+        &token,
+        &場,
+        &[
+            ("item", &format!("MountContainer:{}", 場.container_id)),
+            ("cost_type", "RackRental"),
+            ("amount", "34000"),
+            ("billing_cycle", "Monthly"),
+            ("start_date", "2026-01-01"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    // 金額は期間全体の額で、年ごとに按分する（10.3）。終了日が空なら年末まで続く
+    let body = ダッシュボード(db, &場, 2026).await;
+    assert!(
+        body.contains("34000"),
+        "レンタル料が年間コストに入っていません"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
 
@@ -890,6 +996,9 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 取得日の無い購入は列挙される);
         全検証!(@one $用意, $属性, 円に小数は入れられない);
         全検証!(@one $用意, $属性, 閲覧者はコストを編集できない);
+        全検証!(@one $用意, $属性, 設備の購入は年間コストに入る);
+        全検証!(@one $用意, $属性, 設備を固定資産にできる);
+        全検証!(@one $用意, $属性, 設備のレンタル料は年間コストに入る);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

@@ -85,6 +85,7 @@
 | 対象 | 値 |
 |---|---|
 | `PORT_POWER_RATING.current_type` | `AC` / `DC` |
+| `POWER_CIRCUIT.phase` | `Single` / `Three`（三相の計算はv2） |
 | `CONFIGURATION.current_type` | `AC` / `DC` |
 
 **閉じた語彙である。**1つのポートが交流と直流の双方を受けることがあるため、`PORT_POWER_RATING` は方式ごとに1行を持つ。**DCの電圧は負値をとる**（Ciscoの`-48V`電源は`-72`〜`-40`）。符号を含めたまま格納し、絶対値で比較しない。
@@ -146,9 +147,9 @@ Planned / Approved / InProgress --> Cancelled : 中止
 | `PART_INSTANCE_LOCATION.location_type` | `Warehouse` / `Device` / `Disposed` |
 | `MOUNT_CONTAINER.location_type` | `Warehouse` / `Project` |
 | `FIRMWARE_VERSION.item_type` | `Device` / `PartInstance` |
-| `PURCHASE.item_type` | `Device` / `PartInstance` / `SoftwareInstance` |
+| `PURCHASE.item_type` | `Device` / `PartInstance` / `SoftwareInstance` / `MountContainer` |
 | `FIXED_ASSET.item_type` | 同上 |
-| `MAINTENANCE_CONTRACT_ITEM.item_type` | 同上 |
+| `MAINTENANCE_CONTRACT_ITEM.item_type` | `Device` / `PartInstance` / `SoftwareInstance`（設備・什器は指せない） |
 | `RECURRING_COST.item_type` | `MountContainer` / `Project` |
 
 ## コスト

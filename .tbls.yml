@@ -128,6 +128,13 @@ comments:
       height_u: ラック搭載時の高さ。mount_form=Surface では意味を持たない
       rack_width: Full / Half。mount_form=RackU のときのみ意味を持つ
       weight_g: 重量（g）。設備・什器の静荷重と、載せた機器の重量の合計を比べるため（#205）
+  - table: power_circuit
+    tableComment: 設備・什器が受ける給電の回路 — 履歴テーブル（12.7、12.10、#206）。A系・B系のように1つの設備・什器に複数来る。変更は閉じて開く
+    columnComments:
+      circuit_label: 系統名。同じ設備・什器の現在の行の中で一意
+      phase: Single / Three。三相の計算はv2
+      breaker_current_ma: ブレーカー定格（mA）。連続負荷の目安（80%）は保存しない
+      connector_type: コンセントの形状（開いた語彙）
   - table: container_model
     tableComment: 設備・什器の型番（12.10、#205）。自然キーは `(vendor_id, model_name)`。種別で収容能力の列が分かれる
     columnComments:
@@ -375,6 +382,7 @@ comments:
     columnComments:
       location_type: Warehouse / Project。多態的参照のため外部キーを持てない
       retired_at: null = 現役。搭載の履歴や費用の記録が指し続けるため、使ったことのある設備は消さず撤去済みにする（#204）
+      installation_site: 設置場所（自由記述、#206）。置き場所（location_type）は所有者であって物理的な場所ではない
       container_model_id: 型番（#205）。種別と収容能力は型番が持つ。SQLiteで外部キー列を後から足したためDB上は NULL を許すが、アプリケーション層では必須
   - table: device_mount
     tableComment: |

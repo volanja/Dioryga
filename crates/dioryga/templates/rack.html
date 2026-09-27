@@ -12,6 +12,7 @@
     <p class="lead">{{ container_type }}</p>
     {# 載せた重量と静荷重（#205）。超えても止めず、警告する（不変条件6） #}
     <p class="lead">{{ t_load }}：{{ load }}</p>
+    {% if !installation_site.is_empty() %}<p class="lead">{{ t_site }}：{{ installation_site }}</p>{% endif %}
   </div>
 </div>
 
@@ -183,5 +184,118 @@
   </form>
 </div>
 {% endif %}
+
+{# 給電（回路、#206、設計書12.10）。1つの設備・什器に A系・B系のように複数来る。
+   回路ごとの負荷と冗長の判定は PDU と回路の対応が要るため v2 #}
+<h2 class="section">{{ t_circuits }}</h2>
+<p class="hint">{{ t_circuits_hint }}</p>
+<p>{{ t_power }}：{{ power }}</p>
+
+{% if circuits.is_empty() %}
+<p class="empty">{{ t_no_circuits }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_circuit_label }}</th>
+      <th class="num">{{ t_voltage }}</th>
+      <th>{{ t_phase }}</th>
+      <th class="num">{{ t_breaker }}</th>
+      <th class="num">{{ t_continuous }}</th>
+      <th>{{ t_connector }}</th>
+      <th>{{ t_since }}</th>
+      {% if can_edit && !retired %}<th></th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in circuits %}
+    <tr>
+      <td>{{ c.circuit_label }}</td>
+      <td class="num">{{ c.voltage }}V</td>
+      <td>{{ c.phase }}</td>
+      <td class="num">{{ c.breaker }}</td>
+      <td class="num">{{ c.continuous }}</td>
+      <td>{{ c.connector_type }}</td>
+      <td class="mono">{{ c.since }}</td>
+      {% if can_edit && !retired %}
+      <td class="actions">
+        <form method="post" action="/projects/{{ project_id }}/containers/{{ container_id }}/circuits/end" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <input type="hidden" name="circuit_id" value="{{ c.id }}">
+          <button type="submit" class="ghost">{{ t_end_circuit }}</button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit && !retired %}
+<div class="card">
+  <form method="post" action="/projects/{{ project_id }}/containers/{{ container_id }}/circuits" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+    <p class="hint">{{ t_circuit_form_hint }}</p>
+
+    <label for="circuit_label">{{ t_circuit_label }}</label>
+    <input type="text" id="circuit_label" name="circuit_label" required>
+
+    <label for="voltage">{{ t_voltage }}</label>
+    <input type="text" id="voltage" name="voltage" inputmode="numeric" required>
+
+    <label for="phase">{{ t_phase }}</label>
+    <select id="phase" name="phase">
+      {% for p in phases %}
+      <option value="{{ p }}">{{ p }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="breaker_current_a">{{ t_breaker }}</label>
+    <input type="text" id="breaker_current_a" name="breaker_current_a" inputmode="decimal" required>
+
+    <label for="connector_type">{{ t_connector }}</label>
+    <input type="text" id="connector_type" name="connector_type">
+
+    <button type="submit">{{ t_add_circuit }}</button>
+  </form>
+</div>
+{% endif %}
+
+{# 設置場所（#206）。置き場所（プロジェクト／倉庫）は所有者であって物理的な場所ではない #}
+<h2 class="section">{{ t_site }}</h2>
+{% if can_edit %}
+<div class="card">
+  <form method="post" action="/projects/{{ project_id }}/containers/{{ container_id }}/site" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+    <label for="installation_site">{{ t_site }}</label>
+    <input type="text" id="installation_site" name="installation_site" value="{{ installation_site }}">
+    <p class="hint">{{ t_site_hint }}</p>
+    <button type="submit">{{ t_save }}</button>
+  </form>
+</div>
+{% else %}
+<p>{{ installation_site }}</p>
+{% endif %}
+
+{# 費用（#206）。設備・什器に費用の列は持たず、購入の記録・固定資産・継続費用に寄せる（設計書10.2） #}
+<h2 class="section">{{ t_costs }}</h2>
+<p class="hint">{{ t_costs_hint }}</p>
+{% if !cost_rows.is_empty() %}
+<dl>
+  {% for r in cost_rows %}
+  <dt>{{ r.label }}</dt>
+  <dd>{{ r.value }}</dd>
+  {% endfor %}
+</dl>
+{% endif %}
+<p class="head-actions">
+  <a class="button ghost" href="/projects/{{ project_id }}/costs/fixed-assets?item=MountContainer:{{ container_id }}">{{ t_to_assets }}</a>
+  <a class="button ghost" href="/projects/{{ project_id }}/costs/recurring?item=MountContainer:{{ container_id }}">{{ t_to_recurring }}</a>
+</p>
+
+{% include "purchase_block.html" %}
 
 {% endblock %}

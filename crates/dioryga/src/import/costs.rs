@@ -42,7 +42,8 @@ use std::collections::HashMap;
 
 use chrono::{NaiveDate, Utc};
 use entity::{
-    fixed_asset, maintenance_contract, maintenance_contract_item, part_instance, purchase, vendor,
+    fixed_asset, maintenance_contract, maintenance_contract_item, mount_container, part_instance,
+    purchase, vendor,
 };
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
@@ -55,6 +56,9 @@ use crate::repository::AuditedTx;
 
 const DEVICE: &str = "Device";
 const PART_INSTANCE: &str = "PartInstance";
+/// 設備・什器（#206、12.10）。**購入と固定資産だけが指せる**——保守契約の対象は
+/// 機器と部品に限る（10.2）。
+const MOUNT_CONTAINER: &str = "MountContainer";
 
 // ---------------------------------------------------------------------------
 // 行の定義
@@ -68,6 +72,9 @@ pub struct PurchaseRow {
     pub item_hostname: String,
     #[serde(default)]
     pub item_serial_number: String,
+    /// `item_type=MountContainer` のとき、設備・什器の名前（#206）。
+    #[serde(default)]
+    pub item_container: String,
     /// 自由入力。**同じ番号を何行に書いてもよい。**
     #[serde(default)]
     pub order_number: String,
@@ -87,6 +94,9 @@ pub struct FixedAssetRow {
     pub item_hostname: String,
     #[serde(default)]
     pub item_serial_number: String,
+    /// `item_type=MountContainer` のとき、設備・什器の名前（#206）。
+    #[serde(default)]
+    pub item_container: String,
     pub acquisition_cost: String,
     pub depreciation_method: String,
     pub useful_life_years: String,
@@ -174,6 +184,7 @@ pub async fn 購入を取り込む(
             &row.item_type,
             &row.item_hostname,
             &row.item_serial_number,
+            Some(&row.item_container),
         ) {
             Ok(v) => v,
             Err(理由) => {
@@ -305,6 +316,7 @@ pub async fn 固定資産を取り込む(
             &row.item_type,
             &row.item_hostname,
             &row.item_serial_number,
+            Some(&row.item_container),
         ) {
             Ok(v) => v,
             Err(理由) => {
@@ -445,6 +457,8 @@ pub async fn 保守契約を取り込む(
             &row.item_type,
             &row.item_hostname,
             &row.item_serial_number,
+            // 保守契約は設備・什器を指せない
+            None,
         ) {
             Ok(v) => v,
             Err(理由) => {
@@ -537,6 +551,8 @@ struct 対象の索引 {
     機器: 機器の索引,
     /// シリアル番号で引く（23.5）。**行ごとに走査しない**（#111）。
     部品: HashMap<String, Vec<part_instance::Model>>,
+    /// 撤去していない設備・什器。鍵は大文字小文字を区別しない名前（#206）。
+    設備: HashMap<String, i32>,
 }
 
 async fn 対象の索引(tx: &AuditedTx, project_id: i32) -> Result<対象の索引, ImportError> {
@@ -549,7 +565,18 @@ async fn 対象の索引(tx: &AuditedTx, project_id: i32) -> Result<対象の索
         };
         部品.entry(serial).or_default().push(p);
     }
-    Ok(対象の索引 { 機器, 部品 })
+    let 設備 = mount_container::Entity::find()
+        .filter(mount_container::Column::LocationType.eq("Project"))
+        .filter(mount_container::Column::LocationId.eq(project_id))
+        .filter(mount_container::Column::RetiredAt.is_null())
+        .all(tx.reader())
+        .await?
+        .into_iter()
+        .map(|c| (crate::container::名前の鍵(&c.name), c.id))
+        .collect();
+    Ok(対象の索引 {
+        機器, 部品, 設備
+    })
 }
 
 /// `item_type` に応じて自然キーから品目を引く（23.5）。
@@ -561,8 +588,24 @@ fn 品目を引く(
     item_type: &str,
     hostname: &str,
     serial: &str,
+    // `None` なら設備・什器を指せない（保守契約）
+    container: Option<&str>,
 ) -> Result<(String, i32), String> {
     match item_type.trim() {
+        MOUNT_CONTAINER => {
+            let Some(container) = container else {
+                return Err("保守契約の対象に設備・什器は指せません".to_owned());
+            };
+            let Some(name) = 空ならnone(container) else {
+                return Err("item_type=MountContainer には item_container が要ります".to_owned());
+            };
+            match 対象.設備.get(&crate::container::名前の鍵(name)) {
+                Some(id) => Ok((MOUNT_CONTAINER.to_owned(), *id)),
+                None => Err(format!(
+                    "設備・什器「{name}」がこのプロジェクトにありません（撤去済みのものは指せません）"
+                )),
+            }
+        }
         DEVICE => {
             let key = 機器キー {
                 hostname: hostname.to_owned(),
@@ -593,7 +636,7 @@ fn 品目を引く(
         // **ソフトウェアは対象外。**`SOFTWARE_INSTANCE` を指す発注もありうるが、
         // 9章の取込はv1のスコープ外であり、指す先が入っていない
         other => Err(format!(
-            "item_type「{other}」は扱えません。Device / PartInstance のいずれかです"
+            "item_type「{other}」は扱えません。Device / PartInstance / MountContainer のいずれかです"
         )),
     }
 }
@@ -631,10 +674,16 @@ fn 金額の誤り(列: &str, value: &str, code: &str) -> String {
 }
 
 fn 品目名(row: &PurchaseRow) -> String {
-    表示する品目(&row.item_hostname, &row.item_serial_number)
+    match 空ならnone(&row.item_container) {
+        Some(c) => c.to_owned(),
+        None => 表示する品目(&row.item_hostname, &row.item_serial_number),
+    }
 }
 fn 資産の品目名(row: &FixedAssetRow) -> String {
-    表示する品目(&row.item_hostname, &row.item_serial_number)
+    match 空ならnone(&row.item_container) {
+        Some(c) => c.to_owned(),
+        None => 表示する品目(&row.item_hostname, &row.item_serial_number),
+    }
 }
 fn 契約の品目名(row: &MaintenanceContractRow) -> String {
     表示する品目(&row.item_hostname, &row.item_serial_number)

@@ -30,7 +30,7 @@ use axum::{Extension, Form};
 use chrono::Utc;
 use entity::{
     chassis_model, configuration, container_model, device, device_assignment, device_mount,
-    mount_container, project, vendor,
+    fixed_asset, mount_container, power_circuit, project, recurring_cost, vendor,
 };
 use sea_orm::sea_query::{Expr, Query as SeaQuery};
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, ExprTrait, QueryFilter, QueryOrder, Set};
@@ -86,6 +86,7 @@ struct ContainerRow {
     name: String,
     /// 型番（ベンダー＋型番、#205）。
     model: String,
+    installation_site: String,
     container_type: String,
     capacity: String,
     mounted: usize,
@@ -104,6 +105,8 @@ struct ContainersPage {
     t_name: String,
     t_model: String,
     t_model_hint: String,
+    t_site: String,
+    t_site_hint: String,
     t_container_type: String,
     t_capacity: String,
     t_unset: String,
@@ -239,6 +242,38 @@ struct RackPage {
     /// 撤去済み（#204）。搭載の欄を出さない。
     retired: bool,
     t_retired_note: String,
+    // 設置場所（#206）
+    installation_site: String,
+    t_site: String,
+    t_site_hint: String,
+    t_save: String,
+    // 給電（回路、#206、設計書12.10）
+    circuits: Vec<CircuitRow>,
+    phases: Vec<&'static str>,
+    power: String,
+    t_power: String,
+    t_circuits: String,
+    t_circuits_hint: String,
+    t_circuit_label: String,
+    t_voltage: String,
+    t_phase: String,
+    t_breaker: String,
+    t_continuous: String,
+    t_connector: String,
+    t_since: String,
+    t_end_circuit: String,
+    t_add_circuit: String,
+    t_circuit_form_hint: String,
+    t_no_circuits: String,
+    // 費用（#206）。**列は足さず、購入の記録・固定資産・継続費用に寄せる**（10.2）
+    purchase: Option<crate::server::device::PurchaseView>,
+    purchase_form: crate::server::device::PurchaseForm,
+    purchase_action: String,
+    cost_rows: Vec<Labeled>,
+    t_costs: String,
+    t_costs_hint: String,
+    t_to_assets: String,
+    t_to_recurring: String,
     devices: Vec<Labeled>,
     hosts: Vec<Labeled>,
     mounted: Vec<MountedRow>,
@@ -329,6 +364,7 @@ async fn 一覧を描く(
             id: c.id,
             name: c.name,
             model: 型番の表示(&state.db, 型.model.as_ref()).await?,
+            installation_site: c.installation_site.clone().unwrap_or_default(),
             container_type: 型.container_type,
             capacity: 型.capacity.map(|v| v.to_string()).unwrap_or_default(),
             mounted,
@@ -352,6 +388,8 @@ async fn 一覧を描く(
         t_name: rust_i18n::t!("containers.name", locale = l).to_string(),
         t_model: rust_i18n::t!("containers.model", locale = l).to_string(),
         t_model_hint: rust_i18n::t!("containers.model_hint", locale = l).to_string(),
+        t_site: rust_i18n::t!("containers.installation_site", locale = l).to_string(),
+        t_site_hint: rust_i18n::t!("containers.installation_site_hint", locale = l).to_string(),
         t_container_type: rust_i18n::t!("containers.container_type", locale = l).to_string(),
         t_capacity: rust_i18n::t!("containers.capacity", locale = l).to_string(),
         t_unset: rust_i18n::t!("catalog.unset", locale = l).to_string(),
@@ -382,6 +420,9 @@ pub struct ContainerForm {
     /// 型番（`CONTAINER_MODEL.id`、#205）。種別と収容能力は型番が持つ。
     #[serde(default)]
     pub container_model_id: String,
+    /// 設置場所（自由記述、#206）。
+    #[serde(default)]
+    pub installation_site: String,
 }
 
 pub async fn create(
@@ -434,6 +475,10 @@ pub async fn create(
         container_model_id: Set(Some(model.id)),
         location_type: Set(PROJECT.to_owned()),
         location_id: Set(project_id),
+        installation_site: Set({
+            let site = crate::server::catalog::正規化(&form.installation_site);
+            (!site.is_empty()).then_some(site)
+        }),
         created_by: Set(current.user.id),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
@@ -482,6 +527,8 @@ async fn 図を描く(
 
     let 搭載一覧 = 搭載を引く(&state.db, container_id).await?;
     let 棚上 = 棚の上の機器(&state.db, &搭載一覧).await?;
+    let 購入 =
+        crate::server::device::購入の記録(&state.db, MOUNT_CONTAINER_ITEM, container_id).await?;
 
     // 種別と収容能力は型番から引く（#205）
     let 型 = 設備::型を引く(&state.db, &container)
@@ -650,6 +697,51 @@ async fn 図を描く(
         mounted: 搭載一覧.iter().map(搭載行).collect(),
         horizontals: vec![LEFT, RIGHT, "Full"],
         depths: vec![FRONT, REAR, "Full"],
+        installation_site: container.installation_site.clone().unwrap_or_default(),
+        t_site: rust_i18n::t!("containers.installation_site", locale = l).to_string(),
+        t_site_hint: rust_i18n::t!("containers.installation_site_hint", locale = l).to_string(),
+        t_save: rust_i18n::t!("common.save", locale = l).to_string(),
+        circuits: 回路の行(&state.db, container_id).await?,
+        phases: PHASES.to_vec(),
+        power: {
+            let 電力 = crate::server::power::什器の電力(&state.db, container_id).await?;
+            rust_i18n::t!(
+                "containers.power_total",
+                watt = 電力.watt,
+                with_plan = 電力.watt_with_plan,
+                locale = l
+            )
+            .to_string()
+        },
+        t_power: rust_i18n::t!("containers.power", locale = l).to_string(),
+        t_circuits: rust_i18n::t!("containers.circuits", locale = l).to_string(),
+        t_circuits_hint: rust_i18n::t!("containers.circuits_hint", locale = l).to_string(),
+        t_circuit_label: rust_i18n::t!("containers.circuit_label", locale = l).to_string(),
+        t_voltage: rust_i18n::t!("containers.voltage", locale = l).to_string(),
+        t_phase: rust_i18n::t!("containers.phase", locale = l).to_string(),
+        t_breaker: rust_i18n::t!("containers.breaker", locale = l).to_string(),
+        t_continuous: rust_i18n::t!("containers.continuous", locale = l).to_string(),
+        t_connector: rust_i18n::t!("containers.connector", locale = l).to_string(),
+        t_since: rust_i18n::t!("containers.since", locale = l).to_string(),
+        t_end_circuit: rust_i18n::t!("containers.end_circuit", locale = l).to_string(),
+        t_add_circuit: rust_i18n::t!("containers.add_circuit", locale = l).to_string(),
+        t_circuit_form_hint: rust_i18n::t!("containers.circuit_form_hint", locale = l).to_string(),
+        t_no_circuits: rust_i18n::t!("containers.no_circuits", locale = l).to_string(),
+        purchase: crate::server::device::購入の表示(&購入, &project.currency),
+        purchase_form: {
+            // 説明は機器向けの文言なので、設備・什器向けに差し替える
+            let mut f = crate::server::device::購入の入力欄(&購入, &project.currency, l);
+            f.t_hint = rust_i18n::t!("containers.purchase_hint", locale = l).to_string();
+            f.t_order_number_hint =
+                rust_i18n::t!("containers.order_number_hint", locale = l).to_string();
+            f
+        },
+        purchase_action: format!("/projects/{project_id}/containers/{container_id}/purchase"),
+        cost_rows: 費用の行(&state.db, container_id, &project.currency, l).await?,
+        t_costs: rust_i18n::t!("containers.costs", locale = l).to_string(),
+        t_costs_hint: rust_i18n::t!("containers.costs_hint", locale = l).to_string(),
+        t_to_assets: rust_i18n::t!("containers.to_assets", locale = l).to_string(),
+        t_to_recurring: rust_i18n::t!("containers.to_recurring", locale = l).to_string(),
         can_edit,
         error,
         notice,
@@ -1342,6 +1434,309 @@ fn 語彙(value: &str, allowed: &[&str]) -> Option<String> {
         return None;
     }
     Some(v.to_owned())
+}
+
+// ---------------------------------------------------------------------------
+// 設置場所・給電・費用（#206、設計書12.10）
+// ---------------------------------------------------------------------------
+
+/// `PURCHASE` / `FIXED_ASSET` / `RECURRING_COST` が設備・什器を指すときの `item_type`。
+const MOUNT_CONTAINER_ITEM: &str = "MountContainer";
+
+use crate::container::{PHASES, SINGLE};
+
+/// 連続負荷として使えるのはブレーカー定格の80%まで（12.7）。**係数は保存しない**
+/// （不変条件2）。
+const 連続負荷の率: f64 = 0.8;
+
+struct CircuitRow {
+    id: i32,
+    circuit_label: String,
+    voltage: i32,
+    phase: String,
+    breaker: String,
+    continuous: String,
+    connector_type: String,
+    since: String,
+}
+
+async fn 回路の行<C: ConnectionTrait>(db: &C, container_id: i32) -> AppResult<Vec<CircuitRow>> {
+    Ok(現在の回路(db, container_id)
+        .await?
+        .into_iter()
+        .map(|c| {
+            let a = f64::from(c.breaker_current_ma) / 1000.0;
+            // 単相だけ VA を出す。**三相は式が違い、v2で扱う**（12.7）
+            let continuous = if c.phase == SINGLE {
+                format!(
+                    "{:.1}A / {:.0}VA",
+                    a * 連続負荷の率,
+                    f64::from(c.voltage) * a * 連続負荷の率
+                )
+            } else {
+                format!("{:.1}A", a * 連続負荷の率)
+            };
+            CircuitRow {
+                id: c.id,
+                breaker: format!("{a:.1}A"),
+                continuous,
+                connector_type: c.connector_type.unwrap_or_default(),
+                since: c.from_date.date_naive().to_string(),
+                circuit_label: c.circuit_label,
+                voltage: c.voltage,
+                phase: c.phase,
+            }
+        })
+        .collect())
+}
+
+async fn 現在の回路<C: ConnectionTrait>(
+    db: &C,
+    container_id: i32,
+) -> AppResult<Vec<power_circuit::Model>> {
+    設備::現在の回路(db, container_id)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))
+}
+
+/// この設備・什器の固定資産と継続費用。**合算は年間コスト（10.3）が行う**。
+async fn 費用の行<C: ConnectionTrait>(
+    db: &C,
+    container_id: i32,
+    通貨: &str,
+    l: &str,
+) -> AppResult<Vec<Labeled>> {
+    let mut out = Vec::new();
+    for a in fixed_asset::Entity::find()
+        .filter(fixed_asset::Column::ItemType.eq(MOUNT_CONTAINER_ITEM))
+        .filter(fixed_asset::Column::ItemId.eq(container_id))
+        .all(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+    {
+        out.push(Labeled {
+            label: rust_i18n::t!("costs.fixed_assets", locale = l).to_string(),
+            value: format!(
+                "{} {通貨}（{}、{}年）",
+                crate::currency::表示(a.acquisition_cost, 通貨),
+                a.acquisition_date,
+                a.useful_life_years
+            ),
+        });
+    }
+    for r in recurring_cost::Entity::find()
+        .filter(recurring_cost::Column::ItemType.eq(MOUNT_CONTAINER_ITEM))
+        .filter(recurring_cost::Column::ItemId.eq(container_id))
+        .all(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+    {
+        out.push(Labeled {
+            label: rust_i18n::t!("costs.recurring", locale = l).to_string(),
+            value: format!(
+                "{}：{} {通貨} / {}（{}〜{}）",
+                r.cost_type,
+                crate::currency::表示(r.amount, 通貨),
+                r.billing_cycle,
+                r.start_date,
+                r.end_date.map(|d| d.to_string()).unwrap_or_default()
+            ),
+        });
+    }
+    Ok(out)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SiteForm {
+    #[serde(default)]
+    pub installation_site: String,
+}
+
+/// 設置場所を保存する。**自由記述**（12.10）。空なら未設定に戻す。
+pub async fn save_site(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path((project_id, container_id)): Path<(i32, i32)>,
+    Form(form): Form<SiteForm>,
+) -> AppResult<Response> {
+    入場(&state, &current, project_id).await?;
+    編集権(&state, &current, project_id).await?;
+    let c = 什器(&state, project_id, container_id).await?;
+    let site = crate::server::catalog::正規化(&form.installation_site);
+
+    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.update(
+        &c,
+        mount_container::ActiveModel {
+            id: Set(container_id),
+            installation_site: Set((!site.is_empty()).then_some(site)),
+            updated_at: Set(Utc::now()),
+            ..Default::default()
+        },
+    )
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    Ok(図へ戻る(project_id, container_id))
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct CircuitForm {
+    #[serde(default)]
+    pub circuit_label: String,
+    #[serde(default)]
+    pub voltage: String,
+    #[serde(default)]
+    pub phase: String,
+    /// A で受けて mA の整数で保存する（24.2.1）。
+    #[serde(default)]
+    pub breaker_current_a: String,
+    #[serde(default)]
+    pub connector_type: String,
+}
+
+impl CircuitForm {
+    fn 検証(&self) -> Result<設備::回路の値, &'static str> {
+        設備::回路を検証する(
+            &self.circuit_label,
+            &self.voltage,
+            &self.phase,
+            &self.breaker_current_a,
+            &self.connector_type,
+        )
+    }
+}
+
+/// 回路を足す、または変える。**同じ系統名の現在の回路があれば、閉じて開く**
+/// （履歴、4章）。値が同じなら何もしない。
+pub async fn save_circuit(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path((project_id, container_id)): Path<(i32, i32)>,
+    Form(form): Form<CircuitForm>,
+) -> AppResult<Response> {
+    入場(&state, &current, project_id).await?;
+    編集権(&state, &current, project_id).await?;
+    let l = Locale::parse(&current.user.locale).as_str();
+    let c = 什器(&state, project_id, container_id).await?;
+    if c.retired_at.is_some() {
+        let e = Some(rust_i18n::t!("containers.retired_note", locale = l).to_string());
+        return 図を描く(&state, &current, project_id, container_id, e, None).await;
+    }
+    let 値 = match form.検証() {
+        Ok(v) => v,
+        Err(key) => {
+            let e = Some(rust_i18n::t!(key, locale = l).to_string());
+            return 図を描く(&state, &current, project_id, container_id, e, None).await;
+        }
+    };
+
+    // **読み取りは開く前に済ませる**（SQLiteで自分のロックを待たないため）
+    let 現在 = 現在の回路(&state.db, container_id)
+        .await?
+        .into_iter()
+        .find(|r| r.circuit_label == 値.circuit_label);
+
+    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    設備::回路を書く(&tx, container_id, 現在, 値, Utc::now())
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    Ok(図へ戻る(project_id, container_id))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EndCircuitForm {
+    pub circuit_id: i32,
+}
+
+/// 回路を終える（撤去・解約）。**行は消さず閉じる**（不変条件1）。
+pub async fn end_circuit(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path((project_id, container_id)): Path<(i32, i32)>,
+    Form(form): Form<EndCircuitForm>,
+) -> AppResult<Response> {
+    入場(&state, &current, project_id).await?;
+    編集権(&state, &current, project_id).await?;
+    什器(&state, project_id, container_id).await?;
+    let r = power_circuit::Entity::find_by_id(form.circuit_id)
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .filter(|r| r.container_id == container_id && r.to_date.is_none())
+        .ok_or(AppError::NotFound)?;
+
+    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.update(
+        &r,
+        power_circuit::ActiveModel {
+            id: Set(r.id),
+            to_date: Set(Some(Utc::now())),
+            ..Default::default()
+        },
+    )
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    Ok(図へ戻る(project_id, container_id))
+}
+
+/// 購入の記録を保存する（10.2）。**機器と同じ検証と書き込みを通す**。
+pub async fn save_purchase(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path((project_id, container_id)): Path<(i32, i32)>,
+    Form(form): Form<crate::server::device::PurchaseInput>,
+) -> AppResult<Response> {
+    let (project, _) = 入場(&state, &current, project_id).await?;
+    編集権(&state, &current, project_id).await?;
+    let l = Locale::parse(&current.user.locale).as_str();
+    什器(&state, project_id, container_id).await?;
+
+    let 値 = match form.検証(&project.currency) {
+        Ok(Some(v)) => v,
+        Ok(None) => return Ok(図へ戻る(project_id, container_id)),
+        Err(key) => {
+            let e = Some(rust_i18n::t!(key, locale = l).to_string());
+            return 図を描く(&state, &current, project_id, container_id, e, None).await;
+        }
+    };
+    let 既存 =
+        crate::server::device::購入の記録(&state.db, MOUNT_CONTAINER_ITEM, container_id).await?;
+
+    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    crate::server::device::購入を書く(
+        &tx,
+        MOUNT_CONTAINER_ITEM,
+        container_id,
+        既存,
+        値,
+        Utc::now(),
+    )
+    .await?;
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    Ok(図へ戻る(project_id, container_id))
+}
+
+fn 図へ戻る(project_id: i32, container_id: i32) -> Response {
+    Redirect::to(&format!("/projects/{project_id}/containers/{container_id}")).into_response()
 }
 
 // ---------------------------------------------------------------------------

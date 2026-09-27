@@ -245,39 +245,42 @@ async fn 即時費用(
     project_id: i32,
     year: i32,
 ) -> AppResult<(i64, Vec<String>)> {
-    let device_ids = このプロジェクトの機器id(state, project_id).await?;
-    let 資産あり = fixed_asset::Entity::find()
-        .filter(fixed_asset::Column::ItemType.eq(DEVICE))
-        .all(&state.db)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-        .into_iter()
-        .map(|a| a.item_id)
-        .collect::<Vec<_>>();
+    // **機器と設備・什器の両方を数える**（#206、12.10）。設備・什器にも費用の
+    // 列は持たせず、購入の記録に寄せている
+    let 対象 = [
+        (DEVICE, このプロジェクトの機器id(state, project_id).await?),
+        (
+            MOUNT_CONTAINER,
+            このプロジェクトの什器id(state, project_id).await?,
+        ),
+    ];
 
     let mut 合計 = 0i64;
     let mut 取得日なし = Vec::new();
 
-    for p in purchase::Entity::find()
-        .filter(purchase::Column::ItemType.eq(DEVICE))
-        .all(&state.db)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-    {
-        if !device_ids.contains(&p.item_id) || 資産あり.contains(&p.item_id) {
-            continue;
-        }
-        match p.acquired_on {
-            Some(d) if d.year() == year => 合計 += p.amount,
-            Some(_) => {}
-            None => {
-                let name = device::Entity::find_by_id(p.item_id)
-                    .one(&state.db)
-                    .await
-                    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-                    .map(|d| d.hostname)
-                    .unwrap_or_default();
-                取得日なし.push(name);
+    for (item_type, ids) in 対象 {
+        let 資産あり = fixed_asset::Entity::find()
+            .filter(fixed_asset::Column::ItemType.eq(item_type))
+            .all(&state.db)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+            .into_iter()
+            .map(|a| a.item_id)
+            .collect::<Vec<_>>();
+
+        for p in purchase::Entity::find()
+            .filter(purchase::Column::ItemType.eq(item_type))
+            .all(&state.db)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        {
+            if !ids.contains(&p.item_id) || 資産あり.contains(&p.item_id) {
+                continue;
+            }
+            match p.acquired_on {
+                Some(d) if d.year() == year => 合計 += p.amount,
+                Some(_) => {}
+                None => 取得日なし.push(品目の表示(state, item_type, p.item_id).await?),
             }
         }
     }
@@ -596,23 +599,39 @@ struct AssetsPage {
     year: i32,
     rows: Vec<AssetRow>,
     devices: Vec<Labeled>,
+    /// 設備・什器（#206）。値は `MountContainer:<id>`。
+    containers: Vec<Labeled>,
+    t_containers: String,
+    t_devices: String,
+    /// 選んだ状態で開く対象。
+    selected: String,
     methods: Vec<&'static str>,
     can_edit: bool,
     error: Option<String>,
+}
+
+/// 対象を選んだ状態で開く（`?item=MountContainer:3`）。設備・什器の詳細から
+/// 進んでくるときに使う（#206）。
+#[derive(Debug, Default, Deserialize)]
+pub struct ItemQuery {
+    #[serde(default)]
+    pub item: Option<String>,
 }
 
 pub async fn assets(
     State(state): State<AppState>,
     Extension(current): Extension<CurrentUser>,
     Path(project_id): Path<i32>,
+    Query(query): Query<ItemQuery>,
 ) -> AppResult<Response> {
-    資産を描く(&state, &current, project_id, None).await
+    資産を描く(&state, &current, project_id, query.item, None).await
 }
 
 async fn 資産を描く(
     state: &AppState,
     current: &CurrentUser,
     project_id: i32,
+    selected: Option<String>,
     error: Option<String>,
 ) -> AppResult<Response> {
     let (project, can_edit, l) = 入場(state, current, project_id).await?;
@@ -671,7 +690,18 @@ async fn 資産を描く(
         currency: 通貨,
         year,
         rows,
-        devices: このプロジェクトの機器候補(state, project_id).await?,
+        devices: このプロジェクトの機器候補(state, project_id)
+            .await?
+            .into_iter()
+            .map(|d| Labeled {
+                value: format!("{DEVICE}:{}", d.value),
+                label: d.label,
+            })
+            .collect(),
+        containers: このプロジェクトの什器(state, project_id).await?,
+        t_containers: rust_i18n::t!("containers.title", locale = l).to_string(),
+        t_devices: rust_i18n::t!("devices.title", locale = l).to_string(),
+        selected: selected.unwrap_or_default(),
         methods: cost::DEPRECIATION_METHODS.to_vec(),
         can_edit,
         error,
@@ -680,7 +710,12 @@ async fn 資産を描く(
 
 #[derive(Debug, Deserialize)]
 pub struct AssetForm {
-    pub device_id: i32,
+    /// 対象（`Device:<id>` / `MountContainer:<id>`、#206）。
+    #[serde(default)]
+    pub item: String,
+    /// 旧形式（機器だけを選べた頃の欄）。`item` が空のときだけ見る。
+    #[serde(default)]
+    pub device_id: Option<i32>,
     #[serde(default)]
     pub acquisition_cost: String,
     #[serde(default)]
@@ -699,12 +734,29 @@ pub async fn create_asset(
 ) -> AppResult<Response> {
     let (project, l) = 編集入場(&state, &current, project_id).await?;
     let 誤り = |key: &str| Some(rust_i18n::t!(key, locale = l).to_string());
-    let 戻る = |key: &str| 資産を描く(&state, &current, project_id, 誤り(key));
+    let 戻る = |key: &str| 資産を描く(&state, &current, project_id, None, 誤り(key));
 
-    if !このプロジェクトの機器id(&state, project_id)
-        .await?
-        .contains(&form.device_id)
-    {
+    // **対象はこのプロジェクトの機器か、撤去していない設備・什器**（#206）。
+    // 画面は候補を絞るが、POSTは直接叩ける
+    let (item_type, item_id) = match (form.item.split_once(':'), form.device_id) {
+        (Some((t, id)), _) => (
+            t.to_owned(),
+            id.parse::<i32>().map_err(|_| AppError::NotFound)?,
+        ),
+        (None, Some(id)) => (DEVICE.to_owned(), id),
+        (None, None) => return Err(AppError::NotFound),
+    };
+    let 選べる = match item_type.as_str() {
+        DEVICE => このプロジェクトの機器id(&state, project_id)
+            .await?
+            .contains(&item_id),
+        MOUNT_CONTAINER => このプロジェクトの什器(&state, project_id)
+            .await?
+            .iter()
+            .any(|c| c.value == format!("{MOUNT_CONTAINER}:{item_id}")),
+        _ => false,
+    };
+    if !選べる {
         return Err(AppError::NotFound);
     }
     // **閉じた語彙は既定へ寄せず拒否する**（8.6、Q-21）。
@@ -726,8 +778,8 @@ pub async fn create_asset(
     };
 
     let 重複 = fixed_asset::Entity::find()
-        .filter(fixed_asset::Column::ItemType.eq(DEVICE))
-        .filter(fixed_asset::Column::ItemId.eq(form.device_id))
+        .filter(fixed_asset::Column::ItemType.eq(&item_type))
+        .filter(fixed_asset::Column::ItemId.eq(item_id))
         .one(&state.db)
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
@@ -740,8 +792,8 @@ pub async fn create_asset(
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     let now = Utc::now();
     tx.insert(fixed_asset::ActiveModel {
-        item_type: Set(DEVICE.to_owned()),
-        item_id: Set(form.device_id),
+        item_type: Set(item_type),
+        item_id: Set(item_id),
         acquisition_cost: Set(cost_value),
         depreciation_method: Set(form.depreciation_method.clone()),
         useful_life_years: Set(life),
@@ -805,6 +857,8 @@ struct RecurringPage {
     year: i32,
     rows: Vec<RecurringRow>,
     containers: Vec<Labeled>,
+    /// 選んだ状態で開く対象（#206）。
+    selected: String,
     vendors: Vec<Labeled>,
     cycles: Vec<&'static str>,
     can_edit: bool,
@@ -815,14 +869,16 @@ pub async fn recurring(
     State(state): State<AppState>,
     Extension(current): Extension<CurrentUser>,
     Path(project_id): Path<i32>,
+    Query(query): Query<ItemQuery>,
 ) -> AppResult<Response> {
-    定期費用を描く(&state, &current, project_id, None).await
+    定期費用を描く(&state, &current, project_id, query.item, None).await
 }
 
 async fn 定期費用を描く(
     state: &AppState,
     current: &CurrentUser,
     project_id: i32,
+    selected: Option<String>,
     error: Option<String>,
 ) -> AppResult<Response> {
     let (project, can_edit, l) = 入場(state, current, project_id).await?;
@@ -892,6 +948,7 @@ async fn 定期費用を描く(
         year,
         rows,
         containers: このプロジェクトの什器(state, project_id).await?,
+        selected: selected.unwrap_or_default(),
         vendors: 現役のベンダー(&state.db).await?,
         cycles: cost::BILLING_CYCLES.to_vec(),
         can_edit,
@@ -926,7 +983,7 @@ pub async fn create_recurring(
 ) -> AppResult<Response> {
     let (project, l) = 編集入場(&state, &current, project_id).await?;
     let 誤り = |key: &str| Some(rust_i18n::t!(key, locale = l).to_string());
-    let 戻る = |key: &str| 定期費用を描く(&state, &current, project_id, 誤り(key));
+    let 戻る = |key: &str| 定期費用を描く(&state, &current, project_id, None, 誤り(key));
 
     // **多態的参照。**プロジェクト全体か、特定の什器に付く（10.2）
     let (item_type, item_id) = match form.item.trim() {
@@ -1133,15 +1190,21 @@ async fn このプロジェクトの資産(
     state: &AppState,
     project_id: i32,
 ) -> AppResult<Vec<fixed_asset::Model>> {
-    let ids = このプロジェクトの機器id(state, project_id).await?;
+    // 機器と設備・什器（#206）。**撤去済みの設備・什器の資産も数える**——撤去
+    // しても償却は続く
+    let 機器 = このプロジェクトの機器id(state, project_id).await?;
+    let 設備 = このプロジェクトの什器id(state, project_id).await?;
     Ok(fixed_asset::Entity::find()
-        .filter(fixed_asset::Column::ItemType.eq(DEVICE))
         .order_by_asc(fixed_asset::Column::Id)
         .all(&state.db)
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
         .into_iter()
-        .filter(|a| ids.contains(&a.item_id))
+        .filter(|a| match a.item_type.as_str() {
+            DEVICE => 機器.contains(&a.item_id),
+            MOUNT_CONTAINER => 設備.contains(&a.item_id),
+            _ => false,
+        })
         .collect())
 }
 

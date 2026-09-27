@@ -8,7 +8,7 @@
 
 | Name | Type | Default | Nullable | Children | Parents | Comment |
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
-| id | integer |  | false | [public.device_mount](public.device_mount.md) |  |  |
+| id | integer |  | false | [public.device_mount](public.device_mount.md) [public.power_circuit](public.power_circuit.md) |  |  |
 | name | varchar |  | false |  |  |  |
 | location_type | varchar |  | false |  |  | Warehouse / Project。多態的参照のため外部キーを持てない |
 | location_id | integer |  | false |  |  |  |
@@ -17,6 +17,7 @@
 | updated_at | timestamp with time zone |  | false |  |  |  |
 | retired_at | timestamp with time zone |  | true |  |  | null = 現役。搭載の履歴や費用の記録が指し続けるため、使ったことのある設備は消さず撤去済みにする（#204） |
 | container_model_id | integer |  | true |  | [public.container_model](public.container_model.md) | 型番（#205）。種別と収容能力は型番が持つ。SQLiteで外部キー列を後から足したためDB上は NULL を許すが、アプリケーション層では必須 |
+| installation_site | varchar |  | true |  |  | 設置場所（自由記述、#206）。置き場所（location_type）は所有者であって物理的な場所ではない |
 
 ## Constraints
 

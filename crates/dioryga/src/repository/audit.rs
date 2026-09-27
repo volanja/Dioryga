@@ -156,6 +156,14 @@ impl Audited for entity::container_model::Model {
     }
 }
 
+impl Audited for entity::power_circuit::Model {
+    const TABLE: &'static str = "power_circuit";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
 impl Audited for entity::cable_end_slot::Model {
     const TABLE: &'static str = "cable_end_slot";
 

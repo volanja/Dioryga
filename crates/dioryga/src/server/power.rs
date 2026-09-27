@@ -168,19 +168,22 @@ pub async fn show(
 }
 
 #[derive(Default)]
-struct 集計結果 {
-    running: usize,
-    watt: i32,
-    planned: usize,
-    watt_with_plan: i32,
-    virtual_count: usize,
+pub(crate) struct 集計結果 {
+    pub(crate) running: usize,
+    pub(crate) watt: i32,
+    pub(crate) planned: usize,
+    pub(crate) watt_with_plan: i32,
+    pub(crate) virtual_count: usize,
 }
 
 /// 什器に載っている機器の電力を合算する（12.5）。
 ///
 /// **仮想マシンとコンテナは数えない。**ホストが引いているため、合算すると
 /// 二重に数える。棚板の上の物理機器は自分で引くため数える。
-async fn 什器の電力<C: ConnectionTrait>(db: &C, container_id: i32) -> AppResult<集計結果> {
+pub(crate) async fn 什器の電力<C: ConnectionTrait>(
+    db: &C,
+    container_id: i32,
+) -> AppResult<集計結果> {
     let mounts = device_mount::Entity::find()
         .filter(device_mount::Column::ContainerId.eq(container_id))
         .filter(device_mount::Column::ToDate.is_null())

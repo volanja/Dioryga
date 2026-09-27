@@ -8,6 +8,7 @@ match_on:
 files:
   - { entity: device,               path: devices.csv }
   - { entity: mount_container,      path: containers.csv }
+  - { entity: power_circuit,        path: circuits.csv }
   - { entity: device_mount,         path: mounts.csv }
   - { entity: part_instance,        path: parts.csv }
   - { entity: subnet,               path: subnets.csv }

@@ -768,6 +768,195 @@ async fn 重量を付ける(db: &DatabaseConnection, d: &device::Model, weight_g
 }
 
 // ---------------------------------------------------------------------------
+// 給電・設置場所（#206、設計書12.10）
+// ---------------------------------------------------------------------------
+
+async fn 回路を送る(
+    db: &DatabaseConnection,
+    場: &舞台情報,
+    fields: &[(&str, &str)],
+) -> (StatusCode, String) {
+    let (状態, token) = 認証済み(db, &場.user).await;
+    送信(
+        状態,
+        &format!("{}/circuits", 図のあて先(場)),
+        &token,
+        fields,
+    )
+    .await
+}
+
+async fn 回路一覧(
+    db: &DatabaseConnection,
+    container_id: i32,
+) -> Vec<entity::power_circuit::Model> {
+    use sea_orm::QueryOrder;
+    entity::power_circuit::Entity::find()
+        .filter(entity::power_circuit::Column::ContainerId.eq(container_id))
+        .order_by_asc(entity::power_circuit::Column::Id)
+        .all(db)
+        .await
+        .unwrap()
+}
+
+/// **1つの設備・什器に複数の回路を登録でき、変えると旧行が閉じること**（履歴、4章）。
+async fn 回路は複数持てて変えると閉じて開く(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "circuit@example.com").await;
+    for (label, a) in [("A系", "20"), ("B系", "20")] {
+        let (status, body) = 回路を送る(
+            db,
+            &場,
+            &[
+                ("circuit_label", label),
+                ("voltage", "200"),
+                ("phase", "Single"),
+                ("breaker_current_a", a),
+                ("connector_type", "NEMA L6-30R"),
+            ],
+        )
+        .await;
+        assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    }
+    // 同じ値を送り直しても行は増えない
+    回路を送る(
+        db,
+        &場,
+        &[
+            ("circuit_label", "A系"),
+            ("voltage", "200"),
+            ("phase", "Single"),
+            ("breaker_current_a", "20"),
+            ("connector_type", "NEMA L6-30R"),
+        ],
+    )
+    .await;
+    assert_eq!(回路一覧(db, 場.container.id).await.len(), 2);
+
+    // A系を30Aに上げる → 旧行が閉じ、新しい行が開く
+    回路を送る(
+        db,
+        &場,
+        &[
+            ("circuit_label", "A系"),
+            ("voltage", "200"),
+            ("phase", "Single"),
+            ("breaker_current_a", "30"),
+            ("connector_type", "NEMA L6-30R"),
+        ],
+    )
+    .await;
+    let 全部 = 回路一覧(db, 場.container.id).await;
+    assert_eq!(全部.len(), 3, "閉じて開いていません");
+    assert!(全部[0].to_date.is_some(), "旧行が閉じていません");
+    assert_eq!(全部[2].breaker_current_ma, 30_000);
+
+    // 画面には現在の回路と、連続負荷の目安（80%）と電力の合計が出る
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &図のあて先(&場), &token).await;
+    assert!(
+        body.contains("24.0A / 4800VA"),
+        "連続負荷の目安が出ていません"
+    );
+    assert!(body.contains("NEMA L6-30R"));
+    assert!(body.contains("稼働中"), "電力の合計が並んでいません");
+
+    // 終了すると閉じる。行は消えない
+    let b = 全部[1].id;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 送信(
+        状態,
+        &format!("{}/circuits/end", 図のあて先(&場)),
+        &token,
+        &[("circuit_id", &b.to_string())],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let 全部 = 回路一覧(db, 場.container.id).await;
+    assert_eq!(全部.len(), 3);
+    assert!(全部[1].to_date.is_some());
+}
+
+/// **回路の誤りを拒否すること**（Q-21）。コンセントの形状は開いた語彙なので拒否しない。
+async fn 回路の誤りは拒否される(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "circuit-bad@example.com").await;
+    for (fields, 誤り) in [
+        (
+            vec![
+                ("circuit_label", ""),
+                ("voltage", "200"),
+                ("phase", "Single"),
+                ("breaker_current_a", "20"),
+            ],
+            "系統名を入力",
+        ),
+        (
+            vec![
+                ("circuit_label", "A系"),
+                ("voltage", "abc"),
+                ("phase", "Single"),
+                ("breaker_current_a", "20"),
+            ],
+            "電圧は正の整数",
+        ),
+        (
+            vec![
+                ("circuit_label", "A系"),
+                ("voltage", "200"),
+                ("phase", "Triple"),
+                ("breaker_current_a", "20"),
+            ],
+            "相の値が不正",
+        ),
+        (
+            vec![
+                ("circuit_label", "A系"),
+                ("voltage", "200"),
+                ("phase", "Single"),
+                ("breaker_current_a", "0"),
+            ],
+            "ブレーカー定格は0より大きい",
+        ),
+    ] {
+        let (status, body) = 回路を送る(db, &場, &fields).await;
+        assert_eq!(status, StatusCode::OK, "{fields:?}");
+        assert!(body.contains(誤り), "{fields:?} に「{誤り}」が出ていません");
+    }
+    assert!(回路一覧(db, 場.container.id).await.is_empty());
+}
+
+/// **設置場所を保存でき、一覧に出ること。**
+async fn 設置場所を保存できる(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "site@example.com").await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 送信(
+        状態,
+        &format!("{}/site", 図のあて先(&場)),
+        &token,
+        &[("installation_site", "第1データセンター 3F C列")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let c = mount_container::Entity::find_by_id(場.container.id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        c.installation_site.as_deref(),
+        Some("第1データセンター 3F C列")
+    );
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(
+        状態,
+        &format!("/projects/{}/containers", 場.project.id),
+        &token,
+    )
+    .await;
+    assert!(body.contains("第1データセンター 3F C列"));
+}
+
+// ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
 
@@ -1147,6 +1336,9 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 閲覧者は搭載できない);
         全検証!(@one $用意, $属性, 机には格子を描かない);
         全検証!(@one $用意, $属性, 載せた重量と静荷重が出る);
+        全検証!(@one $用意, $属性, 回路は複数持てて変えると閉じて開く);
+        全検証!(@one $用意, $属性, 回路の誤りは拒否される);
+        全検証!(@one $用意, $属性, 設置場所を保存できる);
         全検証!(@one $用意, $属性, 名前は大文字小文字を区別せずに一意);
         全検証!(@one $用意, $属性, 同じ名前はdbでも拒否される);
         全検証!(@one $用意, $属性, 使っていない設備は行ごと消える);

@@ -564,45 +564,48 @@
 <!-- public.mount_container -->
 <g id="node13" class="node">
 <title>public.mount_container</title>
-<polygon fill="#efefef" stroke="none" points="4304.19,-1069.6 4304.19,-1105.2 4614.14,-1105.2 4614.14,-1069.6 4304.19,-1069.6"/>
-<polygon fill="none" stroke="black" points="4304.19,-1069.6 4304.19,-1105.2 4614.14,-1105.2 4614.14,-1069.6 4304.19,-1069.6"/>
-<text text-anchor="start" x="4311.19" y="-1083" font-family="Arial Bold" font-size="18.00">public.mount_container</text>
-<text text-anchor="start" x="4482.65" y="-1083" font-family="Arial" font-size="14.00">    </text>
-<text text-anchor="start" x="4513.77" y="-1083" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
-<polygon fill="none" stroke="black" points="4304.19,-1038.8 4304.19,-1069.6 4614.14,-1069.6 4614.14,-1038.8 4304.19,-1038.8"/>
-<text text-anchor="start" x="4311.19" y="-1051" font-family="Arial" font-size="14.00">id </text>
-<text text-anchor="start" x="4325.98" y="-1051" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="4304.19,-1008 4304.19,-1038.8 4614.14,-1038.8 4614.14,-1008 4304.19,-1008"/>
-<text text-anchor="start" x="4311.19" y="-1020.2" font-family="Arial" font-size="14.00">name </text>
-<text text-anchor="start" x="4350.1" y="-1020.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="4304.19,-977.2 4304.19,-1008 4614.14,-1008 4614.14,-977.2 4304.19,-977.2"/>
-<text text-anchor="start" x="4311.19" y="-989.4" font-family="Arial" font-size="14.00">location_type </text>
-<text text-anchor="start" x="4397.58" y="-989.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="4304.19,-946.4 4304.19,-977.2 4614.14,-977.2 4614.14,-946.4 4304.19,-946.4"/>
-<text text-anchor="start" x="4311.19" y="-958.6" font-family="Arial" font-size="14.00">location_id </text>
-<text text-anchor="start" x="4382.02" y="-958.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="4304.19,-915.6 4304.19,-946.4 4614.14,-946.4 4614.14,-915.6 4304.19,-915.6"/>
-<text text-anchor="start" x="4311.19" y="-927.8" font-family="Arial" font-size="14.00">created_by </text>
-<text text-anchor="start" x="4384.35" y="-927.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="4304.19,-884.8 4304.19,-915.6 4614.14,-915.6 4614.14,-884.8 4304.19,-884.8"/>
-<text text-anchor="start" x="4311.19" y="-897" font-family="Arial" font-size="14.00">created_at </text>
-<text text-anchor="start" x="4381.24" y="-897" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="4304.19,-854 4304.19,-884.8 4614.14,-884.8 4614.14,-854 4304.19,-854"/>
-<text text-anchor="start" x="4311.19" y="-866.2" font-family="Arial" font-size="14.00">updated_at </text>
-<text text-anchor="start" x="4385.15" y="-866.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="4304.19,-823.2 4304.19,-854 4614.14,-854 4614.14,-823.2 4304.19,-823.2"/>
-<text text-anchor="start" x="4311.19" y="-835.4" font-family="Arial" font-size="14.00">retired_at </text>
-<text text-anchor="start" x="4374.23" y="-835.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="4304.19,-792.4 4304.19,-823.2 4614.14,-823.2 4614.14,-792.4 4304.19,-792.4"/>
-<text text-anchor="start" x="4311.19" y="-804.6" font-family="Arial" font-size="14.00">container_model_id </text>
-<text text-anchor="start" x="4437.27" y="-804.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="#efefef" stroke="none" points="4304.19,-1085 4304.19,-1120.6 4614.14,-1120.6 4614.14,-1085 4304.19,-1085"/>
+<polygon fill="none" stroke="black" points="4304.19,-1085 4304.19,-1120.6 4614.14,-1120.6 4614.14,-1085 4304.19,-1085"/>
+<text text-anchor="start" x="4311.19" y="-1098.4" font-family="Arial Bold" font-size="18.00">public.mount_container</text>
+<text text-anchor="start" x="4482.65" y="-1098.4" font-family="Arial" font-size="14.00">    </text>
+<text text-anchor="start" x="4513.77" y="-1098.4" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
+<polygon fill="none" stroke="black" points="4304.19,-1054.2 4304.19,-1085 4614.14,-1085 4614.14,-1054.2 4304.19,-1054.2"/>
+<text text-anchor="start" x="4311.19" y="-1066.4" font-family="Arial" font-size="14.00">id </text>
+<text text-anchor="start" x="4325.98" y="-1066.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="4304.19,-1023.4 4304.19,-1054.2 4614.14,-1054.2 4614.14,-1023.4 4304.19,-1023.4"/>
+<text text-anchor="start" x="4311.19" y="-1035.6" font-family="Arial" font-size="14.00">name </text>
+<text text-anchor="start" x="4350.1" y="-1035.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="4304.19,-992.6 4304.19,-1023.4 4614.14,-1023.4 4614.14,-992.6 4304.19,-992.6"/>
+<text text-anchor="start" x="4311.19" y="-1004.8" font-family="Arial" font-size="14.00">location_type </text>
+<text text-anchor="start" x="4397.58" y="-1004.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="4304.19,-961.8 4304.19,-992.6 4614.14,-992.6 4614.14,-961.8 4304.19,-961.8"/>
+<text text-anchor="start" x="4311.19" y="-974" font-family="Arial" font-size="14.00">location_id </text>
+<text text-anchor="start" x="4382.02" y="-974" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="4304.19,-931 4304.19,-961.8 4614.14,-961.8 4614.14,-931 4304.19,-931"/>
+<text text-anchor="start" x="4311.19" y="-943.2" font-family="Arial" font-size="14.00">created_by </text>
+<text text-anchor="start" x="4384.35" y="-943.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="4304.19,-900.2 4304.19,-931 4614.14,-931 4614.14,-900.2 4304.19,-900.2"/>
+<text text-anchor="start" x="4311.19" y="-912.4" font-family="Arial" font-size="14.00">created_at </text>
+<text text-anchor="start" x="4381.24" y="-912.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="4304.19,-869.4 4304.19,-900.2 4614.14,-900.2 4614.14,-869.4 4304.19,-869.4"/>
+<text text-anchor="start" x="4311.19" y="-881.6" font-family="Arial" font-size="14.00">updated_at </text>
+<text text-anchor="start" x="4385.15" y="-881.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="4304.19,-838.6 4304.19,-869.4 4614.14,-869.4 4614.14,-838.6 4304.19,-838.6"/>
+<text text-anchor="start" x="4311.19" y="-850.8" font-family="Arial" font-size="14.00">retired_at </text>
+<text text-anchor="start" x="4374.23" y="-850.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="4304.19,-807.8 4304.19,-838.6 4614.14,-838.6 4614.14,-807.8 4304.19,-807.8"/>
+<text text-anchor="start" x="4311.19" y="-820" font-family="Arial" font-size="14.00">container_model_id </text>
+<text text-anchor="start" x="4437.27" y="-820" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="4304.19,-777 4304.19,-807.8 4614.14,-807.8 4614.14,-777 4304.19,-777"/>
+<text text-anchor="start" x="4311.19" y="-789.2" font-family="Arial" font-size="14.00">installation_site </text>
+<text text-anchor="start" x="4410.8" y="-789.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 </g>
 <!-- public.mount_container&#45;&gt;public.app_user -->
 <g id="edge12" class="edge">
 <title>public.mount_container:created_by&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M4292.9,-929.31C4225.48,-905.63 4272.22,-640.35 4252.16,-564.4 4235.91,-502.81 4262.97,-431.2 4199.28,-431.2"/>
-<polygon fill="black" stroke="black" points="4292.99,-929.32 4302.13,-935.39 4298.26,-930.19 4302.53,-930.89 4302.53,-930.89 4302.53,-930.89 4298.26,-930.19 4303.59,-926.51 4292.99,-929.32"/>
-<text text-anchor="start" x="4038.89" y="-941" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
+<path fill="none" stroke="black" d="M4292.92,-944.78C4222.24,-921.09 4272.87,-643.7 4252.16,-564.4 4236.07,-502.77 4262.97,-431.2 4199.28,-431.2"/>
+<polygon fill="black" stroke="black" points="4292.98,-944.79 4302.16,-950.79 4298.25,-945.62 4302.53,-946.3 4302.53,-946.3 4302.53,-946.3 4298.25,-945.62 4303.56,-941.9 4292.98,-944.79"/>
+<text text-anchor="start" x="4038.89" y="-956.4" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
 </g>
 <!-- public.import_run -->
 <g id="node14" class="node">

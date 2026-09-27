@@ -1,0 +1,57 @@
+{# 購入の記録は専用の一覧画面を持たず、品目の詳細に出す。**品目1つにつき1行**（設計書10.2）。
+   機器と設備・什器で共有する（#206）。使う側は purchase / purchase_form / purchase_action /
+   can_edit / chrome を持つ #}
+<h2 class="section">{{ purchase_form.t_title }}</h2>
+<p class="hint">{{ purchase_form.t_hint }}</p>
+
+{% match purchase %}
+{% when Some with (p) %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ purchase_form.t_order_number }}</th>
+      <th>{{ purchase_form.t_acquired_on }}</th>
+      <th>{{ purchase_form.t_amount }}</th>
+      <th>{{ purchase_form.t_supplier }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="mono">{{ p.order_number }}</td>
+      <td class="mono">{{ p.acquired_on }}</td>
+      <td class="mono">{{ p.amount }} {{ purchase_form.currency }}</td>
+      <td>{{ p.supplier }}</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+{% when None %}
+<p class="empty">{{ purchase_form.t_empty }}</p>
+{% endmatch %}
+
+{% if can_edit %}
+<div class="card">
+  <form method="post" action="{{ purchase_action }}" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="order_number">{{ purchase_form.t_order_number }}</label>
+    <input type="text" class="mono" id="order_number" name="order_number" value="{{ purchase_form.order_number }}">
+    <p class="hint">{{ purchase_form.t_order_number_hint }}</p>
+
+    <label for="acquisition_date">{{ purchase_form.t_acquired_on }}</label>
+    <input type="date" id="acquisition_date" name="acquisition_date" value="{{ purchase_form.acquired_on }}">
+    <p class="hint">{{ purchase_form.t_acquired_on_hint }}</p>
+
+    <label for="acquisition_cost">{{ purchase_form.t_amount }}（{{ purchase_form.currency }}）</label>
+    <input type="text" class="mono" id="acquisition_cost" name="acquisition_cost" value="{{ purchase_form.amount }}" inputmode="decimal">
+    <p class="hint">{{ purchase_form.t_amount_hint }}</p>
+
+    <label for="supplier">{{ purchase_form.t_supplier }}</label>
+    <input type="text" id="supplier" name="supplier" value="{{ purchase_form.supplier }}">
+    <p class="hint">{{ purchase_form.t_supplier_hint }}</p>
+
+    <button type="submit">{{ purchase_form.t_save }}</button>
+  </form>
+</div>
+{% endif %}

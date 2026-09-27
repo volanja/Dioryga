@@ -27,6 +27,13 @@ async fn 例をすべて取り込める(db: &DatabaseConnection) {
     // 誤りが出ないだけでなく、書いた行が入っていること
     assert_eq!(device::Entity::find().count(db).await.unwrap(), 5);
     assert_eq!(mount_container::Entity::find().count(db).await.unwrap(), 1);
+    assert_eq!(
+        entity::power_circuit::Entity::find()
+            .count(db)
+            .await
+            .unwrap(),
+        2
+    );
     assert_eq!(device_mount::Entity::find().count(db).await.unwrap(), 5);
     assert_eq!(part_instance::Entity::find().count(db).await.unwrap(), 4);
     assert_eq!(ip_address::Entity::find().count(db).await.unwrap(), 4);

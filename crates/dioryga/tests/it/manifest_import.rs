@@ -823,8 +823,8 @@ async fn 設置場所を取り込める(db: &DatabaseConnection) {
     let 取込者 = 場.email.replace('@', "_");
     型番(db, "R42", "Rack", Some(42)).await;
     for (site, 期待) in [
-        ("第1DC 3F", Outcome::Created),
-        ("第1DC 4F", Outcome::Updated),
+        ("美ヶ原DC 3F", Outcome::Created),
+        ("美ヶ原DC 4F", Outcome::Updated),
     ] {
         let dir = 取込ファイル(
             &場,
@@ -842,7 +842,7 @@ async fn 設置場所を取り込める(db: &DatabaseConnection) {
         assert_eq!(実行.report.count(期待), 1, "{}", 実行.report);
     }
     let c = 什器(db, 場.project.id, "Rack-02").await;
-    assert_eq!(c.installation_site.as_deref(), Some("第1DC 4F"));
+    assert_eq!(c.installation_site.as_deref(), Some("美ヶ原DC 4F"));
 }
 
 /// **購入と固定資産の取込で、設備・什器を名前で指せること**（#206）。

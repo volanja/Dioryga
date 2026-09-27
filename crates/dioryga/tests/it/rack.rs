@@ -932,7 +932,7 @@ async fn 設置場所を保存できる(db: &DatabaseConnection) {
         状態,
         &format!("{}/site", 図のあて先(&場)),
         &token,
-        &[("installation_site", "第1データセンター 3F C列")],
+        &[("installation_site", "美ヶ原データセンター 3F C列")],
     )
     .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
@@ -943,7 +943,7 @@ async fn 設置場所を保存できる(db: &DatabaseConnection) {
         .unwrap();
     assert_eq!(
         c.installation_site.as_deref(),
-        Some("第1データセンター 3F C列")
+        Some("美ヶ原データセンター 3F C列")
     );
 
     let (状態, token) = 認証済み(db, &場.user).await;
@@ -953,7 +953,7 @@ async fn 設置場所を保存できる(db: &DatabaseConnection) {
         &token,
     )
     .await;
-    assert!(body.contains("第1データセンター 3F C列"));
+    assert!(body.contains("美ヶ原データセンター 3F C列"));
 }
 
 // ---------------------------------------------------------------------------

@@ -181,6 +181,7 @@ async fn build_list(
 ) -> AppResult<UsersPage> {
     let locale = Locale::parse(&current.user.locale);
     let l = locale.as_str();
+    let tz = state.タイムゾーン(&current.user);
     let status = StatusFilter::parse(query.status.as_deref());
     let keyword = query.q.clone().unwrap_or_default();
 
@@ -197,8 +198,8 @@ async fn build_list(
                 rust_i18n::t!("users.role_member", locale = l).to_string()
             },
             last_login: match user.last_login_at {
-                // 時刻はUTCのまま扱う（設計書24.3）。表示にもUTCであることを添える
-                Some(at) => at.format("%Y-%m-%d %H:%M UTC").to_string(),
+                // 利用者のタイムゾーンで出す（24.2.3、#210）
+                Some(at) => crate::tz::日時(at, tz),
                 None => rust_i18n::t!("users.never", locale = l).to_string(),
             },
             status: if user.disabled_at.is_some() {

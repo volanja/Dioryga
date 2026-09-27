@@ -538,6 +538,7 @@ pub async fn devices(
 ) -> AppResult<Response> {
     let l = 入場(&state, &current).await?;
     let w = 倉庫(&state, id).await?;
+    let tz = state.タイムゾーン(&current.user);
 
     // **全件出す。**A-6の判定をここに持ち込むと、誰のプロジェクトにも属した
     // ことがない新品の予備が誰にも見えなくなる（16.1）
@@ -568,7 +569,7 @@ pub async fn devices(
             since: 割当
                 .iter()
                 .find(|a| a.device_id == d.id)
-                .map(|a| a.from_date.date_naive().to_string())
+                .map(|a| crate::tz::日付(a.from_date, tz).to_string())
                 .unwrap_or_default(),
             serial_number: d.serial_number.clone().unwrap_or_default(),
             id: d.id,
@@ -650,6 +651,7 @@ pub async fn device_detail(
 ) -> AppResult<Response> {
     let l = 入場(&state, &current).await?;
     let w = 倉庫(&state, id).await?;
+    let tz = state.タイムゾーン(&current.user);
 
     let d = device::Entity::find_by_id(device_id)
         .one(&state.db)
@@ -675,7 +677,7 @@ pub async fn device_detail(
     }
 
     // **全期間ぶん出す。**倉庫にある間はA-6の対象外と決めた（16.1）
-    let history = 履歴を組む(&state, &履歴, l).await?;
+    let history = 履歴を組む(&state, &履歴, l, tz).await?;
 
     render(&DeviceDetailPage {
         chrome: Chrome::warehouse(
@@ -716,6 +718,7 @@ async fn 履歴を組む(
     state: &AppState,
     履歴: &[device_assignment::Model],
     l: &'static str,
+    tz: chrono_tz::Tz,
 ) -> AppResult<Vec<HistoryRow>> {
     let 不明 = rust_i18n::t!("warehouses.unknown", locale = l).to_string();
 
@@ -767,10 +770,10 @@ async fn 履歴を組む(
                 _ => String::new(),
             },
             location_type: a.location_type.clone(),
-            from_date: a.from_date.date_naive().to_string(),
+            from_date: crate::tz::日付(a.from_date, tz).to_string(),
             to_date: a
                 .to_date
-                .map(|t| t.date_naive().to_string())
+                .map(|t| crate::tz::日付(t, tz).to_string())
                 .unwrap_or_default(),
             current: a.to_date.is_none(),
         })
@@ -814,6 +817,7 @@ pub async fn parts(
 ) -> AppResult<Response> {
     let l = 入場(&state, &current).await?;
     let w = 倉庫(&state, id).await?;
+    let tz = state.タイムゾーン(&current.user);
 
     let 所在 = part_instance_location::Entity::find()
         .filter(part_instance_location::Column::LocationType.eq(WAREHOUSE))
@@ -856,7 +860,7 @@ pub async fn parts(
                 since: 所在
                     .iter()
                     .find(|p| p.part_instance_id == i.id)
-                    .map(|p| p.from_date.date_naive().to_string())
+                    .map(|p| crate::tz::日付(p.from_date, tz).to_string())
                     .unwrap_or_default(),
                 status_label: 状態の表示(&i.status, l),
                 status: i.status,

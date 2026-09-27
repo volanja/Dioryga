@@ -213,13 +213,17 @@ async fn 画面(
         t_history_empty: rust_i18n::t!("import.history_empty", locale = l).to_string(),
         t_cli_hint: rust_i18n::t!("import.cli_hint", locale = l).to_string(),
         match_on_options: MATCH_ON.to_vec(),
-        history: 取込履歴(state, project.id).await?,
+        history: 取込履歴(state, project.id, state.タイムゾーン(&current.user)).await?,
         error,
     })
 }
 
 /// このプロジェクトへの取込履歴（設計書23.7）。
-async fn 取込履歴(state: &AppState, project_id: i32) -> AppResult<Vec<HistoryRow>> {
+async fn 取込履歴(
+    state: &AppState,
+    project_id: i32,
+    tz: chrono_tz::Tz,
+) -> AppResult<Vec<HistoryRow>> {
     let runs = import_run::Entity::find()
         .filter(import_run::Column::ProjectId.eq(project_id))
         .order_by_desc(import_run::Column::ImportedAt)
@@ -238,7 +242,7 @@ async fn 取込履歴(state: &AppState, project_id: i32) -> AppResult<Vec<Histor
 
         rows.push(HistoryRow {
             kind: run.kind,
-            imported_at: run.imported_at.format("%Y-%m-%d %H:%M UTC").to_string(),
+            imported_at: crate::tz::日時(run.imported_at, tz),
             imported_by: 実行者,
             summary: format!(
                 "新規 {} / 更新 {} / 警告 {}",
@@ -270,7 +274,7 @@ pub async fn upload(
     let project = 入場(&state, &current, project_id).await?;
     let l = Locale::parse(&current.user.locale).as_str();
 
-    let upload = match 受け取る(multipart).await {
+    let upload = match 受け取る(multipart, state.タイムゾーン(&current.user)).await {
         Ok(u) if !u.bytes.is_empty() => u,
         Ok(_) => return 差し戻す(&state, &current, &project, "import.no_file", l).await,
         Err(key) => return 差し戻す(&state, &current, &project, key, l).await,
@@ -332,7 +336,7 @@ async fn 差し戻す(
     render(&page)
 }
 
-async fn 受け取る(mut multipart: Multipart) -> Result<Upload, &'static str> {
+async fn 受け取る(mut multipart: Multipart, tz: chrono_tz::Tz) -> Result<Upload, &'static str> {
     let mut upload = Upload::default();
 
     while let Ok(Some(field)) = multipart.next_field().await {
@@ -360,11 +364,9 @@ async fn 受け取る(mut multipart: Multipart) -> Result<Upload, &'static str> 
                         // 日付と同じく `2026/09/23` も読む（[`crate::date::読む`]）。
                         // マニフェストの `as_of`（23.5）はこの寛容さを持たない
                         match crate::date::読む(&v) {
-                            Some(d) => {
-                                upload.as_of = d
-                                    .and_hms_opt(0, 0, 0)
-                                    .map(|dt| DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc))
-                            }
+                            // **利用者のタイムゾーンのその日の0時**（24.2.3、#210）。
+                            // UTC の0時にすると、日本では前日の9時が基準になる
+                            Some(d) => upload.as_of = Some(crate::tz::その日の始まり(d, tz)),
                             None => return Err("import.bad_as_of"),
                         }
                     }

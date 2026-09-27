@@ -111,7 +111,10 @@ pub async fn dashboard(
     Query(query): Query<YearQuery>,
 ) -> AppResult<Response> {
     let (project, _, l) = 入場(&state, &current, project_id).await?;
-    let year = query.year.unwrap_or_else(|| Utc::now().year());
+    // 既定の年は利用者のタイムゾーンの今年（24.2.3、#210）
+    let year = query
+        .year
+        .unwrap_or_else(|| crate::tz::今日(state.タイムゾーン(&current.user)).year());
     let 通貨 = project.currency.clone();
 
     let mut 合計 = 0i64;
@@ -636,7 +639,7 @@ async fn 資産を描く(
 ) -> AppResult<Response> {
     let (project, can_edit, l) = 入場(state, current, project_id).await?;
     let 通貨 = project.currency.clone();
-    let year = Utc::now().year();
+    let year = crate::tz::今日(state.タイムゾーン(&current.user)).year();
 
     let mut rows = Vec::new();
     for a in このプロジェクトの資産(state, project_id).await? {
@@ -883,7 +886,7 @@ async fn 定期費用を描く(
 ) -> AppResult<Response> {
     let (project, can_edit, l) = 入場(state, current, project_id).await?;
     let 通貨 = project.currency.clone();
-    let year = Utc::now().year();
+    let year = crate::tz::今日(state.タイムゾーン(&current.user)).year();
 
     let mut rows = Vec::new();
     for r in このプロジェクトの定期費用(state, project_id).await? {

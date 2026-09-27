@@ -29,7 +29,7 @@
 use axum::extract::{Path, State};
 use axum::response::Response;
 use axum::Extension;
-use chrono::{Duration, NaiveDate, Utc};
+use chrono::{Duration, NaiveDate};
 use entity::{
     device, device_assignment, device_mount, milestone, mount_container, project, work_order,
 };
@@ -145,7 +145,8 @@ pub async fn show(
         .map_err(|_| AppError::Forbidden)?;
     let l = Locale::parse(&current.user.locale).as_str();
 
-    let today = Utc::now().date_naive();
+    // 利用者のタイムゾーンの今日（24.2.3、#210）
+    let today = crate::tz::今日(state.タイムゾーン(&current.user));
     let 期限 = today + Duration::days(期限間近);
 
     let 現在の機器 = このプロジェクトの機器(&state, project_id).await?;

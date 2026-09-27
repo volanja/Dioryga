@@ -58,6 +58,9 @@ account:
   theme_system: Follow the system
   theme_light: Light
   theme_dark: Dark
+  timezone: Time zone
+  timezone_hint: 'Used to display date and times and to decide what "today" is for deadlines. Dates such as acquisition and planned dates do not change'
+  timezone_default: Default (%{name})
 
 common:
   logout: Sign out

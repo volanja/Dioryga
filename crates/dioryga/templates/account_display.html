@@ -32,6 +32,16 @@
   </select>
   <p class="hint">{{ t_theme_hint }}</p>
 
+  {# 日時の表示と「今日」の判定に使う（設計書24.2.3、#210）。未設定ならサーバ設定の既定 #}
+  <label for="timezone">{{ t_timezone }}</label>
+  <select id="timezone" name="timezone">
+    <option value="" {% if timezone_value.is_empty() %}selected{% endif %}>{{ t_timezone_default }}</option>
+    {% for tz in timezones %}
+    <option value="{{ tz }}" {% if timezone_value == *tz %}selected{% endif %}>{{ tz }}</option>
+    {% endfor %}
+  </select>
+  <p class="hint">{{ t_timezone_hint }}</p>
+
   <button type="submit">{{ t_submit }}</button>
 </form>
 {% endblock %}

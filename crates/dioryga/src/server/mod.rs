@@ -56,6 +56,13 @@ pub struct AppState {
     pub staged: import::StagedUploads,
 }
 
+impl AppState {
+    /// 利用者の表示タイムゾーン（設計書24.2.3、#210）。**未設定なら設定ファイルの既定。**
+    pub fn タイムゾーン(&self, user: &entity::app_user::Model) -> chrono_tz::Tz {
+        crate::tz::利用者の(user, self.config.既定のタイムゾーン())
+    }
+}
+
 pub fn router(state: AppState) -> Router {
     // 層の順序（外側から）：
     //   トレース → セットアップ誘導 → 認証 → CSRF検証 → System Adminガード

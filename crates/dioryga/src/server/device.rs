@@ -794,13 +794,15 @@ pub async fn detail(
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
     {
+        // **利用者のタイムゾーンの日付で出す**（24.2.3、#210）
+        let tz = state.タイムゾーン(&current.user);
         let 期間 = match a.to_date {
             Some(to) => format!(
                 "{} 〜 {}",
-                a.from_date.format("%Y-%m-%d"),
-                to.format("%Y-%m-%d")
+                crate::tz::日付(a.from_date, tz),
+                crate::tz::日付(to, tz)
             ),
-            None => format!("{} 〜", a.from_date.format("%Y-%m-%d")),
+            None => format!("{} 〜", crate::tz::日付(a.from_date, tz)),
         };
         locations.push(Labeled {
             label: 期間,

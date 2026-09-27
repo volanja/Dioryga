@@ -58,6 +58,9 @@ account:
   theme_system: OSに従う
   theme_light: ライト
   theme_dark: ダーク
+  timezone: タイムゾーン
+  timezone_hint: 日時の表示と、期限などの「今日」の判定に使います。取得日や予定日のような日付は変わりません
+  timezone_default: 既定（%{name}）
 
 common:
   logout: ログアウト

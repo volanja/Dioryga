@@ -112,7 +112,14 @@ pub async fn search(
     let searched = !keyword.trim().is_empty();
 
     let mut hits = if searched {
-        引く(&state.db, project_id, keyword.trim(), 過去も).await?
+        引く(
+            &state.db,
+            project_id,
+            keyword.trim(),
+            過去も,
+            state.タイムゾーン(&current.user),
+        )
+        .await?
     } else {
         Vec::new()
     };
@@ -182,6 +189,7 @@ async fn 引く<C: ConnectionTrait>(
     project_id: i32,
     keyword: &str,
     過去も: bool,
+    tz: chrono_tz::Tz,
 ) -> AppResult<Vec<Hit>> {
     // **`superseded_at` の条件を変えるだけで過去時点を引ける**（9.8）
     let 期間 = if 過去も {
@@ -237,7 +245,7 @@ async fn 引く<C: ConnectionTrait>(
             name: r.name,
             version: r.version,
             purl: r.purl.unwrap_or_default(),
-            observed_at: r.imported_at.format("%Y-%m-%d %H:%M").to_string(),
+            observed_at: crate::tz::日時(r.imported_at, tz),
             past: r.past != 0,
         })
         .collect())

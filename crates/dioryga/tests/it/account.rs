@@ -76,6 +76,61 @@ async fn 語彙外の値は拒否される(db: &DatabaseConnection) {
     assert_eq!((後.locale.as_str(), 後.theme.as_str()), ("ja", "dark"));
 }
 
+/// **タイムゾーンを保存でき、空は「既定」、語彙外は拒否されること**（設計書24.2.3、#210）。
+async fn タイムゾーンを保存できる(db: &DatabaseConnection) {
+    let user = 利用者(db, "acc-tz", "ja", "system").await;
+    let 送る = |tz: &'static str| [("locale", "ja"), ("theme", "system"), ("timezone", tz)];
+
+    let (status, _) = 送信(db, &user, &送る("America/New_York")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        読み直す(db, user.id).await.timezone.as_deref(),
+        Some("America/New_York")
+    );
+
+    // 語彙外は既定へ倒さず拒否し、保存済みの値を変えない（Q-21）
+    let (status, _) = 送信(db, &user, &送る("Asia/Tokio")).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        読み直す(db, user.id).await.timezone.as_deref(),
+        Some("America/New_York")
+    );
+
+    // 空は「サーバーの既定に従う」
+    送信(db, &user, &送る("")).await;
+    assert_eq!(読み直す(db, user.id).await.timezone, None);
+}
+
+/// **同じ日時が、見る人のタイムゾーンで表示されること**（24.2.3、#210）。
+///
+/// 未設定なら設定ファイルの `timezone`（既定は Asia/Tokyo）に従う。
+async fn 日時は利用者のタイムゾーンで表示される(db: &DatabaseConnection) {
+    let admin = app_user::ActiveModel {
+        is_system_admin: Set(true),
+        ..下書き("acc-tz-admin", "ja", "system")
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    // UTCの 2026-03-31 15:00 は、東京では 4月1日 0:00
+    app_user::ActiveModel {
+        last_login_at: Set(Some("2026-03-31T15:00:00Z".parse().unwrap())),
+        ..下書き("acc-tz-seen", "ja", "system")
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    let body = 開く(db, &admin, "/admin/users").await;
+    assert!(body.contains("2026-04-01 00:00"), "{body}");
+
+    let mut active: app_user::ActiveModel = admin.clone().into();
+    active.timezone = Set(Some("UTC".to_owned()));
+    let admin = active.update(db).await.unwrap();
+    let body = 開く(db, &admin, "/admin/users").await;
+    assert!(body.contains("2026-03-31 15:00"), "{body}");
+}
+
 /// 強制変更の画面にも表示モードが効くこと（メニューは出さない、#122）。
 async fn 強制変更の画面にも表示モードが効く(db: &DatabaseConnection) {
     let user = app_user::ActiveModel {
@@ -222,6 +277,8 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 表示モードは属性で切り替える);
         全検証!(@one $用意, $属性, 語彙外の値は拒否される);
         全検証!(@one $用意, $属性, 強制変更の画面にも表示モードが効く);
+        全検証!(@one $用意, $属性, タイムゾーンを保存できる);
+        全検証!(@one $用意, $属性, 日時は利用者のタイムゾーンで表示される);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

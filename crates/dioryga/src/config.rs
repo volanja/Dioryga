@@ -20,8 +20,9 @@ pub struct Config {
 
     /// 表示に用いるタイムゾーン（IANA形式）。
     ///
-    /// 日時はすべてUTCで保存し、表示時にのみこの値へ変換する（設計書24.2.3）。
-    /// v1ではユーザーごとに持たず、サーバ全体で単一の値とする。
+    /// 日時はすべてUTCで保存し、表示時にのみ変換する（設計書24.2.3）。
+    /// **利用者が個人設定で選んでいなければ、この値を既定として使う**（#210）。
+    /// CLI もこの値を使う。起動時に IANA 名であることを確かめる。
     pub timezone: String,
 
     /// `RUST_LOG` 形式のログフィルタ。
@@ -122,6 +123,11 @@ impl Default for Config {
 }
 
 impl Config {
+    /// 既定の表示タイムゾーン。**読み込み時に検証済み**（読めなければ起動しない）。
+    pub fn 既定のタイムゾーン(&self) -> chrono_tz::Tz {
+        crate::tz::読む(&self.timezone).unwrap_or(chrono_tz::UTC)
+    }
+
     /// 既定値 → 設定ファイル → 環境変数 の順に重ねて読み込む。
     ///
     /// 環境変数は `DIORYGA_BIND` のようにプレフィックス付きで、
@@ -150,10 +156,18 @@ impl Config {
             None => Toml::file(DEFAULT_CONFIG_PATH),
         };
 
-        let config = Figment::from(Serialized::defaults(Config::default()))
+        let config: Config = Figment::from(Serialized::defaults(Config::default()))
             .merge(file)
             .merge(Env::prefixed("DIORYGA_").split("__"))
             .extract()?;
+        // **読めないタイムゾーンで起動しない**（#210）。既定へ寄せると、表示の
+        // 日付が黙ってずれる
+        if crate::tz::読む(&config.timezone).is_none() {
+            anyhow::bail!(
+                "timezone「{}」は IANA のタイムゾーン名ではありません（例：Asia/Tokyo）",
+                config.timezone
+            );
+        }
         Ok(config)
     }
 }
@@ -231,6 +245,17 @@ mod tests {
 
     /// **明示したパスは、親ディレクトリを探さない。**探すと、打ち間違えたパスが
     /// 別の場所の同名ファイルに当たって黙って読まれる。
+    /// **読めないタイムゾーンでは起動しない**（#210）。
+    #[test]
+    fn 読めないタイムゾーンは誤りにする() {
+        figment::Jail::expect_with(|jail| {
+            jail.set_env("DIORYGA_TIMEZONE", "Asia/Tokio");
+            let e = Config::load(None).unwrap_err();
+            assert!(e.to_string().contains("Asia/Tokio"), "{e}");
+            Ok(())
+        });
+    }
+
     #[test]
     fn 明示したパスは親ディレクトリを探さない() {
         figment::Jail::expect_with(|jail| {

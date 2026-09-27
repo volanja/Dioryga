@@ -65,6 +65,7 @@
 | is_system_admin | boolean | プロジェクトロールとは別軸 |
 | locale | string | `en`/`ja` |
 | theme | string | `system`（OSに従う）/`light`/`dark`。既定は `system` |
+| timezone | string | nullable、IANAのタイムゾーン名。null=設定ファイルの `timezone` に従う。表示と「今日」の判定だけに使い、保存はUTCのまま |
 | last_login_at | datetime | nullable |
 | disabled_at | datetime | nullable、null=有効。**物理削除しない** |
 

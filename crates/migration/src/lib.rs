@@ -36,6 +36,7 @@ mod m20260923_000002_add_workflow_uid;
 mod m20260927_000001_container_retire_unique;
 mod m20260927_000002_create_container_model;
 mod m20260927_000003_create_power_circuit;
+mod m20260928_000001_add_user_timezone;
 
 pub struct Migrator;
 
@@ -70,6 +71,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260927_000001_container_retire_unique::Migration),
             Box::new(m20260927_000002_create_container_model::Migration),
             Box::new(m20260927_000003_create_power_circuit::Migration),
+            Box::new(m20260928_000001_add_user_timezone::Migration),
         ]
     }
 }

@@ -701,7 +701,7 @@ async fn 図を描く(
         t_site: rust_i18n::t!("containers.installation_site", locale = l).to_string(),
         t_site_hint: rust_i18n::t!("containers.installation_site_hint", locale = l).to_string(),
         t_save: rust_i18n::t!("common.save", locale = l).to_string(),
-        circuits: 回路の行(&state.db, container_id).await?,
+        circuits: 回路の行(&state.db, container_id, state.タイムゾーン(&current.user)).await?,
         phases: PHASES.to_vec(),
         power: {
             let 電力 = crate::server::power::什器の電力(&state.db, container_id).await?;
@@ -1460,7 +1460,11 @@ struct CircuitRow {
     since: String,
 }
 
-async fn 回路の行<C: ConnectionTrait>(db: &C, container_id: i32) -> AppResult<Vec<CircuitRow>> {
+async fn 回路の行<C: ConnectionTrait>(
+    db: &C,
+    container_id: i32,
+    tz: chrono_tz::Tz,
+) -> AppResult<Vec<CircuitRow>> {
     Ok(現在の回路(db, container_id)
         .await?
         .into_iter()
@@ -1481,7 +1485,7 @@ async fn 回路の行<C: ConnectionTrait>(db: &C, container_id: i32) -> AppResul
                 breaker: format!("{a:.1}A"),
                 continuous,
                 connector_type: c.connector_type.unwrap_or_default(),
-                since: c.from_date.date_naive().to_string(),
+                since: crate::tz::日付(c.from_date, tz).to_string(),
                 circuit_label: c.circuit_label,
                 voltage: c.voltage,
                 phase: c.phase,

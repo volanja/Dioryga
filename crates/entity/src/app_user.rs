@@ -24,6 +24,9 @@ pub struct Model {
     pub locale: String,
     /// 表示モード。`system`（OSに従う）／`light`／`dark`（#120）。
     pub theme: String,
+    /// 表示タイムゾーン（IANA形式、#210）。**`None` はサーバ設定の `timezone` を使う**
+    /// （設計書24.2.3）。
+    pub timezone: Option<String>,
     pub last_login_at: Option<DateTimeUtc>,
     /// null = 有効。物理削除はしない（設計書20.11）。
     pub disabled_at: Option<DateTimeUtc>,

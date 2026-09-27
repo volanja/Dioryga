@@ -23,6 +23,7 @@
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
 | theme | varchar | 'system'::character varying | false |  |  | 表示モード。`system`（OSに従う）／`light`／`dark`。既定は `system`（#120） |
+| timezone | varchar |  | true |  |  | 表示のタイムゾーン（IANA名）。null = 設定ファイルの `timezone` に従う。保存はUTCのまま（24.2.3、#210） |
 
 ## Constraints
 

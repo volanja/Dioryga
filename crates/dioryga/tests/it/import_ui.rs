@@ -142,10 +142,14 @@ async fn 基準日は斜線区切りでも通る(db: &DatabaseConnection) {
     .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
 
+    // **利用者のタイムゾーンのその日の0時**（24.2.3、#210）。既定は Asia/Tokyo なので、
+    // UTC では前日の15時になる
     let run = import_run::Entity::find().one(db).await.unwrap().unwrap();
     assert_eq!(
-        run.as_of.date_naive(),
-        chrono::NaiveDate::from_ymd_opt(2026, 4, 1).unwrap()
+        run.as_of,
+        chrono::DateTime::parse_from_rfc3339("2026-03-31T15:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc)
     );
 }
 

@@ -88,8 +88,15 @@ struct DisplayPage {
     t_theme_dark: String,
     t_submit: String,
     t_saved: String,
+    t_timezone: String,
+    t_timezone_hint: String,
+    /// 「既定（Asia/Tokyo）」。未設定のときに使うサーバ設定の値を示す。
+    t_timezone_default: String,
     locale_value: String,
     theme_value: &'static str,
+    /// 空なら既定（未設定）。
+    timezone_value: String,
+    timezones: Vec<&'static str>,
     saved: bool,
 }
 
@@ -97,9 +104,12 @@ struct DisplayPage {
 pub struct DisplayForm {
     pub locale: String,
     pub theme: String,
+    /// IANA 名。**空なら未設定**（サーバ設定の既定を使う、#210）。
+    #[serde(default)]
+    pub timezone: String,
 }
 
-fn 表示を描く(current: &CurrentUser, saved: bool) -> AppResult<Response> {
+fn 表示を描く(state: &AppState, current: &CurrentUser, saved: bool) -> AppResult<Response> {
     let l = locale_of(&current.user).as_str();
     render(&DisplayPage {
         chrome: Chrome::account(&current.user, current.csrf_token.clone(), "display"),
@@ -114,6 +124,16 @@ fn 表示を描く(current: &CurrentUser, saved: bool) -> AppResult<Response> {
         t_theme_dark: rust_i18n::t!("account.theme_dark", locale = l).to_string(),
         t_submit: rust_i18n::t!("common.save", locale = l).to_string(),
         t_saved: rust_i18n::t!("account.saved", locale = l).to_string(),
+        t_timezone: rust_i18n::t!("account.timezone", locale = l).to_string(),
+        t_timezone_hint: rust_i18n::t!("account.timezone_hint", locale = l).to_string(),
+        t_timezone_default: rust_i18n::t!(
+            "account.timezone_default",
+            name = state.config.既定のタイムゾーン().name(),
+            locale = l
+        )
+        .to_string(),
+        timezone_value: current.user.timezone.clone().unwrap_or_default(),
+        timezones: crate::tz::一覧(),
         // 保存済みの値を選択状態にする。読めない値は既定へ寄せる
         locale_value: locale_of(&current.user).as_str().to_owned(),
         theme_value: Theme::parse(&current.user.theme).as_str(),
@@ -121,8 +141,11 @@ fn 表示を描く(current: &CurrentUser, saved: bool) -> AppResult<Response> {
     })
 }
 
-pub async fn display(Extension(current): Extension<CurrentUser>) -> AppResult<Response> {
-    表示を描く(&current, false)
+pub async fn display(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+) -> AppResult<Response> {
+    表示を描く(&state, &current, false)
 }
 
 /// 言語と表示モードを保存する。
@@ -137,6 +160,14 @@ pub async fn update_display(
     if !LOCALES.contains(&form.locale.as_str()) || !THEMES.contains(&form.theme.as_str()) {
         return Err(AppError::Validation("language or theme".to_owned()));
     }
+    // **IANA 名か空（未設定）だけを受ける**（#210、Q-21）
+    let timezone = match form.timezone.trim() {
+        "" => None,
+        name => match crate::tz::読む(name) {
+            Some(tz) => Some(tz.name().to_owned()),
+            None => return Err(AppError::Validation("timezone".to_owned())),
+        },
+    };
 
     let user = current.user.clone();
     let tx = AuditedTx::begin(&state.db, Actor::User(user.id))
@@ -145,6 +176,7 @@ pub async fn update_display(
     let mut active: app_user::ActiveModel = user.clone().into();
     active.locale = Set(form.locale.clone());
     active.theme = Set(form.theme.clone());
+    active.timezone = Set(timezone.clone());
     active.updated_at = Set(Utc::now());
     tx.update(&user, active)
         .await
@@ -158,7 +190,8 @@ pub async fn update_display(
     let mut 更新後 = current;
     更新後.user.locale = form.locale;
     更新後.user.theme = form.theme;
-    表示を描く(&更新後, true)
+    更新後.user.timezone = timezone;
+    表示を描く(&state, &更新後, true)
 }
 
 /// 選べる値（設計書16.5、16.4）。

@@ -143,7 +143,7 @@ async fn 描く(
             component_count: 件数(&state.db, &i.content_hash).await?,
             changes: 差分の件数(&state.db, i.id).await?,
             current: i.superseded_at.is_none(),
-            imported_at: i.imported_at.format("%Y-%m-%d %H:%M").to_string(),
+            imported_at: crate::tz::日時(i.imported_at, state.タイムゾーン(&current.user)),
             source_format: i.source_format.clone(),
         });
     }

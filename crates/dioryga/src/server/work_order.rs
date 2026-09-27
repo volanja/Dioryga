@@ -476,7 +476,8 @@ pub async fn list(
 
     let 承認 = 承認をまとめて引く(&state.db, &tickets).await?;
     let 氏名 = 利用者名(&state.db, &tickets).await?;
-    let 今日 = Utc::now().date_naive();
+    // **利用者のタイムゾーンの今日**（24.2.3、#210）
+    let 今日 = crate::tz::今日(state.タイムゾーン(&current.user));
 
     let rows = tickets
         .into_iter()
@@ -606,7 +607,7 @@ async fn 詳細を描く(
             },
             approved_at: a
                 .approved_at
-                .map(|t| t.format("%Y-%m-%d %H:%M").to_string())
+                .map(|t| crate::tz::日時(t, state.タイムゾーン(&current.user)))
                 .unwrap_or_default(),
             self_approved: a.self_approved,
             actionable: 承認できる,
@@ -614,7 +615,7 @@ async fn 詳細を描く(
     }
 
     let 未完了 = w.status != COMPLETED && w.status != CANCELLED;
-    let basic = 基本情報(state, &w, l).await?;
+    let basic = 基本情報(state, &w, l, state.タイムゾーン(&current.user)).await?;
 
     render(&WorkOrderDetailPage {
         chrome: Chrome::project(
@@ -744,7 +745,12 @@ async fn 什器の候補<C: ConnectionTrait>(db: &C, project_id: i32) -> AppResu
         .collect())
 }
 
-async fn 基本情報(state: &AppState, w: &work_order::Model, l: &str) -> AppResult<Vec<Labeled>> {
+async fn 基本情報(
+    state: &AppState,
+    w: &work_order::Model,
+    l: &str,
+    tz: chrono_tz::Tz,
+) -> AppResult<Vec<Labeled>> {
     let mut basic = vec![
         Labeled {
             label: rust_i18n::t!("work_orders.work_type", locale = l).to_string(),
@@ -817,7 +823,7 @@ async fn 基本情報(state: &AppState, w: &work_order::Model, l: &str) -> AppRe
         if let Some(at) = at {
             basic.push(Labeled {
                 label: rust_i18n::t!(key, locale = l).to_string(),
-                value: at.format("%Y-%m-%d %H:%M").to_string(),
+                value: crate::tz::日時(at, tz),
             });
         }
     }

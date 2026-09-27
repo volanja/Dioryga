@@ -481,6 +481,7 @@ mod tests {
             is_system_admin: false,
             locale: "ja".to_owned(),
             theme: "system".to_owned(),
+            timezone: None,
             last_login_at: None,
             disabled_at: None,
             created_at: Utc::now(),

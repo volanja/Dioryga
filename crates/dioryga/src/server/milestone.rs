@@ -280,7 +280,8 @@ pub async fn complete(
         None
     } else {
         match form.actual_date.trim() {
-            "" => Some(Utc::now().date_naive()),
+            // 利用者のタイムゾーンの今日（24.2.3、#210）
+            "" => Some(crate::tz::今日(state.タイムゾーン(&current.user))),
             v => match 日付(v) {
                 Some(d) => Some(d),
                 None => {

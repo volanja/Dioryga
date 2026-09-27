@@ -13,7 +13,7 @@
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
 | id | integer |  | false |  |  |  |
 | device_id | integer |  | false |  | [public.device](public.device.md) |  |
-| container_id | integer |  | true |  | [public.mount_container](public.mount_container.md) | 什器に直接搭載する場合。`host_device_id` とは排他 |
+| container_id | integer |  | true |  | [public.mount_container](public.mount_container.md) | 設備・什器に直接搭載する場合。`host_device_id` とは排他 |
 | position | integer |  | true |  |  | Rack なら開始U番号、Shelving なら段番号 |
 | horizontal_position | varchar |  | true |  |  |  |
 | depth_position | varchar |  | true |  |  |  |

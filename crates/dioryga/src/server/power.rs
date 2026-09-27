@@ -100,9 +100,11 @@ pub async fn show(
         .map_err(|_| AppError::Forbidden)?;
     let l = Locale::parse(&current.user.locale).as_str();
 
+    // 撤去した設備には機器が載っていない（撤去の条件、12.10）。並べても0が続くだけ
     let containers = mount_container::Entity::find()
         .filter(mount_container::Column::LocationType.eq(PROJECT))
         .filter(mount_container::Column::LocationId.eq(project_id))
+        .filter(mount_container::Column::RetiredAt.is_null())
         .order_by_asc(mount_container::Column::Name)
         .all(&state.db)
         .await

@@ -36,7 +36,8 @@
 //!
 //! 什器は履歴を持たない。**プロジェクトの中の名前で突き合わせ、違っていれば
 //! その行を更新する**（サブネットと同じ扱い）。ファイルに書かれていない什器
-//! には触らない。
+//! には触らない。名前は大文字小文字を区別せず、撤去した設備は突合の対象に
+//! しない（設計書12.10、#204）。撤去した設備と同じ名前の行は新しい設備になる。
 //!
 //! # 重複配置は警告に留める（12.3、不変条件6）
 //!
@@ -146,15 +147,16 @@ pub async fn 什器を取り込む(
 
     for row in rows {
         let name = row.name.trim().to_owned();
-        let target = format!("MOUNT_CONTAINER {name}");
+        let target = format!("設備・什器 {name}");
 
         if name.is_empty() {
             report.push(Entry::new(Outcome::Error, target, "name が空です"));
             continue;
         }
         // **同じファイルに同じ名前を2回書かない。**後の行が前の行を黙って
-        // 上書きし、どちらが正か分からなくなる
-        if 書いた名前.contains(&name) {
+        // 上書きし、どちらが正か分からなくなる。大文字小文字だけの違いも同じ名前
+        let 鍵 = crate::container::名前の鍵(&name);
+        if 書いた名前.contains(&鍵) {
             report.push(Entry::new(
                 Outcome::Error,
                 target,
@@ -162,7 +164,7 @@ pub async fn 什器を取り込む(
             ));
             continue;
         }
-        書いた名前.push(name.clone());
+        書いた名前.push(鍵);
 
         // **語彙外は既定へ寄せず拒否する**（Q-21）。空も既定を持たない
         let container_type = match 語彙(&row.container_type, CONTAINER_TYPES, "") {
@@ -201,15 +203,13 @@ pub async fn 什器を取り込む(
             },
         };
 
-        let 既存 = mount_container::Entity::find()
-            .filter(mount_container::Column::LocationType.eq(PROJECT))
-            .filter(mount_container::Column::LocationId.eq(project_id))
-            .filter(mount_container::Column::Name.eq(&name))
-            .all(tx.reader())
-            .await?;
+        // **撤去していない設備の中で、大文字小文字を区別せずに突き合わせる**（12.10）。
+        // 名前はDBの一意インデックスで一意になっている
+        let 既存 =
+            crate::container::同じ名前の設備(tx.reader(), PROJECT, project_id, &name, None).await?;
 
-        match 既存.as_slice() {
-            [] => {
+        match 既存 {
+            None => {
                 tx.insert(mount_container::ActiveModel {
                     name: Set(name),
                     container_type: Set(container_type),
@@ -224,7 +224,7 @@ pub async fn 什器を取り込む(
                 .await?;
                 report.push(Entry::new(Outcome::Created, target, ""));
             }
-            [c] => {
+            Some(c) => {
                 if c.container_type == container_type && c.capacity == capacity {
                     report.push(Entry::new(Outcome::Unchanged, target, ""));
                     continue;
@@ -233,16 +233,9 @@ pub async fn 什器を取り込む(
                 active.container_type = Set(container_type);
                 active.capacity = Set(capacity);
                 active.updated_at = Set(now);
-                tx.update(c, active).await?;
+                tx.update(&c, active).await?;
                 report.push(Entry::new(Outcome::Updated, target, ""));
             }
-            // 画面は名前の重複を止めていないため、既に2つありうる。**どちらを
-            // 指すか決められないので書かない**
-            _ => report.push(Entry::new(
-                Outcome::Error,
-                target,
-                "このプロジェクトに同じ名前の什器が複数あります。画面で名前を分けてから取り込んでください",
-            )),
         }
     }
 
@@ -775,58 +768,62 @@ async fn 搭載を計画する<C: ConnectionTrait>(
         };
 
         // 什器に載るか、他の機器の上に載るか（12.3）
-        let (container_id, host_device_id) =
-            match (空ならnone(&row.container), 空ならnone(&row.host_hostname)) {
-                (Some(_), Some(_)) => {
+        let (container_id, host_device_id) = match (
+            空ならnone(&row.container),
+            空ならnone(&row.host_hostname),
+        ) {
+            (Some(_), Some(_)) => {
+                report.push(Entry::new(
+                    Outcome::Error,
+                    表示,
+                    "container と host_hostname は同時に指定できません",
+                ));
+                continue;
+            }
+            (Some(name), None) => match 什器.get(&crate::container::名前の鍵(name)) {
+                Some(id) => (Some(*id), None),
+                None => {
                     report.push(Entry::new(
-                        Outcome::Error,
-                        表示,
-                        "container と host_hostname は同時に指定できません",
-                    ));
+                            Outcome::Error,
+                            表示,
+                            format!(
+                                "設備・什器「{name}」がこのプロジェクトにありません（撤去済みのものは指せません）"
+                            ),
+                        ));
                     continue;
                 }
-                (Some(name), None) => match 什器.get(name) {
-                    Some(id) => (Some(*id), None),
-                    None => {
+            },
+            (None, Some(host)) => {
+                let key = 機器キー {
+                    hostname: host.to_owned(),
+                    ..Default::default()
+                };
+                match 索引.引く(&key) {
+                    Ok(h) if h.id == d.id => {
+                        // **自分の上には載れない。**辿ると止まらなくなる
                         report.push(Entry::new(
                             Outcome::Error,
                             表示,
-                            format!("什器「{name}」がこのプロジェクトにありません"),
+                            "host_hostname が自分自身を指しています",
                         ));
                         continue;
                     }
-                },
-                (None, Some(host)) => {
-                    let key = 機器キー {
-                        hostname: host.to_owned(),
-                        ..Default::default()
-                    };
-                    match 索引.引く(&key) {
-                        Ok(h) if h.id == d.id => {
-                            // **自分の上には載れない。**辿ると止まらなくなる
-                            report.push(Entry::new(
-                                Outcome::Error,
-                                表示,
-                                "host_hostname が自分自身を指しています",
-                            ));
-                            continue;
-                        }
-                        Ok(h) => (None, Some(h.id)),
-                        Err(理由) => {
-                            report.push(Entry::new(Outcome::Error, 表示, 理由));
-                            continue;
-                        }
+                    Ok(h) => (None, Some(h.id)),
+                    Err(理由) => {
+                        report.push(Entry::new(Outcome::Error, 表示, 理由));
+                        continue;
                     }
                 }
-                (None, None) => {
-                    report.push(Entry::new(
-                        Outcome::Error,
-                        表示,
-                        "container か host_hostname のどちらかが要ります",
-                    ));
-                    continue;
-                }
-            };
+            }
+            (None, None) => {
+                report.push(Entry::new(
+                    Outcome::Error,
+                    表示,
+                    "container か host_hostname のどちらかが要ります",
+                ));
+                continue;
+            }
+        };
 
         let position = match 空ならnone(&row.position) {
             None => None,
@@ -970,6 +967,8 @@ async fn 現在の搭載<C: ConnectionTrait>(
 
 /// このプロジェクトの什器（12.1）。**倉庫の什器は含めない**——搭載のCSVは
 /// プロジェクトに閉じており、倉庫内の配置は倉庫領域の担当である（16.1のC領域）。
+///
+/// **撤去した設備は含めない**（12.10、#204）。鍵は大文字小文字を区別しない名前。
 async fn 什器の索引<C: ConnectionTrait>(
     db: &C,
     project_id: i32,
@@ -977,10 +976,11 @@ async fn 什器の索引<C: ConnectionTrait>(
     Ok(mount_container::Entity::find()
         .filter(mount_container::Column::LocationType.eq(PROJECT))
         .filter(mount_container::Column::LocationId.eq(project_id))
+        .filter(mount_container::Column::RetiredAt.is_null())
         .all(db)
         .await?
         .into_iter()
-        .map(|c| (c.name, c.id))
+        .map(|c| (crate::container::名前の鍵(&c.name), c.id))
         .collect())
 }
 

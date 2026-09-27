@@ -4080,7 +4080,7 @@
     {
       "name": "public.mount_container",
       "type": "BASE TABLE",
-      "comment": "機器を載せる什器（12章）。",
+      "comment": "機器を載せる設備・什器（ラック・机・棚、12章）。名前は置き場所の中で一意で、大文字小文字を区別しない（撤去していないものに限る、#204）",
       "columns": [
         {
           "name": "id",
@@ -4128,6 +4128,12 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "retired_at",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "comment": "null = 現役。搭載の履歴や費用の記録が指し続けるため、使ったことのある設備は消さず撤去済みにする（#204）"
         }
       ],
       "indexes": [
@@ -4146,6 +4152,16 @@
           "columns": [
             "location_type",
             "location_id"
+          ]
+        },
+        {
+          "name": "idx_mount_container_name_active",
+          "def": "CREATE UNIQUE INDEX idx_mount_container_name_active ON public.mount_container USING btree (location_type, location_id, lower((name)::text)) WHERE (retired_at IS NULL)",
+          "table": "public.mount_container",
+          "columns": [
+            "location_type",
+            "location_id",
+            "lower"
           ]
         }
       ],
@@ -4274,7 +4290,7 @@
           "name": "container_id",
           "type": "integer",
           "nullable": true,
-          "comment": "什器に直接搭載する場合。`host_device_id` とは排他"
+          "comment": "設備・什器に直接搭載する場合。`host_device_id` とは排他"
         },
         {
           "name": "position",

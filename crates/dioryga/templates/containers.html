@@ -14,6 +14,15 @@
 <p class="error">{{ message }}</p>
 {% endif %}
 
+{# 既定では撤去済みを隠す（#204。倉庫の廃止と同じ） #}
+<form class="filters" method="get" action="/projects/{{ project_id }}/containers">
+  <label class="check">
+    <input type="checkbox" name="retired" value="1" {% if show_retired %}checked{% endif %}>
+    {{ t_show_retired }}
+  </label>
+  <button type="submit">{{ t_apply }}</button>
+</form>
+
 {% if rows.is_empty() %}
 <p class="empty">{{ t_empty }}</p>
 {% else %}
@@ -30,13 +39,27 @@
   </thead>
   <tbody>
     {% for row in rows %}
-    <tr>
-      <td>{{ row.name }}</td>
+    <tr class="{% if row.retired %}is-disabled{% endif %}">
+      <td>
+        {{ row.name }}
+        {% if row.retired %}<span class="badge">{{ t_retired }}</span>{% endif %}
+      </td>
       <td>{{ row.container_type }}</td>
       <td>{{ row.capacity }}</td>
       <td>{{ row.mounted }}</td>
       <td class="actions">
         <a href="/projects/{{ project_id }}/containers/{{ row.id }}">{{ t_open }}</a>
+        {% if can_edit %}
+        {% if row.retired %}
+        <form method="post" action="/projects/{{ project_id }}/containers/{{ row.id }}/unretire" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <button type="submit" class="ghost">{{ t_unretire }}</button>
+        </form>
+        {% else %}
+        {# 撤去は確認画面を挟む。一度も使っていない設備は行ごと消える #}
+        <a href="/projects/{{ project_id }}/containers/{{ row.id }}/retire">{{ t_retire }}</a>
+        {% endif %}
+        {% endif %}
       </td>
     </tr>
     {% endfor %}
@@ -52,17 +75,17 @@
     <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
 
     <label for="name">{{ t_name }}</label>
-    <input type="text" id="name" name="name" required>
+    <input type="text" id="name" name="name" value="{{ form.name }}" required>
 
     <label for="container_type">{{ t_container_type }}</label>
     <select id="container_type" name="container_type">
       {% for t in container_types %}
-      <option value="{{ t }}">{{ t }}</option>
+      <option value="{{ t }}" {% if form.container_type == **t %}selected{% endif %}>{{ t }}</option>
       {% endfor %}
     </select>
 
     <label for="capacity">{{ t_capacity }}</label>
-    <input type="text" id="capacity" name="capacity" inputmode="numeric">
+    <input type="text" id="capacity" name="capacity" value="{{ form.capacity }}" inputmode="numeric">
     <p class="hint">{{ t_capacity_hint }}</p>
 
     <button type="submit">{{ t_submit }}</button>

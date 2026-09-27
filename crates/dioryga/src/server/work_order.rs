@@ -727,9 +727,11 @@ async fn 予約一覧<C: ConnectionTrait>(
 }
 
 async fn 什器の候補<C: ConnectionTrait>(db: &C, project_id: i32) -> AppResult<Vec<Labeled>> {
+    // **撤去した設備は予約先の候補に出さない**（12.10、#204）
     Ok(mount_container::Entity::find()
         .filter(mount_container::Column::LocationType.eq("Project"))
         .filter(mount_container::Column::LocationId.eq(project_id))
+        .filter(mount_container::Column::RetiredAt.is_null())
         .order_by_asc(mount_container::Column::Name)
         .all(db)
         .await

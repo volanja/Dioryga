@@ -12,6 +12,7 @@ pub mod auth;
 pub mod cli;
 pub mod config;
 pub mod console;
+pub mod container;
 pub mod cost;
 pub mod currency;
 pub mod date;

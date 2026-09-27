@@ -16,6 +16,9 @@
 {% if let Some(message) = error %}
 <p class="error">{{ message }}</p>
 {% endif %}
+{% if retired %}
+<p class="warn">{{ t_retired_note }}</p>
+{% endif %}
 {# 警告はリダイレクトで消さない。見落とすと誤配置が残る（設計書12.3） #}
 {% if let Some(message) = notice %}
 <p class="warn">{{ message }}</p>
@@ -129,7 +132,7 @@
 </div>
 {% endif %}
 
-{% if can_edit && !devices.is_empty() %}
+{% if can_edit && !retired && !devices.is_empty() %}
 <h2 class="section">{{ t_mount }}</h2>
 <div class="card">
   <form method="post" action="/projects/{{ project_id }}/containers/{{ container_id }}/mounts" class="form">

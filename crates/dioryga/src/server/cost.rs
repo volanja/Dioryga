@@ -1111,9 +1111,12 @@ async fn このプロジェクトの什器(
     state: &AppState,
     project_id: i32,
 ) -> AppResult<Vec<Labeled>> {
+    // **撤去した設備は候補に出さない**（12.10、#204）。既存の費用の表示は
+    // このプロジェクトの什器id（撤去済みを含む）で引く
     Ok(mount_container::Entity::find()
         .filter(mount_container::Column::LocationType.eq(PROJECT))
         .filter(mount_container::Column::LocationId.eq(project_id))
+        .filter(mount_container::Column::RetiredAt.is_null())
         .order_by_asc(mount_container::Column::Name)
         .all(&state.db)
         .await

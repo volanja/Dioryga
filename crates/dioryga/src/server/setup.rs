@@ -108,11 +108,18 @@ pub async fn submit(
     match 結果 {
         Ok(_) => Ok(Redirect::to("/login").into_response()),
         Err(setup::SetupError::AlreadyCompleted) => Err(AppError::NotFound),
-        Err(e @ setup::SetupError::InvalidToken) => {
-            render(&SetupPage::new(locale, Some(e.to_string())))
+        Err(setup::SetupError::InvalidToken) => render(&SetupPage::new(
+            locale,
+            Some(
+                rust_i18n::t!("errors.setup_invalid_token", locale = locale.as_str()).into_owned(),
+            ),
+        )),
+        Err(setup::SetupError::Password(e)) => {
+            render(&SetupPage::new(locale, Some(e.文言(locale.as_str()))))
         }
-        Err(setup::SetupError::Password(e)) => render(&SetupPage::new(locale, Some(e.to_string()))),
-        Err(setup::SetupError::Username(e)) => render(&SetupPage::new(locale, Some(e.to_string()))),
+        Err(setup::SetupError::Username(e)) => {
+            render(&SetupPage::new(locale, Some(e.文言(locale.as_str()))))
+        }
         Err(other) => Err(AppError::Internal(anyhow::anyhow!(other))),
     }
 }

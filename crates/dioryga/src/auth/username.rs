@@ -23,19 +23,29 @@ pub const MIN_LEN: usize = 2;
 /// ユーザー名の最長の長さ。
 pub const MAX_LEN: usize = 32;
 
+/// **文言は言語ごとに訳す**（#191）。画面は利用者の言語で [`Self::文言`] を呼び、
+/// コンソール（`Display`）は [`crate::console::言語`] で出す。
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{}", self.文言(crate::console::言語()))]
 pub enum UsernameError {
-    #[error("ユーザー名を入力してください")]
     Empty,
-
-    #[error("ユーザー名は{min}〜{max}文字で入力してください")]
     Length { min: usize, max: usize },
-
-    #[error("ユーザー名に使えるのは英小文字・数字と . _ - です")]
     InvalidChar,
-
-    #[error("ユーザー名の先頭は英字か数字にしてください")]
     InvalidStart,
+}
+
+impl UsernameError {
+    pub fn 文言(&self, l: &str) -> String {
+        match self {
+            Self::Empty => rust_i18n::t!("errors.username_empty", locale = l),
+            Self::Length { min, max } => {
+                rust_i18n::t!("errors.username_length", locale = l, min = min, max = max)
+            }
+            Self::InvalidChar => rust_i18n::t!("errors.username_char", locale = l),
+            Self::InvalidStart => rust_i18n::t!("errors.username_start", locale = l),
+        }
+        .into_owned()
+    }
 }
 
 /// 保存・比較の形にそろえる（前後の空白を除き、小文字にする）。

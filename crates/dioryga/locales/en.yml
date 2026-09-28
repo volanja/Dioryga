@@ -300,6 +300,14 @@ import:
   too_large: The file is too large (8 MB limit). Use the dioryga import command instead
   bad_as_of: The effective date cannot be read. Enter it like 2026-09-23
   expired: The staged upload has expired or was already applied. Please upload again
+  outcome_unchanged: Unchanged
+  outcome_created: New
+  outcome_updated: Updated
+  outcome_warning: Warning
+  outcome_error: Error
+  summary_counts: "New %{created} / Updated %{updated} / Unchanged %{unchanged} / Warnings %{warning} / Errors %{error}"
+  history_summary: "New %{created} / Updated %{updated} / Warnings %{warning}"
+  unsupported_file: "\"%{name}\" cannot be imported (.csv or .yaml)"
 
 password_change:
   title: Change password
@@ -1027,3 +1035,86 @@ container_models:
   error_number: Enter numbers greater than 0
   error_capacity_required: Enter the capacity (units for racks, shelves for shelving)
   error_capacity_unused: This type cannot have that capacity
+
+errors:
+  username_empty: Enter a username
+  username_length: Usernames must be %{min} to %{max} characters
+  username_char: 'Usernames may contain only lowercase letters, digits, and . _ -'
+  username_start: Usernames must start with a letter or digit
+  password_too_short: Passwords must be at least %{min} characters
+  password_too_long: Passwords must be at most %{max} characters
+  password_common: This password is too common
+  password_identity: Passwords must not contain the username or display name
+  password_internal: "Failed to process the password: %{detail}"
+  setup_completed: Setup has already been completed
+  setup_invalid_token: The setup token is incorrect
+  import_io: "Cannot read the file: %{detail}"
+  import_yaml: "The YAML is malformed: %{detail}"
+  import_csv: "The CSV is malformed: %{detail}"
+  import_version: format_version is %{found}. Only %{expected} is supported
+  import_kind: kind is %{found}. This command handles %{expected}
+  import_has_errors: "%{count} entries cannot be imported"
+  run_unknown_user: "User not found: %{username}"
+  run_not_permitted: This user cannot import (Operator or higher in at least one project is required)
+  run_not_project_editor: This user cannot import into this project (Operator or higher is required)
+  run_not_system_admin: Only System Admins can import organization data
+  run_unsupported_entity: Importing the entity "%{entity}" is not implemented yet
+
+console:
+  setup_needed: Dioryga needs initial setup.
+  setup_open: Open %{url} in a browser and enter the token below.
+  setup_once: This token is shown only here.
+  admin_name_prompt: "Display name: "
+  admin_password_prompt: "Password: "
+  admin_password_confirm: "Password (again): "
+  admin_password_mismatch: The passwords do not match
+  admin_created: Created a System Admin (id=%{id}, username=%{username})
+  admin_duplicate_username: "A user with this username already exists: %{username}"
+  admin_duplicate_email: "This email address is already in use: %{email}"
+  admin_name_empty: The display name is empty
+  admin_stdin_empty: Could not read a password from standard input (it was empty)
+  reset_not_found: "No such user: %{username}"
+  reset_issued: Issued a temporary password for %{username}.
+  reset_once: This value is shown only here. Give it to the user through another channel, such as in person.
+  reset_must_change: The user will be asked to change the password at the next login.
+  reset_revoked: Revoked %{count} existing session(s).
+  not_implemented: "`%{what}` is not implemented yet"
+  import_applied: "Applied (IMPORT_RUN #%{id})"
+  import_not_applied: Not applied
+  import_dry_run: This was a dry run. Add --apply to apply the changes
+  config_not_found: "Configuration file not found: %{path} (the path given with -c)"
+  config_timezone: timezone "%{value}" is not an IANA time zone name (for example, Asia/Tokyo)
+
+cli:
+  about: An infrastructure ledger for system build and operations projects
+  config: Path to the configuration file. If omitted, dioryga.toml is read if present; otherwise defaults are used. Exits with an error if the given file does not exist
+  serve: Start the server (the default when no subcommand is given)
+  migrate: Apply database migrations
+  admin: Manage administrator accounts
+  admin_create: Create a System Admin
+  admin_create_long: |-
+    Create a System Admin.
+
+    Use this for recovery when the initial setup screen is not available.
+
+    To run without prompts, pass --name and --password-stdin, and supply the password on standard input.
+
+        printf '%s\n' "$PASSWORD" | dioryga admin create --username admin --name Admin --password-stdin
+  admin_username: Login ID. Lowercase letters, digits, and . _ -, 2 to 32 characters
+  admin_email: Email address. Optional (not used as the login ID)
+  admin_name: Display name. Prompted for if omitted
+  admin_password_stdin: Read the password from the first line of standard input. Passwords are never accepted as arguments (they would remain in the shell history)
+  reset_password: Reset a user's password and issue a temporary one
+  reset_password_username: Username of the target user
+  check: Check data integrity (read-only)
+  import: Bulk import. Dry run by default
+  import_long: |-
+    Bulk import.
+
+    By default this is a dry run: it shows the differences and writes nothing. Pass --apply to write.
+  import_path: Path to the import file or manifest
+  import_apply: Apply the changes. Without this, only the differences are shown
+  import_as_user: Username of the user performing the import. Recorded with the import
+  export: Export data in the import format
+  export_path: Output directory
+  licenses: Print the license notices for Dioryga and its dependencies

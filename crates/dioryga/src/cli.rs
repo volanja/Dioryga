@@ -5,20 +5,19 @@
 
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
 
+// **説明文は doc comment に書かない**（#191）。clap の derive は doc comment を
+// そのまま `--help` に出すため、言語を切り替えられない。説明は locales の
+// `cli.*` に置き、[`command`] が実行時に差し込む。ここのコメントは開発者向け。
 #[derive(Debug, Parser)]
-#[command(
-    name = "dioryga",
-    version,
-    about = "システム構築・運用プロジェクトのためのインフラ台帳"
-)]
+#[command(name = "dioryga", version)]
 pub struct Cli {
-    /// 設定ファイルのパス。省略すると `dioryga.toml` を読み、無ければ既定値で動く。
-    /// 指定したファイルが無ければエラーで終了する。
-    ///
-    /// **既定値を持たせず `Option` にする**（#189）。既定値を持たせると、
-    /// 「指定されなかった」と「指定されたが存在しない」を区別できない。
+    // 省略すると `dioryga.toml` を読み、無ければ既定値で動く。
+    // 指定したファイルが無ければエラーで終了する。
+    //
+    // **既定値を持たせず `Option` にする**（#189）。既定値を持たせると、
+    // 「指定されなかった」と「指定されたが存在しない」を区別できない。
     #[arg(long, short, global = true, value_name = "PATH")]
     pub config: Option<PathBuf>,
 
@@ -28,106 +27,190 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// サーバを起動する（サブコマンドを省略した場合の既定）。
+    // サブコマンドを省略した場合の既定
     Serve,
 
-    /// マイグレーションを適用する。
     Migrate,
 
-    /// 管理者アカウントを操作する。
     #[command(subcommand)]
     Admin(AdminCommand),
 
-    /// データの整合性を検査する（読み取り専用）。
+    // 読み取り専用
     Check,
 
-    /// 一括取込を行う。**既定はドライラン**（設計書23.6）。
-    ///
-    /// 18.2により参照されたカタログ行は編集できず、誤った取込は事後修正が
-    /// 困難である。**書き込むには `--apply` を明示する。**既定を反映側にすると、
-    /// 「必ず2段階」という設計が手順書の中だけの約束になってしまう。
+    // **既定はドライラン**（設計書23.6）。
+    //
+    // 18.2により参照されたカタログ行は編集できず、誤った取込は事後修正が
+    // 困難である。**書き込むには `--apply` を明示する。**既定を反映側にすると、
+    // 「必ず2段階」という設計が手順書の中だけの約束になってしまう。
     Import {
-        /// 取込ファイル、またはマニフェストのパス。
         path: PathBuf,
 
-        /// 実際に反映する。指定しない場合は差分を表示するのみ。
         #[arg(long)]
         apply: bool,
 
-        /// 取込を行う利用者のユーザー名。`created_by` と
-        /// `IMPORT_RUN.imported_by` に記録する。
+        // `created_by` と `IMPORT_RUN.imported_by` に記録する
         #[arg(long)]
         as_user: String,
     },
 
-    /// データを取込フォーマットで書き出す。
     Export {
-        /// 出力先ディレクトリ。
         path: PathBuf,
     },
 
-    /// 本体と依存のライセンス表示を出力する。
-    ///
-    /// **単一バイナリで配布するため、これが全文を見る唯一の経路になる。**
+    // **単一バイナリで配布するため、これが全文を見る唯一の経路になる。**
     Licenses,
 }
 
 #[derive(Debug, Subcommand)]
 pub enum AdminCommand {
-    /// System Adminを作成する。
-    ///
-    /// 初回セットアップ画面が使えない場合の復旧経路（設計書20.8）。
-    ///
-    /// 対話なしで実行するには `--name` と `--password-stdin` を指定し、
-    /// パスワードを標準入力から渡す（#129）。
-    ///
-    /// ```bash
-    /// printf '%s\n' "$PASSWORD" | dioryga admin create --username admin --name 管理者 --password-stdin
-    /// ```
+    // 初回セットアップ画面が使えない場合の復旧経路（設計書20.8）。
+    // 対話なしで実行するには `--name` と `--password-stdin` を指定する（#129）。
     Create {
-        /// ログインID。英小文字・数字と . _ -、2〜32文字（設計書20.1）。
+        // 規則は設計書20.1
         #[arg(long)]
         username: String,
 
-        /// メールアドレス。**任意**（ログインIDではない）。
+        // **任意**（ログインIDではない）
         #[arg(long)]
         email: Option<String>,
 
-        /// 表示名。省略すると対話で聞く。
         #[arg(long)]
         name: Option<String>,
 
-        /// パスワードを標準入力の1行目から読む。
-        ///
-        /// **コマンドライン引数では受け取らない。**シェルの履歴やプロセス一覧に
-        /// 平文が残る。標準入力はパスワードで使うため、`--name` も必要になる。
+        // **コマンドライン引数では受け取らない。**シェルの履歴やプロセス一覧に
+        // 平文が残る。標準入力はパスワードで使うため、`--name` も必要になる。
         #[arg(long, requires = "name")]
         password_stdin: bool,
     },
 
-    /// ユーザーのパスワードをリセットする。
     ResetPassword {
-        /// 対象のユーザー名。
         #[arg(long)]
         username: String,
     },
 }
 
+/// 説明文をコンソールの言語で差し込んだ CLI の定義（#191）。
+///
+/// **`Cli::parse()` ではなくこれを通して解析する。**`Cli::parse()` では
+/// 説明文の無い `--help` になる。
+pub fn command() -> clap::Command {
+    説明を付ける(Cli::command(), crate::console::言語())
+}
+
+/// `mut_arg` と `mut_subcommand` は、名前が無ければ panic する。
+/// 引数の名前を変えて説明を付け忘れると、テストで落ちる。
+fn 説明を付ける(cmd: clap::Command, l: &str) -> clap::Command {
+    let t = |key: &str| rust_i18n::t!(key, locale = l).into_owned();
+    cmd.about(t("cli.about"))
+        .mut_arg("config", |a| a.help(t("cli.config")))
+        .mut_subcommand("serve", |c| c.about(t("cli.serve")))
+        .mut_subcommand("migrate", |c| c.about(t("cli.migrate")))
+        .mut_subcommand("admin", |c| {
+            c.about(t("cli.admin"))
+                .mut_subcommand("create", |c| {
+                    c.about(t("cli.admin_create"))
+                        .long_about(t("cli.admin_create_long"))
+                        .mut_arg("username", |a| a.help(t("cli.admin_username")))
+                        .mut_arg("email", |a| a.help(t("cli.admin_email")))
+                        .mut_arg("name", |a| a.help(t("cli.admin_name")))
+                        .mut_arg("password_stdin", |a| a.help(t("cli.admin_password_stdin")))
+                })
+                .mut_subcommand("reset-password", |c| {
+                    c.about(t("cli.reset_password"))
+                        .mut_arg("username", |a| a.help(t("cli.reset_password_username")))
+                })
+        })
+        .mut_subcommand("check", |c| c.about(t("cli.check")))
+        .mut_subcommand("import", |c| {
+            c.about(t("cli.import"))
+                .long_about(t("cli.import_long"))
+                .mut_arg("path", |a| a.help(t("cli.import_path")))
+                .mut_arg("apply", |a| a.help(t("cli.import_apply")))
+                .mut_arg("as_user", |a| a.help(t("cli.import_as_user")))
+        })
+        .mut_subcommand("export", |c| {
+            c.about(t("cli.export"))
+                .mut_arg("path", |a| a.help(t("cli.export_path")))
+        })
+        .mut_subcommand("licenses", |c| c.about(t("cli.licenses")))
+}
+
 /// まだ実装されていないサブコマンドが呼ばれたことを示す。
 ///
-/// 対応するissueを案内し、利用者が状況を把握できるようにする。
-pub fn not_implemented(what: &str, issue: &str) -> anyhow::Error {
-    anyhow::anyhow!("`{what}` はまだ実装されていません（{issue}）")
+/// **設計書の章番号は出さない**（#191）。利用者が読めない参照を案内しても、
+/// 状況の把握には役立たない。
+pub fn not_implemented(what: &str) -> anyhow::Error {
+    anyhow::anyhow!(
+        "{}",
+        rust_i18n::t!(
+            "console.not_implemented",
+            locale = crate::console::言語(),
+            what = what
+        )
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::CommandFactory;
 
     #[test]
     fn cliの定義が矛盾していない() {
         Cli::command().debug_assert();
+        for l in ["ja", "en"] {
+            説明を付ける(Cli::command(), l).debug_assert();
+        }
+    }
+
+    /// **すべてのサブコマンドと引数に、両方の言語で説明があること**（#191）。
+    ///
+    /// 引数を足して `説明を付ける` への追加を忘れると、説明の無い `--help` になる。
+    /// キーを locales に書き忘れると、rust-i18n はキーをそのまま返す。
+    #[test]
+    fn すべてに説明がある() {
+        fn 調べる(cmd: &clap::Command, l: &str) {
+            let about = cmd.get_about().map(|s| s.to_string()).unwrap_or_default();
+            assert!(
+                !about.is_empty() && !about.starts_with("cli."),
+                "{l}: {} に説明がありません",
+                cmd.get_name()
+            );
+            for arg in cmd.get_arguments() {
+                // clap が足す --help / --version は clap の文言のまま
+                if matches!(arg.get_id().as_str(), "help" | "version") {
+                    continue;
+                }
+                let help = arg.get_help().map(|s| s.to_string()).unwrap_or_default();
+                assert!(
+                    !help.is_empty() && !help.starts_with("cli."),
+                    "{l}: {} の {} に説明がありません",
+                    cmd.get_name(),
+                    arg.get_id()
+                );
+            }
+            for sub in cmd.get_subcommands() {
+                // clap が足す help サブコマンドは clap の文言のまま
+                if sub.get_name() != "help" {
+                    調べる(sub, l);
+                }
+            }
+        }
+        for l in ["ja", "en"] {
+            let mut cmd = 説明を付ける(Cli::command(), l);
+            cmd.build();
+            調べる(&cmd, l);
+        }
+    }
+
+    #[test]
+    fn 説明は言語で切り替わる() {
+        let ja = 説明を付ける(Cli::command(), "ja");
+        let en = 説明を付ける(Cli::command(), "en");
+        assert_ne!(
+            ja.get_about().unwrap().to_string(),
+            en.get_about().unwrap().to_string()
+        );
     }
 
     #[test]

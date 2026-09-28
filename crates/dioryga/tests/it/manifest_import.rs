@@ -149,7 +149,7 @@ async fn ドライランと反映の件数が一致する(db: &DatabaseConnectio
             下見.report.count(o),
             実行.report.count(o),
             "{} の件数が食い違っています。下見: {} / 実行: {}",
-            o.as_str(),
+            o.文言("ja"),
             下見.report,
             実行.report
         );

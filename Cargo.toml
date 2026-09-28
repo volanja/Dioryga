@@ -19,6 +19,8 @@ anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 # IANAのタイムゾーンのデータ。バイナリに埋め込み、OSの設定に依存しない（設計書24.2.3、#210）
 chrono-tz = "0.10"
+# OSの表示言語。コンソールに出す言語を決める（#191）。Windowsは環境変数 LANG を持たないことが多い
+sys-locale = "0.3"
 # multipart は取込UIのファイルアップロードで使う（既定では入らない）
 axum = { version = "0.8", features = ["multipart"] }
 clap = { version = "4", features = ["derive"] }

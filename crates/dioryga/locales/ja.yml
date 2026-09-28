@@ -300,6 +300,14 @@ import:
   too_large: ファイルが大きすぎます（上限8MB）。コマンドラインの dioryga import をお使いください
   bad_as_of: 基準日を読めません。2026/09/23 のように入れてください
   expired: 預かった内容の期限が切れたか、既に反映済みです。もう一度アップロードしてください
+  outcome_unchanged: 変更なし
+  outcome_created: 新規
+  outcome_updated: 更新
+  outcome_warning: 警告
+  outcome_error: エラー
+  summary_counts: 新規 %{created} 件 / 更新 %{updated} 件 / 変更なし %{unchanged} 件 / 警告 %{warning} 件 / エラー %{error} 件
+  history_summary: 新規 %{created} / 更新 %{updated} / 警告 %{warning}
+  unsupported_file: 「%{name}」は取り込めません（.csv か .yaml）
 
 password_change:
   title: パスワードの変更
@@ -1027,3 +1035,89 @@ container_models:
   error_number: 数値は0より大きい数で入力してください
   error_capacity_required: 収容能力を入力してください（ラックはU数、棚は段数）
   error_capacity_unused: この種別には入力できない収容能力が含まれています
+
+# 画面とコンソールで共有する誤りの文言（#191）
+errors:
+  username_empty: ユーザー名を入力してください
+  username_length: ユーザー名は%{min}〜%{max}文字で入力してください
+  username_char: ユーザー名に使えるのは英小文字・数字と . _ - です
+  username_start: ユーザー名の先頭は英字か数字にしてください
+  password_too_short: パスワードは%{min}文字以上である必要があります
+  password_too_long: パスワードは%{max}文字以下である必要があります
+  password_common: よく使われるパスワードは使用できません
+  password_identity: ユーザー名や表示名を含むパスワードは使用できません
+  password_internal: "パスワードの処理に失敗しました: %{detail}"
+  setup_completed: セットアップは既に完了しています
+  setup_invalid_token: セットアップトークンが正しくありません
+  import_io: "ファイルを読み取れません: %{detail}"
+  import_yaml: "YAMLの形式が正しくありません: %{detail}"
+  import_csv: "CSVの形式が正しくありません: %{detail}"
+  import_version: format_version が %{found} です。対応しているのは %{expected} です
+  import_kind: kind が %{found} です。このコマンドが扱うのは %{expected} です
+  import_has_errors: 取り込めない内容が %{count} 件あります
+  run_unknown_user: "利用者が見つかりません: %{username}"
+  run_not_permitted: この利用者は取込を行えません（いずれかのプロジェクトでOperator以上が要ります）
+  run_not_project_editor: この利用者はこのプロジェクトへ取り込めません（Operator以上が要ります）
+  run_not_system_admin: 組織データの取込はSystem Adminだけが行えます
+  run_unsupported_entity: エンティティ「%{entity}」の取込はまだ実装されていません
+
+# コンソールへの表示（#191）。言語はOSのロケールで決める
+console:
+  setup_needed: Diorygaの初回セットアップが必要です。
+  setup_open: ブラウザで %{url} を開き、以下のトークンを入力してください。
+  setup_once: このトークンはここにしか表示されません。
+  admin_name_prompt: "表示名: "
+  admin_password_prompt: "パスワード: "
+  admin_password_confirm: "パスワード（確認）: "
+  admin_password_mismatch: パスワードが一致しません
+  admin_created: System Adminを作成しました（id=%{id}, username=%{username}）
+  admin_duplicate_username: "このユーザー名の利用者は既に存在します: %{username}"
+  admin_duplicate_email: "このメールアドレスは既に使われています: %{email}"
+  admin_name_empty: 表示名が空です
+  admin_stdin_empty: 標準入力からパスワードを読めませんでした（空です）
+  reset_not_found: "該当する利用者が見つかりません: %{username}"
+  reset_issued: "%{username} の一時パスワードを発行しました。"
+  reset_once: この値はここにしか表示されません。口頭等の別経路で本人へ伝えてください。
+  reset_must_change: 本人は次回ログイン時にパスワードの変更を求められます。
+  reset_revoked: 既存のセッション%{count}件を失効させました。
+  not_implemented: "`%{what}` はまだ実装されていません"
+  import_applied: 反映しました（IMPORT_RUN #%{id}）
+  import_not_applied: 反映していません
+  import_dry_run: ドライランです。反映するには --apply を付けてください
+  config_not_found: "設定ファイルが見つかりません: %{path}（-c で指定したパス）"
+  config_timezone: timezone「%{value}」は IANA のタイムゾーン名ではありません（例：Asia/Tokyo）
+
+# `--help` の説明文（#191）。言語はOSのロケールで決める
+cli:
+  about: システム構築・運用プロジェクトのためのインフラ台帳
+  config: 設定ファイルのパス。省略すると dioryga.toml を読み、無ければ既定値で動く。指定したファイルが無ければエラーで終了する
+  serve: サーバを起動する（サブコマンドを省略した場合の既定）
+  migrate: マイグレーションを適用する
+  admin: 管理者アカウントを操作する
+  admin_create: System Adminを作成する
+  admin_create_long: |-
+    System Adminを作成する。
+
+    初回セットアップ画面が使えない場合の復旧に使う。
+
+    対話なしで実行するには --name と --password-stdin を指定し、パスワードを標準入力から渡す。
+
+        printf '%s\n' "$PASSWORD" | dioryga admin create --username admin --name 管理者 --password-stdin
+  admin_username: ログインID。英小文字・数字と . _ -、2〜32文字
+  admin_email: メールアドレス。任意（ログインIDではない）
+  admin_name: 表示名。省略すると対話で聞く
+  admin_password_stdin: パスワードを標準入力の1行目から読む。コマンドライン引数では受け取らない（シェルの履歴に残るため）
+  reset_password: ユーザーのパスワードをリセットし、一時パスワードを発行する
+  reset_password_username: 対象のユーザー名
+  check: データの整合性を検査する（読み取り専用）
+  import: 一括取込を行う。既定はドライラン
+  import_long: |-
+    一括取込を行う。
+
+    既定はドライランで、差分を表示するだけで書き込まない。書き込むには --apply を指定する。
+  import_path: 取込ファイル、またはマニフェストのパス
+  import_apply: 実際に反映する。指定しない場合は差分を表示するのみ
+  import_as_user: 取込を行う利用者のユーザー名。取込の記録に残る
+  export: データを取込フォーマットで書き出す
+  export_path: 出力先ディレクトリ
+  licenses: 本体と依存のライセンス表示を出力する

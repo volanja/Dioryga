@@ -54,14 +54,16 @@ pub enum Outcome {
 }
 
 impl Outcome {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Unchanged => "変更なし",
-            Self::Created => "新規",
-            Self::Updated => "更新",
-            Self::Warning => "警告",
-            Self::Error => "エラー",
-        }
+    /// 判定の表示名。画面は利用者の言語、コンソールはOSの言語で呼ぶ（#191）。
+    pub fn 文言(self, l: &str) -> String {
+        let key = match self {
+            Self::Unchanged => "import.outcome_unchanged",
+            Self::Created => "import.outcome_created",
+            Self::Updated => "import.outcome_updated",
+            Self::Warning => "import.outcome_warning",
+            Self::Error => "import.outcome_error",
+        };
+        rust_i18n::t!(key, locale = l).into_owned()
     }
 }
 
@@ -119,17 +121,25 @@ impl Report {
     }
 }
 
+impl Report {
+    /// 判定ごとの件数の要約（#191）。
+    pub fn 集計(&self, l: &str) -> String {
+        rust_i18n::t!(
+            "import.summary_counts",
+            locale = l,
+            created = self.count(Outcome::Created),
+            updated = self.count(Outcome::Updated),
+            unchanged = self.count(Outcome::Unchanged),
+            warning = self.count(Outcome::Warning),
+            error = self.count(Outcome::Error)
+        )
+        .into_owned()
+    }
+}
+
 impl fmt::Display for Report {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "新規 {} 件 / 更新 {} 件 / 変更なし {} 件 / 警告 {} 件 / エラー {} 件",
-            self.count(Outcome::Created),
-            self.count(Outcome::Updated),
-            self.count(Outcome::Unchanged),
-            self.count(Outcome::Warning),
-            self.count(Outcome::Error),
-        )
+        f.write_str(&self.集計(crate::console::言語()))
     }
 }
 
@@ -142,28 +152,56 @@ pub fn file_hash(bytes: &[u8]) -> String {
     URL_SAFE_NO_PAD.encode(hasher.finalize())
 }
 
+/// **文言は言語ごとに訳す**（#191）。画面は利用者の言語で [`Self::文言`] を呼び、
+/// コンソール（`Display`）は [`crate::console::言語`] で出す。
 #[derive(Debug, thiserror::Error)]
 pub enum ImportError {
-    #[error("ファイルを読み取れません: {0}")]
+    #[error("{}", self.文言(crate::console::言語()))]
     Io(#[from] std::io::Error),
 
-    #[error("YAMLの形式が正しくありません: {0}")]
+    #[error("{}", self.文言(crate::console::言語()))]
     Yaml(#[from] serde_yaml_ng::Error),
 
-    #[error("CSVの形式が正しくありません: {0}")]
+    #[error("{}", self.文言(crate::console::言語()))]
     Csv(String),
 
-    #[error("format_version が {found} です。対応しているのは {expected} です")]
+    #[error("{}", self.文言(crate::console::言語()))]
     UnsupportedVersion { found: u32, expected: u32 },
 
-    #[error("kind が {found} です。このコマンドが扱うのは {expected} です")]
+    #[error("{}", self.文言(crate::console::言語()))]
     UnexpectedKind { found: String, expected: String },
 
-    #[error("取り込めない内容が {0} 件あります")]
+    #[error("{}", self.文言(crate::console::言語()))]
     HasErrors(usize),
 
     #[error(transparent)]
     Db(#[from] sea_orm::DbErr),
+}
+
+impl ImportError {
+    pub fn 文言(&self, l: &str) -> String {
+        use rust_i18n::t;
+        match self {
+            Self::Io(e) => t!("errors.import_io", locale = l, detail = e),
+            Self::Yaml(e) => t!("errors.import_yaml", locale = l, detail = e),
+            Self::Csv(detail) => t!("errors.import_csv", locale = l, detail = detail),
+            Self::UnsupportedVersion { found, expected } => t!(
+                "errors.import_version",
+                locale = l,
+                found = found,
+                expected = expected
+            ),
+            Self::UnexpectedKind { found, expected } => t!(
+                "errors.import_kind",
+                locale = l,
+                found = found,
+                expected = expected
+            ),
+            Self::HasErrors(count) => t!("errors.import_has_errors", locale = l, count = count),
+            Self::Db(e) => return e.to_string(),
+        }
+        .into_owned()
+    }
 }
 
 /// **形式の誤りは別crateが持つ**（#77）。同じ意味の変種へ写して受ける。

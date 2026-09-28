@@ -21,7 +21,9 @@ use super::{
     ImportError, Outcome, Report,
 };
 use crate::auth::authorization;
+use crate::console::言語;
 use crate::repository::AuditedTx;
+use rust_i18n::t;
 
 /// 取込の対象と結果。
 pub struct Executed {
@@ -30,24 +32,26 @@ pub struct Executed {
     pub import_run_id: Option<i32>,
 }
 
+/// コマンドの誤りは**OSの言語で出す**（#191）。
 #[derive(Debug, thiserror::Error)]
 pub enum RunError {
-    #[error("利用者が見つかりません: {0}")]
+    #[error("{}", t!("errors.run_unknown_user", locale = 言語(), username = .0))]
     UnknownUser(String),
 
-    #[error("この利用者は取込を行えません（いずれかのプロジェクトでOperator以上が要ります）")]
+    #[error("{}", t!("errors.run_not_permitted", locale = 言語()))]
     NotPermitted,
 
-    #[error("この利用者はこのプロジェクトへ取り込めません（Operator以上が要ります）")]
+    #[error("{}", t!("errors.run_not_project_editor", locale = 言語()))]
     NotProjectEditor,
 
-    #[error("組織データの取込はSystem Adminだけが行えます（設計書23.8）")]
+    #[error("{}", t!("errors.run_not_system_admin", locale = 言語()))]
     NotSystemAdmin,
 
+    /// 差分レポートの詳細と同じく、まだ訳していない（#191の範囲外）
     #[error("{0}")]
     Unresolved(String),
 
-    #[error("エンティティ「{0}」の取込はまだ実装されていません")]
+    #[error("{}", t!("errors.run_unsupported_entity", locale = 言語(), entity = .0))]
     UnsupportedEntity(String),
 
     #[error(transparent)]
@@ -541,37 +545,37 @@ async fn プロジェクトの取込者(
 /// **読み手が先に閉じても panic しない**（[`crate::console`]、#193）。差分は
 /// 長くなりうるため、ページャーに渡されることがある。
 pub fn print_report(executed: &Executed, apply: bool) -> std::io::Result<()> {
-    crate::console::書く(&報告の文面(executed, apply))
+    crate::console::書く(&報告の文面(executed, apply, 言語()))
 }
 
-fn 報告の文面(executed: &Executed, apply: bool) -> String {
+fn 報告の文面(executed: &Executed, apply: bool, l: &str) -> String {
     use std::fmt::Write as _;
 
     let mut out = String::new();
     // String への書き込みは失敗しない
     let _ = writeln!(out);
-    let _ = writeln!(out, "  {}", executed.report);
+    let _ = writeln!(out, "  {}", executed.report.集計(l));
     let _ = writeln!(out);
 
+    let エラー = Outcome::Error.文言(l);
+    let 警告 = Outcome::Warning.文言(l);
     for entry in executed.report.errors() {
-        let _ = writeln!(out, "  エラー  {} — {}", entry.target, entry.detail);
+        let _ = writeln!(out, "  {エラー}  {} — {}", entry.target, entry.detail);
     }
     for entry in executed.report.warnings() {
-        let _ = writeln!(out, "  警告    {} — {}", entry.target, entry.detail);
+        let _ = writeln!(out, "  {警告}  {} — {}", entry.target, entry.detail);
     }
 
     if executed.report.errors().count() > 0 || executed.report.warnings().count() > 0 {
         let _ = writeln!(out);
     }
 
-    let _ = match executed.import_run_id {
-        Some(id) => writeln!(out, "  反映しました（IMPORT_RUN #{id}）"),
-        None if apply => writeln!(out, "  反映していません"),
-        None => writeln!(
-            out,
-            "  ドライランです。反映するには --apply を付けてください"
-        ),
+    let 結び = match executed.import_run_id {
+        Some(id) => t!("console.import_applied", locale = l, id = id),
+        None if apply => t!("console.import_not_applied", locale = l),
+        None => t!("console.import_dry_run", locale = l),
     };
+    let _ = writeln!(out, "  {結び}");
     let _ = writeln!(out);
     out
 }

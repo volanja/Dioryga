@@ -20,8 +20,9 @@ use crate::auth::session;
 use crate::auth::setup;
 use crate::auth::username;
 use crate::config::Config;
-use crate::db;
 use crate::repository::{Actor, AuditedTx};
+use crate::{console, db};
+use rust_i18n::t;
 
 /// System Adminを作成する。
 ///
@@ -36,18 +37,26 @@ pub async fn create(
     name: Option<&str>,
     password_stdin: bool,
 ) -> anyhow::Result<()> {
+    let l = console::言語();
     let conn = db::connect(&config.database).await?;
     let passwords = PasswordService::new(config.password.clone())?;
 
     // **入力を求める前に確かめる。**パスワードまで入れさせてから断らない
     let username = username::検証する(username)?;
     if 使われている(&conn, app_user::Column::Username, &username).await? {
-        anyhow::bail!("このユーザー名の利用者は既に存在します: {username}");
+        anyhow::bail!(
+            "{}",
+            t!(
+                "console.admin_duplicate_username",
+                locale = l,
+                username = username
+            )
+        );
     }
 
     let name = match name {
         Some(name) => name.trim().to_owned(),
-        None => prompt("表示名: ")?,
+        None => prompt(&t!("console.admin_name_prompt", locale = l))?,
     };
     let password = if password_stdin {
         標準入力のパスワード(std::io::stdin().lock())?
@@ -58,8 +67,13 @@ pub async fn create(
     let user = 作成する(&conn, &passwords, &username, email, &name, &password).await?;
 
     println!(
-        "System Adminを作成しました（id={}, username={}）",
-        user.id, user.username
+        "{}",
+        t!(
+            "console.admin_created",
+            locale = l,
+            id = user.id,
+            username = user.username
+        )
     );
     Ok(())
 }
@@ -70,6 +84,7 @@ pub async fn create(
 /// 平文はDBに保存せず、対象の利用者は次回ログイン時に変更を強制される。
 /// あわせて対象利用者の既存セッションをすべて失効させる。
 pub async fn reset_password(config: &Config, username: &str) -> anyhow::Result<()> {
+    let l = console::言語();
     let conn = db::connect(&config.database).await?;
     let passwords = PasswordService::new(config.password.clone())?;
     let username = username::正規化する(username);
@@ -79,7 +94,10 @@ pub async fn reset_password(config: &Config, username: &str) -> anyhow::Result<(
         .one(&conn)
         .await?
     else {
-        anyhow::bail!("該当する利用者が見つかりません: {username}");
+        anyhow::bail!(
+            "{}",
+            t!("console.reset_not_found", locale = l, username = username)
+        );
     };
 
     let temporary = password::generate_temporary()?;
@@ -99,14 +117,20 @@ pub async fn reset_password(config: &Config, username: &str) -> anyhow::Result<(
     let 失効数 = session::revoke_all_except(&conn, user.id, None, now).await?;
 
     println!();
-    println!("  {username} の一時パスワードを発行しました。");
+    println!(
+        "  {}",
+        t!("console.reset_issued", locale = l, username = username)
+    );
     println!();
     println!("      {temporary}");
     println!();
-    println!("  この値はここにしか表示されません。口頭等の別経路で本人へ伝えてください。");
-    println!("  本人は次回ログイン時にパスワードの変更を求められます。");
+    println!("  {}", t!("console.reset_once", locale = l));
+    println!("  {}", t!("console.reset_must_change", locale = l));
     if 失効数 > 0 {
-        println!("  既存のセッション{失効数}件を失効させました。");
+        println!(
+            "  {}",
+            t!("console.reset_revoked", locale = l, count = 失効数)
+        );
     }
     println!();
 
@@ -125,19 +149,30 @@ pub async fn 作成する(
     name: &str,
     password: &str,
 ) -> anyhow::Result<app_user::Model> {
+    let l = console::言語();
     let username = username::検証する(username)?;
     if 使われている(db, app_user::Column::Username, &username).await? {
-        anyhow::bail!("このユーザー名の利用者は既に存在します: {username}");
+        anyhow::bail!(
+            "{}",
+            t!(
+                "console.admin_duplicate_username",
+                locale = l,
+                username = username
+            )
+        );
     }
     // メールアドレスは任意だが、値がある場合は一意（設計書20.1）
     let email = email.and_then(username::任意のメールアドレス);
     if let Some(email) = &email {
         if 使われている(db, app_user::Column::Email, email).await? {
-            anyhow::bail!("このメールアドレスは既に使われています: {email}");
+            anyhow::bail!(
+                "{}",
+                t!("console.admin_duplicate_email", locale = l, email = email)
+            );
         }
     }
     if name.trim().is_empty() {
-        anyhow::bail!("表示名が空です");
+        anyhow::bail!("{}", t!("console.admin_name_empty", locale = l));
     }
     passwords.check_policy(password, &username, name)?;
 
@@ -164,7 +199,10 @@ pub fn 標準入力のパスワード(mut reader: impl BufRead) -> anyhow::Resul
     let password = line.strip_suffix('\n').unwrap_or(&line);
     let password = password.strip_suffix('\r').unwrap_or(password);
     if password.is_empty() {
-        anyhow::bail!("標準入力からパスワードを読めませんでした（空です）");
+        anyhow::bail!(
+            "{}",
+            t!("console.admin_stdin_empty", locale = console::言語())
+        );
     }
     Ok(password.to_owned())
 }
@@ -194,11 +232,12 @@ fn prompt(label: &str) -> anyhow::Result<String> {
 
 /// パスワードを2回入力させ、一致を確かめる。入力は画面に表示しない。
 fn prompt_password_twice() -> anyhow::Result<String> {
-    let first = rpassword::prompt_password("パスワード: ")?;
-    let second = rpassword::prompt_password("パスワード（確認）: ")?;
+    let l = console::言語();
+    let first = rpassword::prompt_password(t!("console.admin_password_prompt", locale = l))?;
+    let second = rpassword::prompt_password(t!("console.admin_password_confirm", locale = l))?;
 
     if first != second {
-        anyhow::bail!("パスワードが一致しません");
+        anyhow::bail!("{}", t!("console.admin_password_mismatch", locale = l));
     }
     Ok(first)
 }

@@ -6,7 +6,7 @@ Dioryga is a web application for recording the servers and network equipment use
 
 Dioryga is under development and has not been released yet. The web screens and the navigation between them are being reworked and may change significantly. Upgrading to a new version may require recreating an existing database.
 
-This README is written in English, but development is done in Japanese. The web screens are available in both Japanese and English.
+This README is written in English, but development is done in Japanese. The web screens are available in both Japanese and English. Console output follows the OS language: Japanese if `LC_ALL`, `LC_MESSAGES` or `LANG` (checked in that order) starts with `ja`, or, when none of them is set, if the OS display language is Japanese; English otherwise.
 
 ## About the name
 

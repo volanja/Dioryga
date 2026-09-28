@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::FromArgMatches;
 
 use dioryga::cli::{self, AdminCommand, Cli, Command};
 use dioryga::config::Config;
@@ -6,7 +6,8 @@ use dioryga::{admin, db, import, server, telemetry};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let cli = Cli::parse();
+    // 説明文をOSの言語で出すため、`Cli::parse()` ではなく定義を組み直して読む（#191）
+    let cli = Cli::from_arg_matches(&cli::command().get_matches()).unwrap_or_else(|e| e.exit());
 
     // **設定の読み込みより前に処理する。**ライセンス表示は設定ファイルにも
     // DBにも依存せず、配布物を受け取った人が最初に確認しうるものである。
@@ -49,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
             admin::reset_password(&config, &username).await
         }
 
-        Command::Check => Err(cli::not_implemented("check", "設計書24.5")),
+        Command::Check => Err(cli::not_implemented("check")),
 
         Command::Import {
             path,
@@ -62,7 +63,7 @@ async fn main() -> anyhow::Result<()> {
             import::run::print_report(&executed, apply)?;
             Ok(())
         }
-        Command::Export { .. } => Err(cli::not_implemented("export", "設計書23章")),
+        Command::Export { .. } => Err(cli::not_implemented("export")),
 
         // 設定の読み込み前に処理済み
         Command::Licenses => unreachable!(),

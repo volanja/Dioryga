@@ -283,7 +283,7 @@ pub async fn submit(
         .passwords
         .check_policy(&form.new_password, &user.username, &user.name)
     {
-        return 再表示(e.to_string());
+        return 再表示(e.文言(l));
     }
 
     let hash = state

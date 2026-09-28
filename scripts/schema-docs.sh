@@ -13,28 +13,47 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-CONTAINER=dioryga-schema-docs
-PORT="${SCHEMA_DOCS_PORT:-55432}"
+# **名前にプロセス番号を入れる。**固定の名前だと、同時に走らせた2つ目が
+# 1つ目のコンテナを消してしまう（#177）。
+CONTAINER="dioryga-schema-docs-$$"
 # **版の出所は .postgres-version ひとつ。**テスト（crates/dioryga/tests/it/support/mod.rs）
 # も同じファイルを読む。同じ版を2箇所に書くと必ず食い違い、スキーマの検査と
 # 動作の検証が別のPostgreSQLに対して行われることになる（#76）。
 PG_IMAGE="postgres:$(tr -d '[:space:]' < .postgres-version)"
-export TBLS_DSN="postgres://postgres:postgres@127.0.0.1:${PORT}/postgres?sslmode=disable"
 
 for cmd in docker tbls cargo; do
   command -v "$cmd" >/dev/null || { echo "$cmd が見つかりません" >&2; exit 1; }
 done
 
-# 途中で失敗してもコンテナを残さない
+# 途中で失敗してもコンテナを残さない。強制終了で残ったものは名前もポートも
+# 重ならないので、次の実行を妨げない（`docker ps -a` で見て消す）。
 cleanup() { docker rm -f "$CONTAINER" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
-cleanup
 
+# **ホスト側のポートは既定でDockerに割り当てさせる**（#177）。固定ポートは、
+# 他のものが使っていると変更の中身と無関係に落ちる。起動前に空きを探す方式は、
+# 探してから使うまでの間に取られうるので採らない。
+# SCHEMA_DOCS_PORT を与えれば、そのポートを使う。
 echo "PostgreSQLを起動します（使い捨て、$PG_IMAGE）"
 docker run -d --name "$CONTAINER" \
   -e POSTGRES_PASSWORD=postgres \
-  -p "${PORT}:5432" \
+  -p "${SCHEMA_DOCS_PORT:+${SCHEMA_DOCS_PORT}:}5432" \
   "$PG_IMAGE" >/dev/null
+
+# 割り当てられたポートを読む。`docker port` は `0.0.0.0:49153` と `[::]:49153`
+# のように1行ずつ出すので、最初の行の最後の `:` より後ろを取る。
+# （パイプで head に渡さないのは、pipefail の下で SIGPIPE を拾わないため）
+binding="$(docker port "$CONTAINER" 5432/tcp)"
+binding="${binding%%$'\n'*}"
+PORT="${binding##*:}"
+case "$PORT" in
+  '' | *[!0-9]*)
+    echo "割り当てられたポートを読めませんでした: ${binding:-（出力なし）}" >&2
+    exit 1
+    ;;
+esac
+# **ポートはここで1度だけ決め、tblsとマイグレーションの両方へ渡す**
+export TBLS_DSN="postgres://postgres:postgres@127.0.0.1:${PORT}/postgres?sslmode=disable"
 
 # 起動を待つ。固定のsleepにしないのは、遅い環境で不安定になるため。
 #

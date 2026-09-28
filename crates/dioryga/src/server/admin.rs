@@ -407,7 +407,7 @@ pub async fn create(
     // ログインID（設計書20.1）。規則に合わなければ理由を出して戻す
     let username = match username::検証する(&form.username) {
         Ok(v) => v,
-        Err(e) => return render(&再表示(e.to_string())),
+        Err(e) => return render(&再表示(e.文言(l))),
     };
     if 使われている(&state, app_user::Column::Username, &username, None).await? {
         return render(&再表示(
@@ -529,7 +529,7 @@ pub async fn update(
     }
     let username = match username::検証する(&form.username) {
         Ok(v) => v,
-        Err(e) => return render(&編集画面(&current, &target, Some(e.to_string()))),
+        Err(e) => return render(&編集画面(&current, &target, Some(e.文言(l)))),
     };
     // 自分以外と重複しないこと（設計書20.1）
     if 使われている(

@@ -30,22 +30,35 @@ pub struct Verified {
     pub needs_rehash: bool,
 }
 
+/// **文言は言語ごとに訳す**（#191）。画面は利用者の言語で [`Self::文言`] を呼び、
+/// コンソール（`Display`）は [`crate::console::言語`] で出す。
 #[derive(Debug, thiserror::Error)]
+#[error("{}", self.文言(crate::console::言語()))]
 pub enum PasswordError {
-    #[error("パスワードは{min}文字以上である必要があります")]
     TooShort { min: usize },
-
-    #[error("パスワードは{max}文字以下である必要があります")]
     TooLong { max: usize },
-
-    #[error("よく使われるパスワードは使用できません")]
     TooCommon,
-
-    #[error("ユーザー名や表示名を含むパスワードは使用できません")]
     ContainsIdentity,
-
-    #[error("パスワードの処理に失敗しました: {0}")]
     Internal(String),
+}
+
+impl PasswordError {
+    pub fn 文言(&self, l: &str) -> String {
+        match self {
+            Self::TooShort { min } => {
+                rust_i18n::t!("errors.password_too_short", locale = l, min = min)
+            }
+            Self::TooLong { max } => {
+                rust_i18n::t!("errors.password_too_long", locale = l, max = max)
+            }
+            Self::TooCommon => rust_i18n::t!("errors.password_common", locale = l),
+            Self::ContainsIdentity => rust_i18n::t!("errors.password_identity", locale = l),
+            Self::Internal(detail) => {
+                rust_i18n::t!("errors.password_internal", locale = l, detail = detail)
+            }
+        }
+        .into_owned()
+    }
 }
 
 /// よく使われるパスワードの最小限のリスト。

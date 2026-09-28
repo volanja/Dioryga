@@ -131,6 +131,43 @@ async fn 日時は利用者のタイムゾーンで表示される(db: &Database
     assert!(body.contains("2026-03-31 15:00"), "{body}");
 }
 
+/// **パスワードの規則の誤りは、利用者の言語で出ること**（#191）。
+///
+/// 誤りの文言はコンソールと共有している。コンソールの言語（OSのロケール）で
+/// 画面に出してはならない。
+async fn パスワードの誤りは利用者の言語で出る(db: &DatabaseConnection) {
+    let hash = 状態(db)
+        .await
+        .passwords
+        .hash("Current-Pass-4821")
+        .await
+        .unwrap();
+    for (username, locale, 期待) in [
+        ("acc-pw-en", "en", "Passwords must be at least"),
+        ("acc-pw-ja", "ja", "パスワードは"),
+    ] {
+        let user = app_user::ActiveModel {
+            password_hash: Set(hash.clone()),
+            ..下書き(username, locale, "system")
+        }
+        .insert(db)
+        .await
+        .unwrap();
+        let (_, body) = 送信先(
+            db,
+            &user,
+            "/account/password",
+            &[
+                ("current_password", "Current-Pass-4821"),
+                ("new_password", "short"),
+                ("confirm_password", "short"),
+            ],
+        )
+        .await;
+        assert!(body.contains(期待), "{locale}: {body}");
+    }
+}
+
 /// 強制変更の画面にも表示モードが効くこと（メニューは出さない、#122）。
 async fn 強制変更の画面にも表示モードが効く(db: &DatabaseConnection) {
     let user = app_user::ActiveModel {
@@ -201,6 +238,15 @@ async fn 送信(
     user: &app_user::Model,
     fields: &[(&str, &str)],
 ) -> (StatusCode, String) {
+    送信先(db, user, "/account/display", fields).await
+}
+
+async fn 送信先(
+    db: &DatabaseConnection,
+    user: &app_user::Model,
+    uri: &str,
+    fields: &[(&str, &str)],
+) -> (StatusCode, String) {
     let state = 状態(db).await;
     let token = 合言葉(db, &state, user.id).await;
     let csrf = dioryga::auth::csrf::derive(&token);
@@ -214,7 +260,7 @@ async fn 送信(
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/account/display")
+                .uri(uri)
                 .header(header::COOKIE, format!("{}={token}", session::COOKIE_NAME))
                 .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
                 .body(Body::from(body))
@@ -278,6 +324,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 語彙外の値は拒否される);
         全検証!(@one $用意, $属性, 強制変更の画面にも表示モードが効く);
         全検証!(@one $用意, $属性, タイムゾーンを保存できる);
+        全検証!(@one $用意, $属性, パスワードの誤りは利用者の言語で出る);
         全検証!(@one $用意, $属性, 日時は利用者のタイムゾーンで表示される);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {

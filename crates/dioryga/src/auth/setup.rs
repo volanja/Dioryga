@@ -29,10 +29,10 @@ use crate::repository::{Actor, AuditedTx};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SetupError {
-    #[error("セットアップは既に完了しています")]
+    #[error("{}", rust_i18n::t!("errors.setup_completed", locale = crate::console::言語()))]
     AlreadyCompleted,
 
-    #[error("セットアップトークンが正しくありません")]
+    #[error("{}", rust_i18n::t!("errors.setup_invalid_token", locale = crate::console::言語()))]
     InvalidToken,
 
     #[error(transparent)]
@@ -100,14 +100,21 @@ impl SetupState {
 }
 
 /// 標準出力へセットアップの案内を出す。**この1回しか表示しない。**
+///
+/// **起動した人がトークンを入力するために必ず読む表示**なので、OSの言語で出す（#191）。
 pub fn print_instructions(bind: &std::net::SocketAddr, token: &str) {
+    let l = crate::console::言語();
+    let url = format!("http://{bind}/setup");
     println!();
-    println!("  Diorygaの初回セットアップが必要です。");
-    println!("  ブラウザで http://{bind}/setup を開き、以下のトークンを入力してください。");
+    println!("  {}", rust_i18n::t!("console.setup_needed", locale = l));
+    println!(
+        "  {}",
+        rust_i18n::t!("console.setup_open", locale = l, url = url)
+    );
     println!();
     println!("      {token}");
     println!();
-    println!("  このトークンはここにしか表示されません。");
+    println!("  {}", rust_i18n::t!("console.setup_once", locale = l));
     println!();
 }
 

@@ -213,7 +213,7 @@ async fn 画面(
         t_history_empty: rust_i18n::t!("import.history_empty", locale = l).to_string(),
         t_cli_hint: rust_i18n::t!("import.cli_hint", locale = l).to_string(),
         match_on_options: MATCH_ON.to_vec(),
-        history: 取込履歴(state, project.id, state.タイムゾーン(&current.user)).await?,
+        history: 取込履歴(state, project.id, state.タイムゾーン(&current.user), l).await?,
         error,
     })
 }
@@ -223,6 +223,7 @@ async fn 取込履歴(
     state: &AppState,
     project_id: i32,
     tz: chrono_tz::Tz,
+    l: &str,
 ) -> AppResult<Vec<HistoryRow>> {
     let runs = import_run::Entity::find()
         .filter(import_run::Column::ProjectId.eq(project_id))
@@ -244,10 +245,14 @@ async fn 取込履歴(
             kind: run.kind,
             imported_at: crate::tz::日時(run.imported_at, tz),
             imported_by: 実行者,
-            summary: format!(
-                "新規 {} / 更新 {} / 警告 {}",
-                run.created_count, run.updated_count, run.warning_count
-            ),
+            summary: rust_i18n::t!(
+                "import.history_summary",
+                locale = l,
+                created = run.created_count,
+                updated = run.updated_count,
+                warning = run.warning_count
+            )
+            .into_owned(),
         });
     }
     Ok(rows)
@@ -282,7 +287,7 @@ pub async fn upload(
 
     // ドライランはここで行う。**DBを書き換えない**
     let source = String::from_utf8_lossy(&upload.bytes).into_owned();
-    let report = match 差分を出す(&state, project_id, &upload, &source).await {
+    let report = match 差分を出す(&state, project_id, &upload, &source, l).await {
         Ok(Ok(r)) => r,
         Ok(Err(message)) => {
             let page = 画面(&state, &current, &project, Some(message)).await?;
@@ -388,6 +393,7 @@ async fn 差分を出す(
     project_id: i32,
     upload: &Upload,
     source: &str,
+    l: &str,
 ) -> AppResult<Result<Report, String>> {
     let lower = upload.filename.to_lowercase();
 
@@ -396,7 +402,7 @@ async fn 差分を出す(
             Ok(file) => Ok(catalog::dry_run(&state.db, &file)
                 .await
                 .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?),
-            Err(e) => Err(e.to_string()),
+            Err(e) => Err(crate::import::ImportError::from(e).文言(l)),
         });
     }
 
@@ -407,14 +413,16 @@ async fn 差分を出す(
                     .await
                     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?,
             ),
-            Err(e) => Err(e.to_string()),
+            Err(e) => Err(e.文言(l)),
         });
     }
 
-    Ok(Err(format!(
-        "「{}」は取り込めません（.csv か .yaml）",
-        upload.filename
-    )))
+    Ok(Err(rust_i18n::t!(
+        "import.unsupported_file",
+        locale = l,
+        name = upload.filename
+    )
+    .into_owned()))
 }
 
 fn レポート画面(
@@ -426,7 +434,7 @@ fn レポート画面(
     l: &str,
 ) -> ReportPage {
     let can_apply = !report.has_error();
-    let summary = report.to_string();
+    let summary = report.集計(l);
 
     let rows = report
         .entries
@@ -435,7 +443,7 @@ fn レポート画面(
         // 数百行の「変更なし」に埋もれさせない（件数は要約に出ている）
         .filter(|e| e.outcome != Outcome::Unchanged)
         .map(|e| ReportRow {
-            outcome: e.outcome.as_str().to_owned(),
+            outcome: e.outcome.文言(l),
             target: e.target.clone(),
             detail: e.detail.clone(),
             is_error: e.outcome == Outcome::Error,
@@ -526,11 +534,12 @@ pub async fn apply(
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
     let 結果 = if カタログ {
-        let file = catalog::parse(&source).map_err(|e| AppError::Validation(e.to_string()))?;
+        let file = catalog::parse(&source)
+            .map_err(|e| AppError::Validation(crate::import::ImportError::from(e).文言(l)))?;
         catalog::apply(&state.db, &file, current.user.id, run.id).await
     } else {
         let rows =
-            instances::parse_devices(&source).map_err(|e| AppError::Validation(e.to_string()))?;
+            instances::parse_devices(&source).map_err(|e| AppError::Validation(e.文言(l)))?;
         instances::apply(
             &state.db,
             project_id,
@@ -542,7 +551,7 @@ pub async fn apply(
         .await
     };
 
-    let report = 結果.map_err(|e| AppError::Validation(e.to_string()))?;
+    let report = 結果.map_err(|e| AppError::Validation(e.文言(l)))?;
 
     // 件数を確定させる（設計書23.7）
     let mut active: import_run::ActiveModel = run.clone().into();

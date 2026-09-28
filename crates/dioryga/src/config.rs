@@ -145,8 +145,12 @@ impl Config {
             Some(path) => {
                 if !path.is_file() {
                     anyhow::bail!(
-                        "設定ファイルが見つかりません: {}（-c で指定したパス）",
-                        path.display()
+                        "{}",
+                        rust_i18n::t!(
+                            "console.config_not_found",
+                            locale = crate::console::言語(),
+                            path = path.display()
+                        )
                     );
                 }
                 // **指定されたパスだけを読む。**`Toml::file` は親ディレクトリまで
@@ -164,8 +168,12 @@ impl Config {
         // 日付が黙ってずれる
         if crate::tz::読む(&config.timezone).is_none() {
             anyhow::bail!(
-                "timezone「{}」は IANA のタイムゾーン名ではありません（例：Asia/Tokyo）",
-                config.timezone
+                "{}",
+                rust_i18n::t!(
+                    "console.config_timezone",
+                    locale = crate::console::言語(),
+                    value = config.timezone
+                )
             );
         }
         Ok(config)

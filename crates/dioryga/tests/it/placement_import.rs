@@ -101,6 +101,45 @@ async fn 他プロジェクトへは移せない(db: &DatabaseConnection) {
     );
 }
 
+/// **今、他のプロジェクトにある機器は動かせないこと**（#143）。
+///
+/// 突合の候補には過去にこのプロジェクトにあった機器も入る。移譲された機器を
+/// 書いて引き戻せると、チケットを通らない移譲になる（11章）。
+async fn 他プロジェクトにある機器は引き戻せない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "引き戻し").await;
+    let よそ = プロジェクト(db, "移譲先").await;
+    let d = 機器(db, 場.project.id, "web01", Some("SN-1")).await;
+    所属を移す(db, d.id, "Project", Some(よそ.id)).await;
+
+    for 行 in [
+        ",,web01,,Project,",
+        ",,web01,,Warehouse,本社倉庫",
+        ",,web01,,Disposed,",
+    ] {
+        let rows = placement::parse_assignments(&所属csv(&[行])).unwrap();
+        let report = placement::assignments_dry_run(db, 場.project.id, &rows)
+            .await
+            .unwrap();
+        assert_eq!(report.count(Outcome::Error), 1, "{行}: {report}");
+        assert!(
+            report.errors().any(|e| e.detail.contains("Transfer")),
+            "{行}: 移譲の案内がありません"
+        );
+
+        assert!(
+            placement::assignments_apply(db, 場.project.id, &rows, Utc::now(), 1)
+                .await
+                .is_err(),
+            "{行}: 反映できてしまいます"
+        );
+    }
+
+    let 履歴 = 所属の履歴(db, d.id).await;
+    assert_eq!(履歴.len(), 2, "所属の履歴が変わっています");
+    assert_eq!(履歴[1].location_id, Some(よそ.id));
+    assert!(履歴[1].to_date.is_none());
+}
+
 /// **倉庫名が解決できなければエラー。**黙って別の倉庫に入れない。
 async fn 知らない倉庫はエラー(db: &DatabaseConnection) {
     let 場 = 舞台(db, "未知倉庫").await;
@@ -463,6 +502,39 @@ async fn 所属の履歴(db: &DatabaseConnection, device_id: i32) -> Vec<device_
         .unwrap()
 }
 
+/// 現在の所属を閉じ、別の所属を開く。移譲や入庫を済ませた状態を作る。
+async fn 所属を移す(
+    db: &DatabaseConnection,
+    device_id: i32,
+    location_type: &str,
+    location_id: Option<i32>,
+) {
+    let 現在 = device_assignment::Entity::find()
+        .filter(device_assignment::Column::DeviceId.eq(device_id))
+        .filter(device_assignment::Column::ToDate.is_null())
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    let 時刻 = Utc::now() - Duration::days(1);
+    let mut active: device_assignment::ActiveModel = 現在.into();
+    active.to_date = Set(Some(時刻));
+    active.update(db).await.unwrap();
+
+    device_assignment::ActiveModel {
+        device_id: Set(device_id),
+        location_type: Set(location_type.to_owned()),
+        location_id: Set(location_id),
+        work_order_id: Set(None),
+        from_date: Set(時刻),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+}
+
 async fn 現在の搭載(db: &DatabaseConnection, device_id: i32) -> Option<device_mount::Model> {
     device_mount::Entity::find()
         .filter(device_mount::Column::DeviceId.eq(device_id))
@@ -568,6 +640,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 倉庫へ払い出せる);
         全検証!(@one $用意, $属性, 廃棄は参照先を持たない);
         全検証!(@one $用意, $属性, 他プロジェクトへは移せない);
+        全検証!(@one $用意, $属性, 他プロジェクトにある機器は引き戻せない);
         全検証!(@one $用意, $属性, 知らない倉庫はエラー);
         全検証!(@one $用意, $属性, 廃止した倉庫はエラー);
         全検証!(@one $用意, $属性, 倉庫名が無ければエラー);

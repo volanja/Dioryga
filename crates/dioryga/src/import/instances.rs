@@ -23,6 +23,19 @@
 //!
 //! 複数プロジェクトにまたがると認可の判定が曖昧になる（3章）。突合も重複検出も
 //! **このプロジェクトに属する（属したことがある）機器の中だけ**で行う。
+//!
+//! # 既存の機器の所属は付け替えない（#143）
+//!
+//! 機器のCSVは機器の値（ホスト名・状態など）を書くものであり、**どこにあるかは
+//! 書かない。**所属は所属のCSV（`placement.rs`）と変更管理チケットが決める。
+//! 新規作成した機器だけをこのプロジェクトへ置く。
+//!
+//! 付け替えると、倉庫へ移した機器が機器のCSVの再取込のたびにプロジェクトへ戻り、
+//! 同じファイルを流すたびに所属の履歴が増える（23.1に反する）。
+//!
+//! **今、他のプロジェクトにある機器はエラーにする。**`uid` で突合した機器や、
+//! 過去にこのプロジェクトにあって移譲された機器が該当する。黙って引き込むと、
+//! チケットを通らない移譲になる（11章）。
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -184,7 +197,9 @@ async fn 突合<C: ConnectionTrait>(
     // ① uid
     //
     // **ここだけはプロジェクトの外も探す。**書き出したファイルを編集して戻す
-    // 運用では、移管された機器の uid が書かれていることがある
+    // 運用では、移管された機器の uid が書かれていることがある。見つけた機器が
+    // 今、他のプロジェクトにあれば、計画する側でエラーにする（#143）。
+    // 「見つかりません」にしないのは、移譲で解決すべきことを案内するため
     if let Some(uid) = DeviceRow::空ならnone(&row.uid) {
         let found = device::Entity::find()
             .filter(device::Column::Uid.eq(uid.as_str()))
@@ -406,7 +421,8 @@ struct Planned {
     device_type: String,
     status: String,
     power_watt: i32,
-    /// このプロジェクトへの割当を作る必要があるか。
+    /// このプロジェクトへの割当を作る必要があるか。**新規作成と、現在の所属が
+    /// 無い機器だけ**が立つ。既存の機器の所属は付け替えない（#143）。
     needs_assignment: bool,
 }
 
@@ -545,12 +561,28 @@ async fn 計画する<C: ConnectionTrait>(
             Matched::New => None,
         };
 
-        let 現在ここにいる = match &existing {
-            Some(d) => 現在の割当(db, d.id)
-                .await?
-                .is_some_and(|a| a.location_type == PROJECT && a.location_id == Some(project_id)),
-            None => false,
+        // **既存の機器の所属は付け替えない**（#143）。機器のCSVは機器の値を書く
+        // ものであり、どこにあるかは所属のCSVと変更管理チケットが決める。
+        // 付け替えると、倉庫へ移した機器が再取込のたびにプロジェクトへ戻る
+        let 現在の所属 = match &existing {
+            Some(d) => 現在の割当(db, d.id).await?,
+            None => None,
         };
+        if let Some(a) = &現在の所属 {
+            if a.location_type == PROJECT && a.location_id != Some(project_id) {
+                // **他のプロジェクトの機器には触れない。**黙って引き込むと、
+                // チケットを通らない移譲になる（11章）
+                report.push(Entry::new(
+                    Outcome::Error,
+                    target,
+                    "この機器は今、他のプロジェクトにあります。\
+                     プロジェクト間の移動は変更管理チケット（Transfer）で行ってください",
+                ));
+                continue;
+            }
+        }
+        // 所属を作るのは、新規作成と、現在の所属が無い機器だけ
+        let needs_assignment = 現在の所属.is_none();
 
         let 変更あり = match &existing {
             None => true,
@@ -567,7 +599,7 @@ async fn 計画する<C: ConnectionTrait>(
             }
         };
 
-        let outcome = match (&existing, 変更あり || !現在ここにいる) {
+        let outcome = match (&existing, 変更あり || needs_assignment) {
             (None, _) => Outcome::Created,
             (Some(_), true) => Outcome::Updated,
             // **現在の事実と一致していれば履歴行を作らない**（23.1）
@@ -590,7 +622,7 @@ async fn 計画する<C: ConnectionTrait>(
             device_type,
             status,
             power_watt,
-            needs_assignment: !現在ここにいる,
+            needs_assignment,
         });
     }
 
@@ -689,14 +721,8 @@ pub async fn 取り込む(
             }
         };
 
+        // **現在の所属が無いときだけ開く。**閉じる行は無い（計画で確かめている）
         if p.needs_assignment {
-            // 別の場所にいたなら、その行を閉じてから開く（不変条件1）
-            if let Some(現在) = 現在の割当(tx.reader(), device_id).await? {
-                let mut active: device_assignment::ActiveModel = 現在.clone().into();
-                active.to_date = Set(Some(as_of));
-                tx.update(&現在, active).await?;
-            }
-
             tx.insert(device_assignment::ActiveModel {
                 device_id: Set(device_id),
                 location_type: Set(PROJECT.to_owned()),

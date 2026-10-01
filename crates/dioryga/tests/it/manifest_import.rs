@@ -19,7 +19,8 @@ use std::path::PathBuf;
 use chrono::Utc;
 use dioryga::import::{run, Outcome};
 use entity::{
-    app_user, device, device_mount, import_run, mount_container, project, project_member,
+    app_user, device, device_assignment, device_mount, import_run, mount_container, project,
+    project_member, warehouse,
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
@@ -93,6 +94,83 @@ async fn 同じ取込で作る機器を配置できる(db: &DatabaseConnection) 
         .unwrap()
         .expect("搭載されていません");
     assert_eq!(m.position, Some(10));
+}
+
+/// **機器と倉庫への所属を同じマニフェストに書いても、2回目は何も書かないこと**
+/// （#143、23.1）。
+///
+/// 以前は機器の取込が既存の機器をプロジェクトへ置き直し、その後に所属のCSVが
+/// 倉庫へ戻していた。流すたびに所属の履歴が2行ずつ増えた。
+async fn 倉庫にある機器を二度流しても変わらない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "倉庫と同梱").await;
+    let u = app_user::Entity::find().one(db).await.unwrap().unwrap();
+    warehouse::ActiveModel {
+        name: Set("白馬倉庫".to_owned()),
+        address: Set(String::new()),
+        retired_at: Set(None),
+        created_by: Set(u.id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    let dir = 取込ファイル(
+        &場,
+        &[
+            (
+                "device",
+                "devices.csv",
+                "uid,external_id,hostname,serial_number,asset_number,device_type,power_watt,status\n\
+                 ,KT-0901,spare01,HM22-0901,,Physical,0,failed\n",
+            ),
+            (
+                "device_assignment",
+                "assignments.csv",
+                "uid,external_id,hostname,serial_number,location_type,location_name\n\
+                 ,,spare01,,Warehouse,白馬倉庫\n",
+            ),
+        ],
+    );
+    let username = 場.email.replace('@', "_");
+
+    let 一回目 = run::run(db, &dir.join("manifest.yaml"), &username, true)
+        .await
+        .unwrap();
+    assert!(!一回目.report.has_error(), "{}", 一回目.report);
+    let 件数 = device_assignment::Entity::find().count(db).await.unwrap();
+
+    let 二回目 = run::run(db, &dir.join("manifest.yaml"), &username, true)
+        .await
+        .unwrap();
+    assert!(!二回目.report.has_error(), "{}", 二回目.report);
+    assert_eq!(
+        二回目.report.count(Outcome::Updated),
+        0,
+        "{}",
+        二回目.report
+    );
+    assert_eq!(
+        二回目.report.count(Outcome::Created),
+        0,
+        "{}",
+        二回目.report
+    );
+    assert_eq!(
+        device_assignment::Entity::find().count(db).await.unwrap(),
+        件数,
+        "所属の履歴が増えています"
+    );
+
+    let 現在 = device_assignment::Entity::find()
+        .filter(device_assignment::Column::ToDate.is_null())
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(現在.location_type, "Warehouse");
 }
 
 /// **ドライランの件数と、反映した件数が一致すること**（23.6）。
@@ -1063,6 +1141,7 @@ async fn ベンダー(db: &DatabaseConnection, name: &str) -> i32 {
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, 同じ取込で作る機器を配置できる);
+        全検証!(@one $用意, $属性, 倉庫にある機器を二度流しても変わらない);
         全検証!(@one $用意, $属性, ドライランと反映の件数が一致する);
         全検証!(@one $用意, $属性, エラーがあれば何も残らない);
         全検証!(@one $用意, $属性, ネットワークをまとめて取り込める);

@@ -379,6 +379,11 @@ work_orders:
   error_transition: Invalid transition
   error_transition_from: This operation is not allowed from the current state
   error_abort_reason: Enter a reason for aborting
+  error_transfer_no_device: No device is set for this transfer. Create a work order that names the device
+  error_transfer_not_here: This device is not in the originating project now
+  error_transfer_mounted: The device is mounted on a rack or furniture (reservations included). Unmount it before executing
+  error_transfer_hosting: Other devices are mounted on this device. Remove them first
+  error_transfer_has_ip: The device still has IP addresses. Close them before executing
   reservations: Reserved placement
   reservations_hint: Hold a rack position while the work is still planned. It appears in the rack diagram as reserved so nobody else takes the spot, and it is released if the work order is cancelled
   reserve: Reserve a rack position

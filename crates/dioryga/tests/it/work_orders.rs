@@ -17,11 +17,12 @@ use dioryga::auth::setup::SetupState;
 use dioryga::config::Config;
 use dioryga::server::{router, AppState};
 use entity::{
-    app_user, audit_log, device, device_assignment, device_mount, mount_container, project,
-    project_member, work_order, work_order_approval,
+    app_user, audit_log, device, device_assignment, device_mount, ip_address, mount_container,
+    os_interface, project, project_member, work_order, work_order_approval,
 };
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
+    QueryOrder, Set,
 };
 use std::sync::Arc;
 use tower::ServiceExt;
@@ -833,6 +834,169 @@ async fn 移譲先からもチケットが見える(db: &DatabaseConnection) {
     );
 }
 
+/// **移譲を実行すると、機器の所属が移譲先へ移ること**（11.5、#215）。
+///
+/// 閉じて開く（不変条件1）。開く行に、移譲のチケットが残る。
+async fn 移譲を実行すると所属が移る(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "xfer-move@example.com").await;
+    let 移譲先 = プロジェクト(db, "移譲の受入先").await;
+    let device_id = 予約対象の機器(db, &場, "xfer-srv", "running").await;
+    let w = 移譲のチケット(db, 場.project_id, 移譲先.id, Some(device_id)).await;
+
+    // 実行の前は動かない
+    assert_eq!(現在の所属(db, device_id).await, Some(場.project_id));
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "execute", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+
+    let 履歴 = device_assignment::Entity::find()
+        .filter(device_assignment::Column::DeviceId.eq(device_id))
+        .order_by_asc(device_assignment::Column::Id)
+        .all(db)
+        .await
+        .unwrap();
+    assert_eq!(履歴.len(), 2, "閉じて開いていません: {履歴:?}");
+    assert_eq!(履歴[0].location_id, Some(場.project_id));
+    assert!(履歴[0].to_date.is_some(), "移譲元の行が閉じていません");
+    // 閉じる行の work_order_id は、その行を作ったチケットの記録なので書き換えない
+    assert_eq!(履歴[0].work_order_id, None);
+    assert_eq!(履歴[1].location_type, "Project");
+    assert_eq!(履歴[1].location_id, Some(移譲先.id));
+    assert_eq!(履歴[1].work_order_id, Some(w.id));
+    assert_eq!(履歴[1].to_date, None);
+    assert_eq!(
+        履歴[0].to_date,
+        Some(履歴[1].from_date),
+        "履歴に隙間があります"
+    );
+
+    // 完了では、もう動かない
+    let (状態, token) = 認証済み(db, &場.user).await;
+    遷移(状態, &token, 場.project_id, w.id, "complete", "").await;
+    assert_eq!(現在の所属(db, device_id).await, Some(移譲先.id));
+    let 行数 = device_assignment::Entity::find()
+        .filter(device_assignment::Column::DeviceId.eq(device_id))
+        .count(db)
+        .await
+        .unwrap();
+    assert_eq!(行数, 2);
+}
+
+/// **外すものが残っている間は、移譲を実行させないこと**（11.5、#215）。
+///
+/// 設備・什器もサブネットもプロジェクトのものである。付けたまま移すと、
+/// 移譲元のラック図に他のプロジェクトの機器が残る。黙って閉じることもしない。
+async fn 外すものが残る移譲は実行できない(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "xfer-block@example.com").await;
+    let 移譲先 = プロジェクト(db, "移譲の受入先2").await;
+
+    // 搭載している
+    let 搭載中 = 予約対象の機器(db, &場, "xfer-mounted", "running").await;
+    device_mount::ActiveModel {
+        device_id: Set(搭載中),
+        container_id: Set(Some(場.container_id)),
+        position: Set(Some(10)),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    // 上に機器を載せている（棚板・仮想マシンのホスト）
+    let 載せている = 予約対象の機器(db, &場, "xfer-host", "running").await;
+    let 上の機器 = 予約対象の機器(db, &場, "xfer-guest", "running").await;
+    device_mount::ActiveModel {
+        device_id: Set(上の機器),
+        host_device_id: Set(Some(載せている)),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    // IPアドレスを持っている
+    let アドレス持ち = 予約対象の機器(db, &場, "xfer-ip", "running").await;
+    let nic = os_interface::ActiveModel {
+        device_id: Set(アドレス持ち),
+        interface_type: Set("Virtual".to_owned()),
+        os_interface_name: Set("lo1".to_owned()),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    ip_address::ActiveModel {
+        os_interface_id: Set(nic.id),
+        ip_address: Set("192.0.2.10".to_owned()),
+        prefix_length: Set(24),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    for (device_id, 期待) in [
+        (Some(搭載中), "搭載を外してから"),
+        (Some(載せている), "載っている機器があります"),
+        (Some(アドレス持ち), "IPアドレスを閉じてから"),
+        // 機器を指定していない移譲
+        (None, "機器が指定されていません"),
+    ] {
+        let w = 移譲のチケット(db, 場.project_id, 移譲先.id, device_id).await;
+        let (状態, token) = 認証済み(db, &場.user).await;
+        let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "execute", "").await;
+        assert_eq!(status, StatusCode::OK, "{期待}");
+        assert!(body.contains(期待), "{期待}: {body}");
+        // **チケットも所属も動いていないこと**
+        assert_eq!(再取得(db, w.id).await.status, "approved", "{期待}");
+        if let Some(id) = device_id {
+            assert_eq!(現在の所属(db, id).await, Some(場.project_id), "{期待}");
+        }
+    }
+
+    // **閉じた行は妨げにならない。**外したあとは実行できる
+    let 搭載 = 現行の搭載(db, 搭載中).await.unwrap();
+    let mut active: device_mount::ActiveModel = 搭載.into();
+    active.to_date = Set(Some(Utc::now()));
+    active.update(db).await.unwrap();
+    let w = 移譲のチケット(db, 場.project_id, 移譲先.id, Some(搭載中)).await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "execute", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    assert_eq!(現在の所属(db, 搭載中).await, Some(移譲先.id));
+}
+
+/// **起票元にない機器は移せないこと**（#215）。
+///
+/// 起票の後に別のチケットで動いていれば、承認された前提がもう成り立たない。
+async fn 起票元にない機器は移譲できない(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "xfer-gone@example.com").await;
+    let 移譲先 = プロジェクト(db, "移譲の受入先3").await;
+    let device_id = 予約対象の機器(db, &場, "xfer-twice", "running").await;
+
+    let 一つ目 = 移譲のチケット(db, 場.project_id, 移譲先.id, Some(device_id)).await;
+    let 二つ目 = 移譲のチケット(db, 場.project_id, 移譲先.id, Some(device_id)).await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 遷移(状態, &token, 場.project_id, 一つ目.id, "execute", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, 二つ目.id, "execute", "").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("起票元のプロジェクトにありません"), "{body}");
+    assert_eq!(再取得(db, 二つ目.id).await.status, "approved");
+}
+
 // ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
@@ -953,6 +1117,31 @@ async fn 予約(
         &borrowed,
     )
     .await
+}
+
+/// 承認済みの移譲のチケット。承認の流れは別のテストで確かめている。
+async fn 移譲のチケット(
+    db: &DatabaseConnection,
+    project_id: i32,
+    target_project_id: i32,
+    device_id: Option<i32>,
+) -> work_order::Model {
+    let w = 起票(db, project_id, Some(target_project_id), "Transfer", None).await;
+    let mut active: work_order::ActiveModel = w.into();
+    active.device_id = Set(device_id);
+    active.status = Set("approved".to_owned());
+    active.update(db).await.unwrap()
+}
+
+/// 機器が今いるプロジェクト。
+async fn 現在の所属(db: &DatabaseConnection, device_id: i32) -> Option<i32> {
+    device_assignment::Entity::find()
+        .filter(device_assignment::Column::DeviceId.eq(device_id))
+        .filter(device_assignment::Column::ToDate.is_null())
+        .one(db)
+        .await
+        .unwrap()
+        .and_then(|a| a.location_id)
 }
 
 async fn 現行の搭載(db: &DatabaseConnection, device_id: i32) -> Option<device_mount::Model> {
@@ -1260,6 +1449,9 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 移設では予約を作れない);
         全検証!(@one $用意, $属性, 既定では終わったものを隠す);
         全検証!(@one $用意, $属性, 他プロジェクトのチケットは見えない);
+        全検証!(@one $用意, $属性, 移譲を実行すると所属が移る);
+        全検証!(@one $用意, $属性, 外すものが残る移譲は実行できない);
+        全検証!(@one $用意, $属性, 起票元にない機器は移譲できない);
         全検証!(@one $用意, $属性, 移譲先からもチケットが見える);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {

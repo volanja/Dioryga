@@ -53,13 +53,13 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::{Extension, Form};
 use chrono::{NaiveDate, Utc};
 use entity::{
-    app_user, device, device_mount, mount_container, project, project_member, work_order,
-    work_order_approval,
+    app_user, device, device_assignment, device_mount, ip_address, mount_container, os_interface,
+    project, project_member, work_order, work_order_approval,
 };
 use sea_orm::prelude::DateTimeUtc;
 use sea_orm::{
-    ColumnTrait, Condition, ConnectionTrait, EntityTrait, ExprTrait, QueryFilter, QueryOrder,
-    QuerySelect, Set,
+    ColumnTrait, Condition, ConnectionTrait, EntityTrait, ExprTrait, PaginatorTrait, QueryFilter,
+    QueryOrder, QuerySelect, Set,
 };
 use serde::Deserialize;
 
@@ -77,6 +77,9 @@ const WORK_TYPES: &[&str] = &["Repair", "Addition", "Relocation", "Disposal", "T
 
 /// 移譲。**このときだけ承認行が2つになる**（11.5）。
 const TRANSFER: &str = "Transfer";
+
+/// `DEVICE_ASSIGNMENT.location_type`（6.2）。
+const PROJECT: &str = "Project";
 
 /// 増設。**予約レコードを作れるのはこれだけ**（11.6）。
 const ADDITION: &str = "Addition";
@@ -1246,6 +1249,14 @@ pub async fn transition(
         return 詳細を描く(&state, &current, project_id, work_order_id, Some(e), None).await;
     }
 
+    // **移譲は、外すものが残っている間は実行させない**（11.5）
+    if t == Transition::Execute && w.work_type == TRANSFER {
+        if let Some(key) = 移譲を妨げるもの(&state.db, &w).await? {
+            let e = rust_i18n::t!(key, locale = l).to_string();
+            return 詳細を描く(&state, &current, project_id, work_order_id, Some(e), None).await;
+        }
+    }
+
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
@@ -1276,7 +1287,13 @@ pub async fn transition(
         Transition::Abort => 予約を解放する(&tx, w.id, now).await?,
         // **実行したら予約が実機になる**（16.2のフロー）。status=plan のまま
         // だとラック図に予約中として描かれ続ける
-        Transition::Execute => 予約を実機にする(&tx, &w, now).await?,
+        Transition::Execute => {
+            予約を実機にする(&tx, &w, now).await?;
+            // **移譲は実行で所属が移る**（11.5）
+            if w.work_type == TRANSFER {
+                移譲する(&tx, &w, now).await?;
+            }
+        }
         Transition::Complete => {}
     }
 
@@ -1362,6 +1379,127 @@ async fn 予約を実機にする(
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
+    Ok(())
+}
+
+/// 移譲を実行できない理由（i18n のキー）。実行できるなら `None`（11.5、#215）。
+///
+/// **搭載とIPアドレスは、外すまで実行させない。**設備・什器もサブネットも
+/// プロジェクトのものであり、付けたまま移すと、移譲元のラック図に他の
+/// プロジェクトの機器が残り、移譲元のサブネットのアドレスを移譲先の機器が持つ。
+/// 黙って閉じることもしない——利用者が気づかないまま配置とアドレスが外れる。
+///
+/// 載っている部品は、所在が機器そのものなので、機器について移る。
+async fn 移譲を妨げるもの<C: ConnectionTrait>(
+    db: &C,
+    w: &work_order::Model,
+) -> AppResult<Option<&'static str>> {
+    let 内部 = |e: sea_orm::DbErr| AppError::Internal(anyhow::anyhow!(e));
+
+    // 部品だけの移譲は、部品をプロジェクトに置けるようになってから（#219）
+    let Some(device_id) = w.device_id else {
+        return Ok(Some("work_orders.error_transfer_no_device"));
+    };
+
+    // **起票元にある機器だけを移せる。**起票の後に別のチケットで動いていれば、
+    // このチケットが承認されたのはもう成り立たない前提である
+    let ここにある = device_assignment::Entity::find()
+        .filter(device_assignment::Column::DeviceId.eq(device_id))
+        .filter(device_assignment::Column::ToDate.is_null())
+        .one(db)
+        .await
+        .map_err(内部)?
+        .is_some_and(|a| a.location_type == PROJECT && a.location_id == Some(w.project_id));
+    if !ここにある {
+        return Ok(Some("work_orders.error_transfer_not_here"));
+    }
+
+    // 予約（`work_order_id` つきの搭載）も現行行なので、ここで止まる
+    let 搭載 = device_mount::Entity::find()
+        .filter(device_mount::Column::DeviceId.eq(device_id))
+        .filter(device_mount::Column::ToDate.is_null())
+        .count(db)
+        .await
+        .map_err(内部)?;
+    if 搭載 > 0 {
+        return Ok(Some("work_orders.error_transfer_mounted"));
+    }
+
+    // 棚板の上の機器や、物理ホストの上の仮想マシン（12.3、13章）
+    let 載せている = device_mount::Entity::find()
+        .filter(device_mount::Column::HostDeviceId.eq(device_id))
+        .filter(device_mount::Column::ToDate.is_null())
+        .count(db)
+        .await
+        .map_err(内部)?;
+    if 載せている > 0 {
+        return Ok(Some("work_orders.error_transfer_hosting"));
+    }
+
+    let インタフェース: Vec<i32> = os_interface::Entity::find()
+        .filter(os_interface::Column::DeviceId.eq(device_id))
+        .filter(os_interface::Column::ToDate.is_null())
+        .all(db)
+        .await
+        .map_err(内部)?
+        .into_iter()
+        .map(|i| i.id)
+        .collect();
+    if !インタフェース.is_empty() {
+        let アドレス = ip_address::Entity::find()
+            .filter(ip_address::Column::OsInterfaceId.is_in(インタフェース))
+            .filter(ip_address::Column::ToDate.is_null())
+            .count(db)
+            .await
+            .map_err(内部)?;
+        if アドレス > 0 {
+            return Ok(Some("work_orders.error_transfer_has_ip"));
+        }
+    }
+
+    Ok(None)
+}
+
+/// 移譲の実行で、機器の所属を移譲先へ移す（11.5、#215）。
+///
+/// **閉じて開く**（不変条件1）。`work_order_id` は開く行にだけ入れる——閉じる行の
+/// それは、その行を作ったチケットの記録である。
+async fn 移譲する(tx: &AuditedTx, w: &work_order::Model, at: DateTimeUtc) -> AppResult<()> {
+    let 内部 = |e: sea_orm::DbErr| AppError::Internal(anyhow::anyhow!(e));
+    let (Some(device_id), Some(target)) = (w.device_id, w.target_project_id) else {
+        return Ok(());
+    };
+
+    let 現在 = device_assignment::Entity::find()
+        .filter(device_assignment::Column::DeviceId.eq(device_id))
+        .filter(device_assignment::Column::ToDate.is_null())
+        .all(tx.reader())
+        .await
+        .map_err(内部)?;
+    for row in 現在 {
+        tx.update(
+            &row,
+            device_assignment::ActiveModel {
+                id: Set(row.id),
+                to_date: Set(Some(at)),
+                ..Default::default()
+            },
+        )
+        .await
+        .map_err(内部)?;
+    }
+
+    tx.insert(device_assignment::ActiveModel {
+        device_id: Set(device_id),
+        location_type: Set(PROJECT.to_owned()),
+        location_id: Set(Some(target)),
+        work_order_id: Set(Some(w.id)),
+        from_date: Set(at),
+        to_date: Set(None),
+        ..Default::default()
+    })
+    .await
+    .map_err(内部)?;
     Ok(())
 }
 

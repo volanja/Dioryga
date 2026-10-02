@@ -6,7 +6,7 @@
 
 use chrono::{Duration, Utc};
 use dioryga::import::{instances, Outcome};
-use entity::{app_user, device, device_assignment, project};
+use entity::{app_user, device, device_assignment, project, warehouse};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
 const 見出し: &str =
@@ -308,30 +308,113 @@ async fn 二度流しても履歴が増えない(db: &DatabaseConnection) {
     assert_eq!(二回目のレポート.count(Outcome::Created), 0);
 }
 
-/// 別プロジェクトから移ってきた機器は、所在の履歴が閉じて開かれること。
-async fn 移設は閉じて開く(db: &DatabaseConnection) {
-    let 旧 = プロジェクト(db, "移管元").await;
-    let 新 = プロジェクト(db, "移管先").await;
-    let d = 機器(db, 旧.id, "moving", Some("SN-MV"), None).await;
+/// **今、他のプロジェクトにある機器はエラーにし、引き込まないこと**（#143）。
+///
+/// 黙って引き込むと、チケットを通らない移譲になる（11章）。`uid` はプロジェクト
+/// の外も探すため、書き出したファイルを別のプロジェクトで流すと起きる。
+/// 過去にこのプロジェクトにあって移譲された機器も、`match_on` の候補に入るため
+/// 同じ扱いにする。
+async fn 他のプロジェクトにある機器はエラー(db: &DatabaseConnection) {
+    let 元 = プロジェクト(db, "移譲元").await;
+    let 先 = プロジェクト(db, "移譲先").await;
+    let d = 機器(db, 元.id, "moving", Some("SN-MV"), None).await;
 
-    // 移管先のプロジェクトへ、uid を指定して取り込む
-    let rows =
+    // 書き出したファイルのように、uid で書いた行
+    let uidで =
         instances::parse_devices(&csv(&[&format!("{},,moving,SN-MV,,Physical,,", d.uid)])).unwrap();
-    let as_of = Utc::now();
-    instances::apply(db, 新.id, &rows, &[], as_of, 1)
-        .await
-        .unwrap();
+    // 移譲した後に、移譲元で普段のCSVを流し直す
+    所属を移す(db, d.id, "Project", Some(先.id)).await;
+    let 再取込 = instances::parse_devices(&csv(&[",,moving,SN-MV,,Physical,,"])).unwrap();
 
-    let 履歴 = device_assignment::Entity::find()
-        .filter(device_assignment::Column::DeviceId.eq(d.id))
-        .all(db)
-        .await
-        .unwrap();
-    assert_eq!(履歴.len(), 2, "履歴が上書きされています");
+    for rows in [&再取込, &uidで] {
+        let report = instances::dry_run(db, 元.id, rows, &["serial_number".to_owned()])
+            .await
+            .unwrap();
+        assert_eq!(report.count(Outcome::Error), 1, "{report}");
+        assert!(
+            report.errors().any(|e| e.detail.contains("Transfer")),
+            "移譲の案内がありません: {report}"
+        );
+        assert!(
+            instances::apply(
+                db,
+                元.id,
+                rows,
+                &["serial_number".to_owned()],
+                Utc::now(),
+                1
+            )
+            .await
+            .is_err(),
+            "反映できてしまいます"
+        );
+    }
 
+    // 今ある移譲先からは触れる
+    let report = instances::dry_run(db, 先.id, &uidで, &[]).await.unwrap();
+    assert!(!report.has_error(), "{report}");
+
+    // 移譲先とは別のプロジェクトから uid で書いても引き込めない
+    let 第三 = プロジェクト(db, "無関係").await;
+    let report = instances::dry_run(db, 第三.id, &uidで, &[]).await.unwrap();
+    assert_eq!(report.count(Outcome::Error), 1, "{report}");
+
+    let 履歴 = 所属の履歴(db, d.id).await;
+    assert_eq!(履歴.len(), 2, "所属の履歴が変わっています");
     let 現在: Vec<_> = 履歴.iter().filter(|a| a.to_date.is_none()).collect();
     assert_eq!(現在.len(), 1);
-    assert_eq!(現在[0].location_id, Some(新.id));
+    assert_eq!(現在[0].location_id, Some(先.id));
+}
+
+/// **既存の機器の所属は付け替えないこと**（#143）。
+///
+/// 倉庫へ移した機器を普段の機器のCSVに書いたまま流し直しても、プロジェクトへ
+/// 戻さない。戻すと、流すたびに所属の履歴が増え（23.1）、倉庫からの払い出しが
+/// チケットなしに起きる。廃棄した機器も同じ。**機器の値の更新は通す。**
+async fn 倉庫や廃棄にある機器の所属は付け替えない(db: &DatabaseConnection) {
+    let p = プロジェクト(db, "付け替え検証").await;
+    let 倉庫 = 倉庫(db, "付け替え検証倉庫").await;
+    let 置いた = 機器(db, p.id, "spare01", Some("SN-SP"), None).await;
+    let 捨てた = 機器(db, p.id, "old01", Some("SN-OLD"), None).await;
+    所属を移す(db, 置いた.id, "Warehouse", Some(倉庫.id)).await;
+    所属を移す(db, 捨てた.id, "Disposed", None).await;
+
+    let match_on = ["serial_number".to_owned()];
+    let 同じ値 = instances::parse_devices(&csv(&[
+        ",,spare01,SN-SP,,Physical,400,running",
+        ",,old01,SN-OLD,,Physical,400,running",
+    ]))
+    .unwrap();
+    let report = instances::dry_run(db, p.id, &同じ値, &match_on)
+        .await
+        .unwrap();
+    assert_eq!(report.count(Outcome::Unchanged), 2, "{report}");
+
+    // 値が変われば機器は更新するが、所属には触れない
+    let 値を変える = instances::parse_devices(&csv(&[
+        ",,spare01,SN-SP,,Physical,400,failed",
+        ",,old01,SN-OLD,,Physical,400,failed",
+    ]))
+    .unwrap();
+    for _ in 0..2 {
+        instances::apply(db, p.id, &値を変える, &match_on, Utc::now(), 1)
+            .await
+            .unwrap();
+    }
+
+    for (d, 種別) in [(&置いた, "Warehouse"), (&捨てた, "Disposed")] {
+        let 後 = device::Entity::find_by_id(d.id)
+            .one(db)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(後.status, "failed");
+        let 履歴 = 所属の履歴(db, d.id).await;
+        assert_eq!(履歴.len(), 2, "{種別}: 所属の履歴が増えています");
+        let 現在: Vec<_> = 履歴.iter().filter(|a| a.to_date.is_none()).collect();
+        assert_eq!(現在.len(), 1);
+        assert_eq!(現在[0].location_type, 種別);
+    }
 }
 
 /// **`as_of` が履歴の `from_date` に使われること**（設計書23.1）。
@@ -438,6 +521,63 @@ async fn 割当の件数(db: &DatabaseConnection) -> usize {
         .len()
 }
 
+async fn 所属の履歴(db: &DatabaseConnection, device_id: i32) -> Vec<device_assignment::Model> {
+    device_assignment::Entity::find()
+        .filter(device_assignment::Column::DeviceId.eq(device_id))
+        .all(db)
+        .await
+        .unwrap()
+}
+
+/// 現在の所属を閉じ、別の所属を開く。移譲や入庫を済ませた状態を作る。
+async fn 所属を移す(
+    db: &DatabaseConnection,
+    device_id: i32,
+    location_type: &str,
+    location_id: Option<i32>,
+) {
+    let 現在 = device_assignment::Entity::find()
+        .filter(device_assignment::Column::DeviceId.eq(device_id))
+        .filter(device_assignment::Column::ToDate.is_null())
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    let 時刻 = Utc::now() - Duration::days(1);
+    let mut active: device_assignment::ActiveModel = 現在.into();
+    active.to_date = Set(Some(時刻));
+    active.update(db).await.unwrap();
+
+    device_assignment::ActiveModel {
+        device_id: Set(device_id),
+        location_type: Set(location_type.to_owned()),
+        location_id: Set(location_id),
+        work_order_id: Set(None),
+        from_date: Set(時刻),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+}
+
+async fn 倉庫(db: &DatabaseConnection, name: &str) -> warehouse::Model {
+    let u = 利用者(db, &format!("{}@example.com", uuid::Uuid::new_v4())).await;
+    warehouse::ActiveModel {
+        name: Set(name.to_owned()),
+        address: Set(String::new()),
+        retired_at: Set(None),
+        created_by: Set(u.id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap()
+}
+
 async fn プロジェクト(db: &DatabaseConnection, name: &str) -> project::Model {
     project::ActiveModel {
         uid: Set(uuid::Uuid::new_v4().to_string()),
@@ -501,8 +641,7 @@ async fn 機器(
     d
 }
 
-/// 取込者の権限確認に使う（`RunError` 側の経路はCLIで確認している）。
-#[allow(dead_code)]
+/// 倉庫の作成者に使う。
 async fn 利用者(db: &DatabaseConnection, email: &str) -> app_user::Model {
     app_user::ActiveModel {
         name: Set("取込".to_owned()),
@@ -534,7 +673,8 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 統合された機器は統合先に着地する);
         全検証!(@one $用意, $属性, ファイル内の重複はエラー);
         全検証!(@one $用意, $属性, 二度流しても履歴が増えない);
-        全検証!(@one $用意, $属性, 移設は閉じて開く);
+        全検証!(@one $用意, $属性, 他のプロジェクトにある機器はエラー);
+        全検証!(@one $用意, $属性, 倉庫や廃棄にある機器の所属は付け替えない);
         全検証!(@one $用意, $属性, as_ofが履歴の開始日になる);
         全検証!(@one $用意, $属性, 語彙外の値は拒否される);
         全検証!(@one $用意, $属性, 種別の旧表記は拒否される);

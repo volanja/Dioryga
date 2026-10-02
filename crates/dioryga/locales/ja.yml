@@ -384,6 +384,12 @@ work_orders:
   error_transfer_mounted: 機器が設備・什器に搭載されています（予約を含む）。搭載を外してから実行してください
   error_transfer_hosting: この機器の上に載っている機器があります。先にそちらを外してください
   error_transfer_has_ip: 機器にIPアドレスが残っています。IPアドレスを閉じてから実行してください
+  error_disposal_no_target: 廃棄する機器が指定されていません。機器を指定したチケットを起票してください
+  error_disposal_not_here: この機器は、いま起票元のプロジェクトにありません
+  error_disposal_mounted: 機器が設備・什器に搭載されています（予約を含む）。搭載を外してから完了してください
+  error_disposal_hosting: この機器の上に載っている機器があります。先にそちらを外してください
+  error_disposal_has_ip: 機器にIPアドレスが残っています。IPアドレスを閉じてから完了してください
+  error_disposal_part_not_here: この部品は、いま起票元のプロジェクトの機器に載っていません
   reservations: 予約している配置
   reservations_hint: 計画の時点でラック位置を確保します。ラック図に予約中として現れ、他の担当者が同じ場所を使えなくなります。中止すると解放されます
   reserve: ラック位置を予約する

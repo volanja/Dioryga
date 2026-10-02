@@ -18,7 +18,8 @@ use dioryga::config::Config;
 use dioryga::server::{router, AppState};
 use entity::{
     app_user, audit_log, device, device_assignment, device_mount, ip_address, mount_container,
-    os_interface, project, project_member, work_order, work_order_approval,
+    os_interface, part_catalog, part_instance, part_instance_location, project, project_member,
+    vendor, work_order, work_order_approval,
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
@@ -997,6 +998,252 @@ async fn 起票元にない機器は移譲できない(db: &DatabaseConnection) 
     assert_eq!(再取得(db, 二つ目.id).await.status, "approved");
 }
 
+/// **廃棄を完了すると、機器の所在が `Disposed` になること**（11.4、#216）。
+///
+/// 閉じて開く（不変条件1）。開く行に廃棄のチケットが残り、機器は現役の一覧から消える。
+/// **実行では動かさない。**作業の途中では、まだ現役の機器である。
+async fn 廃棄を完了すると所在がdisposedになる(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "dispose-move@example.com").await;
+    let device_id = 予約対象の機器(db, &場, "dispose-srv", "running").await;
+    let w = 廃棄のチケット(db, 場.project_id, Some(device_id), None, "approved").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "execute", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    assert_eq!(
+        現在の所属(db, device_id).await,
+        Some(場.project_id),
+        "実行で動いています"
+    );
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "complete", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    assert_eq!(再取得(db, w.id).await.status, "completed");
+
+    let 履歴 = device_assignment::Entity::find()
+        .filter(device_assignment::Column::DeviceId.eq(device_id))
+        .order_by_asc(device_assignment::Column::Id)
+        .all(db)
+        .await
+        .unwrap();
+    assert_eq!(履歴.len(), 2, "閉じて開いていません: {履歴:?}");
+    assert_eq!(履歴[0].location_id, Some(場.project_id));
+    assert_eq!(履歴[0].work_order_id, None);
+    assert_eq!(
+        履歴[0].to_date,
+        Some(履歴[1].from_date),
+        "履歴に隙間があります"
+    );
+    assert_eq!(履歴[1].location_type, "Disposed");
+    assert_eq!(履歴[1].location_id, None, "Disposed は参照先を持たない");
+    assert_eq!(履歴[1].work_order_id, Some(w.id));
+    assert_eq!(履歴[1].to_date, None);
+
+    // 現役の一覧から消え、すべての一覧には廃棄として残る
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, 現役) = 取得(
+        状態,
+        &format!("/projects/{}/devices", 場.project_id),
+        &token,
+    )
+    .await;
+    assert!(!現役.contains("dispose-srv"), "現役の一覧に残っています");
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, すべて) = 取得(
+        状態,
+        &format!("/projects/{}/devices?scope=all", 場.project_id),
+        &token,
+    )
+    .await;
+    assert!(
+        すべて.contains("dispose-srv"),
+        "すべての一覧から消えています"
+    );
+}
+
+/// **外すものが残っている間は、廃棄を完了させないこと**（11.4、#216）。
+///
+/// 移譲（#215）と同じ扱い。付けたまま廃棄すると、廃棄した機器がラック図と
+/// アドレスの一覧に残る。黙って閉じることもしない。
+async fn 外すものが残る廃棄は完了できない(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "dispose-block@example.com").await;
+
+    let 搭載中 = 予約対象の機器(db, &場, "dispose-mounted", "running").await;
+    device_mount::ActiveModel {
+        device_id: Set(搭載中),
+        container_id: Set(Some(場.container_id)),
+        position: Set(Some(12)),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    let 載せている = 予約対象の機器(db, &場, "dispose-host", "running").await;
+    let 上の機器 = 予約対象の機器(db, &場, "dispose-guest", "running").await;
+    device_mount::ActiveModel {
+        device_id: Set(上の機器),
+        host_device_id: Set(Some(載せている)),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    let アドレス持ち = 予約対象の機器(db, &場, "dispose-ip", "running").await;
+    let nic = os_interface::ActiveModel {
+        device_id: Set(アドレス持ち),
+        interface_type: Set("Virtual".to_owned()),
+        os_interface_name: Set("lo1".to_owned()),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    ip_address::ActiveModel {
+        os_interface_id: Set(nic.id),
+        ip_address: Set("192.0.2.20".to_owned()),
+        prefix_length: Set(24),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    // 別のプロジェクトにある機器
+    let よそ = プロジェクト(db, "廃棄のよそ").await;
+    let よその機器 = 予約対象の機器(db, &場, "dispose-elsewhere", "running").await;
+    let 所属 = device_assignment::Entity::find()
+        .filter(device_assignment::Column::DeviceId.eq(よその機器))
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    let mut active: device_assignment::ActiveModel = 所属.into();
+    active.location_id = Set(Some(よそ.id));
+    active.update(db).await.unwrap();
+
+    for (device_id, 期待) in [
+        (Some(搭載中), "搭載を外してから完了"),
+        (Some(載せている), "載っている機器があります"),
+        (Some(アドレス持ち), "IPアドレスを閉じてから完了"),
+        (Some(よその機器), "起票元のプロジェクトにありません"),
+        (None, "廃棄する機器が指定されていません"),
+    ] {
+        let w = 廃棄のチケット(db, 場.project_id, device_id, None, "in_progress").await;
+        let (状態, token) = 認証済み(db, &場.user).await;
+        let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "complete", "").await;
+        assert_eq!(status, StatusCode::OK, "{期待}");
+        assert!(body.contains(期待), "{期待}: {body}");
+        // **チケットも所在も動いていないこと**
+        assert_eq!(再取得(db, w.id).await.status, "in_progress", "{期待}");
+        if let Some(id) = device_id {
+            let 種別 = device_assignment::Entity::find()
+                .filter(device_assignment::Column::DeviceId.eq(id))
+                .filter(device_assignment::Column::ToDate.is_null())
+                .one(db)
+                .await
+                .unwrap()
+                .unwrap()
+                .location_type;
+            assert_eq!(種別, "Project", "{期待}");
+        }
+    }
+
+    // **閉じた行は妨げにならない。**外したあとは完了できる
+    let 搭載 = 現行の搭載(db, 搭載中).await.unwrap();
+    let mut active: device_mount::ActiveModel = 搭載.into();
+    active.to_date = Set(Some(Utc::now()));
+    active.update(db).await.unwrap();
+    let w = 廃棄のチケット(db, 場.project_id, Some(搭載中), None, "in_progress").await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "complete", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+
+    // 廃棄した機器をもう一度廃棄しようとしても完了できない
+    let w = 廃棄のチケット(db, 場.project_id, Some(搭載中), None, "in_progress").await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "complete", "").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("起票元のプロジェクトにありません"), "{body}");
+}
+
+/// **部品を指す廃棄は、部品の所在だけを `Disposed` にすること**（11.4、#216）。
+///
+/// 機器も指していても、機器は残す。部品単位の廃棄は、機器から部品を外して捨てる
+/// ことである。起票元の機器に載っていない部品は捨てられない。
+async fn 部品の廃棄は部品の所在だけを変える(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "dispose-part@example.com").await;
+    let device_id = 予約対象の機器(db, &場, "dispose-part-host", "running").await;
+    let 載っている = 部品(db, 場.user.id, "MEM-DSP-1").await;
+    part_instance_location::ActiveModel {
+        part_instance_id: Set(載っている.id),
+        location_type: Set("Device".to_owned()),
+        location_id: Set(Some(device_id)),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    let w = 廃棄のチケット(
+        db,
+        場.project_id,
+        Some(device_id),
+        Some(載っている.id),
+        "in_progress",
+    )
+    .await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "complete", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+
+    let 履歴 = part_instance_location::Entity::find()
+        .filter(part_instance_location::Column::PartInstanceId.eq(載っている.id))
+        .order_by_asc(part_instance_location::Column::Id)
+        .all(db)
+        .await
+        .unwrap();
+    assert_eq!(履歴.len(), 2, "閉じて開いていません: {履歴:?}");
+    assert_eq!(履歴[0].to_date, Some(履歴[1].from_date));
+    assert_eq!(履歴[1].location_type, "Disposed");
+    assert_eq!(履歴[1].location_id, None);
+    assert_eq!(履歴[1].work_order_id, Some(w.id));
+    // 機器は残る
+    assert_eq!(現在の所属(db, device_id).await, Some(場.project_id));
+
+    // 機器に載っていない部品（倉庫の予備など）は捨てられない
+    let 倉庫の部品 = 部品(db, 場.user.id, "MEM-DSP-2").await;
+    part_instance_location::ActiveModel {
+        part_instance_id: Set(倉庫の部品.id),
+        location_type: Set("Warehouse".to_owned()),
+        location_id: Set(None),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let w = 廃棄のチケット(db, 場.project_id, None, Some(倉庫の部品.id), "in_progress").await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "complete", "").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("機器に載っていません"), "{body}");
+    assert_eq!(再取得(db, w.id).await.status, "in_progress");
+}
+
 // ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
@@ -1131,6 +1378,61 @@ async fn 移譲のチケット(
     active.device_id = Set(device_id);
     active.status = Set("approved".to_owned());
     active.update(db).await.unwrap()
+}
+
+/// 廃棄のチケット。承認の流れは別のテストで確かめている。
+async fn 廃棄のチケット(
+    db: &DatabaseConnection,
+    project_id: i32,
+    device_id: Option<i32>,
+    part_instance_id: Option<i32>,
+    status: &str,
+) -> work_order::Model {
+    let w = 起票(db, project_id, None, "Disposal", None).await;
+    let mut active: work_order::ActiveModel = w.into();
+    active.device_id = Set(device_id);
+    active.part_instance_id = Set(part_instance_id);
+    active.status = Set(status.to_owned());
+    active.update(db).await.unwrap()
+}
+
+/// 部品の実物。カタログとベンダーもあわせて作る。
+async fn 部品(db: &DatabaseConnection, user_id: i32, part_number: &str) -> part_instance::Model {
+    let v = vendor::ActiveModel {
+        name: Set(format!("ベンダー-{part_number}")),
+        created_by: Set(user_id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let c = part_catalog::ActiveModel {
+        category: Set("Memory".to_owned()),
+        vendor_id: Set(v.id),
+        part_number: Set(part_number.to_owned()),
+        capacity_gb: Set(Some(32)),
+        spec_json: Set("{}".to_owned()),
+        created_by: Set(user_id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    part_instance::ActiveModel {
+        part_catalog_id: Set(c.id),
+        serial_number: Set(Some(format!("SN-{part_number}"))),
+        status: Set("running".to_owned()),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap()
 }
 
 /// 機器が今いるプロジェクト。
@@ -1452,6 +1754,9 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 移譲を実行すると所属が移る);
         全検証!(@one $用意, $属性, 外すものが残る移譲は実行できない);
         全検証!(@one $用意, $属性, 起票元にない機器は移譲できない);
+        全検証!(@one $用意, $属性, 廃棄を完了すると所在がdisposedになる);
+        全検証!(@one $用意, $属性, 外すものが残る廃棄は完了できない);
+        全検証!(@one $用意, $属性, 部品の廃棄は部品の所在だけを変える);
         全検証!(@one $用意, $属性, 移譲先からもチケットが見える);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {

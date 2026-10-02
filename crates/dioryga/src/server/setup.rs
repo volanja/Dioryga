@@ -100,6 +100,7 @@ pub async fn submit(
         &form.username,
         Some(form.email.as_str()),
         &form.password,
+        locale.as_str(),
     )
     .await;
 

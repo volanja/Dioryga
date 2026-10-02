@@ -51,6 +51,8 @@ struct ProjectRow {
     secondary_admin: String,
     status: String,
     archived: bool,
+    /// 新しい利用者の既定の参加先か。**アーカイブさせない**（#217）
+    default_join: bool,
 }
 
 #[derive(askama::Template)]
@@ -120,6 +122,8 @@ struct ArchivePage {
     t_submit: String,
     project_id: i32,
     project_name: String,
+    /// 既定の参加先は `false`。フォームを出さない（#217）
+    archivable: bool,
     error: Option<String>,
 }
 
@@ -222,6 +226,10 @@ async fn build_list(
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
+    let 既定の参加先 = crate::setting::既定の参加先(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
     // 未割当は列の値として各行に入れる（見出しではないためテンプレートに渡さない）
     let 未割当 = rust_i18n::t!("projects.unassigned", locale = l).to_string();
 
@@ -247,6 +255,7 @@ async fn build_list(
                     }
                 },
                 archived: p.archived_at.is_some(),
+                default_join: 既定の参加先 == Some(p.id),
                 id: p.id,
                 name: p.name,
                 currency: p.currency,
@@ -594,13 +603,21 @@ pub async fn archive_form(
     Extension(current): Extension<CurrentUser>,
     Path(id): Path<i32>,
 ) -> AppResult<Response> {
+    let l = Locale::parse(&current.user.locale).as_str();
     let target = 対象(&state, id).await?;
-    render(&アーカイブ画面(&current, &target, None))
+    let 理由 = アーカイブできない理由(&state, &target, l).await?;
+    render(&アーカイブ画面(
+        &current,
+        &target,
+        理由.is_none(),
+        理由,
+    ))
 }
 
 fn アーカイブ画面(
     current: &CurrentUser,
     target: &project::Model,
+    archivable: bool,
     error: Option<String>,
 ) -> ArchivePage {
     let l = Locale::parse(&current.user.locale).as_str();
@@ -616,8 +633,25 @@ fn アーカイブ画面(
         t_submit: rust_i18n::t!("projects.archive", locale = l).to_string(),
         project_id: target.id,
         project_name: target.name.clone(),
+        archivable,
         error,
     }
+}
+
+/// 既定の参加先ならアーカイブできない理由を返す（#217）。
+///
+/// **新しい利用者を加える先がアーカイブされると、加えた利用者に在庫が見えない。**
+/// 名前は利用者のデータなので、改名は止めない。
+async fn アーカイブできない理由(
+    state: &AppState,
+    target: &project::Model,
+    l: &str,
+) -> AppResult<Option<String>> {
+    let 既定 = crate::setting::既定の参加先(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    Ok((既定 == Some(target.id))
+        .then(|| rust_i18n::t!("projects.archive_default_join", locale = l).to_string()))
 }
 
 pub async fn archive(
@@ -629,6 +663,11 @@ pub async fn archive(
     let l = Locale::parse(&current.user.locale).as_str();
     let target = 対象(&state, id).await?;
 
+    // **画面が出していなくてもPOSTは直接叩ける**
+    if let Some(理由) = アーカイブできない理由(&state, &target, l).await? {
+        return render(&アーカイブ画面(&current, &target, false, Some(理由)));
+    }
+
     let reason = match form.closure_reason.as_str() {
         COMPLETED => COMPLETED,
         CANCELLED => CANCELLED,
@@ -636,6 +675,7 @@ pub async fn archive(
             return render(&アーカイブ画面(
                 &current,
                 &target,
+                true,
                 Some(rust_i18n::t!("projects.reason_required", locale = l).to_string()),
             ))
         }

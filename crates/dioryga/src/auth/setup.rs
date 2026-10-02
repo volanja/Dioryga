@@ -127,6 +127,7 @@ fn generate_token() -> Result<String, SetupError> {
 /// 最初のSystem Adminを作成する。
 ///
 /// トークンの照合に成功した場合のみ作成し、成功したらトークンを破棄する。
+/// `locale` はセットアップ画面の言語で、倉庫用のプロジェクトの名前に使う（#217）。
 // 引数はセットアップ画面の入力（トークン・表示名・ユーザー名・メールアドレス・
 // パスワード）と共有の状態であり、呼び出し元は画面の1箇所だけ。束ねる型を
 // 作っても、その1箇所で詰め直すだけになる
@@ -140,6 +141,7 @@ pub async fn create_first_admin(
     username: &str,
     email: Option<&str>,
     password: &str,
+    locale: &str,
 ) -> Result<app_user::Model, SetupError> {
     state.verify(token).await?;
     // ログインIDはユーザー名。メールアドレスは任意（設計書20.1）
@@ -155,6 +157,7 @@ pub async fn create_first_admin(
         email.as_deref(),
         password,
         false,
+        locale,
     )
     .await?;
 
@@ -168,6 +171,13 @@ pub async fn create_first_admin(
 ///
 /// 監査ログは**作成された当人を主体として**記録する。架空のシステムユーザーを
 /// `app_user` に作らないため（20.8）。
+///
+/// **最初の利用者なら、倉庫用のプロジェクトもあわせて作る**（#217）。セットアップ
+/// 画面とCLIのどちらで最初の管理者を作っても同じになるよう、ここで行う。
+/// `locale` はその名前の言語。同じトランザクションで作るので、管理者だけが
+/// できて倉庫が無い、という状態は残らない。
+// 引数は画面とCLIの入力をそのまま渡すもので、呼び出し元は2箇所だけ
+#[allow(clippy::too_many_arguments)]
 pub async fn create_system_admin(
     db: &DatabaseConnection,
     passwords: &PasswordService,
@@ -176,11 +186,13 @@ pub async fn create_system_admin(
     email: Option<&str>,
     password: &str,
     must_change_password: bool,
+    locale: &str,
 ) -> Result<app_user::Model, SetupError> {
     let hash = passwords.hash(password).await?;
     let now = Utc::now();
 
     let tx = AuditedTx::begin(db, Actor::SelfCreated).await?;
+    let 最初の利用者 = app_user::Entity::find().count(tx.reader()).await? == 0;
     let user = tx
         .insert(app_user::ActiveModel {
             name: Set(name.to_owned()),
@@ -197,6 +209,11 @@ pub async fn create_system_admin(
             ..Default::default()
         })
         .await?;
+    if 最初の利用者 {
+        // 主体は作られた管理者。`SelfCreated` は記録する行のIDを主体にするため、
+        // プロジェクトの行には使えない
+        crate::setting::倉庫プロジェクトを用意する(&tx, user.id, locale).await?;
+    }
     tx.commit().await?;
 
     Ok(user)

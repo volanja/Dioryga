@@ -54,6 +54,14 @@ impl Audited for entity::app_user::Model {
     }
 }
 
+impl Audited for entity::app_setting::Model {
+    const TABLE: &'static str = "app_setting";
+
+    fn audit_id(&self) -> i32 {
+        self.id
+    }
+}
+
 impl Audited for entity::project::Model {
     const TABLE: &'static str = "project";
 

@@ -58,6 +58,7 @@
 | [public.maintenance_contract_item](public.maintenance_contract_item.md) | 6 | 保守契約の対象（10章）。多態的参照のため外部キーを持てない。 | BASE TABLE |
 | [public.container_model](public.container_model.md) | 15 | 設備・什器の型番（12.10、#205）。自然キーは `(vendor_id, model_name)`。種別で収容能力の列が分かれる | BASE TABLE |
 | [public.power_circuit](public.power_circuit.md) | 9 | 設備・什器が受ける給電の回路 — 履歴テーブル（12.7、12.10、#206）。A系・B系のように1つの設備・什器に複数来る。変更は閉じて開く | BASE TABLE |
+| [public.app_setting](public.app_setting.md) | 4 | アプリ全体の設定（#217、16.1）。**id = 1 の1行だけを使う。**行が無いのは初回セットアップ前のDB。<br />最初の System Admin を作るときに、倉庫用のプロジェクトとあわせて作る。<br /> | BASE TABLE |
 
 ## Relations
 

@@ -2,12 +2,14 @@
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use dioryga::admin;
 use dioryga::auth::password::PasswordService;
 use dioryga::auth::setup::{self, SetupState};
 use dioryga::config::Config;
 use dioryga::server::{router, AppState};
-use entity::{app_user, audit_log};
-use sea_orm::{DatabaseConnection, EntityTrait};
+use dioryga::setting;
+use entity::{app_user, audit_log, project, project_member};
+use sea_orm::{DatabaseConnection, EntityTrait, PaginatorTrait};
 use std::sync::Arc;
 use tower::ServiceExt;
 
@@ -95,6 +97,7 @@ async fn 正しいトークンで管理者を作成できる(db: &DatabaseConnec
         "first",
         Some("first@example.com"),
         "correcthorsebatterystaple",
+        "ja",
     )
     .await
     .unwrap();
@@ -119,6 +122,7 @@ async fn 誤ったトークンでは作成できない(db: &DatabaseConnection) 
         "intruder",
         Some("intruder@example.com"),
         "correcthorsebatterystaple",
+        "ja",
     )
     .await;
 
@@ -144,6 +148,7 @@ async fn 弱いパスワードでは作成できない(db: &DatabaseConnection) 
         "weak",
         Some("weak@example.com"),
         "short",
+        "ja",
     )
     .await;
 
@@ -167,6 +172,7 @@ async fn 規則外のユーザー名では作成できない(db: &DatabaseConnec
         "槍ヶ岳",
         None,
         "correcthorsebatterystaple",
+        "ja",
     )
     .await;
 
@@ -192,6 +198,7 @@ async fn メールアドレス無しで作成できる(db: &DatabaseConnection) 
         "Hotaka",
         Some("  "),
         "correcthorsebatterystaple",
+        "ja",
     )
     .await
     .unwrap();
@@ -214,6 +221,7 @@ async fn 作成後はセットアップ画面が閉じる(db: &DatabaseConnectio
         "closed",
         Some("closed@example.com"),
         "correcthorsebatterystaple",
+        "ja",
     )
     .await
     .unwrap();
@@ -245,16 +253,147 @@ async fn 監査ログの主体は作成された当人になる(db: &DatabaseCon
         "audit-setup",
         Some("audit-setup@example.com"),
         "correcthorsebatterystaple",
+        "ja",
     )
     .await
     .unwrap();
 
     let 記録 = audit_log::Entity::find().all(db).await.unwrap();
-    assert_eq!(記録.len(), 1);
-    assert_eq!(記録[0].user_id, user.id);
-    assert_eq!(記録[0].action, "insert");
+    // 利用者・倉庫用のプロジェクト・設定の3件。**どれも主体は作られた当人**
+    assert_eq!(記録.len(), 3, "{記録:?}");
+    assert!(記録.iter().all(|r| r.user_id == user.id), "{記録:?}");
+    assert!(記録.iter().all(|r| r.action == "insert"));
+    let 利用者の記録: Vec<_> = 記録.iter().filter(|r| r.table_name == "app_user").collect();
+    assert_eq!(利用者の記録.len(), 1);
+    assert_eq!(利用者の記録[0].record_id, user.id);
     // パスワードハッシュは伏せられている
-    assert!(!記録[0].after_json.as_ref().unwrap().contains("argon2"));
+    assert!(!利用者の記録[0]
+        .after_json
+        .as_ref()
+        .unwrap()
+        .contains("argon2"));
+}
+
+// ---------------------------------------------------------------------------
+// 倉庫用のプロジェクト（#217）
+// ---------------------------------------------------------------------------
+
+/// **最初の管理者を作ると、倉庫用のプロジェクトが1つでき、新しい利用者の
+/// 既定の参加先になること**（#217、設計書16.1）。
+///
+/// 名前はセットアップ画面の言語で決める。
+async fn 最初の管理者を作ると倉庫プロジェクトができる(
+    db: &DatabaseConnection,
+) {
+    assert_eq!(setting::既定の参加先(db).await.unwrap(), None);
+
+    let (state, token) = 状態(db).await;
+    setup::create_first_admin(
+        db,
+        &state.setup,
+        &state.passwords,
+        &token.unwrap(),
+        "管理者",
+        "warehouse-setup",
+        None,
+        "correcthorsebatterystaple",
+        "ja",
+    )
+    .await
+    .unwrap();
+
+    let プロジェクト = project::Entity::find().all(db).await.unwrap();
+    assert_eq!(プロジェクト.len(), 1, "{プロジェクト:?}");
+    assert_eq!(プロジェクト[0].name, "倉庫");
+    assert!(プロジェクト[0].archived_at.is_none());
+    assert_eq!(
+        setting::既定の参加先(db).await.unwrap(),
+        Some(プロジェクト[0].id)
+    );
+    // **管理者は加えない。**System Admin はプロジェクトデータに触れない（不変条件3）
+    assert_eq!(project_member::Entity::find().count(db).await.unwrap(), 0);
+}
+
+/// 英語の画面でセットアップすれば、英語の名前になること。
+async fn 倉庫プロジェクトの名前は画面の言語で決まる(db: &DatabaseConnection) {
+    let (state, token) = 状態(db).await;
+    setup::create_first_admin(
+        db,
+        &state.setup,
+        &state.passwords,
+        &token.unwrap(),
+        "Admin",
+        "warehouse-en",
+        None,
+        "correcthorsebatterystaple",
+        "en",
+    )
+    .await
+    .unwrap();
+
+    let プロジェクト = project::Entity::find().one(db).await.unwrap().unwrap();
+    assert_eq!(プロジェクト.name, "Warehouse");
+}
+
+/// **2人目の管理者では作らないこと。**CLI の復旧経路で足しても増えない。
+async fn 二人目の管理者では倉庫プロジェクトを作らない(
+    db: &DatabaseConnection,
+) {
+    let (state, token) = 状態(db).await;
+    setup::create_first_admin(
+        db,
+        &state.setup,
+        &state.passwords,
+        &token.unwrap(),
+        "管理者",
+        "warehouse-first",
+        None,
+        "correcthorsebatterystaple",
+        "ja",
+    )
+    .await
+    .unwrap();
+    let 既定 = setting::既定の参加先(db).await.unwrap();
+
+    admin::作成する(
+        db,
+        &state.passwords,
+        "warehouse-second",
+        None,
+        "二人目",
+        "correcthorsebatterystaple",
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(project::Entity::find().count(db).await.unwrap(), 1);
+    assert_eq!(setting::既定の参加先(db).await.unwrap(), 既定);
+}
+
+/// **CLI で最初の管理者を作っても、倉庫用のプロジェクトができること。**
+///
+/// 動作確認用データの投入は CLI（`--password-stdin`）で最初の管理者を作る（#129）。
+async fn cliで最初の管理者を作っても倉庫プロジェクトができる(
+    db: &DatabaseConnection,
+) {
+    let (state, _) = 状態(db).await;
+    admin::作成する(
+        db,
+        &state.passwords,
+        "warehouse-cli",
+        None,
+        "管理者",
+        "correcthorsebatterystaple",
+    )
+    .await
+    .unwrap();
+
+    let プロジェクト = project::Entity::find().all(db).await.unwrap();
+    assert_eq!(プロジェクト.len(), 1);
+    assert_eq!(
+        setting::既定の参加先(db).await.unwrap(),
+        Some(プロジェクト[0].id)
+    );
 }
 
 /// 既に利用者が居ればセットアップは開かないこと。
@@ -270,6 +409,7 @@ async fn 利用者が居ればセットアップは開かない(db: &DatabaseCon
         "existing",
         Some("existing@example.com"),
         "correcthorsebatterystaple",
+        "ja",
     )
     .await
     .unwrap();
@@ -357,6 +497,37 @@ macro_rules! 全検証 {
         async fn 監査ログの主体は作成された当人になる() {
             let db = $用意().await;
             super::監査ログの主体は作成された当人になる(&db.conn).await;
+        }
+
+        #[tokio::test]
+        #[$属性]
+        async fn 最初の管理者を作ると倉庫プロジェクトができる() {
+            let db = $用意().await;
+            super::最初の管理者を作ると倉庫プロジェクトができる(&db.conn).await;
+        }
+
+        #[tokio::test]
+        #[$属性]
+        async fn 倉庫プロジェクトの名前は画面の言語で決まる() {
+            let db = $用意().await;
+            super::倉庫プロジェクトの名前は画面の言語で決まる(&db.conn).await;
+        }
+
+        #[tokio::test]
+        #[$属性]
+        async fn 二人目の管理者では倉庫プロジェクトを作らない() {
+            let db = $用意().await;
+            super::二人目の管理者では倉庫プロジェクトを作らない(&db.conn).await;
+        }
+
+        #[tokio::test]
+        #[$属性]
+        async fn cliで最初の管理者を作っても倉庫プロジェクトができる() {
+            let db = $用意().await;
+            super::cliで最初の管理者を作っても倉庫プロジェクトができる(
+                &db.conn,
+            )
+            .await;
         }
 
         #[tokio::test]

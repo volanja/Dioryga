@@ -184,6 +184,8 @@ pub async fn 作成する(
         email.as_deref(),
         password,
         false,
+        // 最初の管理者なら、倉庫用のプロジェクトの名前に使う（#217）
+        l,
     )
     .await?)
 }

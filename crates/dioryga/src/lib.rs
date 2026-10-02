@@ -23,6 +23,7 @@ pub mod licenses;
 pub mod repository;
 pub mod sbom;
 pub mod server;
+pub mod setting;
 pub mod telemetry;
 pub mod tz;
 

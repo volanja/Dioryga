@@ -8,7 +8,7 @@ use dioryga::auth::session;
 use dioryga::auth::setup::SetupState;
 use dioryga::config::Config;
 use dioryga::server::{router, AppState};
-use entity::{app_user, project, project_member};
+use entity::{app_setting, app_user, project, project_member};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
     Set,
@@ -230,6 +230,61 @@ async fn 理由を付けてアーカイブできる(db: &DatabaseConnection) {
         .unwrap();
     assert!(後.archived_at.is_some());
     assert_eq!(後.closure_reason.as_deref(), Some("Cancelled"));
+}
+
+/// **新しい利用者の既定の参加先はアーカイブできないこと**（#217）。
+///
+/// 加えた利用者に在庫が見えなくなる。一覧にアーカイブの導線を出さず、
+/// POSTを直接叩いても拒否する。
+async fn 既定の参加先はアーカイブできない(db: &DatabaseConnection) {
+    let admin = 利用者(db, "arch-default@example.com", true).await;
+    let 倉庫 = プロジェクト(db, "倉庫", None).await;
+    let 通常 = プロジェクト(db, "通常の案件", None).await;
+    app_setting::ActiveModel {
+        id: Set(app_setting::ID),
+        default_project_id: Set(倉庫.id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    let (状態, token) = 認証済み(db, &admin).await;
+    let (_, 一覧) = 取得(状態, "/admin/projects", &token).await;
+    assert!(
+        !一覧.contains(&format!("/admin/projects/{}/archive", 倉庫.id)),
+        "既定の参加先にアーカイブの導線があります"
+    );
+    assert!(一覧.contains(&format!("/admin/projects/{}/archive", 通常.id)));
+
+    let (状態, token) = 認証済み(db, &admin).await;
+    let (status, 画面) = 取得(
+        状態,
+        &format!("/admin/projects/{}/archive", 倉庫.id),
+        &token,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(画面.contains("既定の参加先のため"), "{画面}");
+    assert!(!画面.contains("closure_reason"), "フォームが出ています");
+
+    let (状態, token) = 認証済み(db, &admin).await;
+    let (status, body) = 送信(
+        状態,
+        &format!("/admin/projects/{}/archive", 倉庫.id),
+        &token,
+        &[("closure_reason", "Completed")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("既定の参加先のため"), "{body}");
+    let 後 = project::Entity::find_by_id(倉庫.id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(後.archived_at.is_none(), "アーカイブされています");
 }
 
 /// **元に戻すと理由も消えること。**
@@ -709,6 +764,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 一覧に管理者が表示される);
         全検証!(@one $用意, $属性, 理由なしではアーカイブできない);
         全検証!(@one $用意, $属性, 理由を付けてアーカイブできる);
+        全検証!(@one $用意, $属性, 既定の参加先はアーカイブできない);
         全検証!(@one $用意, $属性, 元に戻すと理由も消える);
         全検証!(@one $用意, $属性, 正副の管理者を割り当てられる);
         全検証!(@one $用意, $属性, 割り当て直しても正副は各1名);

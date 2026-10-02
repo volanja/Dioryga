@@ -22,6 +22,8 @@ setup:
   email_hint: Optional
   password: Password
   submit: Create
+  warehouse_project_name: Warehouse
+  warehouse_project_description: The project that holds spare devices and parts
 
 nav:
   users: Users
@@ -147,6 +149,7 @@ projects:
   closure_reason: Reason for closing
   closure_reason_hint: Without separating completed from cancelled, delivery statistics cannot be computed correctly
   reason_required: Select a reason for closing
+  archive_default_join: This project is where new users join by default, so it cannot be archived
   members_title: Assign administrators
   members_lead: A primary and secondary pair covers absence and handover
   secondary_hint: The secondary administrator is optional. A primary alone is fine

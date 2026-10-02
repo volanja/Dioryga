@@ -74,6 +74,12 @@ comments:
       theme: 表示モード。`system`（OSに従う）／`light`／`dark`。既定は `system`（#120）
       timezone: 表示のタイムゾーン（IANA名）。null = 設定ファイルの `timezone` に従う。保存はUTCのまま（24.2.3、#210）
 
+  - table: app_setting
+    tableComment: |
+      アプリ全体の設定（#217、16.1）。**id = 1 の1行だけを使う。**行が無いのは初回セットアップ前のDB。
+      最初の System Admin を作るときに、倉庫用のプロジェクトとあわせて作る。
+    columnComments:
+      default_project_id: 新しい利用者を加える先（#218）。最初は倉庫用のプロジェクト。**倉庫プロジェクトの印ではない**——プロジェクト側に区別を持たない（#196）。この先はアーカイブできない
   - table: project
     tableComment: |
       プロジェクト。**サービスの開始日・終了日と進行状態を持たない**（5.1）。

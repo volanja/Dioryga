@@ -9,6 +9,7 @@
 //! - **金額は最小通貨単位の整数（i64）で持つ。** SQLiteに `DECIMAL` が無く、
 //!   `REAL` では丸め誤差が出るため。本モジュールの対象テーブルには該当列はまだ無い
 
+pub mod app_setting;
 pub mod app_user;
 pub mod audit_log;
 pub mod cable_catalog;

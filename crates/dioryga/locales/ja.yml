@@ -22,6 +22,8 @@ setup:
   email_hint: 任意です
   password: パスワード
   submit: 作成する
+  warehouse_project_name: 倉庫
+  warehouse_project_description: 予備の機器・部品を置くプロジェクトです
 
 nav:
   users: ユーザー管理
@@ -147,6 +149,7 @@ projects:
   closure_reason: 終了の理由
   closure_reason_hint: 完了と中止を区別しないと、納期遵守率の集計が正しく出せません
   reason_required: 終了の理由を選んでください
+  archive_default_join: このプロジェクトは新しい利用者の既定の参加先のため、アーカイブできません
   members_title: Administratorの割り当て
   members_lead: 不在時と引き継ぎに備え、正副の2名体制にできます
   secondary_hint: 副管理者は任意です。正管理者のみでも登録できます

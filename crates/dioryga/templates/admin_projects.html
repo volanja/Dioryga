@@ -58,7 +58,8 @@
           <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
           <button type="submit" class="ghost">{{ t_unarchive }}</button>
         </form>
-        {% else %}
+        {% else if !row.default_join %}
+        {# 新しい利用者の既定の参加先はアーカイブさせない（#217） #}
         {# アーカイブは closure_reason を選ばせるため確認画面を挟む（設計書5.2） #}
         <a href="/admin/projects/{{ row.id }}/archive">{{ t_archive }}</a>
         {% endif %}

@@ -384,6 +384,12 @@ work_orders:
   error_transfer_mounted: The device is mounted on a rack or furniture (reservations included). Unmount it before executing
   error_transfer_hosting: Other devices are mounted on this device. Remove them first
   error_transfer_has_ip: The device still has IP addresses. Close them before executing
+  error_disposal_no_target: No device is set for this disposal. Create a work order that names the device
+  error_disposal_not_here: This device is not in the originating project now
+  error_disposal_mounted: The device is mounted on a rack or furniture (reservations included). Unmount it before completing
+  error_disposal_hosting: Other devices are mounted on this device. Remove them first
+  error_disposal_has_ip: The device still has IP addresses. Close them before completing
+  error_disposal_part_not_here: This part is not installed in a device of the originating project now
   reservations: Reserved placement
   reservations_hint: Hold a rack position while the work is still planned. It appears in the rack diagram as reserved so nobody else takes the spot, and it is released if the work order is cancelled
   reserve: Reserve a rack position

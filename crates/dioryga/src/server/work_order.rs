@@ -54,7 +54,7 @@ use axum::{Extension, Form};
 use chrono::{NaiveDate, Utc};
 use entity::{
     app_user, device, device_assignment, device_mount, ip_address, mount_container, os_interface,
-    project, project_member, work_order, work_order_approval,
+    part_instance_location, project, project_member, work_order, work_order_approval,
 };
 use sea_orm::prelude::DateTimeUtc;
 use sea_orm::{
@@ -78,8 +78,15 @@ const WORK_TYPES: &[&str] = &["Repair", "Addition", "Relocation", "Disposal", "T
 /// 移譲。**このときだけ承認行が2つになる**（11.5）。
 const TRANSFER: &str = "Transfer";
 
+/// 廃棄。**完了で所在が `Disposed` になる**（11.4）。
+const DISPOSAL: &str = "Disposal";
+
 /// `DEVICE_ASSIGNMENT.location_type`（6.2）。
 const PROJECT: &str = "Project";
+/// `DEVICE_ASSIGNMENT` / `PART_INSTANCE_LOCATION` の `location_type`。参照先を持たない（6.2）。
+const DISPOSED: &str = "Disposed";
+/// `PART_INSTANCE_LOCATION.location_type`。機器に載っている（6.2）。
+const DEVICE: &str = "Device";
 
 /// 増設。**予約レコードを作れるのはこれだけ**（11.6）。
 const ADDITION: &str = "Addition";
@@ -1249,12 +1256,16 @@ pub async fn transition(
         return 詳細を描く(&state, &current, project_id, work_order_id, Some(e), None).await;
     }
 
-    // **移譲は、外すものが残っている間は実行させない**（11.5）
-    if t == Transition::Execute && w.work_type == TRANSFER {
-        if let Some(key) = 移譲を妨げるもの(&state.db, &w).await? {
-            let e = rust_i18n::t!(key, locale = l).to_string();
-            return 詳細を描く(&state, &current, project_id, work_order_id, Some(e), None).await;
-        }
+    // **移譲と廃棄は、外すものが残っている間は進めさせない**（11.4、11.5）。
+    // トランザクションを開く前に読む（SQLiteで自分の書き込みロックを待って止まる）
+    let 妨げ = match (t, w.work_type.as_str()) {
+        (Transition::Execute, TRANSFER) => 移譲を妨げるもの(&state.db, &w).await?,
+        (Transition::Complete, DISPOSAL) => 廃棄を妨げるもの(&state.db, &w).await?,
+        _ => None,
+    };
+    if let Some(key) = 妨げ {
+        let e = rust_i18n::t!(key, locale = l).to_string();
+        return 詳細を描く(&state, &current, project_id, work_order_id, Some(e), None).await;
     }
 
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
@@ -1294,7 +1305,13 @@ pub async fn transition(
                 移譲する(&tx, &w, now).await?;
             }
         }
-        Transition::Complete => {}
+        // **廃棄は完了で所在が Disposed になる**（11.4）。移譲と違い実行では
+        // 動かさない——作業の途中では、まだ現役の機器として扱う
+        Transition::Complete => {
+            if w.work_type == DISPOSAL {
+                廃棄する(&tx, &w, now).await?;
+            }
+        }
     }
 
     tx.commit()
@@ -1382,36 +1399,38 @@ async fn 予約を実機にする(
     Ok(())
 }
 
-/// 移譲を実行できない理由（i18n のキー）。実行できるなら `None`（11.5、#215）。
+/// 機器を起票元から動かせない理由。移譲と廃棄で共通（11.4、11.5、#215、#216）。
 ///
-/// **搭載とIPアドレスは、外すまで実行させない。**設備・什器もサブネットも
+/// **搭載とIPアドレスは、外すまで動かさない。**設備・什器もサブネットも
 /// プロジェクトのものであり、付けたまま移すと、移譲元のラック図に他の
 /// プロジェクトの機器が残り、移譲元のサブネットのアドレスを移譲先の機器が持つ。
+/// 廃棄でも、廃棄した機器がラック図とアドレスの一覧に残る。
 /// 黙って閉じることもしない——利用者が気づかないまま配置とアドレスが外れる。
 ///
-/// 載っている部品は、所在が機器そのものなので、機器について移る。
-async fn 移譲を妨げるもの<C: ConnectionTrait>(
+/// 載っている部品は、所在が機器そのものなので、機器について動く。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum 動かせない理由 {
+    /// 機器がいま起票元のプロジェクトにない。
+    ここにない,
+    /// 設備・什器に搭載されている（予約を含む）。
+    搭載,
+    /// 上に他の機器が載っている。
+    載せている,
+    /// 現行のIPアドレスがある。
+    アドレス,
+}
+
+async fn 機器を動かせない理由<C: ConnectionTrait>(
     db: &C,
-    w: &work_order::Model,
-) -> AppResult<Option<&'static str>> {
+    device_id: i32,
+    project_id: i32,
+) -> AppResult<Option<動かせない理由>> {
     let 内部 = |e: sea_orm::DbErr| AppError::Internal(anyhow::anyhow!(e));
 
-    // 部品だけの移譲は、部品をプロジェクトに置けるようになってから（#219）
-    let Some(device_id) = w.device_id else {
-        return Ok(Some("work_orders.error_transfer_no_device"));
-    };
-
-    // **起票元にある機器だけを移せる。**起票の後に別のチケットで動いていれば、
+    // **起票元にある機器だけを動かせる。**起票の後に別のチケットで動いていれば、
     // このチケットが承認されたのはもう成り立たない前提である
-    let ここにある = device_assignment::Entity::find()
-        .filter(device_assignment::Column::DeviceId.eq(device_id))
-        .filter(device_assignment::Column::ToDate.is_null())
-        .one(db)
-        .await
-        .map_err(内部)?
-        .is_some_and(|a| a.location_type == PROJECT && a.location_id == Some(w.project_id));
-    if !ここにある {
-        return Ok(Some("work_orders.error_transfer_not_here"));
+    if 機器の現在のプロジェクト(db, device_id).await? != Some(project_id) {
+        return Ok(Some(動かせない理由::ここにない));
     }
 
     // 予約（`work_order_id` つきの搭載）も現行行なので、ここで止まる
@@ -1422,7 +1441,7 @@ async fn 移譲を妨げるもの<C: ConnectionTrait>(
         .await
         .map_err(内部)?;
     if 搭載 > 0 {
-        return Ok(Some("work_orders.error_transfer_mounted"));
+        return Ok(Some(動かせない理由::搭載));
     }
 
     // 棚板の上の機器や、物理ホストの上の仮想マシン（12.3、13章）
@@ -1433,7 +1452,7 @@ async fn 移譲を妨げるもの<C: ConnectionTrait>(
         .await
         .map_err(内部)?;
     if 載せている > 0 {
-        return Ok(Some("work_orders.error_transfer_hosting"));
+        return Ok(Some(動かせない理由::載せている));
     }
 
     let インタフェース: Vec<i32> = os_interface::Entity::find()
@@ -1453,22 +1472,127 @@ async fn 移譲を妨げるもの<C: ConnectionTrait>(
             .await
             .map_err(内部)?;
         if アドレス > 0 {
-            return Ok(Some("work_orders.error_transfer_has_ip"));
+            return Ok(Some(動かせない理由::アドレス));
         }
     }
 
     Ok(None)
 }
 
-/// 移譲の実行で、機器の所属を移譲先へ移す（11.5、#215）。
+/// 移譲を実行できない理由（i18n のキー）。実行できるなら `None`（11.5、#215）。
+async fn 移譲を妨げるもの<C: ConnectionTrait>(
+    db: &C,
+    w: &work_order::Model,
+) -> AppResult<Option<&'static str>> {
+    // 部品だけの移譲は、部品をプロジェクトに置けるようになってから（#219）
+    let Some(device_id) = w.device_id else {
+        return Ok(Some("work_orders.error_transfer_no_device"));
+    };
+    Ok(機器を動かせない理由(db, device_id, w.project_id)
+        .await?
+        .map(|r| match r {
+            動かせない理由::ここにない => "work_orders.error_transfer_not_here",
+            動かせない理由::搭載 => "work_orders.error_transfer_mounted",
+            動かせない理由::載せている => "work_orders.error_transfer_hosting",
+            動かせない理由::アドレス => "work_orders.error_transfer_has_ip",
+        }))
+}
+
+/// 廃棄を完了できない理由（i18n のキー）。完了できるなら `None`（11.4、#216）。
 ///
-/// **閉じて開く**（不変条件1）。`work_order_id` は開く行にだけ入れる——閉じる行の
-/// それは、その行を作ったチケットの記録である。
+/// **部品を指していれば部品を廃棄する。**機器も指していても、機器は残す——
+/// 部品単位の廃棄は、機器から部品を外して捨てることである。
+async fn 廃棄を妨げるもの<C: ConnectionTrait>(
+    db: &C,
+    w: &work_order::Model,
+) -> AppResult<Option<&'static str>> {
+    if let Some(part_instance_id) = w.part_instance_id {
+        // **起票元の機器に載っている部品だけを捨てられる。**倉庫の部品の廃棄は、
+        // 倉庫をプロジェクトにしてから倉庫のチケットで行う（#196）
+        let ここにある = match 部品の載っている機器(db, part_instance_id).await? {
+            Some(device_id) => 機器の現在のプロジェクト(db, device_id).await? == Some(w.project_id),
+            None => false,
+        };
+        return Ok((!ここにある).then_some("work_orders.error_disposal_part_not_here"));
+    }
+
+    let Some(device_id) = w.device_id else {
+        return Ok(Some("work_orders.error_disposal_no_target"));
+    };
+    Ok(機器を動かせない理由(db, device_id, w.project_id)
+        .await?
+        .map(|r| match r {
+            動かせない理由::ここにない => "work_orders.error_disposal_not_here",
+            動かせない理由::搭載 => "work_orders.error_disposal_mounted",
+            動かせない理由::載せている => "work_orders.error_disposal_hosting",
+            動かせない理由::アドレス => "work_orders.error_disposal_has_ip",
+        }))
+}
+
+/// 部品がいま載っている機器。機器に載っていなければ `None`。
+async fn 部品の載っている機器<C: ConnectionTrait>(
+    db: &C,
+    part_instance_id: i32,
+) -> AppResult<Option<i32>> {
+    Ok(part_instance_location::Entity::find()
+        .filter(part_instance_location::Column::PartInstanceId.eq(part_instance_id))
+        .filter(part_instance_location::Column::ToDate.is_null())
+        .one(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .filter(|l| l.location_type == DEVICE)
+        .and_then(|l| l.location_id))
+}
+
+/// 機器がいま所属しているプロジェクト。プロジェクトになければ `None`。
+async fn 機器の現在のプロジェクト<C: ConnectionTrait>(
+    db: &C,
+    device_id: i32,
+) -> AppResult<Option<i32>> {
+    Ok(device_assignment::Entity::find()
+        .filter(device_assignment::Column::DeviceId.eq(device_id))
+        .filter(device_assignment::Column::ToDate.is_null())
+        .one(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .filter(|a| a.location_type == PROJECT)
+        .and_then(|a| a.location_id))
+}
+
+/// 移譲の実行で、機器の所属を移譲先へ移す（11.5、#215）。
 async fn 移譲する(tx: &AuditedTx, w: &work_order::Model, at: DateTimeUtc) -> AppResult<()> {
-    let 内部 = |e: sea_orm::DbErr| AppError::Internal(anyhow::anyhow!(e));
     let (Some(device_id), Some(target)) = (w.device_id, w.target_project_id) else {
         return Ok(());
     };
+    所属を移す(tx, device_id, PROJECT, Some(target), w.id, at).await
+}
+
+/// 廃棄の完了で、機器または部品の所在を `Disposed` にする（11.4、#216）。
+///
+/// **廃棄は `status` ではなく所在で持つ**（旧B-1）。`Disposed` は参照先を持たない。
+async fn 廃棄する(tx: &AuditedTx, w: &work_order::Model, at: DateTimeUtc) -> AppResult<()> {
+    if let Some(part_instance_id) = w.part_instance_id {
+        return 部品の所在を移す(tx, part_instance_id, DISPOSED, None, w.id, at).await;
+    }
+    if let Some(device_id) = w.device_id {
+        return 所属を移す(tx, device_id, DISPOSED, None, w.id, at).await;
+    }
+    Ok(())
+}
+
+/// 機器の所属を閉じて開く（不変条件1）。
+///
+/// `work_order_id` は開く行にだけ入れる——閉じる行のそれは、その行を作った
+/// チケットの記録である。
+async fn 所属を移す(
+    tx: &AuditedTx,
+    device_id: i32,
+    location_type: &str,
+    location_id: Option<i32>,
+    work_order_id: i32,
+    at: DateTimeUtc,
+) -> AppResult<()> {
+    let 内部 = |e: sea_orm::DbErr| AppError::Internal(anyhow::anyhow!(e));
 
     let 現在 = device_assignment::Entity::find()
         .filter(device_assignment::Column::DeviceId.eq(device_id))
@@ -1491,9 +1615,55 @@ async fn 移譲する(tx: &AuditedTx, w: &work_order::Model, at: DateTimeUtc) ->
 
     tx.insert(device_assignment::ActiveModel {
         device_id: Set(device_id),
-        location_type: Set(PROJECT.to_owned()),
-        location_id: Set(Some(target)),
-        work_order_id: Set(Some(w.id)),
+        location_type: Set(location_type.to_owned()),
+        location_id: Set(location_id),
+        work_order_id: Set(Some(work_order_id)),
+        from_date: Set(at),
+        to_date: Set(None),
+        ..Default::default()
+    })
+    .await
+    .map_err(内部)?;
+    Ok(())
+}
+
+/// 部品の所在を閉じて開く（不変条件1）。`work_order_id` の扱いは [`所属を移す`] と同じ。
+async fn 部品の所在を移す(
+    tx: &AuditedTx,
+    part_instance_id: i32,
+    location_type: &str,
+    location_id: Option<i32>,
+    work_order_id: i32,
+    at: DateTimeUtc,
+) -> AppResult<()> {
+    let 内部 = |e: sea_orm::DbErr| AppError::Internal(anyhow::anyhow!(e));
+
+    let 現在 = part_instance_location::Entity::find()
+        .filter(part_instance_location::Column::PartInstanceId.eq(part_instance_id))
+        .filter(part_instance_location::Column::ToDate.is_null())
+        .all(tx.reader())
+        .await
+        .map_err(内部)?;
+    for row in 現在 {
+        tx.update(
+            &row,
+            part_instance_location::ActiveModel {
+                id: Set(row.id),
+                to_date: Set(Some(at)),
+                ..Default::default()
+            },
+        )
+        .await
+        .map_err(内部)?;
+    }
+
+    tx.insert(part_instance_location::ActiveModel {
+        part_instance_id: Set(part_instance_id),
+        location_type: Set(location_type.to_owned()),
+        location_id: Set(location_id),
+        // どのスロットにも挿さっていない
+        chassis_slot_id: Set(None),
+        work_order_id: Set(Some(work_order_id)),
         from_date: Set(at),
         to_date: Set(None),
         ..Default::default()

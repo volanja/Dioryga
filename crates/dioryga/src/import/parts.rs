@@ -34,23 +34,36 @@
 //!
 //! # このプロジェクトに関わった部品だけを動かせる
 //!
-//! **突合の候補は、このプロジェクトの機器に一度でも載ったことがある部品に限る**
-//! （23.5、機器のA-6と同じ考え方）。候補外に同じベンダー＋シリアルがあれば、
-//! **新規作成せずエラーとする**——他プロジェクトの部品を書き換えることも、
-//! 黙って2つ目を作ることもしない（23.9.1と同根）。
+//! **突合の候補は、このプロジェクトに一度でもあった部品に限る**（23.5、機器の
+//! A-6と同じ考え方、#144）。次のいずれかに当たる部品である。
+//!
+//! - このプロジェクトの機器に載ったことがある
+//! - このプロジェクトの設備・什器に置かれたことがある（撤去した設備・什器を含む）
+//! - このプロジェクトに置かれたことがある
+//!
+//! 候補外に同じベンダー＋シリアルがあれば、**新規作成せずエラーとする**——
+//! 他プロジェクトの部品を書き換えることも、黙って2つ目を作ることもしない
+//! （23.9.1と同根）。
+//!
+//! **候補でも、今は他のプロジェクトにある部品はエラーにする**（機器の#143と
+//! 同じ）。移譲された部品を取込で引き戻すと、チケットを通らない移譲になる
+//! （11章）。候補から外さないのは、外すと2つ目を作ってしまうため。
 //!
 //! 倉庫にある部品も、このプロジェクトに関わったことが無ければ候補外になる。
 //! **倉庫からの払い出しは変更管理チケットの担当**であり（11章）、取込で
-//! 引き込めると誰がいつ持ち出したのかが残らない。
+//! 引き込めると誰がいつ持ち出したのかが残らない。予備部品の初期投入は、
+//! 倉庫用のプロジェクトの取込で「プロジェクトに置く」形で行う（16.1）。
 
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 use entity::{
-    chassis_slot, configuration, device, part_catalog, part_instance, part_instance_location,
-    vendor, warehouse,
+    chassis_slot, configuration, device, mount_container, part_catalog, part_instance,
+    part_instance_location, vendor, warehouse,
 };
-use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use sea_orm::{
+    ColumnTrait, Condition, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
+};
 use serde::Deserialize;
 
 use super::instances::{語彙, STATUSES};
@@ -130,7 +143,7 @@ async fn 計画する<C: ConnectionTrait>(
     rows: &[PartRow],
 ) -> Result<(Report, Vec<部品の計画>), ImportError> {
     let 索引 = 機器の索引::作る(db, project_id).await?;
-    let 候補 = このプロジェクトに関わった部品(db, &索引.ids()).await?;
+    let 候補 = このプロジェクトに関わった部品(db, project_id, &索引.ids()).await?;
     // **廃止した倉庫は置き場の候補にしない**（#133）
     let 倉庫: HashMap<String, i32> = warehouse::Entity::find()
         .filter(warehouse::Column::RetiredAt.is_null())
@@ -291,7 +304,7 @@ async fn 計画する<C: ConnectionTrait>(
         }
 
         // 突合（ベンダー＋シリアル）
-        let 既存 = match 突合(db, &候補, catalog.vendor_id, serial).await? {
+        let 既存 = match 突合(db, project_id, &候補, catalog.vendor_id, serial).await? {
             Ok(p) => p,
             Err(理由) => {
                 report.push(Entry::new(Outcome::Error, 表示, 理由));
@@ -414,18 +427,48 @@ async fn 解決するスロット<C: ConnectionTrait>(
     })
 }
 
-/// このプロジェクトの機器に一度でも載ったことがある部品（23.5、A-6）。
+/// このプロジェクトに一度でもあった部品（23.5、A-6、#144）。
+///
+/// このプロジェクトの機器に載ったことがある・このプロジェクトの設備・什器に
+/// 置かれたことがある・このプロジェクトに置かれたことがある部品。`機器id` は
+/// このプロジェクトに属したことのある機器（[`機器の索引`]）。
 pub(super) async fn このプロジェクトに関わった部品<C: ConnectionTrait>(
     db: &C,
+    project_id: i32,
     機器id: &[i32],
 ) -> Result<Vec<part_instance::Model>, sea_orm::DbErr> {
-    if 機器id.is_empty() {
-        return Ok(Vec::new());
+    // **撤去した設備・什器も含める。**置かれていた履歴は事実として残る
+    let 設備id: Vec<i32> = mount_container::Entity::find()
+        .filter(mount_container::Column::LocationType.eq(PROJECT))
+        .filter(mount_container::Column::LocationId.eq(project_id))
+        .all(db)
+        .await?
+        .into_iter()
+        .map(|c| c.id)
+        .collect();
+
+    let mut 条件 = Condition::any().add(
+        Condition::all()
+            .add(part_instance_location::Column::LocationType.eq(PROJECT))
+            .add(part_instance_location::Column::LocationId.eq(project_id)),
+    );
+    if !機器id.is_empty() {
+        条件 = 条件.add(
+            Condition::all()
+                .add(part_instance_location::Column::LocationType.eq(DEVICE))
+                .add(part_instance_location::Column::LocationId.is_in(機器id.to_vec())),
+        );
+    }
+    if !設備id.is_empty() {
+        条件 = 条件.add(
+            Condition::all()
+                .add(part_instance_location::Column::LocationType.eq(MOUNT_CONTAINER))
+                .add(part_instance_location::Column::LocationId.is_in(設備id)),
+        );
     }
 
     let mut ids: Vec<i32> = part_instance_location::Entity::find()
-        .filter(part_instance_location::Column::LocationType.eq(DEVICE))
-        .filter(part_instance_location::Column::LocationId.is_in(機器id.to_vec()))
+        .filter(条件)
         .all(db)
         .await?
         .into_iter()
@@ -449,6 +492,7 @@ pub(super) async fn このプロジェクトに関わった部品<C: ConnectionT
 /// ことも、黙って2つ目を作ることもしない（23.9.1と同根）。
 async fn 突合<C: ConnectionTrait>(
     db: &C,
+    project_id: i32,
     候補: &[part_instance::Model],
     vendor_id: i32,
     serial: &str,
@@ -476,12 +520,19 @@ async fn 突合<C: ConnectionTrait>(
         0 => Ok(Ok(None)),
         1 => {
             let p = 同一.remove(0);
-            if 候補.iter().any(|c| c.id == p.id) {
-                Ok(Ok(Some(p)))
-            } else {
-                Ok(Err(format!(
-                    "シリアル「{serial}」の部品は、このプロジェクトの機器に載ったことがありません。倉庫からの払い出しは変更管理チケットで行ってください"
-                )))
+            if !候補.iter().any(|c| c.id == p.id) {
+                return Ok(Err(format!(
+                    "シリアル「{serial}」の部品は、このプロジェクトにあったことがありません。\
+                     他のプロジェクトや倉庫からの移動は変更管理チケットで行ってください"
+                )));
+            }
+            // **今は他のプロジェクトにある部品には触れない**（#143 の機器と同じ）
+            match crate::part_location::部品の現在のプロジェクト(db, p.id).await? {
+                Some(今) if 今 != project_id => Ok(Err(format!(
+                    "シリアル「{serial}」の部品は今、他のプロジェクトにあります。\
+                     プロジェクト間の移動は変更管理チケット（Transfer）で行ってください"
+                ))),
+                _ => Ok(Ok(Some(p))),
             }
         }
         n => Ok(Err(format!(

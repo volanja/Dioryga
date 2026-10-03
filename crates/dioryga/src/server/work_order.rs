@@ -85,10 +85,6 @@ const DISPOSAL: &str = "Disposal";
 const PROJECT: &str = "Project";
 /// `DEVICE_ASSIGNMENT` / `PART_INSTANCE_LOCATION` の `location_type`。参照先を持たない（6.2）。
 const DISPOSED: &str = "Disposed";
-/// `PART_INSTANCE_LOCATION.location_type`。機器に載っている（6.2）。
-const DEVICE: &str = "Device";
-/// `PART_INSTANCE_LOCATION.location_type`。設備・什器に置いてある（#219）。
-const MOUNT_CONTAINER: &str = "MountContainer";
 
 /// 増設。**予約レコードを作れるのはこれだけ**（11.6）。
 const ADDITION: &str = "Addition";
@@ -1530,39 +1526,14 @@ async fn 廃棄を妨げるもの<C: ConnectionTrait>(
         }))
 }
 
-/// 部品がいまあるプロジェクト（#219）。プロジェクトに無ければ `None`。
-///
-/// **部品はプロジェクトを列に持たない。**置き場所からたどる——機器なら機器の
-/// 所属、設備・什器なら設備・什器の置き場所、プロジェクトならそのもの。
-/// 倉庫・廃棄はどのプロジェクトにも無い。
+/// 部品がいまあるプロジェクト（#219）。置き場所からたどる（[`crate::part_location`]）。
 async fn 部品の現在のプロジェクト<C: ConnectionTrait>(
     db: &C,
     part_instance_id: i32,
 ) -> AppResult<Option<i32>> {
-    let 内部 = |e: sea_orm::DbErr| AppError::Internal(anyhow::anyhow!(e));
-    let Some(所在) = part_instance_location::Entity::find()
-        .filter(part_instance_location::Column::PartInstanceId.eq(part_instance_id))
-        .filter(part_instance_location::Column::ToDate.is_null())
-        .one(db)
+    crate::part_location::部品の現在のプロジェクト(db, part_instance_id)
         .await
-        .map_err(内部)?
-    else {
-        return Ok(None);
-    };
-    let Some(location_id) = 所在.location_id else {
-        return Ok(None);
-    };
-    match 所在.location_type.as_str() {
-        DEVICE => 機器の現在のプロジェクト(db, location_id).await,
-        MOUNT_CONTAINER => Ok(mount_container::Entity::find_by_id(location_id)
-            .one(db)
-            .await
-            .map_err(内部)?
-            .filter(|c| c.location_type == PROJECT)
-            .map(|c| c.location_id)),
-        PROJECT => Ok(Some(location_id)),
-        _ => Ok(None),
-    }
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))
 }
 
 /// 機器がいま所属しているプロジェクト。プロジェクトになければ `None`。

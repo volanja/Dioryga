@@ -20,6 +20,7 @@ pub mod db;
 pub mod error;
 pub mod import;
 pub mod licenses;
+pub mod part_location;
 pub mod repository;
 pub mod sbom;
 pub mod server;

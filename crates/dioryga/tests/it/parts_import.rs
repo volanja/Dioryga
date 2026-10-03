@@ -391,6 +391,145 @@ async fn 他のプロジェクトや撤去した設備には置けない(db: &Da
 }
 
 // ---------------------------------------------------------------------------
+// 突合の候補（#144）
+// ---------------------------------------------------------------------------
+
+/// **プロジェクトや棚に新しく置いた部品を、二度流しても変わらないこと**（#144、23.1）。
+///
+/// 以前は候補が「このプロジェクトの機器に載ったことがある部品」だけで、
+/// 2回目に自分で作った部品を他所の部品と判定してエラーにしていた。
+/// 予備部品の初期投入（倉庫用のプロジェクトの取込、16.1）がこの形になる。
+async fn プロジェクトや棚に置いた部品は二度流しても変わらない(
+    db: &DatabaseConnection,
+) {
+    let 場 = 舞台(db, "候補を広げる").await;
+    設備(db, 場.project.id, "Shelf-01", 場.user_id).await;
+
+    let rows = parts::parse_parts(&csv(&[
+        "SN-LOOSE,Samsung,DIMM-32G,running,Project,,,",
+        "SN-SHELF,Samsung,DIMM-32G,running,MountContainer,,Shelf-01,",
+    ]))
+    .unwrap();
+    parts::apply(db, 場.project.id, &rows, Utc::now(), 1)
+        .await
+        .unwrap();
+
+    let report = parts::dry_run(db, 場.project.id, &rows).await.unwrap();
+    assert!(!report.has_error(), "{report}");
+    assert_eq!(report.count(Outcome::Unchanged), 2, "{report}");
+    parts::apply(db, 場.project.id, &rows, Utc::now(), 2)
+        .await
+        .unwrap();
+    assert_eq!(part_instance::Entity::find().count(db).await.unwrap(), 2);
+}
+
+/// **撤去した設備・什器に置かれていた部品も候補に入ること**（#144）。
+///
+/// 置かれていた履歴は事実として残る。撤去したからといって、他所の部品とは
+/// みなさない。
+async fn 撤去した棚に置かれていた部品も候補に入る(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "撤去した棚").await;
+    let 棚 = 設備(db, 場.project.id, "Shelf-Old", 場.user_id).await;
+    let c = カタログを引く(db, "Samsung", "DIMM-32G").await;
+    let p = part_instance::ActiveModel {
+        part_catalog_id: Set(c.id),
+        serial_number: Set(Some("SN-OLD".to_owned())),
+        status: Set("running".to_owned()),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    // 棚に置いていたが、いまは倉庫にある
+    for (location_type, location_id, from, to) in [
+        (
+            "MountContainer",
+            棚.id,
+            Utc::now() - Duration::days(10),
+            Some(Utc::now() - Duration::days(1)),
+        ),
+        (
+            "Warehouse",
+            場.warehouse.id,
+            Utc::now() - Duration::days(1),
+            None,
+        ),
+    ] {
+        part_instance_location::ActiveModel {
+            part_instance_id: Set(p.id),
+            location_type: Set(location_type.to_owned()),
+            location_id: Set(Some(location_id)),
+            from_date: Set(from),
+            to_date: Set(to),
+            ..Default::default()
+        }
+        .insert(db)
+        .await
+        .unwrap();
+    }
+    let mut active: mount_container::ActiveModel = 棚.into();
+    active.retired_at = Set(Some(Utc::now()));
+    active.update(db).await.unwrap();
+
+    let rows = parts::parse_parts(&csv(&[
+        "SN-OLD,Samsung,DIMM-32G,running,Warehouse,,本社倉庫,",
+    ]))
+    .unwrap();
+    let report = parts::dry_run(db, 場.project.id, &rows).await.unwrap();
+    assert_eq!(report.count(Outcome::Unchanged), 1, "{report}");
+}
+
+/// **このプロジェクトにあった部品でも、今は他のプロジェクトにあればエラーに
+/// すること**（#144、機器の#143と同じ）。
+///
+/// 移譲された部品を取込で引き戻すと、チケットを通らない移譲になる。
+/// 黙って2つ目も作らない。
+async fn 今は他のプロジェクトにある部品は動かせない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "部品の移譲後").await;
+    let よそ = プロジェクト(db, "部品の移譲先").await;
+
+    let 置く = parts::parse_parts(&csv(&["SN-MOVED,Samsung,DIMM-32G,running,Project,,,"])).unwrap();
+    parts::apply(db, 場.project.id, &置く, Utc::now() - Duration::days(5), 1)
+        .await
+        .unwrap();
+
+    // 移譲先のプロジェクトへ移った状態を作る
+    let p = 部品(db, "SN-MOVED").await.unwrap();
+    let 今 = 現在の所在(db, p.id).await.unwrap();
+    let mut active: part_instance_location::ActiveModel = 今.into();
+    active.to_date = Set(Some(Utc::now() - Duration::days(1)));
+    active.update(db).await.unwrap();
+    part_instance_location::ActiveModel {
+        part_instance_id: Set(p.id),
+        location_type: Set("Project".to_owned()),
+        location_id: Set(Some(よそ.id)),
+        from_date: Set(Utc::now() - Duration::days(1)),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    let report = parts::dry_run(db, 場.project.id, &置く).await.unwrap();
+    assert_eq!(report.count(Outcome::Error), 1, "{report}");
+    assert!(
+        report.errors().any(|e| e.detail.contains("Transfer")),
+        "移譲の案内がありません: {report}"
+    );
+    assert!(parts::apply(db, 場.project.id, &置く, Utc::now(), 2)
+        .await
+        .is_err());
+    assert_eq!(
+        現在の所在(db, p.id).await.unwrap().location_id,
+        Some(よそ.id)
+    );
+    assert_eq!(part_instance::Entity::find().count(db).await.unwrap(), 1);
+}
+
+// ---------------------------------------------------------------------------
 // 用意
 // ---------------------------------------------------------------------------
 
@@ -683,6 +822,9 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 棚やプロジェクトに置ける);
         全検証!(@one $用意, $属性, 機器から棚へ移すと閉じて開く);
         全検証!(@one $用意, $属性, 他のプロジェクトや撤去した設備には置けない);
+        全検証!(@one $用意, $属性, プロジェクトや棚に置いた部品は二度流しても変わらない);
+        全検証!(@one $用意, $属性, 撤去した棚に置かれていた部品も候補に入る);
+        全検証!(@one $用意, $属性, 今は他のプロジェクトにある部品は動かせない);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

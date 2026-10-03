@@ -314,6 +314,58 @@ async fn 部品にも資産を付けられる(db: &DatabaseConnection) {
     assert_eq!(a.item_id, 場.part_id);
 }
 
+/// **プロジェクトに置いた部品にも費用を付けられること**（#144）。
+///
+/// 品目の候補は部品の取込と同じ「このプロジェクトにあった部品」。機器に
+/// 載ったことが無くても、このプロジェクトに置いた予備部品は指せる。
+async fn プロジェクトに置いた部品にも資産を付けられる(
+    db: &DatabaseConnection,
+) {
+    let 場 = 舞台(db, "置いた部品の資産", "JPY").await;
+    let 載っている = part_instance::Entity::find_by_id(場.part_id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    let 予備 = part_instance::ActiveModel {
+        part_catalog_id: Set(載っている.part_catalog_id),
+        serial_number: Set(Some("SN-SPARE".to_owned())),
+        status: Set("running".to_owned()),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    part_instance_location::ActiveModel {
+        part_instance_id: Set(予備.id),
+        location_type: Set("Project".to_owned()),
+        location_id: Set(Some(場.project.id)),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    let tx = 取込(db).await;
+    let r = costs::固定資産を取り込む(
+        &tx,
+        場.project.id,
+        &資産(&["PartInstance,,SN-SPARE,48000,straight_line,5,2026-04-01"]),
+        "JPY",
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+
+    assert_eq!(r.count(Outcome::Created), 1, "{r}");
+    let a = fixed_asset::Entity::find().one(db).await.unwrap().unwrap();
+    assert_eq!(a.item_id, 予備.id);
+}
+
 /// **`PartInstance` にシリアルが無ければエラー。**引く手段が無い。
 async fn 部品にシリアルが無ければエラー(db: &DatabaseConnection) {
     let 場 = 舞台(db, "部品シリアル", "JPY").await;
@@ -600,6 +652,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 語彙外の償却方法は拒否);
         全検証!(@one $用意, $属性, 定率法も記録する);
         全検証!(@one $用意, $属性, 部品にも資産を付けられる);
+        全検証!(@one $用意, $属性, プロジェクトに置いた部品にも資産を付けられる);
         全検証!(@one $用意, $属性, 部品にシリアルが無ければエラー);
         全検証!(@one $用意, $属性, 知らない品目の型はエラー);
         全検証!(@one $用意, $属性, 契約は複数品目をカバーする);

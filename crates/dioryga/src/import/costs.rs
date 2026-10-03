@@ -558,7 +558,12 @@ struct 対象の索引 {
 async fn 対象の索引(tx: &AuditedTx, project_id: i32) -> Result<対象の索引, ImportError> {
     let 機器 = 機器の索引::作る(tx.reader(), project_id).await?;
     let mut 部品: HashMap<String, Vec<part_instance::Model>> = HashMap::new();
-    for p in super::parts::このプロジェクトに関わった部品(tx.reader(), &機器.ids()).await?
+    for p in super::parts::このプロジェクトに関わった部品(
+        tx.reader(),
+        project_id,
+        &機器.ids(),
+    )
+    .await?
     {
         let Some(serial) = p.serial_number.clone() else {
             continue;
@@ -626,7 +631,7 @@ fn 品目を引く(
             match 一致.len() {
                 1 => Ok((PART_INSTANCE.to_owned(), 一致[0].id)),
                 0 => Err(format!(
-                    "シリアル「{serial}」の部品が、このプロジェクトの機器に載ったことがありません"
+                    "シリアル「{serial}」の部品が、このプロジェクトにあったことがありません"
                 )),
                 n => Err(format!(
                     "シリアル「{serial}」の部品が{n}件あります。突合できません"

@@ -14,12 +14,14 @@
 | status | varchar |  | false |  |  |  |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
+| health | varchar | 'ok'::character varying | false |  |  |  |
 
 ## Constraints
 
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
 | part_instance_created_at_not_null | n | NOT NULL created_at |
+| part_instance_health_not_null | n | NOT NULL health |
 | part_instance_id_not_null | n | NOT NULL id |
 | part_instance_part_catalog_id_not_null | n | NOT NULL part_catalog_id |
 | part_instance_status_not_null | n | NOT NULL status |

@@ -29,6 +29,8 @@
 use axum::extract::{Path, State};
 use axum::response::Response;
 use axum::Extension;
+use std::collections::HashMap;
+
 use chrono::{Duration, NaiveDate};
 use entity::{
     device, device_assignment, device_mount, milestone, mount_container, project, work_order,
@@ -37,8 +39,9 @@ use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
 
 use crate::auth::authorization;
 use crate::auth::middleware::CurrentUser;
+use crate::device_state::{self, 容体};
 use crate::error::{AppError, AppResult};
-use crate::server::view::{render, 状態の表示, Chrome, Locale};
+use crate::server::view::{render, 容体の表示, 状態の表示, Chrome, Locale};
 use crate::server::AppState;
 
 /// 「期限間近」とみなす日数（10.2の「満了3ヶ月前」）。
@@ -49,19 +52,21 @@ const PLANNED: &str = "planned";
 const COMPLETED: &str = "completed";
 const CANCELLED: &str = "cancelled";
 
-/// 指標に出す状態と、その下に添える注記のキー（#170、設計書16.4）。
+/// 指標に出す状態と、その下に添える注記のキー（#170、#221、設計書16.4、6.3）。
 ///
 /// **0件の状態も枠を出す。**欠けると、位置で読んでいる目が滑る。
+///
+/// **枚は排他的に数える。**故障（機器か、載っている部品が `failed`）なら
+/// `status` によらず修理中か故障の枚に入れ、`health` が `ok` の機器だけを
+/// `status` で数える。枚の合計は機器の台数と一致する。
 const 指標: &[(&str, &str)] = &[
     ("running", "dashboard.note_running"),
+    ("standby", "dashboard.note_standby"),
     ("planned", "dashboard.note_planned"),
     ("provisioning", "dashboard.note_provisioning"),
     ("repairing", "dashboard.note_repairing"),
     ("failed", "dashboard.note_failed"),
 ];
-
-/// **対応が必要**とみなす状態。故障と修理中（11章の起票につなげる）。
-const 要対応: &[&str] = &["failed", "repairing"];
 
 /// 指標の1枚（#170）。ランプ・項目名・台数・注記。
 struct MetricCard {
@@ -150,8 +155,11 @@ pub async fn show(
     let 期限 = today + Duration::days(期限間近);
 
     let 現在の機器 = このプロジェクトの機器(&state, project_id).await?;
-    let metrics = 状態ごとの台数(&現在の機器, l);
-    let attention = 対応が必要な機器(&state, project_id, &現在の機器, l).await?;
+    let 容体 = device_state::容体を求める(&state.db, &現在の機器)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let metrics = 状態ごとの台数(&現在の機器, &容体, l);
+    let attention = 対応が必要な機器(&state, project_id, &現在の機器, &容体, l).await?;
     let contracts = 期限間近の契約(&state, project_id, 期限, today).await?;
     let milestones = 期限間近のマイルストーン(&state, project_id, 期限, today).await?;
     let work_orders = 未完了のチケット(&state, project_id, today, l).await?;
@@ -222,16 +230,31 @@ async fn このプロジェクトの機器(
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))
 }
 
-/// 状態ごとの台数（#170）。
+/// 機器が入る枚（設計書6.3）。故障なら `status` を見ない。
+fn 枚<'a>(d: &'a device::Model, 容体: &HashMap<i32, 容体>) -> &'a str {
+    match 容体.get(&d.id).copied().unwrap_or(容体::正常) {
+        容体::正常 => d.status.as_str(),
+        v => v.as_str(),
+    }
+}
+
+/// 状態ごとの台数（#170、#221）。
 ///
 /// **引いた機器を数えるだけで、状態ごとに問い合わせない**（22章 R-4）。
-fn 状態ごとの台数(devices: &[device::Model], l: &'static str) -> Vec<MetricCard> {
+fn 状態ごとの台数(
+    devices: &[device::Model],
+    容体: &HashMap<i32, 容体>,
+    l: &'static str,
+) -> Vec<MetricCard> {
     指標
         .iter()
         .map(|(status, note)| MetricCard {
             status,
-            label: 状態の表示(status, l),
-            count: devices.iter().filter(|d| d.status == *status).count(),
+            label: match *status {
+                "repairing" | "failed" => 容体の表示(status, l),
+                _ => 状態の表示(status, l),
+            },
+            count: devices.iter().filter(|d| 枚(d, 容体) == *status).count(),
             note: rust_i18n::t!(*note, locale = l).to_string(),
         })
         .collect()
@@ -245,17 +268,25 @@ async fn 対応が必要な機器(
     state: &AppState,
     project_id: i32,
     devices: &[device::Model],
+    容体: &HashMap<i32, 容体>,
     l: &'static str,
 ) -> AppResult<Vec<AttentionRow>> {
-    let 対象: Vec<&device::Model> = devices
+    // **機器か、載っている部品が `failed`**（設計書6.3）
+    let 対象: Vec<(&device::Model, 容体)> = devices
         .iter()
-        .filter(|d| 要対応.contains(&d.status.as_str()))
+        .filter_map(|d| {
+            容体
+                .get(&d.id)
+                .copied()
+                .filter(|v| v.要対応())
+                .map(|v| (d, v))
+        })
         .collect();
     if 対象.is_empty() {
         return Ok(Vec::new());
     }
 
-    let ids: Vec<i32> = 対象.iter().map(|d| d.id).collect();
+    let ids: Vec<i32> = 対象.iter().map(|(d, _)| d.id).collect();
 
     // 搭載先。**載っていない機器もある**（仮想機器、入庫直後）
     let mounts = device_mount::Entity::find()
@@ -288,7 +319,7 @@ async fn 対応が必要な機器(
 
     Ok(対象
         .into_iter()
-        .map(|d| {
+        .map(|(d, v)| {
             let mounted = mounts
                 .iter()
                 .find(|m| m.device_id == d.id)
@@ -306,12 +337,8 @@ async fn 対応が必要な機器(
                 .unwrap_or_default();
             let 担当のチケット = orders.iter().find(|w| w.device_id == Some(d.id));
             AttentionRow {
-                status: 要対応
-                    .iter()
-                    .find(|s| **s == d.status)
-                    .copied()
-                    .unwrap_or("failed"),
-                status_label: 状態の表示(&d.status, l),
+                status: v.as_str(),
+                status_label: 容体の表示(v.as_str(), l),
                 hostname: d.hostname.clone(),
                 device_type: d.device_type.clone(),
                 mounted,

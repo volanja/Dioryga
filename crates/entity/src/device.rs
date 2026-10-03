@@ -31,8 +31,11 @@ pub struct Model {
     /// 登録できないのは実務上成立しない。
     pub asset_number: Option<String>,
     pub power_watt: i32,
-    /// running / failed / repairing / planned / provisioning
+    /// 運用の段階。planned / provisioning / running / standby（設計書6.3）
     pub status: String,
+    /// 故障の有無。ok / failed。**修理中は持たない**——未完了の修理（`Repair`）の
+    /// チケットから導出する（設計書6.3）。部品の `health` とは独立に持つ
+    pub health: String,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,
 }

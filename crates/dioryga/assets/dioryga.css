@@ -730,10 +730,11 @@ textarea {
 
 .led.running { background: #3dba5a; }
 .led.provisioning { background: #4a8cf0; }
+.led.standby { background: #39b8c4; }
 .led.repairing { background: #e8c229; }
 .led.failed { background: #e5484d; }
 
-.led.running, .led.provisioning, .led.repairing, .led.failed {
+.led.running, .led.provisioning, .led.standby, .led.repairing, .led.failed {
   box-shadow: 0 0 0 2px #151617, inset 0 -2px 0 rgba(0, 0, 0, 0.25),
     inset 1px 1px 0 rgba(255, 255, 255, 0.35);
 }
@@ -746,6 +747,11 @@ textarea {
 }
 
 .led.sm { width: 8px; height: 8px; }
+
+/* 部品の故障の有無を表の中で変える（設計書6.3）。選択とボタンを1行に並べる */
+form.inline-health { display: flex; gap: 6px; align-items: center; margin: 0; }
+form.inline-health select { width: auto; margin: 0; }
+form.inline-health button { width: auto; padding: 4px 10px; }
 
 /* 状態の欄。ランプと文字を並べる */
 .st { display: inline-flex; align-items: center; gap: 8px; }

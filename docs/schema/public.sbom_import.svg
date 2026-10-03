@@ -46,61 +46,64 @@
 <!-- public.device -->
 <g id="node3" class="node">
 <title>public.device</title>
-<polygon fill="#efefef" stroke="none" points="43.2,-597.6 43.2,-633.2 296.88,-633.2 296.88,-597.6 43.2,-597.6"/>
-<polygon fill="none" stroke="black" points="43.2,-597.6 43.2,-633.2 296.88,-633.2 296.88,-597.6 43.2,-597.6"/>
-<text text-anchor="start" x="59.57" y="-611" font-family="Arial Bold" font-size="18.00">public.device</text>
-<text text-anchor="start" x="156.03" y="-611" font-family="Arial" font-size="14.00">    </text>
-<text text-anchor="start" x="187.14" y="-611" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
-<polygon fill="none" stroke="black" points="43.2,-566.8 43.2,-597.6 296.88,-597.6 296.88,-566.8 43.2,-566.8"/>
-<text text-anchor="start" x="50.2" y="-579" font-family="Arial" font-size="14.00">id </text>
-<text text-anchor="start" x="64.99" y="-579" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="43.2,-536 43.2,-566.8 296.88,-566.8 296.88,-536 43.2,-536"/>
-<text text-anchor="start" x="50.2" y="-548.2" font-family="Arial" font-size="14.00">uid </text>
-<text text-anchor="start" x="72.77" y="-548.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="43.2,-505.2 43.2,-536 296.88,-536 296.88,-505.2 43.2,-505.2"/>
-<text text-anchor="start" x="50.2" y="-517.4" font-family="Arial" font-size="14.00">external_id </text>
-<text text-anchor="start" x="122.58" y="-517.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="43.2,-474.4 43.2,-505.2 296.88,-505.2 296.88,-474.4 43.2,-474.4"/>
-<text text-anchor="start" x="50.2" y="-486.6" font-family="Arial" font-size="14.00">merged_into_device_id </text>
-<text text-anchor="start" x="198.85" y="-486.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="43.2,-443.6 43.2,-474.4 296.88,-474.4 296.88,-443.6 43.2,-443.6"/>
-<text text-anchor="start" x="50.2" y="-455.8" font-family="Arial" font-size="14.00">merged_at </text>
-<text text-anchor="start" x="121.02" y="-455.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="43.2,-412.8 43.2,-443.6 296.88,-443.6 296.88,-412.8 43.2,-412.8"/>
-<text text-anchor="start" x="50.2" y="-425" font-family="Arial" font-size="14.00">configuration_id </text>
-<text text-anchor="start" x="152.94" y="-425" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="43.2,-382 43.2,-412.8 296.88,-412.8 296.88,-382 43.2,-382"/>
-<text text-anchor="start" x="50.2" y="-394.2" font-family="Arial" font-size="14.00">device_type </text>
-<text text-anchor="start" x="128.81" y="-394.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="43.2,-351.2 43.2,-382 296.88,-382 296.88,-351.2 43.2,-351.2"/>
-<text text-anchor="start" x="50.2" y="-363.4" font-family="Arial" font-size="14.00">device_category </text>
-<text text-anchor="start" x="156.04" y="-363.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="43.2,-320.4 43.2,-351.2 296.88,-351.2 296.88,-320.4 43.2,-320.4"/>
-<text text-anchor="start" x="50.2" y="-332.6" font-family="Arial" font-size="14.00">hostname </text>
-<text text-anchor="start" x="115.57" y="-332.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="43.2,-289.6 43.2,-320.4 296.88,-320.4 296.88,-289.6 43.2,-289.6"/>
-<text text-anchor="start" x="50.2" y="-301.8" font-family="Arial" font-size="14.00">serial_number </text>
-<text text-anchor="start" x="142.8" y="-301.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="43.2,-258.8 43.2,-289.6 296.88,-289.6 296.88,-258.8 43.2,-258.8"/>
-<text text-anchor="start" x="50.2" y="-271" font-family="Arial" font-size="14.00">asset_number </text>
-<text text-anchor="start" x="142.81" y="-271" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="43.2,-228 43.2,-258.8 296.88,-258.8 296.88,-228 43.2,-228"/>
-<text text-anchor="start" x="50.2" y="-240.2" font-family="Arial" font-size="14.00">power_watt </text>
-<text text-anchor="start" x="125.68" y="-240.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="43.2,-197.2 43.2,-228 296.88,-228 296.88,-197.2 43.2,-197.2"/>
-<text text-anchor="start" x="50.2" y="-209.4" font-family="Arial" font-size="14.00">status </text>
-<text text-anchor="start" x="91.44" y="-209.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="43.2,-166.4 43.2,-197.2 296.88,-197.2 296.88,-166.4 43.2,-166.4"/>
-<text text-anchor="start" x="50.2" y="-178.6" font-family="Arial" font-size="14.00">created_at </text>
-<text text-anchor="start" x="120.25" y="-178.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="43.2,-135.6 43.2,-166.4 296.88,-166.4 296.88,-135.6 43.2,-135.6"/>
-<text text-anchor="start" x="50.2" y="-147.8" font-family="Arial" font-size="14.00">updated_at </text>
-<text text-anchor="start" x="124.16" y="-147.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="#efefef" stroke="none" points="43.2,-613 43.2,-648.6 296.88,-648.6 296.88,-613 43.2,-613"/>
+<polygon fill="none" stroke="black" points="43.2,-613 43.2,-648.6 296.88,-648.6 296.88,-613 43.2,-613"/>
+<text text-anchor="start" x="59.57" y="-626.4" font-family="Arial Bold" font-size="18.00">public.device</text>
+<text text-anchor="start" x="156.03" y="-626.4" font-family="Arial" font-size="14.00">    </text>
+<text text-anchor="start" x="187.14" y="-626.4" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
+<polygon fill="none" stroke="black" points="43.2,-582.2 43.2,-613 296.88,-613 296.88,-582.2 43.2,-582.2"/>
+<text text-anchor="start" x="50.2" y="-594.4" font-family="Arial" font-size="14.00">id </text>
+<text text-anchor="start" x="64.99" y="-594.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="43.2,-551.4 43.2,-582.2 296.88,-582.2 296.88,-551.4 43.2,-551.4"/>
+<text text-anchor="start" x="50.2" y="-563.6" font-family="Arial" font-size="14.00">uid </text>
+<text text-anchor="start" x="72.77" y="-563.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="43.2,-520.6 43.2,-551.4 296.88,-551.4 296.88,-520.6 43.2,-520.6"/>
+<text text-anchor="start" x="50.2" y="-532.8" font-family="Arial" font-size="14.00">external_id </text>
+<text text-anchor="start" x="122.58" y="-532.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="43.2,-489.8 43.2,-520.6 296.88,-520.6 296.88,-489.8 43.2,-489.8"/>
+<text text-anchor="start" x="50.2" y="-502" font-family="Arial" font-size="14.00">merged_into_device_id </text>
+<text text-anchor="start" x="198.85" y="-502" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="43.2,-459 43.2,-489.8 296.88,-489.8 296.88,-459 43.2,-459"/>
+<text text-anchor="start" x="50.2" y="-471.2" font-family="Arial" font-size="14.00">merged_at </text>
+<text text-anchor="start" x="121.02" y="-471.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="43.2,-428.2 43.2,-459 296.88,-459 296.88,-428.2 43.2,-428.2"/>
+<text text-anchor="start" x="50.2" y="-440.4" font-family="Arial" font-size="14.00">configuration_id </text>
+<text text-anchor="start" x="152.94" y="-440.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="43.2,-397.4 43.2,-428.2 296.88,-428.2 296.88,-397.4 43.2,-397.4"/>
+<text text-anchor="start" x="50.2" y="-409.6" font-family="Arial" font-size="14.00">device_type </text>
+<text text-anchor="start" x="128.81" y="-409.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="43.2,-366.6 43.2,-397.4 296.88,-397.4 296.88,-366.6 43.2,-366.6"/>
+<text text-anchor="start" x="50.2" y="-378.8" font-family="Arial" font-size="14.00">device_category </text>
+<text text-anchor="start" x="156.04" y="-378.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="43.2,-335.8 43.2,-366.6 296.88,-366.6 296.88,-335.8 43.2,-335.8"/>
+<text text-anchor="start" x="50.2" y="-348" font-family="Arial" font-size="14.00">hostname </text>
+<text text-anchor="start" x="115.57" y="-348" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="43.2,-305 43.2,-335.8 296.88,-335.8 296.88,-305 43.2,-305"/>
+<text text-anchor="start" x="50.2" y="-317.2" font-family="Arial" font-size="14.00">serial_number </text>
+<text text-anchor="start" x="142.8" y="-317.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="43.2,-274.2 43.2,-305 296.88,-305 296.88,-274.2 43.2,-274.2"/>
+<text text-anchor="start" x="50.2" y="-286.4" font-family="Arial" font-size="14.00">asset_number </text>
+<text text-anchor="start" x="142.81" y="-286.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="43.2,-243.4 43.2,-274.2 296.88,-274.2 296.88,-243.4 43.2,-243.4"/>
+<text text-anchor="start" x="50.2" y="-255.6" font-family="Arial" font-size="14.00">power_watt </text>
+<text text-anchor="start" x="125.68" y="-255.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="43.2,-212.6 43.2,-243.4 296.88,-243.4 296.88,-212.6 43.2,-212.6"/>
+<text text-anchor="start" x="50.2" y="-224.8" font-family="Arial" font-size="14.00">status </text>
+<text text-anchor="start" x="91.44" y="-224.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="43.2,-181.8 43.2,-212.6 296.88,-212.6 296.88,-181.8 43.2,-181.8"/>
+<text text-anchor="start" x="50.2" y="-194" font-family="Arial" font-size="14.00">created_at </text>
+<text text-anchor="start" x="120.25" y="-194" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="43.2,-151 43.2,-181.8 296.88,-181.8 296.88,-151 43.2,-151"/>
+<text text-anchor="start" x="50.2" y="-163.2" font-family="Arial" font-size="14.00">updated_at </text>
+<text text-anchor="start" x="124.16" y="-163.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="43.2,-120.2 43.2,-151 296.88,-151 296.88,-120.2 43.2,-120.2"/>
+<text text-anchor="start" x="50.2" y="-132.4" font-family="Arial" font-size="14.00">health </text>
+<text text-anchor="start" x="92.23" y="-132.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 </g>
 <!-- public.sbom_import&#45;&gt;public.device -->
 <g id="edge2" class="edge">
 <title>public.sbom_import:device_id&#45;&gt;public.device:id</title>
-<path fill="none" stroke="black" d="M592.87,-1051.03C434.03,-1045.69 428.32,-913.9 349.04,-768.8 307.81,-693.34 383.88,-582.2 297.88,-582.2"/>
+<path fill="none" stroke="black" d="M592.87,-1051.03C434.1,-1045.65 429.97,-912.99 349.04,-768.8 310.17,-699.55 377.3,-597.6 297.88,-597.6"/>
 <polygon fill="black" stroke="black" points="592.72,-1051.03 602.64,-1055.69 598.05,-1051.12 602.38,-1051.19 602.38,-1051.19 602.38,-1051.19 598.05,-1051.12 602.79,-1046.7 592.72,-1051.03"/>
 <text text-anchor="start" x="358.76" y="-1061.2" font-family="Arial" font-size="10.00">FOREIGN KEY (device_id) REFERENCES device(id)</text>
 </g>

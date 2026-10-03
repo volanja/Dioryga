@@ -135,6 +135,9 @@ pub struct DeviceRow {
     pub power_watt: String,
     #[serde(default)]
     pub status: String,
+    /// `ok` / `failed`。空欄は `ok`（設計書6.3）
+    #[serde(default)]
+    pub health: String,
 }
 
 impl DeviceRow {
@@ -420,6 +423,7 @@ struct Planned {
     configuration_id: Option<i32>,
     device_type: String,
     status: String,
+    health: String,
     power_watt: i32,
     /// このプロジェクトへの割当を作る必要があるか。**新規作成と、現在の所属が
     /// 無い機器だけ**が立つ。既存の機器の所属は付け替えない（#143）。
@@ -428,7 +432,9 @@ struct Planned {
 
 const DEVICE_TYPES: &[&str] = &["Physical", "Virtual", "Container", "Logical"];
 /// **部品（`PART_INSTANCE`）も同じ語彙を持つ**ため、`parts.rs` と共有する。
-pub(super) const STATUSES: &[&str] = &["running", "failed", "repairing", "planned", "provisioning"];
+/// 旧い `failed` / `repairing` は語彙外としてエラーにする（設計書6.3、Q-21）。
+/// 故障は `health` の列に書く。黙って読み替えない
+pub(super) use crate::device_state::{HEALTHS, STATUSES};
 
 /// 閉じた語彙で検証する（8.6）。**語彙外は既定へ寄せず拒否し、空欄は既定にする。**
 pub(super) fn 語彙(
@@ -518,6 +524,13 @@ async fn 計画する<C: ConnectionTrait>(
                 continue;
             }
         };
+        let health = match 語彙(&row.health, HEALTHS, crate::device_state::OK) {
+            Ok(v) => v,
+            Err(e) => {
+                report.push(Entry::new(Outcome::Error, target, format!("health: {e}")));
+                continue;
+            }
+        };
         // 構成を持たない機器（仮想アプライアンス等）があるため空欄は許す（8.6）
         if let Some(category) = DeviceRow::空ならnone(&row.device_category) {
             if let Err(e) = 種別を検証する(&category) {
@@ -593,6 +606,7 @@ async fn 計画する<C: ConnectionTrait>(
                     || d.external_id != DeviceRow::空ならnone(&row.external_id)
                     || d.device_type != device_type
                     || d.status != status
+                    || d.health != health
                     || d.power_watt != power_watt
                     || d.configuration_id != configuration_id
                     || d.device_category != DeviceRow::空ならnone(&row.device_category)
@@ -621,6 +635,7 @@ async fn 計画する<C: ConnectionTrait>(
             configuration_id,
             device_type,
             status,
+            health,
             power_watt,
             needs_assignment,
         });
@@ -689,6 +704,7 @@ pub async fn 取り込む(
                 active.configuration_id = Set(p.configuration_id);
                 active.power_watt = Set(p.power_watt);
                 active.status = Set(p.status.clone());
+                active.health = Set(p.health.clone());
                 active.updated_at = Set(now);
                 tx.update(existing, active).await?;
                 existing.id
@@ -712,6 +728,7 @@ pub async fn 取り込む(
                     asset_number: Set(DeviceRow::空ならnone(&p.row.asset_number)),
                     power_watt: Set(p.power_watt),
                     status: Set(p.status.clone()),
+                    health: Set(p.health.clone()),
                     created_at: Set(now),
                     updated_at: Set(now),
                     ..Default::default()

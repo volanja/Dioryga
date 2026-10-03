@@ -14,6 +14,8 @@
 <p class="hint">{{ t_v2_hint }}</p>
 {# 仮想マシンとコンテナはホストが電力を引く。数えると二重になる #}
 <p class="hint">{{ t_virtual_hint }}</p>
+{# 待機中の機器は合算しない。ホットスタンバイを過小に見せるので、台数を併記する（設計書12.5） #}
+<p class="hint">{{ t_standby_hint }}</p>
 
 {% if rows.is_empty() %}
 <p class="empty">{{ t_empty }}</p>
@@ -42,6 +44,7 @@
       <th>{{ t_watt_with_plan }}</th>
       {# 数えていないことを示す。黙って落とさない #}
       <th>{{ t_virtual }}</th>
+      <th>{{ t_standby }}</th>
       <th>{{ t_actions }}</th>
     </tr>
   </thead>
@@ -55,6 +58,7 @@
       <td>{{ row.planned }}</td>
       <td>{{ row.watt_with_plan }} W</td>
       <td>{{ row.virtual_count }}</td>
+      <td>{{ row.standby }}</td>
       <td class="actions">
         <a href="/projects/{{ project_id }}/containers/{{ row.id }}">{{ t_detail }}</a>
       </td>

@@ -109,6 +109,18 @@
         </select>
         <p class="hint">{{ t.status_hint }}</p>
       </div>
+      {# 故障にするのは人が機器の詳細から行う。登録は正常で始める（設計書6.3） #}
+      {% if !is_new %}
+      <div class="field">
+        <label for="health">{{ t.health }} <span class="req">{{ t.required }}</span></label>
+        <select id="health" name="health">
+          {% for h in healths %}
+          <option value="{{ h.value }}" {% if health == h.value %}selected{% endif %}>{{ h.label }}</option>
+          {% endfor %}
+        </select>
+        <p class="hint">{{ t.health_hint }}</p>
+      </div>
+      {% endif %}
       <div class="field">
         <label for="power_watt">{{ t.power_watt }} <span class="opt">{{ t.optional }}</span></label>
         <span class="with-unit"><input type="number" class="mono num" id="power_watt" name="power_watt" value="{{ power_watt }}" min="0"><span class="mono">W</span></span>

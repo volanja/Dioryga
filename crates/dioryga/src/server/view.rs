@@ -472,11 +472,35 @@ pub fn 状態の表示(value: &str, locale: &str) -> String {
         "running" => "device_statuses.running",
         "planned" => "device_statuses.planned",
         "provisioning" => "device_statuses.provisioning",
-        "repairing" => "device_statuses.repairing",
-        "failed" => "device_statuses.failed",
+        "standby" => "device_statuses.standby",
         _ => return value.to_owned(),
     };
     rust_i18n::t!(key, locale = locale).to_string()
+}
+
+/// 故障の有無（`health`）と、そこから導く修理中（設計書6.3）の表示名。
+///
+/// `repairing` は列に無い値で、[`crate::device_state::容体`] が導く。
+/// 状態と同じく、クラスには生の値を、文字にはこの表示名を当てる。
+pub fn 容体の表示(value: &str, locale: &str) -> String {
+    let key = match value {
+        "ok" => "device_healths.ok",
+        "failed" => "device_healths.failed",
+        "repairing" => "device_healths.repairing",
+        _ => return value.to_owned(),
+    };
+    rust_i18n::t!(key, locale = locale).to_string()
+}
+
+/// 故障の有無の選択肢。
+pub fn 容体の選択肢(healths: &[&'static str], locale: &str) -> Vec<Choice> {
+    healths
+        .iter()
+        .map(|v| Choice {
+            value: v,
+            label: 容体の表示(v, locale),
+        })
+        .collect()
 }
 
 /// 機器の状態の選択肢。並びは語彙の表のまま。
@@ -532,10 +556,18 @@ mod tests {
     /// 訳語が抜けると、キーの文字列がそのまま画面に出る。
     #[test]
     fn 状態の表示名が両言語にそろっている() {
-        for v in ["running", "planned", "provisioning", "repairing", "failed"] {
+        for v in crate::device_state::STATUSES {
             for locale in ["ja", "en"] {
                 assert!(
                     !状態の表示(v, locale).contains("device_statuses"),
+                    "{locale}: {v}"
+                );
+            }
+        }
+        for v in ["ok", "failed", "repairing"] {
+            for locale in ["ja", "en"] {
+                assert!(
+                    !容体の表示(v, locale).contains("device_healths"),
                     "{locale}: {v}"
                 );
             }
@@ -555,7 +587,8 @@ mod tests {
             }
         }
         assert_eq!(状態の表示("running", "ja"), "稼働中");
-        assert_eq!(状態の表示("failed", "ja"), "故障");
+        assert_eq!(状態の表示("standby", "ja"), "待機");
+        assert_eq!(容体の表示("failed", "ja"), "故障");
         assert_eq!(チケットの状態の表示("in_progress", "ja"), "実行中");
         assert_eq!(チケットの状態の表示("cancelled", "ja"), "中止");
         // 語彙外はそのまま出す（取込の検証より前に入った値など）

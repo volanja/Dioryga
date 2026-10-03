@@ -23,14 +23,24 @@
 | 対象 | 値 |
 |---|---|
 | `DEVICE.device_type` | `Physical` / `Virtual` / `Container` / `Logical` |
-| `DEVICE.status` | `running` / `failed` / `repairing` / `planned` / `provisioning` |
-| `PART_INSTANCE.status` | 同上 |
-| `CABLE_INSTANCE.status` | `in_stock` / `in_use` / `broken` / `disposed` |
+| `DEVICE.status` | `planned` / `provisioning` / `running` / `standby` |
+| `DEVICE.health` | `ok` / `failed` |
+| `PART_INSTANCE.status` | 同上（`DEVICE.status` と同じ） |
+| `PART_INSTANCE.health` | 同上（`DEVICE.health` と同じ） |
 | `PROJECT.closure_reason` | `Completed` / `Cancelled`（`archived_at` がある場合のみ） |
 
 **`device_type` の使い分け**：`Virtual` はハイパーバイザ上で動くもの、`Logical` は複数の物理筐体が1台として振る舞うもの（スタック、HAペア）。`Logical` は `configuration_id` と `serial_number` がnullになる。
 
 **`in_stock`/`disposed` はDEVICE/PART_INSTANCEの`status`には含めない。**ロケーション系テーブル（DEVICE_ASSIGNMENT / PART_INSTANCE_LOCATION）から導出する（旧B-1）。
+
+**運用の段階（`status`）と故障の有無（`health`）は別の列に持つ**（6.3、#221）。「運用中だが故障している」を表すため。
+
+- **修理中（`repairing`）は列に持たない。**未完了（`planned` / `approved` / `in_progress`）の修理（`Repair`）のチケットが対象にあるかどうかから導出する。画面の表示名だけがある
+- **`standby` は構築済みですぐ使える予備**（ホット・コールドスタンバイ）。保管中の意味ではない
+- **機器と部品の `health` は独立に持つ。**部品を `failed` にしても機器の値は書き換えず、表示で合わせる（機器が `failed`、または載っている部品に `failed` があれば故障として出す）
+- 画面の登録・編集で選べる `status` は `provisioning` / `running` / `standby`。**`planned` にはできない**（予約は増設のチケットが作る）。`planned` の機器を先へ進めることはできる
+
+**`CABLE_INSTANCE` は `status` を持たない。**`retired_at`（nullable datetime）のみ。所在・接続・健全性・存在の軸が1列に混ざるため（8.4）。
 
 **`SOFTWARE_INSTANCE` は `status` を持たない。**`retired_at`（nullable datetime）のみ。インストール状態は `SOFTWARE_INSTALLATION` から導出する（9.4.1）。
 

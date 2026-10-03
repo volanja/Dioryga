@@ -10,8 +10,10 @@ pub struct Model {
     pub id: i32,
     pub part_catalog_id: i32,
     pub serial_number: Option<String>,
-    /// running / failed / repairing / planned / provisioning
+    /// 機器と同じ語彙。planned / provisioning / running / standby（設計書6.3）
     pub status: String,
+    /// ok / failed。**機器の `health` とは独立に持つ**（設計書6.3）
+    pub health: String,
     pub created_at: DateTimeUtc,
     pub updated_at: DateTimeUtc,
 }

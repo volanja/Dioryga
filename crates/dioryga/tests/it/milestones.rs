@@ -256,6 +256,38 @@ async fn 予約中は分けて出す(db: &DatabaseConnection) {
     assert!(body.contains("850 W"), "予約込みが850Wでない");
 }
 
+/// **待機中の機器は合算せず、外した台数を出すこと**（#221、設計書12.5、6.3）。
+///
+/// `health` が `failed` でも、運用を続けている機器は合算に含める。
+async fn 待機中は数えず台数を出す(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "power-standby@example.com").await;
+    搭載(db, &場, 場.device.id, 1).await;
+
+    let 待機 = 機器(db, &場, "srv-standby", "Physical", "standby", 500).await;
+    搭載(db, &場, 待機.id, 2).await;
+    let 故障 = 機器(db, &場, "srv-failed", "Physical", "running", 200).await;
+    let mut active: device::ActiveModel = 故障.clone().into();
+    active.health = Set("failed".to_owned());
+    active.update(db).await.unwrap();
+    搭載(db, &場, 故障.id, 3).await;
+
+    let body = 電力画面(db, &場).await;
+    assert!(body.contains("550 W"), "稼働中が550Wでない: {body}");
+    assert!(!body.contains("1050 W"), "待機中を数えている: {body}");
+    assert!(body.contains("待機（数えない）"), "{body}");
+    assert!(body.contains("待機中の機器は合算しません"), "{body}");
+
+    // 設備・什器の詳細でも、外した台数を黙らせない
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(
+        状態,
+        &format!("/projects/{}/containers/{}", 場.project.id, 場.container_id),
+        &token,
+    )
+    .await;
+    assert!(body.contains("待機中の1台は含めていません"), "{body}");
+}
+
 /// 搭載していない機器は数えないこと。
 async fn 搭載していない機器は数えない(db: &DatabaseConnection) {
     let 場 = 舞台(db, "power-unmounted@example.com").await;
@@ -628,6 +660,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 他プロジェクトのマイルストーンは操作できない);
         全検証!(@one $用意, $属性, 仮想マシンは電力を数えない);
         全検証!(@one $用意, $属性, 予約中は分けて出す);
+        全検証!(@one $用意, $属性, 待機中は数えず台数を出す);
         全検証!(@one $用意, $属性, 搭載していない機器は数えない);
         全検証!(@one $用意, $属性, 閲覧者も電力を見られる);
     };

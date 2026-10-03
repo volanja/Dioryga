@@ -176,6 +176,10 @@ devices:
   device_type: 種別
   model: 型・構成
   status: 状態
+  health: 故障の有無
+  health_hint: 故障に気付いたら「故障」にします。修理の変更管理チケットが完了すると「正常」に戻ります。誤って故障にしたときは、ここで戻せます
+  part_health_save: 変更
+  part_health_invalid: 部品の故障の有無の値が不正です
   location: 所在
   detail: 詳細
   empty: 該当する機器がありません
@@ -208,6 +212,7 @@ devices:
   hostname_required: ホスト名を入力してください
   device_type_invalid: 種別の値が不正です
   status_invalid: 状態の値が不正です
+  health_invalid: 故障の有無の値が不正です
   device_category_invalid: 種別分類の値が不正です
   configuration_invalid: 構成の指定が不正です
   power_watt_invalid: 消費電力は0以上の整数で入力してください
@@ -246,8 +251,8 @@ devices:
   tip_container: コンテナ。構成とシリアル番号は持ちません
   tip_logical: 複数の筐体が1台として振る舞うもの（スタック・HAペア）。構成とシリアル番号は持ちません
   hostname_hint: 運用で呼ぶ名前です
-  status_hint_new: 既定は「構築中」。「予約中」はこの画面では選べません——予約は増設の変更管理チケットが作ります
-  status_hint_edit: 予約中の機器は、増設の変更管理チケットが実行されると稼働中になります
+  status_hint_new: 既定は「構築中」。「待機」は構築済みの予備です。「予約中」はこの画面では選べません——予約は増設の変更管理チケットが作ります
+  status_hint_edit: 「予約中」には戻せません。予約中の機器は、ここで先へ進めるか、増設の変更管理チケットの実行で稼働中になります
   power_hint: 実測があればそれを、無ければ見込みの値を入れます
   manage_as_fixed_asset: 固定資産として管理する
   fixed_asset_hint: 取得原価と取得日は上の値を使います。償却に要る2つだけ足してください
@@ -460,6 +465,7 @@ containers:
   circuits_hint: この設備・什器に来ている回路です。A系・B系のように複数持てます。回路ごとの負荷と冗長の判定はまだありません
   power: 消費電力の合計
   power_total: 稼働中 %{watt}W（予約を含めると %{with_plan}W）
+  power_standby: 。待機中の%{count}台は含めていません
   circuit_label: 系統名
   voltage: 電圧（V）
   phase: 相
@@ -936,6 +942,8 @@ power:
   planned: 予約中の台数
   watt_with_plan: 予約を含めた消費電力
   virtual: 仮想（数えない）
+  standby: 待機（数えない）
+  standby_hint: 待機中の機器は合算しません。ホットスタンバイは電力を引くため、待機中の機器が多いと消費電力を少なく見せます
   total: 合計
 
 dashboard:
@@ -944,6 +952,7 @@ dashboard:
   open_work_order: チケットを開く
   create_work_order: チケットを起票
   note_running: 現在このプロジェクトにあるもの
+  note_standby: 構築済みの予備
   note_planned: チケットで確保済み
   note_provisioning: 実行中のチケットあり
   note_repairing: 対応中
@@ -999,8 +1008,13 @@ device_statuses:
   running: 稼働中
   planned: 予約中
   provisioning: 構築中
-  repairing: 修理中
+  standby: 待機
+
+# 故障の有無（health）と、そこから導く修理中（設計書6.3）
+device_healths:
+  ok: 正常
   failed: 故障
+  repairing: 修理中
 
 work_order_statuses:
   planned: 計画中

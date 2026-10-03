@@ -55,7 +55,11 @@
       <td>{{ row.device_type }}</td>
       <td>{{ row.model }}</td>
       {# 状態はランプを添える。文字だけより、並んだ行の中で見つけやすい #}
-      <td><span class="st"><span class="led sm {{ row.status }}"></span>{{ row.status_label }}</span></td>
+      <td>
+        <span class="st"><span class="led sm {{ row.status }}"></span>{{ row.status_label }}</span>
+        {# 機器か、載っている部品が故障していれば添える（設計書6.3） #}
+        {% if let Some(h) = row.attention %}<span class="badge danger">{{ h }}</span>{% endif %}
+      </td>
       <td>{{ row.location }}</td>
     </tr>
     {% endfor %}

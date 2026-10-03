@@ -20,9 +20,9 @@
 | [public.cable_catalog](public.cable_catalog.md) | 13 | ケーブルのカタログ（8.3、8.7）。**v1は手入力の画面を持つが、取込は無い**（#68）。<br />ケーブルの実物と接続（CABLE_INSTANCE / CABLE_CONNECTION）はv2（23.8）。<br /> | BASE TABLE |
 | [public.cable_end_slot](public.cable_end_slot.md) | 7 | ケーブルの端。**端ごとに異なるコネクタを持てる**（8.7）。<br />NEMA 5-15P と C13、LC と SC のような非対称なケーブルを表すため両端を別レコードにしている。<br /> | BASE TABLE |
 | [public.software_catalog](public.software_catalog.md) | 12 | ソフトウェアのカタログ。**SBOM取込はこのテーブルを自動生成しない**（9.2）。<br />人が資産として登録したものだけを置く。<br /> | BASE TABLE |
-| [public.device](public.device.md) | 15 | 機器。**`in_stock` / `disposed` は `status` に持たない**（旧B-1）。<br />所在は DEVICE_ASSIGNMENT から導出する。状態を二重に持つと必ずずれる。<br /> | BASE TABLE |
+| [public.device](public.device.md) | 16 | 機器。**`in_stock` / `disposed` は `status` に持たない**（旧B-1）。<br />所在は DEVICE_ASSIGNMENT から導出する。状態を二重に持つと必ずずれる。<br /> | BASE TABLE |
 | [public.device_assignment](public.device_assignment.md) | 7 | 機器の所在 — **履歴テーブル。**`to_date IS NULL` が現在有効な行であり、<br />既存行を更新せず「閉じて開く」（不変条件1）。<br /> | BASE TABLE |
-| [public.part_instance](public.part_instance.md) | 6 | 部品の実物（6.2）。 | BASE TABLE |
+| [public.part_instance](public.part_instance.md) | 7 | 部品の実物（6.2）。 | BASE TABLE |
 | [public.part_instance_location](public.part_instance_location.md) | 8 | 部品の所在 — 履歴テーブル（6.2、12.4）。 | BASE TABLE |
 | [public.firmware_version](public.firmware_version.md) | 9 | ファームウェアの版 — 履歴テーブル（6.2）。 | BASE TABLE |
 | [public.device_stack](public.device_stack.md) | 6 | スタック構成 — 履歴テーブル（8.6）。スタック全体を `device_type="Logical"` の DEVICE として<br />登録し、物理筐体は `Physical` として別に登録する。hostname や OS_INTERFACE は論理側、<br />DEVICE_MOUNT や power_watt は物理側が持つ。<br /> | BASE TABLE |

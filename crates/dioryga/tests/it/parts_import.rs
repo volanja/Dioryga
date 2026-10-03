@@ -204,6 +204,45 @@ async fn 倉庫へ戻すと閉じて開く(db: &DatabaseConnection) {
     assert_eq!(履歴[1].location_type, "Warehouse");
 }
 
+/// **部品の故障は `health` の列に書くこと**（#221、設計書6.3）。
+///
+/// 旧い `failed` を `status` に書いたらエラー。`health` だけの変更でも所在は増えない。
+async fn 故障はhealthの列に書く(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "部品の故障").await;
+    let 列 = format!("{},health\n", 見出し.trim_end());
+
+    let 旧い =
+        parts::parse_parts(&format!("{列}SN-1,Samsung,DIMM-32G,failed,Device,web01,,,")).unwrap();
+    let report = parts::dry_run(db, 場.project.id, &旧い).await.unwrap();
+    assert_eq!(report.count(Outcome::Error), 1, "{report}");
+
+    let 元 = parts::parse_parts(&format!(
+        "{列}SN-1,Samsung,DIMM-32G,running,Device,web01,,,"
+    ))
+    .unwrap();
+    parts::apply(db, 場.project.id, &元, Utc::now(), 1)
+        .await
+        .unwrap();
+    assert_eq!(部品(db, "SN-1").await.unwrap().health, "ok");
+
+    let 故障 = parts::parse_parts(&format!(
+        "{列}SN-1,Samsung,DIMM-32G,running,Device,web01,,,failed"
+    ))
+    .unwrap();
+    let report = parts::dry_run(db, 場.project.id, &故障).await.unwrap();
+    assert_eq!(report.count(Outcome::Updated), 1, "{report}");
+    parts::apply(db, 場.project.id, &故障, Utc::now(), 2)
+        .await
+        .unwrap();
+
+    let p = 部品(db, "SN-1").await.unwrap();
+    assert_eq!(
+        (p.status.as_str(), p.health.as_str()),
+        ("running", "failed")
+    );
+    assert_eq!(所在の履歴(db, p.id).await.len(), 1, "所在が増えています");
+}
+
 /// **状態だけが変わったときは、所在の履歴を作らないこと。**
 ///
 /// 部品そのものは履歴ではなく、**所在だけが履歴**である（12.4）。
@@ -215,16 +254,16 @@ async fn 状態だけの変更で所在は増えない(db: &DatabaseConnection) 
         .await
         .unwrap();
 
-    let 故障 = parts::parse_parts(&csv(&["SN-1,Samsung,DIMM-32G,failed,Device,web01,,"])).unwrap();
-    let report = parts::dry_run(db, 場.project.id, &故障).await.unwrap();
+    let 待機 = parts::parse_parts(&csv(&["SN-1,Samsung,DIMM-32G,standby,Device,web01,,"])).unwrap();
+    let report = parts::dry_run(db, 場.project.id, &待機).await.unwrap();
     assert_eq!(report.count(Outcome::Updated), 1, "{report}");
 
-    parts::apply(db, 場.project.id, &故障, Utc::now(), 2)
+    parts::apply(db, 場.project.id, &待機, Utc::now(), 2)
         .await
         .unwrap();
 
     let p = 部品(db, "SN-1").await.unwrap();
-    assert_eq!(p.status, "failed");
+    assert_eq!(p.status, "standby");
     assert_eq!(所在の履歴(db, p.id).await.len(), 1, "所在が増えています");
 }
 
@@ -814,6 +853,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 関わりの無い部品は動かせない);
         全検証!(@one $用意, $属性, 倉庫へ戻すと閉じて開く);
         全検証!(@one $用意, $属性, 状態だけの変更で所在は増えない);
+        全検証!(@one $用意, $属性, 故障はhealthの列に書く);
         全検証!(@one $用意, $属性, スロットを指定できる);
         全検証!(@one $用意, $属性, 無いスロットはエラー);
         全検証!(@one $用意, $属性, 倉庫ではスロットを指定できない);

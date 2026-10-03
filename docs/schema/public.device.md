@@ -25,6 +25,7 @@
 | status | varchar |  | false |  |  | running / broken / repair / plan / building。**所在は含まない** |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
+| health | varchar | 'ok'::character varying | false |  |  |  |
 
 ## Constraints
 
@@ -32,6 +33,7 @@
 | ---- | ---- | ---------- |
 | device_created_at_not_null | n | NOT NULL created_at |
 | device_device_type_not_null | n | NOT NULL device_type |
+| device_health_not_null | n | NOT NULL health |
 | device_hostname_not_null | n | NOT NULL hostname |
 | device_id_not_null | n | NOT NULL id |
 | device_power_watt_not_null | n | NOT NULL power_watt |

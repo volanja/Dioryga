@@ -3011,6 +3011,12 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "health",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'ok'::character varying"
         }
       ],
       "indexes": [
@@ -3090,6 +3096,16 @@
           "referenced_table": "",
           "columns": [
             "device_type"
+          ]
+        },
+        {
+          "name": "device_health_not_null",
+          "type": "n",
+          "def": "NOT NULL health",
+          "table": "public.device",
+          "referenced_table": "",
+          "columns": [
+            "health"
           ]
         },
         {
@@ -3372,6 +3388,12 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "health",
+          "type": "varchar",
+          "nullable": false,
+          "default": "'ok'::character varying"
         }
       ],
       "indexes": [
@@ -3401,6 +3423,16 @@
           "referenced_table": "",
           "columns": [
             "created_at"
+          ]
+        },
+        {
+          "name": "part_instance_health_not_null",
+          "type": "n",
+          "def": "NOT NULL health",
+          "table": "public.part_instance",
+          "referenced_table": "",
+          "columns": [
+            "health"
           ]
         },
         {
@@ -5871,11 +5903,6 @@
           "nullable": true
         },
         {
-          "name": "status",
-          "type": "varchar",
-          "nullable": false
-        },
-        {
           "name": "created_at",
           "type": "timestamp with time zone",
           "nullable": false
@@ -5884,6 +5911,11 @@
           "name": "updated_at",
           "type": "timestamp with time zone",
           "nullable": false
+        },
+        {
+          "name": "retired_at",
+          "type": "timestamp with time zone",
+          "nullable": true
         }
       ],
       "indexes": [
@@ -5933,16 +5965,6 @@
           "referenced_table": "",
           "columns": [
             "id"
-          ]
-        },
-        {
-          "name": "cable_instance_status_not_null",
-          "type": "n",
-          "def": "NOT NULL status",
-          "table": "public.cable_instance",
-          "referenced_table": "",
-          "columns": [
-            "status"
           ]
         },
         {

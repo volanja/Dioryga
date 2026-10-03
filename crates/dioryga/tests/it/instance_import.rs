@@ -20,6 +20,58 @@ fn csv(rows: &[&str]) -> String {
 // 突合の解決順序（設計書23.2）
 // ---------------------------------------------------------------------------
 
+/// **故障は `health` の列に書くこと**（#221、設計書6.3）。
+///
+/// 旧い `failed` / `repairing` を `status` に書いたファイルはエラーにする。
+/// 黙って `health` へ読み替えると、ファイルの誤りに気付けない。空欄は `ok`。
+async fn 故障はhealthの列に書く(db: &DatabaseConnection) {
+    let p = プロジェクト(db, "故障の列").await;
+    let 列 = format!("{},health\n", 見出し.trim_end());
+
+    for 旧い値 in ["failed", "repairing"] {
+        let rows = instances::parse_devices(&format!(
+            "{列},,old-{旧い値},SN-OLD-{旧い値},,Physical,400,{旧い値},"
+        ))
+        .unwrap();
+        let report = instances::dry_run(db, p.id, &rows, &[]).await.unwrap();
+        assert_eq!(report.count(Outcome::Error), 1, "{旧い値}: {report}");
+    }
+    let 語彙外 =
+        instances::parse_devices(&format!("{列},,bad01,SN-BAD,,Physical,400,running,broken"))
+            .unwrap();
+    let report = instances::dry_run(db, p.id, &語彙外, &[]).await.unwrap();
+    assert_eq!(report.count(Outcome::Error), 1, "{report}");
+
+    let match_on = ["serial_number".to_owned()];
+    let rows = instances::parse_devices(&format!(
+        "{列},,web01,SN-H1,,Physical,400,running,failed\n,,web02,SN-H2,,Physical,400,standby,"
+    ))
+    .unwrap();
+    instances::apply(db, p.id, &rows, &match_on, Utc::now(), 1)
+        .await
+        .unwrap();
+    for (serial, status, health) in [("SN-H1", "running", "failed"), ("SN-H2", "standby", "ok")] {
+        let d = device::Entity::find()
+            .filter(device::Column::SerialNumber.eq(serial))
+            .one(db)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!((d.status.as_str(), d.health.as_str()), (status, health));
+    }
+
+    // health だけを変えても更新として数える
+    let 直す = instances::parse_devices(&format!(
+        "{列},,web01,SN-H1,,Physical,400,running,ok\n,,web02,SN-H2,,Physical,400,standby,"
+    ))
+    .unwrap();
+    let report = instances::dry_run(db, p.id, &直す, &match_on)
+        .await
+        .unwrap();
+    assert_eq!(report.count(Outcome::Updated), 1, "{report}");
+    assert_eq!(report.count(Outcome::Unchanged), 1, "{report}");
+}
+
 /// **① uid で特定できること。**export → 編集 → import の往復の要。
 async fn uidで突合する(db: &DatabaseConnection) {
     let p = プロジェクト(db, "突合検証").await;
@@ -392,8 +444,8 @@ async fn 倉庫や廃棄にある機器の所属は付け替えない(db: &Datab
 
     // 値が変われば機器は更新するが、所属には触れない
     let 値を変える = instances::parse_devices(&csv(&[
-        ",,spare01,SN-SP,,Physical,400,failed",
-        ",,old01,SN-OLD,,Physical,400,failed",
+        ",,spare01,SN-SP,,Physical,400,standby",
+        ",,old01,SN-OLD,,Physical,400,standby",
     ]))
     .unwrap();
     for _ in 0..2 {
@@ -408,7 +460,7 @@ async fn 倉庫や廃棄にある機器の所属は付け替えない(db: &Datab
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(後.status, "failed");
+        assert_eq!(後.status, "standby");
         let 履歴 = 所属の履歴(db, d.id).await;
         assert_eq!(履歴.len(), 2, "{種別}: 所属の履歴が増えています");
         let 現在: Vec<_> = 履歴.iter().filter(|a| a.to_date.is_none()).collect();
@@ -665,6 +717,7 @@ async fn 利用者(db: &DatabaseConnection, email: &str) -> app_user::Model {
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, uidで突合する);
+        全検証!(@one $用意, $属性, 故障はhealthの列に書く);
         全検証!(@one $用意, $属性, 存在しないuidはエラー);
         全検証!(@one $用意, $属性, external_idで突合する);
         全検証!(@one $用意, $属性, match_onで突合する);

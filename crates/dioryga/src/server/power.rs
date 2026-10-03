@@ -24,6 +24,13 @@
 //! 現在値に混ぜると平常時の負荷を過大に見せ、外すと増設後の見通しが立たない。
 //! **両方を並べて出す。**23.5で部分的な粒度の取込に「分母を表示する」とした
 //! のと同じ考え方で、利用者が判別できる状態にする。
+//!
+//! # 待機中の機器は数えない
+//!
+//! `status=standby` の機器は合算に含めず、台数だけを出す（設計書12.5、6.3）。
+//! **ホットスタンバイは電力を引くので、本来は集計すべきである。**今は考慮しないと
+//! 決めたので、外した台数を併記して黙らせない。`health` が `failed` でも、
+//! 運用を続けている（`running` の）機器は含める。
 
 use axum::extract::{Path, State};
 use axum::response::Response;
@@ -39,7 +46,8 @@ use crate::server::AppState;
 
 const PHYSICAL: &str = "Physical";
 /// 機器の状態（8.6）
-const DEVICE_PLANNED: &str = "planned";
+const DEVICE_PLANNED: &str = crate::device_state::PLANNED;
+const DEVICE_STANDBY: &str = crate::device_state::STANDBY;
 const PROJECT: &str = "Project";
 
 struct ContainerRow {
@@ -56,6 +64,8 @@ struct ContainerRow {
     watt_with_plan: i32,
     /// 電力を引かない仮想マシン・コンテナの台数。**数えていないことを示す。**
     virtual_count: usize,
+    /// 合算から外した待機中の台数。**数えていないことを示す。**
+    standby: usize,
 }
 
 #[derive(askama::Template)]
@@ -68,6 +78,8 @@ struct PowerPage {
     t_lead: String,
     t_v2_hint: String,
     t_virtual_hint: String,
+    t_standby_hint: String,
+    t_standby: String,
     t_container: String,
     t_type: String,
     t_running: String,
@@ -132,6 +144,7 @@ pub async fn show(
             planned: 集計.planned,
             watt_with_plan: 集計.watt_with_plan,
             virtual_count: 集計.virtual_count,
+            standby: 集計.standby,
         });
     }
 
@@ -150,6 +163,8 @@ pub async fn show(
         t_lead: rust_i18n::t!("power.lead", locale = l).to_string(),
         t_v2_hint: rust_i18n::t!("power.v2_hint", locale = l).to_string(),
         t_virtual_hint: rust_i18n::t!("power.virtual_hint", locale = l).to_string(),
+        t_standby_hint: rust_i18n::t!("power.standby_hint", locale = l).to_string(),
+        t_standby: rust_i18n::t!("power.standby", locale = l).to_string(),
         t_container: rust_i18n::t!("racks.container", locale = l).to_string(),
         t_type: rust_i18n::t!("racks.container_type", locale = l).to_string(),
         t_running: rust_i18n::t!("power.running", locale = l).to_string(),
@@ -174,6 +189,8 @@ pub(crate) struct 集計結果 {
     pub(crate) planned: usize,
     pub(crate) watt_with_plan: i32,
     pub(crate) virtual_count: usize,
+    /// 合算から外した待機中の台数（12.5）。
+    pub(crate) standby: usize,
 }
 
 /// 什器に載っている機器の電力を合算する（12.5）。
@@ -204,6 +221,12 @@ pub(crate) async fn 什器の電力<C: ConnectionTrait>(
         // **仮想マシン・コンテナは電力を引かない**（13章、12.5）
         if d.device_type != PHYSICAL {
             out.virtual_count += 1;
+            continue;
+        }
+
+        // **待機中は合算しない**（12.5、6.3）。外した台数だけを数える
+        if d.status == DEVICE_STANDBY {
+            out.standby += 1;
             continue;
         }
 

@@ -14,9 +14,9 @@ in_stock / disposed も status に含む。v1では画面・取込の対象外�
 | cable_catalog_id | integer |  | false |  | [public.cable_catalog](public.cable_catalog.md) |  |
 | serial_number | varchar |  | true |  |  |  |
 | asset_number | varchar |  | true |  |  |  |
-| status | varchar |  | false |  |  |  |
 | created_at | timestamp with time zone |  | false |  |  |  |
 | updated_at | timestamp with time zone |  | false |  |  |  |
+| retired_at | timestamp with time zone |  | true |  |  |  |
 
 ## Constraints
 
@@ -25,7 +25,6 @@ in_stock / disposed も status に含む。v1では画面・取込の対象外�
 | cable_instance_cable_catalog_id_not_null | n | NOT NULL cable_catalog_id |
 | cable_instance_created_at_not_null | n | NOT NULL created_at |
 | cable_instance_id_not_null | n | NOT NULL id |
-| cable_instance_status_not_null | n | NOT NULL status |
 | cable_instance_updated_at_not_null | n | NOT NULL updated_at |
 | cable_instance_cable_catalog_id_fkey | FOREIGN KEY | FOREIGN KEY (cable_catalog_id) REFERENCES cable_catalog(id) |
 | cable_instance_pkey | PRIMARY KEY | PRIMARY KEY (id) |

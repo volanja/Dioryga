@@ -1180,7 +1180,7 @@ async fn 外すものが残る廃棄は完了できない(db: &DatabaseConnectio
 /// **部品を指す廃棄は、部品の所在だけを `Disposed` にすること**（11.4、#216）。
 ///
 /// 機器も指していても、機器は残す。部品単位の廃棄は、機器から部品を外して捨てる
-/// ことである。起票元の機器に載っていない部品は捨てられない。
+/// ことである。起票元にない部品（倉庫の予備など）は捨てられない。
 async fn 部品の廃棄は部品の所在だけを変える(db: &DatabaseConnection) {
     let 場 = 増設の舞台(db, "dispose-part@example.com").await;
     let device_id = 予約対象の機器(db, &場, "dispose-part-host", "running").await;
@@ -1223,7 +1223,7 @@ async fn 部品の廃棄は部品の所在だけを変える(db: &DatabaseConnec
     // 機器は残る
     assert_eq!(現在の所属(db, device_id).await, Some(場.project_id));
 
-    // 機器に載っていない部品（倉庫の予備など）は捨てられない
+    // 起票元にない部品（倉庫の予備など）は捨てられない
     let 倉庫の部品 = 部品(db, 場.user.id, "MEM-DSP-2").await;
     part_instance_location::ActiveModel {
         part_instance_id: Set(倉庫の部品.id),
@@ -1240,8 +1240,67 @@ async fn 部品の廃棄は部品の所在だけを変える(db: &DatabaseConnec
     let (状態, token) = 認証済み(db, &場.user).await;
     let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "complete", "").await;
     assert_eq!(status, StatusCode::OK);
-    assert!(body.contains("機器に載っていません"), "{body}");
+    assert!(body.contains("起票元のプロジェクトにありません"), "{body}");
     assert_eq!(再取得(db, w.id).await.status, "in_progress");
+}
+
+/// **起票元の設備・什器やプロジェクトに置いた部品も廃棄できること**（#219）。
+///
+/// 部品がどのプロジェクトのものかは置き場所からたどる。他のプロジェクトの
+/// 設備・什器に置いた部品は捨てられない。
+async fn 棚やプロジェクトに置いた部品も廃棄できる(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "dispose-placed@example.com").await;
+    let よそ = プロジェクト(db, "部品のよそ").await;
+    let よその棚 = mount_container::ActiveModel {
+        name: Set("よその棚".to_owned()),
+        location_type: Set("Project".to_owned()),
+        location_id: Set(よそ.id),
+        created_by: Set(場.user.id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+
+    for (part_number, location_type, location_id, 捨てられる) in [
+        ("MEM-SHELF", "MountContainer", 場.container_id, true),
+        ("MEM-LOOSE", "Project", 場.project_id, true),
+        ("MEM-ELSEWHERE", "MountContainer", よその棚.id, false),
+    ] {
+        let p = 部品(db, 場.user.id, part_number).await;
+        part_instance_location::ActiveModel {
+            part_instance_id: Set(p.id),
+            location_type: Set(location_type.to_owned()),
+            location_id: Set(Some(location_id)),
+            from_date: Set(Utc::now()),
+            to_date: Set(None),
+            ..Default::default()
+        }
+        .insert(db)
+        .await
+        .unwrap();
+
+        let w = 廃棄のチケット(db, 場.project_id, None, Some(p.id), "in_progress").await;
+        let (状態, token) = 認証済み(db, &場.user).await;
+        let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "complete", "").await;
+        let 現在 = part_instance_location::Entity::find()
+            .filter(part_instance_location::Column::PartInstanceId.eq(p.id))
+            .filter(part_instance_location::Column::ToDate.is_null())
+            .one(db)
+            .await
+            .unwrap()
+            .unwrap();
+        if 捨てられる {
+            assert_eq!(status, StatusCode::SEE_OTHER, "{part_number}: {body}");
+            assert_eq!(現在.location_type, "Disposed", "{part_number}");
+        } else {
+            assert_eq!(status, StatusCode::OK, "{part_number}");
+            assert!(body.contains("起票元のプロジェクトにありません"), "{body}");
+            assert_eq!(現在.location_type, location_type, "{part_number}");
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1757,6 +1816,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 廃棄を完了すると所在がdisposedになる);
         全検証!(@one $用意, $属性, 外すものが残る廃棄は完了できない);
         全検証!(@one $用意, $属性, 部品の廃棄は部品の所在だけを変える);
+        全検証!(@one $用意, $属性, 棚やプロジェクトに置いた部品も廃棄できる);
         全検証!(@one $用意, $属性, 移譲先からもチケットが見える);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {

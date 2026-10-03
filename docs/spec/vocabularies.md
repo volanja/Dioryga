@@ -144,7 +144,7 @@ Planned / Approved / InProgress --> Cancelled : 中止
 | 対象 | 値 |
 |---|---|
 | `DEVICE_ASSIGNMENT.location_type` | `Warehouse` / `Project` / `Disposed` |
-| `PART_INSTANCE_LOCATION.location_type` | `Warehouse` / `Device` / `Disposed` |
+| `PART_INSTANCE_LOCATION.location_type` | `Warehouse` / `Device` / `MountContainer` / `Project` / `Disposed`。`MountContainer`・`Project` は #219 で追加。`Warehouse` は #220 で消す |
 | `MOUNT_CONTAINER.location_type` | `Warehouse` / `Project` |
 | `FIRMWARE_VERSION.item_type` | `Device` / `PartInstance` |
 | `PURCHASE.item_type` | `Device` / `PartInstance` / `SoftwareInstance` / `MountContainer` |

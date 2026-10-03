@@ -3,6 +3,21 @@
 //! `PART_INSTANCE`（部品の実物）と、その所在 `PART_INSTANCE_LOCATION` を扱う。
 //! 所在は `location_type=Device` なら搭載中、`Warehouse` なら在庫（12.4）。
 //!
+//! # 部品も機器と同じく、棚に置いてもプロジェクトに置いてもよい（#219、16.1）
+//!
+//! | `location_type` | 置き場所 | `location_name` |
+//! |---|---|---|
+//! | `Device` | 機器に載っている（`location_hostname` にホスト名） | 書かない |
+//! | `MountContainer` | 設備・什器（ラック・棚）に置いてある | 設備・什器の名前 |
+//! | `Project` | どこにも載せずプロジェクトに置いてある | 書かない |
+//! | `Warehouse` | 倉庫（#220 で消す） | 倉庫名 |
+//! | `Disposed` | 廃棄 | 書かない |
+//!
+//! **置けるのはこのプロジェクトの設備・什器と、このプロジェクトだけ。**1つの
+//! 取込ファイルは1プロジェクトに閉じる（23.5）。他のプロジェクトへ移すのは
+//! 移譲（11章）の担当である。設備・什器の上の位置（棚の段）は持たない。
+//! 部品がどのプロジェクトのものかは、設備・什器の置き場所からたどる。
+//!
 //! # シリアル番号を必須にする
 //!
 //! **宣言的な取込（23.1）は、行が何を指すかを特定できて初めて成り立つ。**
@@ -44,6 +59,8 @@ use super::{Entry, ImportError, Outcome, Report};
 use crate::repository::{Actor, AuditedTx};
 
 const DEVICE: &str = "Device";
+const MOUNT_CONTAINER: &str = "MountContainer";
+const PROJECT: &str = "Project";
 const WAREHOUSE: &str = "Warehouse";
 const DISPOSED: &str = "Disposed";
 
@@ -57,12 +74,12 @@ pub struct PartRow {
     pub part_number: String,
     #[serde(default)]
     pub status: String,
-    /// Device / Warehouse / Disposed。
+    /// Device / MountContainer / Project / Warehouse / Disposed。
     pub location_type: String,
     /// `Device` のとき、載っている機器のホスト名。
     #[serde(default)]
     pub location_hostname: String,
-    /// `Warehouse` のとき、倉庫名。
+    /// `MountContainer` のとき設備・什器の名前、`Warehouse` のとき倉庫名。
     #[serde(default)]
     pub location_name: String,
     /// **任意。**どのスロットに挿さっているかまでは求めない（6.2）。
@@ -214,13 +231,50 @@ async fn 計画する<C: ConnectionTrait>(
                     }
                 }
             }
+            MOUNT_CONTAINER => {
+                let Some(name) = 空ならnone(&row.location_name) else {
+                    report.push(Entry::new(
+                        Outcome::Error,
+                        表示,
+                        "location_type=MountContainer には location_name（設備・什器の名前）が要ります",
+                    ));
+                    continue;
+                };
+                // **このプロジェクトの設備・什器だけ。**撤去したものは置き場にしない
+                // （名前の比較は大文字小文字を区別しない、#204）
+                match crate::container::同じ名前の設備(db, PROJECT, project_id, name, None).await?
+                {
+                    Some(c) => (MOUNT_CONTAINER.to_owned(), Some(c.id), None),
+                    None => {
+                        report.push(Entry::new(
+                            Outcome::Error,
+                            表示,
+                            format!("設備・什器「{name}」がこのプロジェクトにありません"),
+                        ));
+                        continue;
+                    }
+                }
+            }
+            PROJECT => {
+                // **置けるのはこのプロジェクトだけ。**名前を書けると、他の
+                // プロジェクトへ移す取込に読めてしまう（23.5）
+                if 空ならnone(&row.location_name).is_some() {
+                    report.push(Entry::new(
+                        Outcome::Error,
+                        表示,
+                        "location_type=Project には location_name を書きません（置き場はこのプロジェクトに限ります）",
+                    ));
+                    continue;
+                }
+                (PROJECT.to_owned(), Some(project_id), None)
+            }
             DISPOSED => (DISPOSED.to_owned(), None, None),
             other => {
                 report.push(Entry::new(
                     Outcome::Error,
                     表示,
                     format!(
-                        "location_type「{other}」は扱えません。Device / Warehouse / Disposed のいずれかです"
+                        "location_type「{other}」は扱えません。Device / MountContainer / Project / Warehouse / Disposed のいずれかです"
                     ),
                 ));
                 continue;

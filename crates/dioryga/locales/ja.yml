@@ -392,7 +392,7 @@ work_orders:
   error_disposal_mounted: 機器が設備・什器に搭載されています（予約を含む）。搭載を外してから完了してください
   error_disposal_hosting: この機器の上に載っている機器があります。先にそちらを外してください
   error_disposal_has_ip: 機器にIPアドレスが残っています。IPアドレスを閉じてから完了してください
-  error_disposal_part_not_here: この部品は、いま起票元のプロジェクトの機器に載っていません
+  error_disposal_part_not_here: この部品は、いま起票元のプロジェクトにありません
   reservations: 予約している配置
   reservations_hint: 計画の時点でラック位置を確保します。ラック図に予約中として現れ、他の担当者が同じ場所を使えなくなります。中止すると解放されます
   reserve: ラック位置を予約する
@@ -437,14 +437,14 @@ containers:
   back: 設備・什器の一覧へ戻る
   error_name: 名前を入力してください
   error_name_taken: 同じ名前の設備・什器が既にあります。大文字と小文字は区別しません
-  error_in_use: 機器が載っているため撤去できません。先に機器を降ろすか移してください
+  error_in_use: 機器か部品が載っているため撤去できません。先に降ろすか移してください
   error_unretire_taken: 同じ名前の設備・什器が既にあるため、撤去を取り消せません。先に名前を分けてください
   retired: 撤去済み
   show_retired: 撤去済みも含める
   retire: 撤去
   unretire: 撤去を取り消す
   retire_title: 設備・什器の撤去
-  retire_in_use: この設備・什器には機器が載っています。先に降ろすか移してから撤去してください
+  retire_in_use: この設備・什器には機器か部品が載っています。先に降ろすか移してから撤去してください
   retire_hard: この設備・什器には一度も機器が載っておらず、費用の記録もないため、行ごと消えます。戻せません
   retire_soft: この設備・什器は過去に使われているため、撤去済みにします。搭載の履歴と費用の記録は残り、あとから取り消せます
   retired_note: この設備・什器は撤去済みです。機器を搭載できません

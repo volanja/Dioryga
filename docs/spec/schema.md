@@ -216,7 +216,9 @@
 `part_catalog_id`(FK), `serial_number`, `status`
 
 ### PART_INSTANCE_LOCATION (6.2, 12.4) — 履歴
-`part_instance_id`(FK), `location_type`(Warehouse/Device/Disposed), `location_id`, `chassis_slot_id`(nullable、location_type=Deviceのみ、**任意項目**), `work_order_id`, `from_date`, `to_date`
+`part_instance_id`(FK), `location_type`(Warehouse/Device/MountContainer/Project/Disposed), `location_id`, `chassis_slot_id`(nullable、location_type=Deviceのみ、**任意項目**), `work_order_id`, `from_date`, `to_date`
+
+**部品も機器と同じく、設備・什器に置いても、どこにも載せずプロジェクトに置いてもよい**（16.1、#219）。`MountContainer` は `MOUNT_CONTAINER.id`、`Project` は `PROJECT.id` を指す。**設備・什器の上の位置（棚の段）は持たない。**部品がどのプロジェクトのものかは列に持たず、置き場所からたどる（機器なら機器の所属、設備・什器なら設備・什器の置き場所）。
 
 ### FIRMWARE_VERSION (6.2) — 履歴
 `item_type`(Device/PartInstance), `item_id`, `component`(BIOS/BMC/NIC/RAIDController等), `version`, `work_order_id`, `changed_by`(FK User), `from_date`, `to_date`

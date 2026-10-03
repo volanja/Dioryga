@@ -17,7 +17,8 @@ use dioryga::config::Config;
 use dioryga::server::{router, AppState};
 use entity::{
     app_user, chassis_model, configuration, device, device_assignment, device_mount,
-    mount_container, project, project_member, vendor,
+    mount_container, part_catalog, part_instance, part_instance_location, project, project_member,
+    vendor,
 };
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use std::sync::Arc;
@@ -531,7 +532,7 @@ async fn 載っていれば撤去できない(db: &DatabaseConnection) {
     // 確認画面は撤去のボタンを出さない
     let (状態, token) = 認証済み(db, &場.user).await;
     let (_, body) = 取得(状態, &format!("{}/retire", 図のあて先(&場)), &token).await;
-    assert!(body.contains("機器が載っています"));
+    assert!(body.contains("機器か部品が載っています"));
     assert!(
         !body.contains(r#"class="ghost danger""#),
         "撤去のボタンが出ています"
@@ -550,6 +551,30 @@ async fn 使ったことがある設備は撤去済みになる(db: &DatabaseCon
     let d = 機器(db, &場, "srv-s", 1, "RackU", None, "running").await;
     let 行 = 搭載行(db, &場, d.id, Some(3), None, None, None).await;
     降ろす(db, &場, 行).await;
+
+    let (status, _) = 撤去する(db, &場).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let c = 設備(db, 場.container.id).await.expect("行が消えています");
+    assert!(c.retired_at.is_some());
+}
+
+/// **部品が置かれていれば撤去できないこと**（#219）。機器と同じに数える。
+async fn 部品が置かれていれば撤去できない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "retire-part@example.com").await;
+    部品を置く(db, &場, "SN-SHELF-1", None).await;
+
+    let (status, body) = 撤去する(db, &場).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("撤去できません"), "{body}");
+    let c = 設備(db, 場.container.id).await.expect("消えています");
+    assert!(c.retired_at.is_none());
+}
+
+/// **部品を置いたことがある設備は、撤去済みとして行を残すこと**（#219）。
+/// 部品の所在の履歴が設備を指し続ける。
+async fn 部品を置いたことがある設備は撤去済みになる(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "retire-part-past@example.com").await;
+    部品を置く(db, &場, "SN-SHELF-2", Some(Utc::now())).await;
 
     let (status, _) = 撤去する(db, &場).await;
     assert_eq!(status, StatusCode::SEE_OTHER);
@@ -682,6 +707,60 @@ async fn 降ろす(db: &DatabaseConnection, 場: &舞台情報, mount_id: i32) {
     )
     .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
+}
+
+/// 舞台の設備・什器に部品を置く。`to_date` を渡すと、もう置かれていない履歴になる。
+async fn 部品を置く(
+    db: &DatabaseConnection,
+    場: &舞台情報,
+    serial: &str,
+    to_date: Option<chrono::DateTime<Utc>>,
+) {
+    let v = vendor::ActiveModel {
+        name: Set(format!("部品ベンダー-{serial}")),
+        created_by: Set(場.user.id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let c = part_catalog::ActiveModel {
+        category: Set("Memory".to_owned()),
+        vendor_id: Set(v.id),
+        part_number: Set(format!("DIMM-{serial}")),
+        spec_json: Set("{}".to_owned()),
+        created_by: Set(場.user.id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let p = part_instance::ActiveModel {
+        part_catalog_id: Set(c.id),
+        serial_number: Set(Some(serial.to_owned())),
+        status: Set("running".to_owned()),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    part_instance_location::ActiveModel {
+        part_instance_id: Set(p.id),
+        location_type: Set("MountContainer".to_owned()),
+        location_id: Set(Some(場.container.id)),
+        from_date: Set(Utc::now() - chrono::Duration::days(1)),
+        to_date: Set(to_date),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
 }
 
 async fn 撤去済みにする(db: &DatabaseConnection, id: i32) {
@@ -1344,6 +1423,8 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 使っていない設備は行ごと消える);
         全検証!(@one $用意, $属性, 載っていれば撤去できない);
         全検証!(@one $用意, $属性, 使ったことがある設備は撤去済みになる);
+        全検証!(@one $用意, $属性, 部品が置かれていれば撤去できない);
+        全検証!(@one $用意, $属性, 部品を置いたことがある設備は撤去済みになる);
         全検証!(@one $用意, $属性, 費用の記録がある設備は撤去済みになる);
         全検証!(@one $用意, $属性, 撤去した設備は隠れて搭載できない);
         全検証!(@one $用意, $属性, 撤去は取り消せるが名前がふさがっていれば拒否する);

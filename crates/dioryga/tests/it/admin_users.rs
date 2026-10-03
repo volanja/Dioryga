@@ -8,7 +8,7 @@ use dioryga::auth::session;
 use dioryga::auth::setup::SetupState;
 use dioryga::config::Config;
 use dioryga::server::{router, AppState};
-use entity::app_user;
+use entity::{app_setting, app_user, audit_log, project, project_member};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
     Set,
@@ -102,6 +102,74 @@ async fn フォームから利用者を登録できる(db: &DatabaseConnection) 
     );
     // 一時パスワードは平文で保存しない（設計書20.7）
     assert!(created.password_hash.starts_with("$argon2id$"));
+}
+
+/// **画面で利用者を作ると、倉庫用のプロジェクトの Viewer になること**（#218、設計書16.1）。
+///
+/// 在庫を全員に見せるため。**System Admin は加えない**（3章）。加えたことは、
+/// 登録した System Admin を主体として監査ログに残る。
+async fn 作った利用者は倉庫プロジェクトのviewerになる(db: &DatabaseConnection) {
+    let admin = 利用者(db, "viewer-admin@example.com", true).await;
+    let 倉庫 = 倉庫プロジェクト(db).await;
+
+    for (username, system_admin) in [("stock-viewer", false), ("stock-admin", true)] {
+        let mut fields = vec![("name", "在庫を見る人"), ("username", username)];
+        if system_admin {
+            fields.push(("is_system_admin", "on"));
+        }
+        let (状態, token) = 認証済み(db, &admin).await;
+        let (status, _) = 送信(状態, "/admin/users", &token, &fields).await;
+        assert_eq!(status, StatusCode::OK, "{username}");
+    }
+
+    let 所属 = |username: &'static str| async move {
+        let user = app_user::Entity::find()
+            .filter(app_user::Column::Username.eq(username))
+            .one(db)
+            .await
+            .unwrap()
+            .unwrap();
+        project_member::Entity::find()
+            .filter(project_member::Column::UserId.eq(user.id))
+            .all(db)
+            .await
+            .unwrap()
+    };
+
+    let 一般 = 所属("stock-viewer").await;
+    assert_eq!(一般.len(), 1, "{一般:?}");
+    assert_eq!(一般[0].project_id, 倉庫.id);
+    assert_eq!(一般[0].role, "Viewer");
+    assert_eq!(一般[0].admin_rank, None);
+    assert!(
+        所属("stock-admin").await.is_empty(),
+        "System Adminが加わっています"
+    );
+
+    let 記録 = audit_log::Entity::find()
+        .filter(audit_log::Column::TableName.eq("project_member"))
+        .all(db)
+        .await
+        .unwrap();
+    assert_eq!(記録.len(), 1, "{記録:?}");
+    assert_eq!(記録[0].user_id, admin.id);
+    assert_eq!(記録[0].record_id, 一般[0].id);
+}
+
+/// 既定の参加先が無いDB（初回セットアップの前に作られた利用者がいるDB）でも、
+/// 利用者は作れること。加える先が無いので何もしない。
+async fn 既定の参加先が無くても利用者を作れる(db: &DatabaseConnection) {
+    let admin = 利用者(db, "no-default-admin@example.com", true).await;
+    let (状態, token) = 認証済み(db, &admin).await;
+    let (status, _) = 送信(
+        状態,
+        "/admin/users",
+        &token,
+        &[("name", "既定なし"), ("username", "no-default")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(project_member::Entity::find().count(db).await.unwrap(), 0);
 }
 
 /// 一時パスワードが応答に一度だけ現れ、DBには残らないこと（設計書20.7）。
@@ -686,6 +754,35 @@ async fn 利用者(db: &DatabaseConnection, email: &str, system_admin: bool) -> 
     .unwrap()
 }
 
+/// 倉庫用のプロジェクトを作り、新しい利用者の既定の参加先にする（#217 の状態）。
+async fn 倉庫プロジェクト(db: &DatabaseConnection) -> project::Model {
+    let p = project::ActiveModel {
+        uid: Set(uuid::Uuid::new_v4().to_string()),
+        code: Set(None),
+        name: Set("倉庫".to_owned()),
+        description: Set(String::new()),
+        currency: Set("JPY".to_owned()),
+        archived_at: Set(None),
+        closure_reason: Set(None),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    app_setting::ActiveModel {
+        id: Set(app_setting::ID),
+        default_project_id: Set(p.id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    p
+}
+
 async fn 無効化(db: &DatabaseConnection, user: &app_user::Model) {
     let mut active: app_user::ActiveModel = user.clone().into();
     active.disabled_at = Set(Some(Utc::now()));
@@ -698,6 +795,8 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 一般利用者はadmin領域へ入れない);
         全検証!(@one $用意, $属性, ホームは役割ごとに行き先が違う);
         全検証!(@one $用意, $属性, フォームから利用者を登録できる);
+        全検証!(@one $用意, $属性, 作った利用者は倉庫プロジェクトのviewerになる);
+        全検証!(@one $用意, $属性, 既定の参加先が無くても利用者を作れる);
         全検証!(@one $用意, $属性, 一時パスワードは応答にだけ現れる);
         全検証!(@one $用意, $属性, 重複したメールアドレスは拒否される);
         全検証!(@one $用意, $属性, 重複したユーザー名は拒否される);

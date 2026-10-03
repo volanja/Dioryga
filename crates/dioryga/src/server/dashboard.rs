@@ -33,9 +33,10 @@ use std::collections::HashMap;
 
 use chrono::{Duration, NaiveDate};
 use entity::{
-    device, device_assignment, device_mount, milestone, mount_container, project, work_order,
+    device, device_assignment, device_mount, milestone, mount_container, part_instance_location,
+    project, work_order,
 };
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{ColumnTrait, Condition, EntityTrait, QueryFilter, QueryOrder};
 
 use crate::auth::authorization;
 use crate::auth::middleware::CurrentUser;
@@ -48,6 +49,8 @@ use crate::server::AppState;
 const 期限間近: i64 = 90;
 
 const PROJECT: &str = "Project";
+/// `PART_INSTANCE_LOCATION.location_type`。
+const DEVICE: &str = "Device";
 const PLANNED: &str = "planned";
 const COMPLETED: &str = "completed";
 const CANCELLED: &str = "cancelled";
@@ -306,10 +309,27 @@ async fn 対応が必要な機器(
             .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
     };
 
+    // 載っている部品 → 機器。**部品が対象の修理も、その機器のチケットとして出す**（6.3）
+    let 部品の載せ先: HashMap<i32, i32> = part_instance_location::Entity::find()
+        .filter(part_instance_location::Column::LocationType.eq(DEVICE))
+        .filter(part_instance_location::Column::LocationId.is_in(ids.clone()))
+        .filter(part_instance_location::Column::ToDate.is_null())
+        .all(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .into_iter()
+        .filter_map(|l| l.location_id.map(|d| (l.part_instance_id, d)))
+        .collect();
+    let mut 対象のチケット = Condition::any().add(work_order::Column::DeviceId.is_in(ids.clone()));
+    if !部品の載せ先.is_empty() {
+        対象のチケット = 対象のチケット
+            .add(work_order::Column::PartInstanceId.is_in(部品の載せ先.keys().copied()));
+    }
+
     // 未完了のチケット。**同じ機器に複数あるときは期限の早いものを出す**
     let orders = work_order::Entity::find()
         .filter(work_order::Column::ProjectId.eq(project_id))
-        .filter(work_order::Column::DeviceId.is_in(ids))
+        .filter(対象のチケット)
         .filter(work_order::Column::Status.is_not_in([COMPLETED, CANCELLED]))
         .order_by_asc(work_order::Column::DueDate)
         .order_by_asc(work_order::Column::Id)
@@ -335,7 +355,12 @@ async fn 対応が必要な機器(
                     }
                 })
                 .unwrap_or_default();
-            let 担当のチケット = orders.iter().find(|w| w.device_id == Some(d.id));
+            let 担当のチケット = orders.iter().find(|w| {
+                w.device_id == Some(d.id)
+                    || w.part_instance_id
+                        .and_then(|p| 部品の載せ先.get(&p))
+                        .is_some_and(|載せ先| *載せ先 == d.id)
+            });
             AttentionRow {
                 status: v.as_str(),
                 status_label: 容体の表示(v.as_str(), l),

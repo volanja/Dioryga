@@ -197,7 +197,7 @@ async fn 未完了の修理があれば修理中に数える(db: &DatabaseConnec
     let 部品の修理 = 機器(db, "srv-repair-part", "running").await;
     割り当て(db, 部品の修理.id, 場.project.id).await;
     let psu = 部品を載せる(db, 場.user.id, 部品の修理.id, "PSU-R", "failed").await;
-    修理(db, &場, None, Some(psu), "approved").await;
+    let 部品のチケット = 修理(db, &場, None, Some(psu), "approved").await;
 
     // 中止した修理では修理中にならない
     let 中止 = 故障した機器(db, "srv-repair-cancelled", "running").await;
@@ -210,6 +210,14 @@ async fn 未完了の修理があれば修理中に数える(db: &DatabaseConnec
     assert_eq!(抜き出す(&body, "修理中"), "2", "{body}");
     assert_eq!(抜き出す(&body, "故障"), "1", "{body}");
     assert_eq!(抜き出す(&body, "稼働中"), "1", "{body}");
+    // 部品が対象の修理も、載せ先の機器のチケットとして開ける
+    assert!(
+        body.contains(&format!(
+            r#"href="/projects/{}/work-orders/{部品のチケット}""#,
+            場.project.id
+        )),
+        "{body}"
+    );
 }
 
 /// **故障も修理中も無ければ、表ごと出さないこと**（#170）。
@@ -611,7 +619,7 @@ async fn 修理(
     device_id: Option<i32>,
     part_instance_id: Option<i32>,
     status: &str,
-) {
+) -> i32 {
     work_order::ActiveModel {
         uid: Set(uuid::Uuid::new_v4().to_string()),
         project_id: Set(場.project.id),
@@ -628,7 +636,8 @@ async fn 修理(
     }
     .insert(db)
     .await
-    .unwrap();
+    .unwrap()
+    .id
 }
 
 async fn 割り当て(db: &DatabaseConnection, device_id: i32, project_id: i32) {

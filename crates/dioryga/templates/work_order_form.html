@@ -53,6 +53,16 @@
     </select>
     <p class="hint">{{ t_device_hint }}</p>
 
+    {# 部品を対象にできるのは修理と廃棄だけ。修理が正常に完了すると部品の故障が戻る（設計書6.3） #}
+    <label for="part_instance_id">{{ t_part }}</label>
+    <select id="part_instance_id" name="part_instance_id">
+      <option value="">{{ t_unset }}</option>
+      {% for p in parts %}
+      <option value="{{ p.value }}" {% if part_instance_id == p.value %}selected{% endif %}>{{ p.label }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_part_hint }}</p>
+
     <label for="primary_assignee_id">{{ t_primary }}</label>
     <select id="primary_assignee_id" name="primary_assignee_id">
       <option value="">{{ t_unset }}</option>

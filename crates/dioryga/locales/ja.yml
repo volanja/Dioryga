@@ -348,6 +348,8 @@ work_orders:
   target_project_hint: Transfer 以外では指定できません。移譲先の承認も必要になります
   device: 対象機器
   device_hint: 任意。機器が未確定のまま計画だけ先行させる場合は空のままにします
+  part: 対象の部品
+  part_hint: 修理と廃棄のときだけ指定できます。修理が正常に完了すると、部品の故障が正常に戻ります（機器の値は変えません）
   assignee: 主担当
   primary_assignee: 主担当
   secondary_assignee: 副担当
@@ -380,6 +382,8 @@ work_orders:
   error_target_project: Transfer では移譲先プロジェクトを指定してください
   error_target_project_unused: 移譲先プロジェクトは Transfer でのみ指定できます
   error_target_project_same: 移譲先には別のプロジェクトを指定してください
+  error_part_work_type: 部品を対象にできるのは修理と廃棄だけです
+  error_part_invalid: このプロジェクトにある部品を指定してください
   error_due_date: 期日を読めません。2026/09/23 のように入れてください
   error_already_decided: この承認は既に処理済みです
   error_not_planned: 承認できるのは計画中のチケットだけです

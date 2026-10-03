@@ -54,7 +54,8 @@ use axum::{Extension, Form};
 use chrono::{NaiveDate, Utc};
 use entity::{
     app_user, device, device_assignment, device_mount, ip_address, mount_container, os_interface,
-    part_instance_location, project, project_member, work_order, work_order_approval,
+    part_catalog, part_instance, part_instance_location, project, project_member, work_order,
+    work_order_approval,
 };
 use sea_orm::prelude::DateTimeUtc;
 use sea_orm::{
@@ -86,13 +87,20 @@ const PROJECT: &str = "Project";
 /// `DEVICE_ASSIGNMENT` / `PART_INSTANCE_LOCATION` の `location_type`。参照先を持たない（6.2）。
 const DISPOSED: &str = "Disposed";
 
-/// 増設。**予約レコードを作れるのはこれだけ**（11.6）。
+/// 増設。**予約レコードを作れるのはこれだけ**（11.6）。実行で予約中の機器を
+/// 稼働中へ進めるのもこれだけ（6.3）。
 const ADDITION: &str = "Addition";
+
+/// 修理。**正常に完了すると、対象の `health` を `ok` に戻す**（6.3）。
+const REPAIR: &str = "Repair";
+
+/// 部品を対象にできる作業種別。修理（6.3）と廃棄（11.4）だけが部品を扱う。
+const PART_WORK_TYPES: &[&str] = &[REPAIR, DISPOSAL];
 
 /// 予約中の機器（11.6）。ラック図が破線で描く。
 /// 機器の状態（8.6）。チケットの `planned` とは別の列である
-const DEVICE_PLANNED: &str = "planned";
-const RUNNING: &str = "running";
+const DEVICE_PLANNED: &str = crate::device_state::PLANNED;
+const RUNNING: &str = crate::device_state::RUNNING;
 
 const PLANNED: &str = "planned";
 const APPROVED: &str = "approved";
@@ -406,6 +414,8 @@ struct WorkOrderFormPage {
     t_target_project_hint: String,
     t_device: String,
     t_device_hint: String,
+    t_part: String,
+    t_part_hint: String,
     t_primary: String,
     t_secondary: String,
     t_secondary_hint: String,
@@ -420,6 +430,8 @@ struct WorkOrderFormPage {
     projects: Vec<Labeled>,
     device_id: String,
     devices: Vec<Labeled>,
+    part_instance_id: String,
+    parts: Vec<Labeled>,
     primary_assignee_id: String,
     secondary_assignee_id: String,
     members: Vec<Labeled>,
@@ -803,6 +815,19 @@ async fn 基本情報(
         }
     }
 
+    if let Some(id) = w.part_instance_id {
+        if let Some(p) = part_instance::Entity::find_by_id(id)
+            .one(&state.db)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        {
+            basic.push(Labeled {
+                label: rust_i18n::t!("work_orders.part", locale = l).to_string(),
+                value: 部品の表示名(&state.db, &p).await?,
+            });
+        }
+    }
+
     for (key, id) in [
         ("work_orders.primary_assignee", w.primary_assignee_id),
         ("work_orders.secondary_assignee", w.secondary_assignee_id),
@@ -872,6 +897,9 @@ pub struct CreateForm {
     pub target_project_id: String,
     #[serde(default)]
     pub device_id: String,
+    /// 対象の部品。修理と廃棄のときだけ指定できる（6.3、11.4）
+    #[serde(default)]
+    pub part_instance_id: String,
     #[serde(default)]
     pub primary_assignee_id: String,
     #[serde(default)]
@@ -930,6 +958,19 @@ pub async fn create(
         }
     };
 
+    // **部品を対象にできるのは修理と廃棄だけ**（6.3、11.4）。対象は今このプロジェクトにある部品
+    let part_instance_id = 数値(&form.part_instance_id);
+    if let Some(part_id) = part_instance_id {
+        if !PART_WORK_TYPES.contains(&form.work_type.as_str()) {
+            let e = 中止("work_orders.error_part_work_type")?;
+            return 起票フォームを描く(&state, &current, project_id, &form, e).await;
+        }
+        if 部品の現在のプロジェクト(&state.db, part_id).await? != Some(project_id) {
+            let e = 中止("work_orders.error_part_invalid")?;
+            return 起票フォームを描く(&state, &current, project_id, &form, e).await;
+        }
+    }
+
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
@@ -943,7 +984,7 @@ pub async fn create(
             project_id: Set(project_id),
             target_project_id: Set(target_project_id),
             device_id: Set(数値(&form.device_id)),
-            part_instance_id: Set(None),
+            part_instance_id: Set(part_instance_id),
             work_type: Set(form.work_type.clone()),
             title: Set(form.title.trim().to_owned()),
             description: Set(form.description.trim().to_owned()),
@@ -1028,6 +1069,8 @@ async fn 起票フォームを描く(
             .to_string(),
         t_device: rust_i18n::t!("work_orders.device", locale = l).to_string(),
         t_device_hint: rust_i18n::t!("work_orders.device_hint", locale = l).to_string(),
+        t_part: rust_i18n::t!("work_orders.part", locale = l).to_string(),
+        t_part_hint: rust_i18n::t!("work_orders.part_hint", locale = l).to_string(),
         t_primary: rust_i18n::t!("work_orders.primary_assignee", locale = l).to_string(),
         t_secondary: rust_i18n::t!("work_orders.secondary_assignee", locale = l).to_string(),
         t_secondary_hint: rust_i18n::t!("work_orders.secondary_hint", locale = l).to_string(),
@@ -1042,6 +1085,8 @@ async fn 起票フォームを描く(
         projects: 他のプロジェクト(state, current, project_id).await?,
         device_id: form.device_id.clone(),
         devices: このプロジェクトの機器(state, project_id).await?,
+        part_instance_id: form.part_instance_id.clone(),
+        parts: このプロジェクトの部品(state, project_id).await?,
         primary_assignee_id: form.primary_assignee_id.clone(),
         secondary_assignee_id: form.secondary_assignee_id.clone(),
         members: メンバー(&state.db, project_id).await?,
@@ -1294,8 +1339,8 @@ pub async fn transition(
         // **中断したら予約を解放する**（設計書11.6）。閉じ忘れるとラックが
         // 埋まったまま残り、予約という仕組みそのものが信用されなくなる
         Transition::Abort => 予約を解放する(&tx, w.id, now).await?,
-        // **実行したら予約が実機になる**（16.2のフロー）。status=plan のまま
-        // だとラック図に予約中として描かれ続ける
+        // **実行したら予約が実機になる**（16.2のフロー）。status=planned のまま
+        // だとラック図に予約中として描かれ続ける。進めるのは増設だけ（6.3）
         Transition::Execute => {
             予約を実機にする(&tx, &w, now).await?;
             // **移譲は実行で所属が移る**（11.5）
@@ -1308,6 +1353,11 @@ pub async fn transition(
         Transition::Complete => {
             if w.work_type == DISPOSAL {
                 廃棄する(&tx, &w, now).await?;
+            }
+            // **修理の正常完了で故障を戻す**（6.3）。中止では戻さない——
+            // 直らなかったときは中止にし、理由を書く
+            if w.work_type == REPAIR {
+                修理を終える(&tx, &w, now).await?;
             }
         }
     }
@@ -1359,13 +1409,19 @@ async fn 予約を解放する(
 
 /// 実行開始時に、予約中の機器を稼働中にする（設計書16.2のフロー）。
 ///
-/// **`planned` のときだけ動かす。**既に `running` の機器（移設等）や、`failed` の
-/// まま修理しているものを勝手に書き換えない。
+/// **増設（`Addition`）のときだけ動かす**（6.3）。移譲で進めると、倉庫からの
+/// 払い出しで予約中にした機器が、同じ実行の中で稼働中になってしまう。
+///
+/// **`planned` のときだけ動かす。**既に `running` の機器（移設等）を勝手に
+/// 書き換えない。**`health` も動かさない。**実行は「直ったこと」を意味しない。
 async fn 予約を実機にする(
     tx: &AuditedTx,
     w: &work_order::Model,
     at: DateTimeUtc,
 ) -> AppResult<()> {
+    if w.work_type != ADDITION {
+        return Ok(());
+    }
     let Some(device_id) = w.device_id else {
         return Ok(());
     };
@@ -1394,6 +1450,68 @@ async fn 予約を実機にする(
     .await
     .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
+    Ok(())
+}
+
+/// 修理の正常完了で、対象の `health` を `ok` に戻す（設計書6.3）。
+///
+/// **対象は部品があれば部品、無ければ機器。**部品の修理に載せ先の機器を
+/// 添えていても、機器の値は書き換えない（機器と部品は独立に持つ）。
+/// 既に `ok` なら書かない（監査ログに空の変更を残さない）。
+async fn 修理を終える(
+    tx: &AuditedTx,
+    w: &work_order::Model,
+    at: DateTimeUtc,
+) -> AppResult<()> {
+    use crate::device_state::OK;
+
+    if let Some(part_id) = w.part_instance_id {
+        let Some(p) = part_instance::Entity::find_by_id(part_id)
+            .one(tx.reader())
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        else {
+            return Ok(());
+        };
+        if p.health != OK {
+            tx.update(
+                &p,
+                part_instance::ActiveModel {
+                    id: Set(p.id),
+                    health: Set(OK.to_owned()),
+                    updated_at: Set(at),
+                    ..Default::default()
+                },
+            )
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+        }
+        return Ok(());
+    }
+
+    let Some(device_id) = w.device_id else {
+        return Ok(());
+    };
+    let Some(d) = device::Entity::find_by_id(device_id)
+        .one(tx.reader())
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+    else {
+        return Ok(());
+    };
+    if d.health != OK {
+        tx.update(
+            &d,
+            device::ActiveModel {
+                id: Set(d.id),
+                health: Set(OK.to_owned()),
+                updated_at: Set(at),
+                ..Default::default()
+            },
+        )
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    }
     Ok(())
 }
 
@@ -1838,6 +1956,100 @@ async fn このプロジェクトの機器(
             value: d.id.to_string(),
         })
         .collect())
+}
+
+/// 対象にできる部品の候補（設計書6.3、11.4）。**今このプロジェクトにある部品。**
+///
+/// このプロジェクトの機器に載っている、設備・什器に置かれている、プロジェクトに
+/// 置かれている部品。判定は `part_location` と同じ（機器・設備の所在を辿る）。
+async fn このプロジェクトの部品(
+    state: &AppState,
+    project_id: i32,
+) -> AppResult<Vec<Labeled>> {
+    let 機器: Vec<i32> = device_assignment::Entity::find()
+        .filter(device_assignment::Column::LocationType.eq(PROJECT))
+        .filter(device_assignment::Column::LocationId.eq(project_id))
+        .filter(device_assignment::Column::ToDate.is_null())
+        .all(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .into_iter()
+        .map(|a| a.device_id)
+        .collect();
+    let 設備: Vec<i32> = mount_container::Entity::find()
+        .filter(mount_container::Column::LocationType.eq(PROJECT))
+        .filter(mount_container::Column::LocationId.eq(project_id))
+        .all(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .into_iter()
+        .map(|c| c.id)
+        .collect();
+
+    let mut どこ = Condition::any().add(
+        Condition::all()
+            .add(part_instance_location::Column::LocationType.eq(PROJECT))
+            .add(part_instance_location::Column::LocationId.eq(project_id)),
+    );
+    if !機器.is_empty() {
+        どこ = どこ.add(
+            Condition::all()
+                .add(part_instance_location::Column::LocationType.eq("Device"))
+                .add(part_instance_location::Column::LocationId.is_in(機器)),
+        );
+    }
+    if !設備.is_empty() {
+        どこ = どこ.add(
+            Condition::all()
+                .add(part_instance_location::Column::LocationType.eq("MountContainer"))
+                .add(part_instance_location::Column::LocationId.is_in(設備)),
+        );
+    }
+    let ids: Vec<i32> = part_instance_location::Entity::find()
+        .filter(part_instance_location::Column::ToDate.is_null())
+        .filter(どこ)
+        .limit(500)
+        .all(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .into_iter()
+        .map(|l| l.part_instance_id)
+        .collect();
+    if ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut out = Vec::new();
+    for p in part_instance::Entity::find()
+        .filter(part_instance::Column::Id.is_in(ids))
+        .order_by_asc(part_instance::Column::Id)
+        .all(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+    {
+        out.push(Labeled {
+            label: 部品の表示名(&state.db, &p).await?,
+            value: p.id.to_string(),
+        });
+    }
+    Ok(out)
+}
+
+/// 部品の表示名。「分類 型番（シリアル番号）」。
+async fn 部品の表示名<C: ConnectionTrait>(
+    db: &C,
+    p: &part_instance::Model,
+) -> AppResult<String> {
+    let 型 = part_catalog::Entity::find_by_id(p.part_catalog_id)
+        .one(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .map(|c| format!("{} {}", c.category, c.part_number))
+        .unwrap_or_default();
+    Ok(match &p.serial_number {
+        Some(s) => format!("{型}（{s}）"),
+        None => 型,
+    })
 }
 
 fn 数値(value: &str) -> Option<i32> {

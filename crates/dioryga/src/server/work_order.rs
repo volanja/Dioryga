@@ -1311,6 +1311,13 @@ pub async fn transition(
         return 詳細を描く(&state, &current, project_id, work_order_id, Some(e), None).await;
     }
 
+    // **倉庫からの払い出し**（6.3）。これもトランザクションの前に読む
+    let 払い出し = t == Transition::Execute
+        && w.work_type == TRANSFER
+        && crate::setting::倉庫プロジェクトか(&state.db, w.project_id)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
@@ -1346,6 +1353,9 @@ pub async fn transition(
             // **移譲は実行で所属が移る**（11.5）
             if w.work_type == TRANSFER {
                 移譲する(&tx, &w, now).await?;
+            }
+            if 払い出し {
+                払い出す(&tx, &w, now).await?;
             }
         }
         // **廃棄は完了で所在が Disposed になる**（11.4）。移譲と違い実行では
@@ -1675,6 +1685,40 @@ async fn 移譲する(tx: &AuditedTx, w: &work_order::Model, at: DateTimeUtc) ->
         return Ok(());
     };
     所属を移す(tx, device_id, PROJECT, Some(target), w.id, at).await
+}
+
+/// 倉庫からの払い出しで、機器を予約中（`planned`）にする（設計書6.3）。
+///
+/// 倉庫にある間の `status` には意味が無く、`running` のままかもしれない。
+/// **受け取る側の `status` を必ず設定する。**払い出した機器は予約中になり、
+/// 受け取った側が編集か増設のチケットで先へ進める。`health` は動かさない。
+/// 倉庫以外への移譲（倉庫への入庫を含む）では `status` を動かさない。
+async fn 払い出す(tx: &AuditedTx, w: &work_order::Model, at: DateTimeUtc) -> AppResult<()> {
+    let Some(device_id) = w.device_id else {
+        return Ok(());
+    };
+    let Some(d) = device::Entity::find_by_id(device_id)
+        .one(tx.reader())
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+    else {
+        return Ok(());
+    };
+    if d.status == DEVICE_PLANNED {
+        return Ok(());
+    }
+    tx.update(
+        &d,
+        device::ActiveModel {
+            id: Set(d.id),
+            status: Set(DEVICE_PLANNED.to_owned()),
+            updated_at: Set(at),
+            ..Default::default()
+        },
+    )
+    .await
+    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    Ok(())
 }
 
 /// 廃棄の完了で、機器または部品の所在を `Disposed` にする（11.4、#216）。

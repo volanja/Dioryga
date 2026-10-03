@@ -470,6 +470,7 @@ containers:
   power: Total power draw
   power_total: "%{watt}W running (%{with_plan}W including reservations)"
   power_standby: ". %{count} standby devices are not included"
+  power_stored: ". %{count} devices in storage are not included"
   circuit_label: Feed
   voltage: Voltage (V)
   phase: Phase
@@ -947,6 +948,8 @@ power:
   watt_with_plan: Power (incl. reserved)
   virtual: Virtual (not counted)
   standby: Standby (not counted)
+  stored: In storage (not counted)
+  stored_hint: Devices in the warehouse are only stored, so they are not counted
   standby_hint: Standby devices are not counted. Hot standby devices do draw power, so many standby devices make the total look lower than it is
   total: Total
 
@@ -957,6 +960,7 @@ dashboard:
   create_work_order: Create work order
   note_running: Currently in this project
   note_standby: Ready-to-use spares
+  note_stored: Spares ready to hand out
   note_planned: Held by a work order
   note_provisioning: A work order is in progress
   note_repairing: Being worked on
@@ -1019,6 +1023,10 @@ device_healths:
   ok: OK
   failed: failed
   repairing: repairing
+
+# Shown from the location, not a status value (design 6.3)
+device_locations:
+  stored: in storage
 
 work_order_statuses:
   planned: planned

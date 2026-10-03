@@ -708,6 +708,44 @@ async fn 移譲の実行では予約中を進めない(db: &DatabaseConnection) 
     assert_eq!(機器の状態(db, device_id).await, "planned");
 }
 
+/// **倉庫からの払い出しで、機器を予約中にすること**（#221、設計書6.3）。
+///
+/// 倉庫にある間の `status` には意味が無い。受け取る側が先へ進める。倉庫への
+/// 入庫では `status` を動かさない。
+async fn 倉庫から払い出すと予約中になる(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "payout@example.com").await;
+    crate::support::倉庫プロジェクトにする(db, 場.project_id).await;
+    let 受入先 = プロジェクト(db, "払い出し先").await;
+    let device_id = 予約対象の機器(db, &場, "payout-srv", "running").await;
+    故障させる(db, device_id).await;
+    let w = 移譲のチケット(db, 場.project_id, 受入先.id, Some(device_id)).await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "execute", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+
+    assert_eq!(現在の所属(db, device_id).await, Some(受入先.id));
+    assert_eq!(機器の状態(db, device_id).await, "planned");
+    // 故障の有無は動かさない
+    assert_eq!(機器の故障(db, device_id).await, "failed");
+}
+
+/// **倉庫への入庫では、状態を動かさないこと**（#221、設計書6.3）。
+async fn 倉庫へ入れても状態は変えない(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "stock-in@example.com").await;
+    let 倉庫 = プロジェクト(db, "入庫先の倉庫").await;
+    crate::support::倉庫プロジェクトにする(db, 倉庫.id).await;
+    let device_id = 予約対象の機器(db, &場, "stock-in-srv", "running").await;
+    let w = 移譲のチケット(db, 場.project_id, 倉庫.id, Some(device_id)).await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "execute", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+
+    assert_eq!(現在の所属(db, device_id).await, Some(倉庫.id));
+    assert_eq!(機器の状態(db, device_id).await, "running");
+}
+
 // ---------------------------------------------------------------------------
 // 修理と故障（#221、設計書6.3）
 // ---------------------------------------------------------------------------
@@ -2048,6 +2086,8 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 棚やプロジェクトに置いた部品も廃棄できる);
         全検証!(@one $用意, $属性, 移譲先からもチケットが見える);
         全検証!(@one $用意, $属性, 移譲の実行では予約中を進めない);
+        全検証!(@one $用意, $属性, 倉庫から払い出すと予約中になる);
+        全検証!(@one $用意, $属性, 倉庫へ入れても状態は変えない);
         全検証!(@one $用意, $属性, 修理の完了で機器の故障を戻す);
         全検証!(@one $用意, $属性, 部品の修理は部品の故障だけを戻す);
         全検証!(@one $用意, $属性, 修理の起票で部品を指定できる);

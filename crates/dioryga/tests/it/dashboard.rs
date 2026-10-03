@@ -220,6 +220,36 @@ async fn 未完了の修理があれば修理中に数える(db: &DatabaseConnec
     );
 }
 
+/// **倉庫プロジェクトは保管中・修理中・故障の3枚で数えること**（#221、設計書6.3）。
+///
+/// 倉庫にある機器の `status` には意味が無い。通常と同じく `status` で数えると、
+/// 保管しているだけの機器が「稼働中 N台」と出る。
+async fn 倉庫は3枚で数える(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "dash-warehouse@example.com", "Operator").await;
+    crate::support::倉庫プロジェクトにする(db, 場.project.id).await;
+
+    // 舞台の稼働中1台に、予約中と待機と故障を足す
+    for (名前, 状態) in [("spare-planned", "planned"), ("spare-standby", "standby")] {
+        let d = 機器(db, 名前, 状態).await;
+        割り当て(db, d.id, 場.project.id).await;
+    }
+    let 故障 = 故障した機器(db, "spare-failed", "running").await;
+    割り当て(db, 故障.id, 場.project.id).await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}", 場.project.id), &token).await;
+
+    for (ラベル, 台数) in [("保管中", "3"), ("修理中", "0"), ("故障", "1")] {
+        assert_eq!(抜き出す(&body, ラベル), 台数, "{ラベル}: {body}");
+    }
+    for 出ない in ["稼働中", "待機", "予約中", "構築中"] {
+        assert!(
+            !body.contains(&format!("{出ない}</span>")),
+            "{出ない}の枚が出ています: {body}"
+        );
+    }
+}
+
 /// **故障も修理中も無ければ、表ごと出さないこと**（#170）。
 async fn 対応が必要な機器が無ければ出さない(db: &DatabaseConnection) {
     let 場 = 舞台(db, "dash-no-attention@example.com", "Operator").await;
@@ -783,6 +813,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 故障は状態によらず故障に数える);
         全検証!(@one $用意, $属性, 部品の故障で機器を故障に数える);
         全検証!(@one $用意, $属性, 未完了の修理があれば修理中に数える);
+        全検証!(@one $用意, $属性, 倉庫は3枚で数える);
         全検証!(@one $用意, $属性, 対応が必要な機器が無ければ出さない);
         全検証!(@one $用意, $属性, 期限を過ぎたものも出す);
         全検証!(@one $用意, $属性, 遠い予定は出さない);

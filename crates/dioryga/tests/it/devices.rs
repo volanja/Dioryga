@@ -881,6 +881,46 @@ async fn 予約中は先へ進めるが戻せない(db: &DatabaseConnection) {
     assert_eq!(状態は(db).await, "running");
 }
 
+/// **倉庫プロジェクトにある機器は、状態を保管中と出すこと**（#221、設計書6.3）。
+///
+/// 倉庫にある間の `status` には意味が無く、`running` のままかもしれない。
+/// 倉庫を出た機器は、その後の状態で出す。
+async fn 倉庫では状態を保管中と出す(db: &DatabaseConnection) {
+    let user = 利用者(db, "stored@example.com").await;
+    let p = プロジェクト(db, "倉庫").await;
+    メンバー(db, user.id, p.id, "Operator").await;
+    crate::support::倉庫プロジェクトにする(db, p.id).await;
+    let d = 機器(db, "spare-stored").await;
+    割当(db, d.id, p.id, Utc::now()).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}/devices", p.id), &token).await;
+    assert!(
+        body.contains(r#"<span class="led sm stored"></span>保管中"#),
+        "{body}"
+    );
+    assert!(!body.contains("稼働中"), "{body}");
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, body) = 取得(
+        状態,
+        &format!("/projects/{}/devices/{}", p.id, d.id),
+        &token,
+    )
+    .await;
+    assert!(body.contains("<dd>保管中</dd>"), "{body}");
+
+    // 通常のプロジェクトでは状態で出す
+    let 通常 = プロジェクト(db, "通常").await;
+    メンバー(db, user.id, 通常.id, "Operator").await;
+    let e = 機器(db, "srv-normal").await;
+    割当(db, e.id, 通常.id, Utc::now()).await;
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}/devices", 通常.id), &token).await;
+    assert!(body.contains("稼働中"), "{body}");
+    assert!(!body.contains("保管中"), "{body}");
+}
+
 /// **部品の故障の有無を機器の詳細で変えられること**（設計書6.3）。
 ///
 /// 機器の `health` は書き換えない（独立に持ち、表示で合わせる）。対象は
@@ -1528,6 +1568,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 編集で故障にして戻せる);
         全検証!(@one $用意, $属性, 予約中は先へ進めるが戻せない);
         全検証!(@one $用意, $属性, 部品の故障を詳細で変える);
+        全検証!(@one $用意, $属性, 倉庫では状態を保管中と出す);
         全検証!(@one $用意, $属性, 統合された機器は一覧に出ない);
         全検証!(@one $用意, $属性, 所属するプロジェクトだけ見える);
         全検証!(@one $用意, $属性, 種別は表示だけを訳す);

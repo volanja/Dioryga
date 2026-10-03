@@ -72,6 +72,45 @@ async fn 故障はhealthの列に書く(db: &DatabaseConnection) {
     assert_eq!(report.count(Outcome::Unchanged), 1, "{report}");
 }
 
+/// **倉庫プロジェクトでは、既存の機器の `status` を動かさないこと**（#221、設計書6.3）。
+///
+/// 倉庫にある間の `status` には意味が無い。比べると、空欄の既定（構築中）と
+/// 食い違って毎回「更新」になる。**黙って捨てず**、書いてあれば行の説明に添える。
+async fn 倉庫プロジェクトではstatusを動かさない(db: &DatabaseConnection) {
+    let p = プロジェクト(db, "倉庫の取込").await;
+    crate::support::倉庫プロジェクトにする(db, p.id).await;
+    let match_on = ["serial_number".to_owned()];
+
+    let 初回 = instances::parse_devices(&csv(&[",,spare01,SN-WH,,Physical,400,running"])).unwrap();
+    instances::apply(db, p.id, &初回, &match_on, Utc::now(), 1)
+        .await
+        .unwrap();
+
+    for 値 in ["", "standby"] {
+        let rows =
+            instances::parse_devices(&csv(&[&format!(",,spare01,SN-WH,,Physical,400,{値}")]))
+                .unwrap();
+        let report = instances::dry_run(db, p.id, &rows, &match_on)
+            .await
+            .unwrap();
+        assert_eq!(report.count(Outcome::Unchanged), 1, "{値}: {report}");
+        let 説明あり = report.entries[0]
+            .detail
+            .contains("倉庫プロジェクトでは status を反映しません");
+        assert_eq!(説明あり, !値.is_empty(), "{値}: {report}");
+        instances::apply(db, p.id, &rows, &match_on, Utc::now(), 2)
+            .await
+            .unwrap();
+    }
+    let d = device::Entity::find()
+        .filter(device::Column::SerialNumber.eq("SN-WH"))
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(d.status, "running");
+}
+
 /// **① uid で特定できること。**export → 編集 → import の往復の要。
 async fn uidで突合する(db: &DatabaseConnection) {
     let p = プロジェクト(db, "突合検証").await;
@@ -718,6 +757,7 @@ macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, uidで突合する);
         全検証!(@one $用意, $属性, 故障はhealthの列に書く);
+        全検証!(@one $用意, $属性, 倉庫プロジェクトではstatusを動かさない);
         全検証!(@one $用意, $属性, 存在しないuidはエラー);
         全検証!(@one $用意, $属性, external_idで突合する);
         全検証!(@one $用意, $属性, match_onで突合する);

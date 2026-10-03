@@ -288,6 +288,33 @@ async fn 待機中は数えず台数を出す(db: &DatabaseConnection) {
     assert!(body.contains("待機中の1台は含めていません"), "{body}");
 }
 
+/// **倉庫プロジェクトの機器は合算せず、保管中の台数を出すこと**（#221、設計書6.3）。
+///
+/// 倉庫にある機器の `status` は `running` のままかもしれない。合算すると、
+/// 保管しているだけの機器が電力を引いているように見える。
+async fn 倉庫の機器は電力を数えない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "power-warehouse@example.com").await;
+    crate::support::倉庫プロジェクトにする(db, 場.project.id).await;
+    搭載(db, &場, 場.device.id, 1).await;
+
+    let body = 電力画面(db, &場).await;
+    assert!(!body.contains("350 W"), "保管中の機器を数えている: {body}");
+    assert!(body.contains("保管中（数えない）"), "{body}");
+    assert!(
+        body.contains("倉庫の機器は保管しているだけなので合算しません"),
+        "{body}"
+    );
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(
+        状態,
+        &format!("/projects/{}/containers/{}", 場.project.id, 場.container_id),
+        &token,
+    )
+    .await;
+    assert!(body.contains("保管中の1台は含めていません"), "{body}");
+}
+
 /// 搭載していない機器は数えないこと。
 async fn 搭載していない機器は数えない(db: &DatabaseConnection) {
     let 場 = 舞台(db, "power-unmounted@example.com").await;
@@ -661,6 +688,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 仮想マシンは電力を数えない);
         全検証!(@one $用意, $属性, 予約中は分けて出す);
         全検証!(@one $用意, $属性, 待機中は数えず台数を出す);
+        全検証!(@one $用意, $属性, 倉庫の機器は電力を数えない);
         全検証!(@one $用意, $属性, 搭載していない機器は数えない);
         全検証!(@one $用意, $属性, 閲覧者も電力を見られる);
     };

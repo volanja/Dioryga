@@ -31,6 +31,13 @@
 //! **ホットスタンバイは電力を引くので、本来は集計すべきである。**今は考慮しないと
 //! 決めたので、外した台数を併記して黙らせない。`health` が `failed` でも、
 //! 運用を続けている（`running` の）機器は含める。
+//!
+//! # 倉庫プロジェクトの機器は数えない
+//!
+//! 倉庫にある機器の `status` には意味が無い（設計書6.3）。`running` のままの
+//! 機器を合算すると、保管しているだけの機器が電力を引いているように見える。
+//! **倉庫プロジェクトの設備・什器では `status` を見ずに保管中として数え、
+//! 合算しない。**台数は出す。
 
 use axum::extract::{Path, State};
 use axum::response::Response;
@@ -66,6 +73,8 @@ struct ContainerRow {
     virtual_count: usize,
     /// 合算から外した待機中の台数。**数えていないことを示す。**
     standby: usize,
+    /// 合算から外した保管中（倉庫プロジェクト）の台数。
+    stored: usize,
 }
 
 #[derive(askama::Template)]
@@ -80,6 +89,10 @@ struct PowerPage {
     t_virtual_hint: String,
     t_standby_hint: String,
     t_standby: String,
+    /// 倉庫プロジェクトか。保管中の列と注記を出す
+    warehouse: bool,
+    t_stored_hint: String,
+    t_stored: String,
     t_container: String,
     t_type: String,
     t_running: String,
@@ -145,6 +158,7 @@ pub async fn show(
             watt_with_plan: 集計.watt_with_plan,
             virtual_count: 集計.virtual_count,
             standby: 集計.standby,
+            stored: 集計.stored,
         });
     }
 
@@ -165,6 +179,11 @@ pub async fn show(
         t_virtual_hint: rust_i18n::t!("power.virtual_hint", locale = l).to_string(),
         t_standby_hint: rust_i18n::t!("power.standby_hint", locale = l).to_string(),
         t_standby: rust_i18n::t!("power.standby", locale = l).to_string(),
+        warehouse: crate::setting::倉庫プロジェクトか(&state.db, project_id)
+            .await
+            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?,
+        t_stored_hint: rust_i18n::t!("power.stored_hint", locale = l).to_string(),
+        t_stored: rust_i18n::t!("power.stored", locale = l).to_string(),
         t_container: rust_i18n::t!("racks.container", locale = l).to_string(),
         t_type: rust_i18n::t!("racks.container_type", locale = l).to_string(),
         t_running: rust_i18n::t!("power.running", locale = l).to_string(),
@@ -191,6 +210,8 @@ pub(crate) struct 集計結果 {
     pub(crate) virtual_count: usize,
     /// 合算から外した待機中の台数（12.5）。
     pub(crate) standby: usize,
+    /// 合算から外した保管中の台数。倉庫プロジェクトの設備・什器だけ（6.3）。
+    pub(crate) stored: usize,
 }
 
 /// 什器に載っている機器の電力を合算する（12.5）。
@@ -208,6 +229,20 @@ pub(crate) async fn 什器の電力<C: ConnectionTrait>(
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
+    // **倉庫プロジェクトの設備・什器では `status` を見ない**（6.3）
+    let 倉庫 = match mount_container::Entity::find_by_id(container_id)
+        .one(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+    {
+        Some(c) if c.location_type == PROJECT => {
+            crate::setting::倉庫プロジェクトか(db, c.location_id)
+                .await
+                .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        }
+        _ => false,
+    };
+
     let mut out = 集計結果::default();
     for m in mounts {
         let Some(d) = device::Entity::find_by_id(m.device_id)
@@ -221,6 +256,12 @@ pub(crate) async fn 什器の電力<C: ConnectionTrait>(
         // **仮想マシン・コンテナは電力を引かない**（13章、12.5）
         if d.device_type != PHYSICAL {
             out.virtual_count += 1;
+            continue;
+        }
+
+        // **保管中は合算しない**（6.3）。外した台数だけを数える
+        if 倉庫 {
+            out.stored += 1;
             continue;
         }
 

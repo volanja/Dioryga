@@ -466,6 +466,8 @@ async fn 計画する<C: ConnectionTrait>(
     // **索引は取込のはじめに1度だけ作る**（#111）。行ごとに候補を読み直すと、
     // 行数×台数で伸びる
     let 索引 = 機器の索引::作る(db, project_id).await?;
+    // **倉庫プロジェクトでは既存の機器の `status` を動かさない**（#221、設計書6.3）
+    let 倉庫プロジェクト = crate::setting::倉庫プロジェクトか(db, project_id).await?;
 
     // **ファイル内の重複を先に見る。**DBと突き合わせる前に弾かないと、
     // 同じ機器を2回作るか、2行目が1行目を上書きする
@@ -597,6 +599,19 @@ async fn 計画する<C: ConnectionTrait>(
         // 所属を作るのは、新規作成と、現在の所属が無い機器だけ
         let needs_assignment = 現在の所属.is_none();
 
+        // 倉庫にある間の `status` には意味が無い。比べず、書き換えもしない。
+        // **黙って捨てない**——書いてあれば行の説明に添える
+        let mut 説明 = None;
+        let status = match &existing {
+            Some(d) if 倉庫プロジェクト && d.status != status => {
+                if !row.status.trim().is_empty() {
+                    説明 = Some("倉庫プロジェクトでは status を反映しません（保管中の機器・部品の status は動かさない）");
+                }
+                d.status.clone()
+            }
+            _ => status,
+        };
+
         let 変更あり = match &existing {
             None => true,
             Some(d) => {
@@ -623,8 +638,12 @@ async fn 計画する<C: ConnectionTrait>(
         report.push(Entry::new(
             outcome,
             target,
-            match &existing {
-                Some(d) if outcome != Outcome::Unchanged => format!("既存 uid={}", d.uid),
+            match (&existing, 説明) {
+                (Some(d), Some(説明)) if outcome != Outcome::Unchanged => {
+                    format!("既存 uid={}。{説明}", d.uid)
+                }
+                (_, Some(説明)) => 説明.to_owned(),
+                (Some(d), None) if outcome != Outcome::Unchanged => format!("既存 uid={}", d.uid),
                 _ => String::new(),
             },
         ));

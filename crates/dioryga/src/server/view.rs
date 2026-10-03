@@ -492,6 +492,17 @@ pub fn 容体の表示(value: &str, locale: &str) -> String {
     rust_i18n::t!(key, locale = locale).to_string()
 }
 
+/// 倉庫プロジェクトにある機器・部品の表示（#221、設計書6.3）。
+///
+/// **`status` の値ではない。**所在から導いて出すだけで、保存しない。
+/// 表示灯のクラスには [`STORED`] を当てる。
+pub fn 保管中の表示(locale: &str) -> String {
+    rust_i18n::t!("device_locations.stored", locale = locale).to_string()
+}
+
+/// 保管中の表示灯のクラス。
+pub const STORED: &str = "stored";
+
 /// 故障の有無の選択肢。
 pub fn 容体の選択肢(healths: &[&'static str], locale: &str) -> Vec<Choice> {
     healths

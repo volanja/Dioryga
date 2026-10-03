@@ -42,7 +42,9 @@ use crate::auth::authorization;
 use crate::auth::middleware::CurrentUser;
 use crate::device_state::{self, 容体};
 use crate::error::{AppError, AppResult};
-use crate::server::view::{render, 容体の表示, 状態の表示, Chrome, Locale};
+use crate::server::view::{
+    render, 保管中の表示, 容体の表示, 状態の表示, Chrome, Locale, STORED
+};
 use crate::server::AppState;
 
 /// 「期限間近」とみなす日数（10.2の「満了3ヶ月前」）。
@@ -67,6 +69,16 @@ const 指標: &[(&str, &str)] = &[
     ("standby", "dashboard.note_standby"),
     ("planned", "dashboard.note_planned"),
     ("provisioning", "dashboard.note_provisioning"),
+    ("repairing", "dashboard.note_repairing"),
+    ("failed", "dashboard.note_failed"),
+];
+
+/// 倉庫プロジェクトの指標（#221、設計書6.3）。**`status` は見ない。**
+///
+/// 倉庫にある機器の `status` には意味が無いので、故障していなければ保管中に
+/// 数える。「使える予備が何台あるか」が分かる。
+const 倉庫の指標: &[(&str, &str)] = &[
+    (STORED, "dashboard.note_stored"),
     ("repairing", "dashboard.note_repairing"),
     ("failed", "dashboard.note_failed"),
 ];
@@ -161,7 +173,10 @@ pub async fn show(
     let 容体 = device_state::容体を求める(&state.db, &現在の機器)
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
-    let metrics = 状態ごとの台数(&現在の機器, &容体, l);
+    let 倉庫 = crate::setting::倉庫プロジェクトか(&state.db, project_id)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let metrics = 状態ごとの台数(&現在の機器, &容体, 倉庫, l);
     let attention = 対応が必要な機器(&state, project_id, &現在の機器, &容体, l).await?;
     let contracts = 期限間近の契約(&state, project_id, 期限, today).await?;
     let milestones = 期限間近のマイルストーン(&state, project_id, 期限, today).await?;
@@ -233,9 +248,10 @@ async fn このプロジェクトの機器(
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))
 }
 
-/// 機器が入る枚（設計書6.3）。故障なら `status` を見ない。
-fn 枚<'a>(d: &'a device::Model, 容体: &HashMap<i32, 容体>) -> &'a str {
+/// 機器が入る枚（設計書6.3）。故障なら `status` を見ない。倉庫では常に見ない。
+fn 枚<'a>(d: &'a device::Model, 容体: &HashMap<i32, 容体>, 倉庫: bool) -> &'a str {
     match 容体.get(&d.id).copied().unwrap_or(容体::正常) {
+        容体::正常 if 倉庫 => STORED,
         容体::正常 => d.status.as_str(),
         v => v.as_str(),
     }
@@ -247,17 +263,23 @@ fn 枚<'a>(d: &'a device::Model, 容体: &HashMap<i32, 容体>) -> &'a str {
 fn 状態ごとの台数(
     devices: &[device::Model],
     容体: &HashMap<i32, 容体>,
+    倉庫: bool,
     l: &'static str,
 ) -> Vec<MetricCard> {
-    指標
+    let 並び = if 倉庫 { 倉庫の指標 } else { 指標 };
+    並び
         .iter()
         .map(|(status, note)| MetricCard {
             status,
             label: match *status {
                 "repairing" | "failed" => 容体の表示(status, l),
+                STORED => 保管中の表示(l),
                 _ => 状態の表示(status, l),
             },
-            count: devices.iter().filter(|d| 枚(d, 容体) == *status).count(),
+            count: devices
+                .iter()
+                .filter(|d| 枚(d, 容体, 倉庫) == *status)
+                .count(),
             note: rust_i18n::t!(*note, locale = l).to_string(),
         })
         .collect()

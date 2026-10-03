@@ -148,6 +148,8 @@ async fn 計画する<C: ConnectionTrait>(
 ) -> Result<(Report, Vec<部品の計画>), ImportError> {
     let 索引 = 機器の索引::作る(db, project_id).await?;
     let 候補 = このプロジェクトに関わった部品(db, project_id, &索引.ids()).await?;
+    // **倉庫プロジェクトでは既存の部品の `status` を動かさない**（#221、設計書6.3）
+    let 倉庫プロジェクト = crate::setting::倉庫プロジェクトか(db, project_id).await?;
     // **廃止した倉庫は置き場の候補にしない**（#133）
     let 倉庫: HashMap<String, i32> = warehouse::Entity::find()
         .filter(warehouse::Column::RetiredAt.is_null())
@@ -333,6 +335,18 @@ async fn 計画する<C: ConnectionTrait>(
                 && l.location_id == location_id
                 && l.chassis_slot_id == chassis_slot_id
         });
+        // 倉庫にある間の `status` には意味が無い。比べず、書き換えもしない。
+        // **黙って捨てない**——書いてあれば行の説明に添える
+        let mut 説明 = String::new();
+        let status = match &既存 {
+            Some(p) if 倉庫プロジェクト && p.status != status => {
+                if !row.status.trim().is_empty() {
+                    説明 = "倉庫プロジェクトでは status を反映しません（保管中の機器・部品の status は動かさない）".to_owned();
+                }
+                p.status.clone()
+            }
+            _ => status,
+        };
         let 属性が同じ = 既存.as_ref().is_some_and(|p| {
             p.part_catalog_id == catalog.id && p.status == status && p.health == health
         });
@@ -342,7 +356,7 @@ async fn 計画する<C: ConnectionTrait>(
             (Some(_), true) => Outcome::Unchanged,
             (Some(_), false) => Outcome::Updated,
         };
-        report.push(Entry::new(outcome, 表示, String::new()));
+        report.push(Entry::new(outcome, 表示, 説明));
         if outcome == Outcome::Unchanged {
             continue;
         }

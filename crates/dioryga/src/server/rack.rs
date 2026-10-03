@@ -713,6 +713,13 @@ async fn 図を描く(
             )
             .to_string();
             // **外した台数を黙らせない**（12.5）
+            if 電力.stored > 0 {
+                v.push_str(&rust_i18n::t!(
+                    "containers.power_stored",
+                    count = 電力.stored,
+                    locale = l
+                ));
+            }
             if 電力.standby > 0 {
                 v.push_str(&rust_i18n::t!(
                     "containers.power_standby",

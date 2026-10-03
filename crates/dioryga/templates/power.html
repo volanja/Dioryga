@@ -16,6 +16,10 @@
 <p class="hint">{{ t_virtual_hint }}</p>
 {# 待機中の機器は合算しない。ホットスタンバイを過小に見せるので、台数を併記する（設計書12.5） #}
 <p class="hint">{{ t_standby_hint }}</p>
+{% if warehouse %}
+{# 倉庫にある機器の status には意味が無い。保管中として数え、合算しない（設計書6.3） #}
+<p class="hint">{{ t_stored_hint }}</p>
+{% endif %}
 
 {% if rows.is_empty() %}
 <p class="empty">{{ t_empty }}</p>
@@ -45,6 +49,7 @@
       {# 数えていないことを示す。黙って落とさない #}
       <th>{{ t_virtual }}</th>
       <th>{{ t_standby }}</th>
+      {% if warehouse %}<th>{{ t_stored }}</th>{% endif %}
       <th>{{ t_actions }}</th>
     </tr>
   </thead>
@@ -59,6 +64,7 @@
       <td>{{ row.watt_with_plan }} W</td>
       <td>{{ row.virtual_count }}</td>
       <td>{{ row.standby }}</td>
+      {% if warehouse %}<td>{{ row.stored }}</td>{% endif %}
       <td class="actions">
         <a href="/projects/{{ project_id }}/containers/{{ row.id }}">{{ t_detail }}</a>
       </td>

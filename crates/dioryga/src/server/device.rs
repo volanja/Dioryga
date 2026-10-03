@@ -38,8 +38,8 @@ use crate::device_state;
 use crate::error::{AppError, AppResult};
 use crate::repository::{Actor, AuditedTx};
 use crate::server::view::{
-    render, 容体の表示, 容体の選択肢, 状態の表示, 状態の選択肢, 種別の表示, 種別の選択肢, Choice,
-    Chrome, Locale,
+    render, 保管中の表示, 容体の表示, 容体の選択肢, 状態の表示, 状態の選択肢, 種別の表示,
+    種別の選択肢, Choice, Chrome, Locale, STORED,
 };
 use crate::server::AppState;
 
@@ -471,6 +471,10 @@ pub async fn list(
     let 容体 = device_state::容体を求める(&state.db, &devices)
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    // **倉庫にある機器の `status` には意味が無い**（設計書6.3）。保管中と出す
+    let 倉庫 = crate::setting::倉庫プロジェクトか(&state.db, project_id)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
     let mut rows = Vec::new();
     for d in devices {
@@ -494,11 +498,19 @@ pub async fn list(
                 None => rust_i18n::t!("devices.location_unknown", locale = l).to_string(),
             },
             departed: !このプロジェクトにいる,
-            planned: d.status == DEVICE_PLANNED,
+            planned: !(倉庫 && このプロジェクトにいる) && d.status == DEVICE_PLANNED,
             attention: 要対応の表示(容体.get(&d.id).copied(), l),
             // クラス名には生の値を、文字には表示名を当てる（#172）
-            status_label: 状態の表示(&d.status, l),
-            status: d.status,
+            status_label: if 倉庫 && このプロジェクトにいる {
+                保管中の表示(l)
+            } else {
+                状態の表示(&d.status, l)
+            },
+            status: if 倉庫 && このプロジェクトにいる {
+                STORED.to_owned()
+            } else {
+                d.status
+            },
             id: d.id,
             hostname: d.hostname,
             device_type: d.device_type,
@@ -770,6 +782,7 @@ pub async fn detail(
 
     let 未設定 = rust_i18n::t!("devices.none", locale = l).to_string();
     let 空欄 = |value: Option<String>| value.unwrap_or_else(|| 未設定.clone());
+    let 保管中 = 倉庫にあるか(&state, d.id).await?;
 
     let basic = vec![
         Labeled {
@@ -799,7 +812,12 @@ pub async fn detail(
         },
         Labeled {
             label: rust_i18n::t!("devices.status", locale = l).to_string(),
-            value: 状態の表示(&d.status, l),
+            // **倉庫にある間は `status` を出さない**（設計書6.3）
+            value: if 保管中 {
+                保管中の表示(l)
+            } else {
+                状態の表示(&d.status, l)
+            },
         },
         // **機器自身の値を出す。**部品の故障は部品の欄に出る（設計書6.3）
         Labeled {
@@ -867,7 +885,7 @@ pub async fn detail(
         t_interfaces: rust_i18n::t!("network.interfaces", locale = l).to_string(),
         t_merged: rust_i18n::t!("devices.merged", locale = l).to_string(),
         hostname: d.hostname.clone(),
-        planned: d.status == DEVICE_PLANNED,
+        planned: !保管中 && d.status == DEVICE_PLANNED,
         attention: 要対応の表示(
             device_state::容体を求める(&state.db, std::slice::from_ref(&d))
                 .await
@@ -2169,6 +2187,25 @@ pub async fn update(
 // ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
+
+/// 機器が今、倉庫プロジェクトにあるか（設計書6.3）。
+async fn 倉庫にあるか(state: &AppState, device_id: i32) -> AppResult<bool> {
+    let 現在 = device_assignment::Entity::find()
+        .filter(device_assignment::Column::DeviceId.eq(device_id))
+        .filter(device_assignment::Column::ToDate.is_null())
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    match 現在 {
+        Some(a) if a.location_type == PROJECT => match a.location_id {
+            Some(pid) => crate::setting::倉庫プロジェクトか(&state.db, pid)
+                .await
+                .map_err(|e| AppError::Internal(anyhow::anyhow!(e))),
+            None => Ok(false),
+        },
+        _ => Ok(false),
+    }
+}
 
 /// 故障・修理中なら表示名を返す（設計書6.3）。正常なら `None`。
 fn 要対応の表示(v: Option<device_state::容体>, l: &str) -> Option<String> {

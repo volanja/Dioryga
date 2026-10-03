@@ -748,6 +748,14 @@ textarea {
 
 .led.sm { width: 8px; height: 8px; }
 
+/* 倉庫プロジェクトにある機器・部品（設計書6.3）。status の値ではなく所在から出す。
+   灰で点け、消灯（暗い地）とも予約中（白）とも見分ける */
+.led.stored {
+  background: #8e959c;
+  box-shadow: 0 0 0 2px #151617, inset 0 -2px 0 rgba(0, 0, 0, 0.25),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.35);
+}
+
 /* 部品の故障の有無を表の中で変える（設計書6.3）。選択とボタンを1行に並べる */
 form.inline-health { display: flex; gap: 6px; align-items: center; margin: 0; }
 form.inline-health select { width: auto; margin: 0; }

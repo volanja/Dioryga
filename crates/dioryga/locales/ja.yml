@@ -470,6 +470,7 @@ containers:
   power: 消費電力の合計
   power_total: 稼働中 %{watt}W（予約を含めると %{with_plan}W）
   power_standby: 。待機中の%{count}台は含めていません
+  power_stored: 。保管中の%{count}台は含めていません
   circuit_label: 系統名
   voltage: 電圧（V）
   phase: 相
@@ -947,6 +948,8 @@ power:
   watt_with_plan: 予約を含めた消費電力
   virtual: 仮想（数えない）
   standby: 待機（数えない）
+  stored: 保管中（数えない）
+  stored_hint: 倉庫の機器は保管しているだけなので合算しません
   standby_hint: 待機中の機器は合算しません。ホットスタンバイは電力を引くため、待機中の機器が多いと消費電力を少なく見せます
   total: 合計
 
@@ -957,6 +960,7 @@ dashboard:
   create_work_order: チケットを起票
   note_running: 現在このプロジェクトにあるもの
   note_standby: 構築済みの予備
+  note_stored: すぐ使える予備
   note_planned: チケットで確保済み
   note_provisioning: 実行中のチケットあり
   note_repairing: 対応中
@@ -1019,6 +1023,10 @@ device_healths:
   ok: 正常
   failed: 故障
   repairing: 修理中
+
+# 所在から導く表示（status の値ではない。設計書6.3）
+device_locations:
+  stored: 保管中
 
 work_order_statuses:
   planned: 計画中

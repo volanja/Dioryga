@@ -1,0 +1,49 @@
+name: CodeQL
+
+# 解析の対象を設定ファイル（.github/codeql/codeql-config.yml）で絞るため、
+# リポジトリの設定の Default setup ではなく、このワークフローで動かす。
+# **Default setup は無効にしておく。**両方が有効だと、結果のアップロードが拒否される。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # 週次。コードが変わらなくても、クエリの更新で見つかるものを拾う。
+  # 毎週月曜 06:30 JST（日曜 21:30 UTC）。
+  schedule:
+    - cron: "30 21 * * 0"
+
+# 同じブランチへ続けてpushした場合、古い実行を打ち切る。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # 結果を Code scanning へ送る。
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        # どの言語もビルドせずに解析する。
+        language: [actions, python, rust]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          config-file: ./.github/codeql/codeql-config.yml
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"

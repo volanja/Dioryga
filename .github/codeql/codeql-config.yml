@@ -1,0 +1,9 @@
+name: Dioryga CodeQL config
+
+# 結合テストは解析の対象から外す。
+#
+# テストは固定のパスワードを使うため、`rust/hard-coded-cryptographic-value` が
+# 行ごとに警告を出す。テスト用DBでしか使われない値であり、製品のコードには含まれない。
+# クエリ自体は外さない（製品のコードに書いた固定値は検出したい）。
+paths-ignore:
+  - crates/*/tests/**

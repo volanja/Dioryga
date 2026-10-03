@@ -14,8 +14,9 @@
 use chrono::{Duration, Utc};
 use dioryga::import::{parts, Outcome};
 use entity::{
-    app_user, chassis_model, chassis_slot, configuration, device, device_assignment, part_catalog,
-    part_instance, part_instance_location, project, vendor, warehouse,
+    app_user, chassis_model, chassis_slot, configuration, device, device_assignment,
+    mount_container, part_catalog, part_instance, part_instance_location, project, vendor,
+    warehouse,
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
@@ -288,6 +289,108 @@ async fn 語彙外の状態は拒否(db: &DatabaseConnection) {
 }
 
 // ---------------------------------------------------------------------------
+// 設備・什器とプロジェクトに置く（#219）
+// ---------------------------------------------------------------------------
+
+/// **部品を設備・什器（棚）に置けること、どこにも載せずプロジェクトに置けること**（#219）。
+///
+/// 設備・什器の名前は大文字小文字を区別しない（#204）。
+async fn 棚やプロジェクトに置ける(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "棚に置く").await;
+    let 棚 = 設備(db, 場.project.id, "Shelf-01", 場.user_id).await;
+
+    let rows = parts::parse_parts(&csv(&[
+        "SN-1,Samsung,DIMM-32G,running,MountContainer,,shelf-01,",
+        "SN-2,Samsung,DIMM-32G,running,Project,,,",
+    ]))
+    .unwrap();
+    let report = parts::dry_run(db, 場.project.id, &rows).await.unwrap();
+    assert_eq!(report.count(Outcome::Created), 2, "{report}");
+    parts::apply(db, 場.project.id, &rows, Utc::now(), 1)
+        .await
+        .unwrap();
+
+    let 棚の部品 = 現在の所在(db, 部品(db, "SN-1").await.unwrap().id)
+        .await
+        .unwrap();
+    assert_eq!(棚の部品.location_type, "MountContainer");
+    assert_eq!(棚の部品.location_id, Some(棚.id));
+    assert_eq!(棚の部品.chassis_slot_id, None);
+
+    let 置いた部品 = 現在の所在(db, 部品(db, "SN-2").await.unwrap().id)
+        .await
+        .unwrap();
+    assert_eq!(置いた部品.location_type, "Project");
+    assert_eq!(置いた部品.location_id, Some(場.project.id));
+}
+
+/// **機器から外して棚に置くと閉じて開き、二度流しても変わらないこと**（4章、23.1）。
+async fn 機器から棚へ移すと閉じて開く(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "棚へ移す").await;
+    let 棚 = 設備(db, 場.project.id, "Shelf-01", 場.user_id).await;
+
+    let 載せる =
+        parts::parse_parts(&csv(&["SN-1,Samsung,DIMM-32G,running,Device,web01,,"])).unwrap();
+    parts::apply(
+        db,
+        場.project.id,
+        &載せる,
+        Utc::now() - Duration::days(5),
+        1,
+    )
+    .await
+    .unwrap();
+
+    let 外す = parts::parse_parts(&csv(&[
+        "SN-1,Samsung,DIMM-32G,running,MountContainer,,Shelf-01,",
+    ]))
+    .unwrap();
+    let report = parts::dry_run(db, 場.project.id, &外す).await.unwrap();
+    assert_eq!(report.count(Outcome::Updated), 1, "{report}");
+    parts::apply(db, 場.project.id, &外す, Utc::now(), 2)
+        .await
+        .unwrap();
+
+    let p = 部品(db, "SN-1").await.unwrap();
+    let 履歴 = 所在の履歴(db, p.id).await;
+    assert_eq!(履歴.len(), 2, "閉じて開いていません");
+    assert!(履歴[0].to_date.is_some());
+    assert_eq!(履歴[1].location_type, "MountContainer");
+    assert_eq!(履歴[1].location_id, Some(棚.id));
+
+    let report = parts::dry_run(db, 場.project.id, &外す).await.unwrap();
+    assert_eq!(report.count(Outcome::Unchanged), 1, "{report}");
+}
+
+/// **置けるのはこのプロジェクトの設備・什器と、このプロジェクトだけであること**（23.5）。
+///
+/// 他のプロジェクトの設備・什器、撤去した設備・什器、名前の無い行、
+/// プロジェクト名を書いた行、スロットを書いた行はエラーにする。
+async fn 他のプロジェクトや撤去した設備には置けない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "置けない").await;
+    let よそ = プロジェクト(db, "よそのプロジェクト").await;
+    設備(db, よそ.id, "Shelf-Other", 場.user_id).await;
+    let 撤去 = 設備(db, 場.project.id, "Shelf-Old", 場.user_id).await;
+    let mut active: mount_container::ActiveModel = 撤去.into();
+    active.retired_at = Set(Some(Utc::now()));
+    active.update(db).await.unwrap();
+    設備(db, 場.project.id, "Shelf-01", 場.user_id).await;
+
+    for 行 in [
+        "SN-1,Samsung,DIMM-32G,running,MountContainer,,Shelf-Other,",
+        "SN-1,Samsung,DIMM-32G,running,MountContainer,,Shelf-Old,",
+        "SN-1,Samsung,DIMM-32G,running,MountContainer,,,",
+        "SN-1,Samsung,DIMM-32G,running,Project,,よそのプロジェクト,",
+        "SN-1,Samsung,DIMM-32G,running,MountContainer,,Shelf-01,DIMM_A1",
+        "SN-1,Samsung,DIMM-32G,running,Project,,,DIMM_A1",
+    ] {
+        let rows = parts::parse_parts(&csv(&[行])).unwrap();
+        let report = parts::dry_run(db, 場.project.id, &rows).await.unwrap();
+        assert_eq!(report.count(Outcome::Error), 1, "{行}: {report}");
+    }
+}
+
+// ---------------------------------------------------------------------------
 // 用意
 // ---------------------------------------------------------------------------
 
@@ -411,6 +514,27 @@ async fn 舞台(db: &DatabaseConnection, name: &str) -> 舞台情報 {
         slot_id: slot.id,
         user_id,
     }
+}
+
+/// プロジェクトに設備・什器（棚）を作る。
+async fn 設備(
+    db: &DatabaseConnection,
+    project_id: i32,
+    name: &str,
+    user_id: i32,
+) -> mount_container::Model {
+    mount_container::ActiveModel {
+        name: Set(name.to_owned()),
+        location_type: Set("Project".to_owned()),
+        location_id: Set(project_id),
+        created_by: Set(user_id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap()
 }
 
 async fn ベンダー(db: &DatabaseConnection, user_id: i32, name: &str) -> i32 {
@@ -556,6 +680,9 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 倉庫ではスロットを指定できない);
         全検証!(@one $用意, $属性, 知らないカタログはエラー);
         全検証!(@one $用意, $属性, 語彙外の状態は拒否);
+        全検証!(@one $用意, $属性, 棚やプロジェクトに置ける);
+        全検証!(@one $用意, $属性, 機器から棚へ移すと閉じて開く);
+        全検証!(@one $用意, $属性, 他のプロジェクトや撤去した設備には置けない);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

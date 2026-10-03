@@ -392,7 +392,7 @@ work_orders:
   error_disposal_mounted: The device is mounted on a rack or furniture (reservations included). Unmount it before completing
   error_disposal_hosting: Other devices are mounted on this device. Remove them first
   error_disposal_has_ip: The device still has IP addresses. Close them before completing
-  error_disposal_part_not_here: This part is not installed in a device of the originating project now
+  error_disposal_part_not_here: This part is not in the originating project now
   reservations: Reserved placement
   reservations_hint: Hold a rack position while the work is still planned. It appears in the rack diagram as reserved so nobody else takes the spot, and it is released if the work order is cancelled
   reserve: Reserve a rack position
@@ -437,14 +437,14 @@ containers:
   back: Back to racks and furniture
   error_name: Enter a name
   error_name_taken: A rack or furniture with the same name already exists. Names are not case-sensitive
-  error_in_use: Devices are mounted, so this cannot be removed. Unmount or move them first
+  error_in_use: Devices or parts are on it, so this cannot be removed. Unmount or move them first
   error_unretire_taken: A rack or furniture with the same name already exists, so the removal cannot be undone. Rename one of them first
   retired: Removed
   show_retired: Include removed
   retire: Remove
   unretire: Undo removal
   retire_title: Remove rack or furniture
-  retire_in_use: Devices are mounted here. Unmount or move them before removing it
+  retire_in_use: Devices or parts are on it. Unmount or move them before removing it
   retire_hard: Nothing has ever been mounted here and no costs are recorded, so the row will be deleted. This cannot be undone
   retire_soft: This has been used before, so it will be marked as removed. Mount history and cost records remain, and you can undo this later
   retired_note: This rack or furniture has been removed. Devices cannot be mounted

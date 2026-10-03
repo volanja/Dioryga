@@ -87,6 +87,8 @@ const PROJECT: &str = "Project";
 const DISPOSED: &str = "Disposed";
 /// `PART_INSTANCE_LOCATION.location_type`。機器に載っている（6.2）。
 const DEVICE: &str = "Device";
+/// `PART_INSTANCE_LOCATION.location_type`。設備・什器に置いてある（#219）。
+const MOUNT_CONTAINER: &str = "MountContainer";
 
 /// 増設。**予約レコードを作れるのはこれだけ**（11.6）。
 const ADDITION: &str = "Addition";
@@ -1507,12 +1509,11 @@ async fn 廃棄を妨げるもの<C: ConnectionTrait>(
     w: &work_order::Model,
 ) -> AppResult<Option<&'static str>> {
     if let Some(part_instance_id) = w.part_instance_id {
-        // **起票元の機器に載っている部品だけを捨てられる。**倉庫の部品の廃棄は、
-        // 倉庫をプロジェクトにしてから倉庫のチケットで行う（#196）
-        let ここにある = match 部品の載っている機器(db, part_instance_id).await? {
-            Some(device_id) => 機器の現在のプロジェクト(db, device_id).await? == Some(w.project_id),
-            None => false,
-        };
+        // **起票元にある部品だけを捨てられる。**起票元の機器に載っているか、
+        // 起票元の設備・什器やプロジェクトに置いてある部品（#219）。倉庫の部品の
+        // 廃棄は、倉庫をプロジェクトにしてから倉庫のチケットで行う（#196）
+        let ここにある =
+            部品の現在のプロジェクト(db, part_instance_id).await? == Some(w.project_id);
         return Ok((!ここにある).then_some("work_orders.error_disposal_part_not_here"));
     }
 
@@ -1529,19 +1530,39 @@ async fn 廃棄を妨げるもの<C: ConnectionTrait>(
         }))
 }
 
-/// 部品がいま載っている機器。機器に載っていなければ `None`。
-async fn 部品の載っている機器<C: ConnectionTrait>(
+/// 部品がいまあるプロジェクト（#219）。プロジェクトに無ければ `None`。
+///
+/// **部品はプロジェクトを列に持たない。**置き場所からたどる——機器なら機器の
+/// 所属、設備・什器なら設備・什器の置き場所、プロジェクトならそのもの。
+/// 倉庫・廃棄はどのプロジェクトにも無い。
+async fn 部品の現在のプロジェクト<C: ConnectionTrait>(
     db: &C,
     part_instance_id: i32,
 ) -> AppResult<Option<i32>> {
-    Ok(part_instance_location::Entity::find()
+    let 内部 = |e: sea_orm::DbErr| AppError::Internal(anyhow::anyhow!(e));
+    let Some(所在) = part_instance_location::Entity::find()
         .filter(part_instance_location::Column::PartInstanceId.eq(part_instance_id))
         .filter(part_instance_location::Column::ToDate.is_null())
         .one(db)
         .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-        .filter(|l| l.location_type == DEVICE)
-        .and_then(|l| l.location_id))
+        .map_err(内部)?
+    else {
+        return Ok(None);
+    };
+    let Some(location_id) = 所在.location_id else {
+        return Ok(None);
+    };
+    match 所在.location_type.as_str() {
+        DEVICE => 機器の現在のプロジェクト(db, location_id).await,
+        MOUNT_CONTAINER => Ok(mount_container::Entity::find_by_id(location_id)
+            .one(db)
+            .await
+            .map_err(内部)?
+            .filter(|c| c.location_type == PROJECT)
+            .map(|c| c.location_id)),
+        PROJECT => Ok(Some(location_id)),
+        _ => Ok(None),
+    }
 }
 
 /// 機器がいま所属しているプロジェクト。プロジェクトになければ `None`。

@@ -4,7 +4,10 @@
 //! 片方だけ直したときに「画面では重複、取込では別物」のように食い違う。
 
 use chrono::{DateTime, Utc};
-use entity::{container_model, device_mount, mount_container, power_circuit, recurring_cost};
+use entity::{
+    container_model, device_mount, mount_container, part_instance_location, power_circuit,
+    recurring_cost,
+};
 use sea_orm::Set;
 
 use crate::repository::AuditedTx;
@@ -102,6 +105,9 @@ pub enum 撤去の結末 {
 /// **「使った」には、搭載の履歴だけでなく継続費用からの参照も含める。**
 /// ラックのレンタル費（`RECURRING_COST`、10章）が指している設備を消すと、
 /// 費用の記録が参照先を失う（多態的参照のため外部キーが止めない、24.5）。
+///
+/// **置かれた部品も機器と同じに数える**（#219）。今置かれていれば使用中、
+/// 置かれたことがあれば撤去（所在の履歴が設備を指し続けるため）。
 pub async fn 撤去の判定<C: ConnectionTrait>(
     db: &C,
     id: i32,
@@ -111,7 +117,13 @@ pub async fn 撤去の判定<C: ConnectionTrait>(
         .filter(device_mount::Column::ToDate.is_null())
         .count(db)
         .await?;
-    if 載っている > 0 {
+    let 置かれた部品 = part_instance_location::Entity::find()
+        .filter(part_instance_location::Column::LocationType.eq(MOUNT_CONTAINER))
+        .filter(part_instance_location::Column::LocationId.eq(id))
+        .filter(part_instance_location::Column::ToDate.is_null())
+        .count(db)
+        .await?;
+    if 載っている + 置かれた部品 > 0 {
         return Ok(撤去の結末::使用中);
     }
 
@@ -119,12 +131,17 @@ pub async fn 撤去の判定<C: ConnectionTrait>(
         .filter(device_mount::Column::ContainerId.eq(id))
         .count(db)
         .await?;
+    let 部品の履歴 = part_instance_location::Entity::find()
+        .filter(part_instance_location::Column::LocationType.eq(MOUNT_CONTAINER))
+        .filter(part_instance_location::Column::LocationId.eq(id))
+        .count(db)
+        .await?;
     let 費用 = recurring_cost::Entity::find()
         .filter(recurring_cost::Column::ItemType.eq(MOUNT_CONTAINER))
         .filter(recurring_cost::Column::ItemId.eq(id))
         .count(db)
         .await?;
-    Ok(if 搭載の履歴 + 費用 > 0 {
+    Ok(if 搭載の履歴 + 部品の履歴 + 費用 > 0 {
         撤去の結末::撤去
     } else {
         撤去の結末::物理削除

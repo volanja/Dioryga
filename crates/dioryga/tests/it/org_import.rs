@@ -17,7 +17,7 @@ use dioryga::config::Config;
 use dioryga::import::run::{self, RunError};
 use dioryga::import::{ImportError, Outcome};
 use dioryga::server::{router, AppState};
-use entity::{app_user, audit_log, import_run, project, project_member, warehouse};
+use entity::{app_setting, app_user, audit_log, import_run, project, project_member, warehouse};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
     Set,
@@ -164,6 +164,107 @@ async fn 二度流しても変わらない(db: &DatabaseConnection) {
         "{}",
         詳細(&二回目.report)
     );
+}
+
+/// **取込で作った利用者も、倉庫用のプロジェクトの Viewer になること**（#218、16.1）。
+///
+/// - 無効で作った利用者も加える。有効に戻したときに在庫が見えないままにしない
+/// - **作る前からいる利用者は加えない**
+/// - メンバーのCSVに同じ行（倉庫・Viewer）があっても重ならず、変更なしになる
+/// - 加えたことは行ごとに監査ログに残る（23.8、24.4の例外）
+/// - 二度流しても増えない
+async fn 取り込んだ利用者は倉庫プロジェクトのviewerになる(
+    db: &DatabaseConnection,
+) {
+    let admin = 管理者(db).await;
+    let 倉庫 = プロジェクト(db, "SOKO").await;
+    app_setting::ActiveModel {
+        id: Set(app_setting::ID),
+        default_project_id: Set(倉庫.id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let 前からいる = 利用者(db, "kita", false).await;
+
+    let dir = 取込ファイル(&[
+        (
+            "user",
+            "users.csv",
+            &format!(
+                "{利用者の見出し}hotaka,穂高 古城,,,active\nyari,槍 北鎌,,,disabled\nkita,北 岳,,,\n"
+            ),
+        ),
+        (
+            "project_member",
+            "members.csv",
+            &format!("{メンバーの見出し}SOKO,hotaka,Viewer,,\n"),
+        ),
+    ]);
+
+    let 一回目 = run::run(db, &dir.join("manifest.yaml"), "admin", true)
+        .await
+        .unwrap();
+    assert!(!一回目.report.has_error(), "{}", 詳細(&一回目.report));
+
+    for username in ["hotaka", "yari"] {
+        let u = 利用者を引く(db, username).await.unwrap();
+        let 所属: Vec<_> = project_member::Entity::find()
+            .filter(project_member::Column::UserId.eq(u.id))
+            .all(db)
+            .await
+            .unwrap();
+        assert_eq!(所属.len(), 1, "{username}: {所属:?}");
+        assert_eq!(所属[0].project_id, 倉庫.id);
+        assert_eq!(所属[0].role, "Viewer");
+    }
+    let 前からいるの所属 = project_member::Entity::find()
+        .filter(project_member::Column::UserId.eq(前からいる.id))
+        .count(db)
+        .await
+        .unwrap();
+    assert_eq!(前からいるの所属, 0, "作る前からいる利用者が加わっています");
+
+    // 利用者の行に加えたことが出て、メンバーの行は変更なし
+    let hotaka = 一回目
+        .report
+        .entries
+        .iter()
+        .find(|e| e.target == "hotaka")
+        .unwrap();
+    assert!(
+        hotaka.detail.contains("Viewer として加えました"),
+        "{}",
+        hotaka.detail
+    );
+    let メンバーの行 = 一回目
+        .report
+        .entries
+        .iter()
+        .find(|e| e.target.contains("SOKO"))
+        .unwrap();
+    assert_eq!(
+        メンバーの行.outcome,
+        Outcome::Unchanged,
+        "{}",
+        詳細(&一回目.report)
+    );
+
+    let 記録 = audit_log::Entity::find()
+        .filter(audit_log::Column::TableName.eq("project_member"))
+        .all(db)
+        .await
+        .unwrap();
+    assert_eq!(記録.len(), 2, "{記録:?}");
+    assert!(記録.iter().all(|r| r.user_id == admin.id));
+    assert!(記録.iter().all(|r| r.import_run_id == 一回目.import_run_id));
+
+    run::run(db, &dir.join("manifest.yaml"), "admin", true)
+        .await
+        .unwrap();
+    assert_eq!(メンバー数(db, 倉庫.id).await, 2, "二度目で増えています");
 }
 
 /// **パスワードの列があればエラーになること**（23.8）。
@@ -596,6 +697,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, system_admin以外は流せない);
         全検証!(@one $用意, $属性, 組織データを取り込める);
         全検証!(@one $用意, $属性, 二度流しても変わらない);
+        全検証!(@one $用意, $属性, 取り込んだ利用者は倉庫プロジェクトのviewerになる);
         全検証!(@one $用意, $属性, パスワードの列があれば拒否する);
         全検証!(@one $用意, $属性, system_adminは作れず変えられない);
         全検証!(@one $用意, $属性, 書かれていない利用者とメンバーは変わらない);

@@ -434,23 +434,29 @@ pub async fn create(
     let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
-    tx.insert(app_user::ActiveModel {
-        name: Set(name),
-        username: Set(username.clone()),
-        email: Set(email),
-        password_hash: Set(hash),
-        // 本人が最初のログインで自分のパスワードに変える（設計書20.6）
-        must_change_password: Set(true),
-        is_system_admin: Set(form.is_system_admin()),
-        locale: Set(form.locale()),
-        last_login_at: Set(None),
-        disabled_at: Set(None),
-        created_at: Set(now),
-        updated_at: Set(now),
-        ..Default::default()
-    })
-    .await
-    .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let created = tx
+        .insert(app_user::ActiveModel {
+            name: Set(name),
+            username: Set(username.clone()),
+            email: Set(email),
+            password_hash: Set(hash),
+            // 本人が最初のログインで自分のパスワードに変える（設計書20.6）
+            must_change_password: Set(true),
+            is_system_admin: Set(form.is_system_admin()),
+            locale: Set(form.locale()),
+            last_login_at: Set(None),
+            disabled_at: Set(None),
+            created_at: Set(now),
+            updated_at: Set(now),
+            ..Default::default()
+        })
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    // **在庫を見せるため、倉庫用のプロジェクトに Viewer として加える**（#218）。
+    // 同じトランザクションで加え、加えたことも監査ログに残す
+    crate::setting::既定の参加先に加える(&tx, &created, current.user.id)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
     tx.commit()
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;

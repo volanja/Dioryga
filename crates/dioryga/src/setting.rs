@@ -14,11 +14,15 @@
 //! 倉庫用のプロジェクトかどうかの印は持たない。アプリが持つのは**新しい利用者
 //! を加える先**（`default_project_id`）だけで、それ以外の画面は通常の
 //! プロジェクトと同じに扱う。
+//!
+//! 利用者を作ると、この先へ `Viewer` として加える（#218）。画面（System Admin の
+//! ユーザー登録）と組織データの取込の両方が [`既定の参加先に加える`] を通る。
 
 use chrono::Utc;
-use entity::{app_setting, project};
+use entity::{app_setting, app_user, project, project_member};
 use sea_orm::{ConnectionTrait, DbErr, EntityTrait, Set};
 
+use crate::auth::authorization::VIEWER;
 use crate::repository::AuditedTx;
 
 /// 新しい利用者を加える先のプロジェクト。初回セットアップの前は `None`。
@@ -77,4 +81,50 @@ pub async fn 倉庫プロジェクトを用意する(
     .await?;
 
     Ok(Some(倉庫))
+}
+
+/// 新しく作った利用者を、既定の参加先に `Viewer` として加える（#218、設計書16.1）。
+///
+/// **在庫を全員に見せるため。**倉庫の予備は倉庫用のプロジェクトにあり、
+/// メンバーにしか見えない。「予備はあるか」に全員が答えられるようにする。
+///
+/// - **System Admin は加えない。**プロジェクトのメンバーになれない（3章）
+/// - **利用者を作ったときだけ呼ぶ。**作る前からいる利用者を加え直すことはしない
+/// - 監査ログは `by` を主体に**行ごとに残す。**取込でも同じ（23.8、24.4の例外）
+///
+/// 加えた先のプロジェクトを返す。既定の参加先が無いDB（初回セットアップ前）や
+/// System Admin では `None`。
+pub async fn 既定の参加先に加える(
+    tx: &AuditedTx,
+    user: &app_user::Model,
+    by: i32,
+) -> Result<Option<project::Model>, DbErr> {
+    if user.is_system_admin {
+        return Ok(None);
+    }
+    let Some(project_id) = 既定の参加先(tx.reader()).await? else {
+        return Ok(None);
+    };
+    let Some(先) = project::Entity::find_by_id(project_id)
+        .one(tx.reader())
+        .await?
+    else {
+        return Ok(None);
+    };
+
+    let now = Utc::now();
+    tx.insert_recorded(
+        project_member::ActiveModel {
+            user_id: Set(user.id),
+            project_id: Set(先.id),
+            role: Set(VIEWER.to_owned()),
+            admin_rank: Set(None),
+            created_at: Set(now),
+            updated_at: Set(now),
+            ..Default::default()
+        },
+        by,
+    )
+    .await?;
+    Ok(Some(先))
 }

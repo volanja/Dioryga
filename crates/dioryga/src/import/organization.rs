@@ -28,6 +28,12 @@
 //! 24.4の「取込は行ごとの監査ログを書かない」の例外（23.8）。倉庫とプロジェクトは
 //! 通常の取込と同じく `IMPORT_RUN` が追跡を担う。
 //!
+//! # 作った利用者は倉庫用のプロジェクトの Viewer に加える
+//!
+//! 画面で作ったときと同じ（#218、設計書16.1）。メンバーのCSVに倉庫用の
+//! プロジェクトの行があれば、**通常の行として後から当てる。**同じ Viewer の行なら
+//! 変更なし、別のロールなら兼務として足す。外すには `remove=true` を書く。
+//!
 //! # System Adminは作れない・変えられない
 //!
 //! 利用者のCSVに System Admin の列があればファイルごと拒否し、既存の System Admin
@@ -306,35 +312,41 @@ async fn 利用者を取り込む(
                 ));
                 continue;
             }
-            tx.insert_recorded(
-                app_user::ActiveModel {
-                    name: Set(name.to_owned()),
-                    username: Set(username.clone()),
-                    email: Set(email),
-                    // **パスワード未設定。**管理者がリセットするまでログインできない（23.8）
-                    password_hash: Set(String::new()),
-                    // **変更の強制はリセットが立てる。**ここで立てても意味が無い——
-                    // 空のハッシュでは誰もログインできず、ログインできるようにする
-                    // 唯一の経路（admin reset-password）が一時パスワードと同時に立てる。
-                    // 立てておくと、開発専用の自動ログイン（#128）で全画面がパスワード
-                    // 変更へ飛ばされ、取り込んだ利用者として画面を確かめられない（#131）
-                    must_change_password: Set(false),
-                    is_system_admin: Set(false),
-                    locale: Set(locale.unwrap_or_else(|| "ja".to_owned())),
-                    last_login_at: Set(None),
-                    disabled_at: Set(無効.unwrap_or(false).then_some(now)),
-                    created_at: Set(now),
-                    updated_at: Set(now),
-                    ..Default::default()
-                },
-                by,
-            )
-            .await?;
-            report.push(Entry::new(
-                Outcome::Created,
-                username,
-                "パスワード未設定。管理者がリセットするまでログインできません",
-            ));
+            let created = tx
+                .insert_recorded(
+                    app_user::ActiveModel {
+                        name: Set(name.to_owned()),
+                        username: Set(username.clone()),
+                        email: Set(email),
+                        // **パスワード未設定。**管理者がリセットするまでログインできない（23.8）
+                        password_hash: Set(String::new()),
+                        // **変更の強制はリセットが立てる。**ここで立てても意味が無い——
+                        // 空のハッシュでは誰もログインできず、ログインできるようにする
+                        // 唯一の経路（admin reset-password）が一時パスワードと同時に立てる。
+                        // 立てておくと、開発専用の自動ログイン（#128）で全画面がパスワード
+                        // 変更へ飛ばされ、取り込んだ利用者として画面を確かめられない（#131）
+                        must_change_password: Set(false),
+                        is_system_admin: Set(false),
+                        locale: Set(locale.unwrap_or_else(|| "ja".to_owned())),
+                        last_login_at: Set(None),
+                        disabled_at: Set(無効.unwrap_or(false).then_some(now)),
+                        created_at: Set(now),
+                        updated_at: Set(now),
+                        ..Default::default()
+                    },
+                    by,
+                )
+                .await?;
+            // **画面で作ったときと同じく、倉庫用のプロジェクトに Viewer として
+            // 加える**（#218）。無効で作った利用者も加える——有効に戻したときに
+            // 在庫が見えないままにならないよう、作ったときに加えておく
+            let 加えた先 = crate::setting::既定の参加先に加える(tx, &created, by).await?;
+            let mut detail =
+                "パスワード未設定。管理者がリセットするまでログインできません".to_owned();
+            if let Some(p) = 加えた先 {
+                detail.push_str(&format!("。「{}」に Viewer として加えました", p.name));
+            }
+            report.push(Entry::new(Outcome::Created, username, detail));
             continue;
         };
 

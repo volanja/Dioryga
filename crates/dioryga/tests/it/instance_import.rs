@@ -6,7 +6,7 @@
 
 use chrono::{Duration, Utc};
 use dioryga::import::{instances, Outcome};
-use entity::{app_user, device, device_assignment, project, warehouse};
+use entity::{device, device_assignment, project};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
 const 見出し: &str =
@@ -459,53 +459,42 @@ async fn 他のプロジェクトにある機器はエラー(db: &DatabaseConnec
 
 /// **既存の機器の所属は付け替えないこと**（#143）。
 ///
-/// 倉庫へ移した機器を普段の機器のCSVに書いたまま流し直しても、プロジェクトへ
-/// 戻さない。戻すと、流すたびに所属の履歴が増え（23.1）、倉庫からの払い出しが
-/// チケットなしに起きる。廃棄した機器も同じ。**機器の値の更新は通す。**
-async fn 倉庫や廃棄にある機器の所属は付け替えない(db: &DatabaseConnection) {
+/// 廃棄した機器を普段の機器のCSVに書いたまま流し直しても、プロジェクトへ
+/// 戻さない。戻すと、流すたびに所属の履歴が増える（23.1）。**機器の値の更新は
+/// 通す。**倉庫（倉庫用のプロジェクト）へ移した機器は、他のプロジェクトにある
+/// 機器としてエラーになる（別のテスト）。
+async fn 廃棄した機器の所属は付け替えない(db: &DatabaseConnection) {
     let p = プロジェクト(db, "付け替え検証").await;
-    let 倉庫 = 倉庫(db, "付け替え検証倉庫").await;
-    let 置いた = 機器(db, p.id, "spare01", Some("SN-SP"), None).await;
     let 捨てた = 機器(db, p.id, "old01", Some("SN-OLD"), None).await;
-    所属を移す(db, 置いた.id, "Warehouse", Some(倉庫.id)).await;
     所属を移す(db, 捨てた.id, "Disposed", None).await;
 
     let match_on = ["serial_number".to_owned()];
-    let 同じ値 = instances::parse_devices(&csv(&[
-        ",,spare01,SN-SP,,Physical,400,running",
-        ",,old01,SN-OLD,,Physical,400,running",
-    ]))
-    .unwrap();
+    let 同じ値 = instances::parse_devices(&csv(&[",,old01,SN-OLD,,Physical,400,running"])).unwrap();
     let report = instances::dry_run(db, p.id, &同じ値, &match_on)
         .await
         .unwrap();
-    assert_eq!(report.count(Outcome::Unchanged), 2, "{report}");
+    assert_eq!(report.count(Outcome::Unchanged), 1, "{report}");
 
     // 値が変われば機器は更新するが、所属には触れない
-    let 値を変える = instances::parse_devices(&csv(&[
-        ",,spare01,SN-SP,,Physical,400,standby",
-        ",,old01,SN-OLD,,Physical,400,standby",
-    ]))
-    .unwrap();
+    let 値を変える =
+        instances::parse_devices(&csv(&[",,old01,SN-OLD,,Physical,400,standby"])).unwrap();
     for _ in 0..2 {
         instances::apply(db, p.id, &値を変える, &match_on, Utc::now(), 1)
             .await
             .unwrap();
     }
 
-    for (d, 種別) in [(&置いた, "Warehouse"), (&捨てた, "Disposed")] {
-        let 後 = device::Entity::find_by_id(d.id)
-            .one(db)
-            .await
-            .unwrap()
-            .unwrap();
-        assert_eq!(後.status, "standby");
-        let 履歴 = 所属の履歴(db, d.id).await;
-        assert_eq!(履歴.len(), 2, "{種別}: 所属の履歴が増えています");
-        let 現在: Vec<_> = 履歴.iter().filter(|a| a.to_date.is_none()).collect();
-        assert_eq!(現在.len(), 1);
-        assert_eq!(現在[0].location_type, 種別);
-    }
+    let 後 = device::Entity::find_by_id(捨てた.id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(後.status, "standby");
+    let 履歴 = 所属の履歴(db, 捨てた.id).await;
+    assert_eq!(履歴.len(), 2, "所属の履歴が増えています");
+    let 現在: Vec<_> = 履歴.iter().filter(|a| a.to_date.is_none()).collect();
+    assert_eq!(現在.len(), 1);
+    assert_eq!(現在[0].location_type, "Disposed");
 }
 
 /// **`as_of` が履歴の `from_date` に使われること**（設計書23.1）。
@@ -653,22 +642,6 @@ async fn 所属を移す(
     .unwrap();
 }
 
-async fn 倉庫(db: &DatabaseConnection, name: &str) -> warehouse::Model {
-    let u = 利用者(db, &format!("{}@example.com", uuid::Uuid::new_v4())).await;
-    warehouse::ActiveModel {
-        name: Set(name.to_owned()),
-        address: Set(String::new()),
-        retired_at: Set(None),
-        created_by: Set(u.id),
-        created_at: Set(Utc::now()),
-        updated_at: Set(Utc::now()),
-        ..Default::default()
-    }
-    .insert(db)
-    .await
-    .unwrap()
-}
-
 async fn プロジェクト(db: &DatabaseConnection, name: &str) -> project::Model {
     project::ActiveModel {
         uid: Set(uuid::Uuid::new_v4().to_string()),
@@ -733,26 +706,6 @@ async fn 機器(
 }
 
 /// 倉庫の作成者に使う。
-async fn 利用者(db: &DatabaseConnection, email: &str) -> app_user::Model {
-    app_user::ActiveModel {
-        name: Set("取込".to_owned()),
-        username: Set((email.to_owned()).replace('@', "_")),
-        email: Set(Some(email.to_owned())),
-        password_hash: Set("$argon2id$dummy".to_owned()),
-        must_change_password: Set(false),
-        is_system_admin: Set(false),
-        locale: Set("ja".to_owned()),
-        last_login_at: Set(None),
-        disabled_at: Set(None),
-        created_at: Set(Utc::now()),
-        updated_at: Set(Utc::now()),
-        ..Default::default()
-    }
-    .insert(db)
-    .await
-    .unwrap()
-}
-
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, uidで突合する);
@@ -767,7 +720,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, ファイル内の重複はエラー);
         全検証!(@one $用意, $属性, 二度流しても履歴が増えない);
         全検証!(@one $用意, $属性, 他のプロジェクトにある機器はエラー);
-        全検証!(@one $用意, $属性, 倉庫や廃棄にある機器の所属は付け替えない);
+        全検証!(@one $用意, $属性, 廃棄した機器の所属は付け替えない);
         全検証!(@one $用意, $属性, as_ofが履歴の開始日になる);
         全検証!(@one $用意, $属性, 語彙外の値は拒否される);
         全検証!(@one $用意, $属性, 種別の旧表記は拒否される);

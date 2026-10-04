@@ -1,6 +1,6 @@
 //! 組織データの取込（設計書23.8、#130）。
 //!
-//! 利用者・倉庫・プロジェクト・メンバーを扱う。**System Adminだけが流す**
+//! 利用者・プロジェクト・メンバーを扱う。**System Adminだけが流す**
 //! （3章の境界。プロジェクトのデータとは別のマニフェストにする）。
 //!
 //! ```yaml
@@ -8,7 +8,6 @@
 //! kind: organization
 //! files:
 //!   - { entity: user,           path: users.csv }
-//!   - { entity: warehouse,      path: warehouses.csv }
 //!   - { entity: project,        path: projects.csv }
 //!   - { entity: project_member, path: members.csv }
 //! ```
@@ -25,7 +24,7 @@
 //!
 //! # 利用者と役割の変更は、行ごとに監査ログを残す
 //!
-//! 24.4の「取込は行ごとの監査ログを書かない」の例外（23.8）。倉庫とプロジェクトは
+//! 24.4の「取込は行ごとの監査ログを書かない」の例外（23.8）。プロジェクトは
 //! 通常の取込と同じく `IMPORT_RUN` が追跡を担う。
 //!
 //! # 作った利用者は倉庫用のプロジェクトの Viewer に加える
@@ -47,7 +46,7 @@
 use std::collections::HashMap;
 
 use chrono::Utc;
-use entity::{app_user, project, project_member, warehouse};
+use entity::{app_user, project, project_member};
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
 
@@ -98,7 +97,6 @@ pub fn parse_manifest(source: &str) -> Result<Manifest, ImportError> {
 #[derive(Debug, Default)]
 pub struct 組織の束 {
     pub users: Vec<UserRow>,
-    pub warehouses: Vec<WarehouseRow>,
     pub projects: Vec<ProjectRow>,
     pub members: Vec<MemberRow>,
 }
@@ -122,14 +120,6 @@ pub struct UserRow {
     /// `active` / `disabled`。**無効化はここに明示したときだけ行う。**
     #[serde(default)]
     pub status: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct WarehouseRow {
-    pub name: String,
-    /// 空欄なら変えない。
-    #[serde(default)]
-    pub address: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -188,10 +178,6 @@ pub fn parse_users(source: &str) -> Result<Vec<UserRow>, ImportError> {
     super::placement::読み取る(source)
 }
 
-pub fn parse_warehouses(source: &str) -> Result<Vec<WarehouseRow>, ImportError> {
-    super::placement::読み取る(source)
-}
-
 pub fn parse_projects(source: &str) -> Result<Vec<ProjectRow>, ImportError> {
     super::placement::読み取る(source)
 }
@@ -204,16 +190,13 @@ pub fn parse_members(source: &str) -> Result<Vec<MemberRow>, ImportError> {
 // 取込
 // ---------------------------------------------------------------------------
 
-/// 依存順（利用者 → 倉庫 → プロジェクト → メンバー）に、同じトランザクションで流す。
+/// 依存順（利用者 → プロジェクト → メンバー）に、同じトランザクションで流す。
 ///
-/// `by` は取込を行う System Admin。倉庫の `created_by` と、監査ログの主体になる。
+/// `by` は取込を行う System Admin。監査ログの主体になる。
 pub async fn 取り込む(
     tx: &AuditedTx, 束: &組織の束, by: i32
 ) -> Result<Report, ImportError> {
     let mut report = 利用者を取り込む(tx, &束.users, by).await?;
-    report
-        .entries
-        .extend(倉庫を取り込む(tx, &束.warehouses, by).await?.entries);
     report
         .entries
         .extend(プロジェクトを取り込む(tx, &束.projects).await?.entries);
@@ -413,74 +396,6 @@ async fn 利用者を取り込む(
                 ""
             },
         ));
-    }
-
-    Ok(report)
-}
-
-async fn 倉庫を取り込む(
-    tx: &AuditedTx,
-    rows: &[WarehouseRow],
-    by: i32,
-) -> Result<Report, ImportError> {
-    let mut report = Report::default();
-    let mut 出現: HashMap<String, usize> = HashMap::new();
-
-    for (i, row) in rows.iter().enumerate() {
-        let name = row.name.trim().to_owned();
-        if name.is_empty() {
-            report.push(Entry::new(Outcome::Error, "(倉庫)", "name が空です"));
-            continue;
-        }
-        if let Some(前) = 出現.insert(name.clone(), i) {
-            report.push(Entry::new(
-                Outcome::Error,
-                name,
-                format!("倉庫名が{}行目と重複しています", 前 + 2),
-            ));
-            continue;
-        }
-
-        let 既存 = warehouse::Entity::find()
-            .filter(warehouse::Column::Name.eq(&name))
-            .all(tx.reader())
-            .await?;
-        let address = row.address.trim();
-        let now = Utc::now();
-
-        match 既存.as_slice() {
-            [] => {
-                tx.insert(warehouse::ActiveModel {
-                    name: Set(name.clone()),
-                    address: Set(address.to_owned()),
-                    created_by: Set(by),
-                    created_at: Set(now),
-                    updated_at: Set(now),
-                    ..Default::default()
-                })
-                .await?;
-                report.push(Entry::new(Outcome::Created, name, ""));
-            }
-            [w] => {
-                if address.is_empty() || address == w.address {
-                    report.push(Entry::new(Outcome::Unchanged, name, ""));
-                    continue;
-                }
-                let mut active: warehouse::ActiveModel = w.clone().into();
-                active.address = Set(address.to_owned());
-                active.updated_at = Set(now);
-                tx.update(w, active).await?;
-                report.push(Entry::new(Outcome::Updated, name, ""));
-            }
-            多数 => report.push(Entry::new(
-                Outcome::Error,
-                name,
-                format!(
-                    "同じ名前の倉庫が{}件あります。取込では区別できません",
-                    多数.len()
-                ),
-            )),
-        }
     }
 
     Ok(report)

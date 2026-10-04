@@ -12,7 +12,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     pub device_id: i32,
-    /// Warehouse / Project / Disposed
+    /// Project / Disposed。倉庫は倉庫用のプロジェクト（#196、#220）
     pub location_type: String,
     /// Disposed のときは null。
     pub location_id: Option<i32>,

@@ -17,7 +17,7 @@ use dioryga::config::Config;
 use dioryga::import::run::{self, RunError};
 use dioryga::import::{ImportError, Outcome};
 use dioryga::server::{router, AppState};
-use entity::{app_setting, app_user, audit_log, import_run, project, project_member, warehouse};
+use entity::{app_setting, app_user, audit_log, import_run, project, project_member};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
     Set,
@@ -48,11 +48,11 @@ async fn system_admin以外は流せない(db: &DatabaseConnection) {
     );
 }
 
-/// 利用者・倉庫・プロジェクト・メンバーを1回で取り込めること。
+/// 利用者・プロジェクト・メンバーを1回で取り込めること。
 ///
 /// **新しい利用者はパスワード未設定で、System Admin にならない**（23.8）。
 async fn 組織データを取り込める(db: &DatabaseConnection) {
-    let admin = 管理者(db).await;
+    let _ = 管理者(db).await;
     let dir = 取込ファイル(&[
         (
             "project_member",
@@ -60,7 +60,6 @@ async fn 組織データを取り込める(db: &DatabaseConnection) {
             &format!("{メンバーの見出し}KATAKURI-01,yarigatake,Administrator,Primary,\nKATAKURI-01,hotaka,Operator,,\n"),
         ),
         ("project", "projects.csv", "uid,code,name,description,currency\n,KATAKURI-01,カタクリ基盤更改,,USD\n"),
-        ("warehouse", "warehouses.csv", "name,address\n白馬倉庫,第1棟\n"),
         (
             "user",
             "users.csv",
@@ -74,7 +73,7 @@ async fn 組織データを取り込める(db: &DatabaseConnection) {
     assert!(!実行.report.has_error(), "{}", 詳細(&実行.report));
     assert_eq!(
         実行.report.count(Outcome::Created),
-        6,
+        5,
         "{}",
         詳細(&実行.report)
     );
@@ -88,12 +87,6 @@ async fn 組織データを取り込める(db: &DatabaseConnection) {
     assert!(!yari.is_system_admin);
     assert_eq!(yari.email.as_deref(), Some("yarigatake@example.invalid"));
     assert_eq!(利用者を引く(db, "hotaka").await.unwrap().locale, "en");
-
-    let w = warehouse::Entity::find().one(db).await.unwrap().unwrap();
-    assert_eq!(
-        (w.name.as_str(), w.address.as_str(), w.created_by),
-        ("白馬倉庫", "第1棟", admin.id)
-    );
 
     let p = project::Entity::find()
         .filter(project::Column::Code.eq("KATAKURI-01"))
@@ -121,11 +114,6 @@ async fn 二度流しても変わらない(db: &DatabaseConnection) {
             "user",
             "users.csv",
             &format!("{利用者の見出し}hotaka,穂高 古城,hotaka@example.invalid,ja,active\n"),
-        ),
-        (
-            "warehouse",
-            "warehouses.csv",
-            "name,address\n白馬倉庫,第1棟\n",
         ),
         (
             "project",
@@ -160,7 +148,7 @@ async fn 二度流しても変わらない(db: &DatabaseConnection) {
     );
     assert_eq!(
         二回目.report.count(Outcome::Unchanged),
-        4,
+        3,
         "{}",
         詳細(&二回目.report)
     );
@@ -403,7 +391,7 @@ async fn 明示の無効化と除外は反映される(db: &DatabaseConnection) 
 
 /// **利用者の追加・役割付与が監査ログに1行ずつ残ること**（23.8、24.4の例外）。
 ///
-/// 倉庫とプロジェクトは通常の取込と同じく行ごとには残さない。
+/// プロジェクトは通常の取込と同じく行ごとには残さない。
 async fn 利用者と役割の変更は監査ログに残る(db: &DatabaseConnection) {
     let admin = 管理者(db).await;
     let dir = 取込ファイル(&[
@@ -412,7 +400,6 @@ async fn 利用者と役割の変更は監査ログに残る(db: &DatabaseConnec
             "users.csv",
             &format!("{利用者の見出し}hotaka,穂高 古城,,,\ntateyama,立山 滝見,,,\n"),
         ),
-        ("warehouse", "warehouses.csv", "name,address\n白馬倉庫,\n"),
         (
             "project",
             "projects.csv",
@@ -446,8 +433,19 @@ async fn 利用者と役割の変更は監査ログに残る(db: &DatabaseConnec
         1,
         "役割の付与が残っていません"
     );
-    assert_eq!(件数("warehouse").await.unwrap(), 0);
     assert_eq!(件数("project").await.unwrap(), 0);
+}
+
+/// **倉庫のCSVは受け付けないこと**（#220）。
+///
+/// 倉庫は倉庫用のプロジェクトになった。黙って読み飛ばさず、マニフェストごと拒否する。
+async fn 倉庫は取り込めない(db: &DatabaseConnection) {
+    let _ = 管理者(db).await;
+    let dir = 取込ファイル(&[("warehouse", "warehouses.csv", "name,address\n白馬倉庫,\n")]);
+    let Err(e) = run::run(db, &dir.join("manifest.yaml"), "admin", true).await else {
+        panic!("倉庫のCSVを受け付けています");
+    };
+    assert!(e.to_string().contains("warehouse"), "{e}");
 }
 
 /// **正管理者が2人になる取込はエラーにし、何も入れないこと**（5章、A-5）。
@@ -697,6 +695,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, system_admin以外は流せない);
         全検証!(@one $用意, $属性, 組織データを取り込める);
         全検証!(@one $用意, $属性, 二度流しても変わらない);
+        全検証!(@one $用意, $属性, 倉庫は取り込めない);
         全検証!(@one $用意, $属性, 取り込んだ利用者は倉庫プロジェクトのviewerになる);
         全検証!(@one $用意, $属性, パスワードの列があれば拒否する);
         全検証!(@one $用意, $属性, system_adminは作れず変えられない);

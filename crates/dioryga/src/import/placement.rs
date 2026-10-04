@@ -12,7 +12,7 @@
 //! これにより**同じファイルを何度流しても結果が変わらない。**命令形にすると
 //! 2回流した時点で履歴行が重複し、事実が壊れる。
 //!
-//! # 所属の移動先はこのプロジェクトか倉庫に限る
+//! # 所属の移動先はこのプロジェクトか廃棄に限る
 //!
 //! **他プロジェクトへ移す取込は受け付けない。**23.5の「1つの取込ファイルは
 //! 1プロジェクトに閉じる」に反し、**取込ファイル1つで他プロジェクトのデータを
@@ -23,20 +23,21 @@
 //! このプロジェクトにあった機器も入るため、移譲された機器を書けば引き戻せて
 //! しまう。行はエラーにする。
 //!
-//! したがって `location_type` に書けるのは次の3つ。
+//! したがって `location_type` に書けるのは次の2つ。
 //!
 //! | 値 | 意味 |
 //! |---|---|
-//! | `Project` | マニフェストのプロジェクト。`location_name` は書かない |
-//! | `Warehouse` | 倉庫。`location_name` に倉庫名が要る |
+//! | `Project` | マニフェストのプロジェクト |
 //! | `Disposed` | 廃棄。参照先を持たない |
+//!
+//! **倉庫は倉庫用のプロジェクトである**（#196、#220）。予備を倉庫へ移すのは、
+//! 倉庫用のプロジェクトへの移譲（Transfer）になる。旧い `Warehouse` はエラーにする。
 //!
 //! # 什器はプロジェクトのものだけを作る（#139）
 //!
 //! `MOUNT_CONTAINER` も同じファイルで書ける。**置き場所はマニフェストの
-//! プロジェクトに限る。**1つの取込ファイルは1プロジェクトに閉じ（23.5）、
-//! 倉庫の中の配置は倉庫領域の担当である（16.1のC領域）。搭載のCSVが倉庫の
-//! 什器を指せないのと同じ線引きになる。
+//! プロジェクトに限る。**1つの取込ファイルは1プロジェクトに閉じる（23.5）。
+//! 倉庫の棚も、倉庫用のプロジェクトのマニフェストで書く。
 //!
 //! 什器は履歴を持たない。**プロジェクトの中の名前で突き合わせ、違っていれば
 //! その行を更新する**（サブネットと同じ扱い）。ファイルに書かれていない什器
@@ -53,9 +54,7 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
-use entity::{
-    container_model, device, device_assignment, device_mount, mount_container, vendor, warehouse,
-};
+use entity::{container_model, device, device_assignment, device_mount, mount_container, vendor};
 use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
 
@@ -63,7 +62,6 @@ use super::{Entry, ImportError, Outcome, Report};
 use crate::repository::{Actor, AuditedTx};
 
 const PROJECT: &str = "Project";
-const WAREHOUSE: &str = "Warehouse";
 const DISPOSED: &str = "Disposed";
 
 const LEFT: &str = "Left";
@@ -375,11 +373,8 @@ pub struct AssignmentRow {
     pub hostname: String,
     #[serde(default)]
     pub serial_number: String,
-    /// Project / Warehouse / Disposed。
+    /// Project / Disposed。
     pub location_type: String,
-    /// `Warehouse` のときだけ意味を持つ。
-    #[serde(default)]
-    pub location_name: String,
 }
 
 impl AssignmentRow {
@@ -673,7 +668,6 @@ async fn 所属を計画する<C: ConnectionTrait>(
     rows: &[AssignmentRow],
 ) -> Result<(Report, Vec<所属の計画>), ImportError> {
     let 索引 = 機器の索引::作る(db, project_id).await?;
-    let 倉庫 = 倉庫の索引(db).await?;
 
     let mut report = Report::default();
     let mut planned = Vec::new();
@@ -692,28 +686,18 @@ async fn 所属を計画する<C: ConnectionTrait>(
 
         let (location_type, location_id) = match row.location_type.trim() {
             PROJECT => (PROJECT.to_owned(), Some(project_id)),
-            WAREHOUSE => {
-                let Some(name) = 空ならnone(&row.location_name) else {
-                    report.push(Entry::new(
-                        Outcome::Error,
-                        表示,
-                        "location_type=Warehouse には location_name が要ります",
-                    ));
-                    continue;
-                };
-                match 倉庫.get(name) {
-                    Some(id) => (WAREHOUSE.to_owned(), Some(*id)),
-                    None => {
-                        report.push(Entry::new(
-                            Outcome::Error,
-                            表示,
-                            format!("倉庫「{name}」が見つかりません"),
-                        ));
-                        continue;
-                    }
-                }
-            }
             DISPOSED => (DISPOSED.to_owned(), None),
+            // **倉庫は倉庫用のプロジェクトになった**（#220）。旧い値を黙って
+            // 読み替えず、移し方を案内する
+            "Warehouse" => {
+                report.push(Entry::new(
+                    Outcome::Error,
+                    表示,
+                    "location_type「Warehouse」は使えなくなりました。\
+                     倉庫は倉庫用のプロジェクトです。倉庫へ移すには変更管理チケット（Transfer）を使ってください",
+                ));
+                continue;
+            }
             other => {
                 // **他プロジェクトへの移動は受け付けない**（23.5）。
                 // 移譲は変更管理チケットの担当（11章）
@@ -721,7 +705,7 @@ async fn 所属を計画する<C: ConnectionTrait>(
                     Outcome::Error,
                     表示,
                     format!(
-                        "location_type「{other}」は扱えません。Project / Warehouse / Disposed のいずれかです"
+                        "location_type「{other}」は扱えません。Project / Disposed のいずれかです"
                     ),
                 ));
                 continue;
@@ -784,20 +768,6 @@ async fn 現在の所属<C: ConnectionTrait>(
         .filter(device_assignment::Column::ToDate.is_null())
         .one(db)
         .await
-}
-
-async fn 倉庫の索引<C: ConnectionTrait>(
-    db: &C,
-) -> Result<HashMap<String, i32>, sea_orm::DbErr> {
-    // **廃止した倉庫は置き場の候補にしない**（#133）。名前で解決できなくなるため、
-    // 廃止後に同じ名前で取り込むと「倉庫が見つかりません」になる
-    Ok(warehouse::Entity::find()
-        .filter(warehouse::Column::RetiredAt.is_null())
-        .all(db)
-        .await?
-        .into_iter()
-        .map(|w| (w.name, w.id))
-        .collect())
 }
 
 pub async fn assignments_dry_run(
@@ -1099,8 +1069,7 @@ async fn 現在の搭載<C: ConnectionTrait>(
         .await
 }
 
-/// このプロジェクトの什器（12.1）。**倉庫の什器は含めない**——搭載のCSVは
-/// プロジェクトに閉じており、倉庫内の配置は倉庫領域の担当である（16.1のC領域）。
+/// このプロジェクトの什器（12.1）。搭載のCSVはプロジェクトに閉じる（23.5）。
 ///
 /// **撤去した設備は含めない**（12.10、#204）。鍵は大文字小文字を区別しない名前。
 async fn 什器の索引<C: ConnectionTrait>(
@@ -1192,15 +1161,15 @@ mod tests {
     #[test]
     fn 所属のcsvを読める() {
         let rows = parse_assignments(
-            "uid,external_id,hostname,serial_number,location_type,location_name\n\
-             ,,web01,,Warehouse,本社倉庫\n\
-             ,,web02,,Disposed,\n",
+            "uid,external_id,hostname,serial_number,location_type\n\
+             ,,web01,,Project\n\
+             ,,web02,,Disposed\n",
         )
         .unwrap();
 
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0].hostname, "web01");
-        assert_eq!(rows[0].location_name, "本社倉庫");
+        assert_eq!(rows[0].location_type, "Project");
         assert_eq!(rows[1].location_type, "Disposed");
     }
 

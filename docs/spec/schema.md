@@ -211,13 +211,13 @@
 **`in_stock`/`disposed` は `status` に持たない**（DEVICE_ASSIGNMENTから導出。旧B-1）。**修理中は `health` に持たない**（未完了の `Repair` のWORK_ORDERから導出。6.3）。
 
 ### DEVICE_ASSIGNMENT (6.2) — 履歴
-`device_id`(FK), `location_type`(Warehouse/Project/Disposed), `location_id`(nullable、Disposedはnull), `work_order_id`, `from_date`, `to_date`
+`device_id`(FK), `location_type`(Project/Disposed), `location_id`(nullable、Disposedはnull), `work_order_id`, `from_date`, `to_date`
 
 ### PART_INSTANCE (6.2)
 `part_catalog_id`(FK), `serial_number`, `status`, `health`（語彙はDEVICEと同じ。**`health` は機器と独立**。6.3）
 
 ### PART_INSTANCE_LOCATION (6.2, 12.4) — 履歴
-`part_instance_id`(FK), `location_type`(Warehouse/Device/MountContainer/Project/Disposed), `location_id`, `chassis_slot_id`(nullable、location_type=Deviceのみ、**任意項目**), `work_order_id`, `from_date`, `to_date`
+`part_instance_id`(FK), `location_type`(Device/MountContainer/Project/Disposed), `location_id`, `chassis_slot_id`(nullable、location_type=Deviceのみ、**任意項目**), `work_order_id`, `from_date`, `to_date`
 
 **部品も機器と同じく、設備・什器に置いても、どこにも載せずプロジェクトに置いてもよい**（16.1、#219）。`MountContainer` は `MOUNT_CONTAINER.id`、`Project` は `PROJECT.id` を指す。**設備・什器の上の位置（棚の段）は持たない。**部品がどのプロジェクトのものかは列に持たず、置き場所からたどる（機器なら機器の所属、設備・什器なら設備・什器の置き場所）。
 
@@ -243,8 +243,7 @@
 
 ## 4. 物理設置・電源（12章）
 
-### WAREHOUSE
-`name`, `address`, `created_by`(FK User)
+**倉庫のテーブルは持たない**（#220）。予備の機器・部品は、最初から用意する倉庫用のプロジェクト（`APP_SETTING.default_project_id`）に置く。
 
 ### CONTAINER_MODEL（12.10）
 設備・什器の型番（共有カタログ）。`vendor_id`(FK Vendor), `model_name`（自然キーは `(vendor_id, model_name)`）, `container_type`(Rack/Desk/Shelving), `height_u`（Rackのみ）, `shelf_count`（Shelvingのみ）, `width_mm` / `depth_mm` / `height_mm`, `weight_g`, `static_load_g`（静荷重）, `retired_at`, `created_by`(FK User)
@@ -252,7 +251,7 @@
 種別に合わない収容能力は持たせない（Rackは `height_u` が必須で `shelf_count` を持たない、Shelvingはその逆、Deskはどちらも持たない）。
 
 ### MOUNT_CONTAINER
-`name`, `container_model_id`(FK CONTAINER_MODEL), `location_type`(Warehouse/Project), `location_id`, `installation_site`（nullable、自由記述）, `retired_at`, `created_by`(FK User)
+`name`, `container_model_id`(FK CONTAINER_MODEL), `location_type`(Project), `location_id`, `installation_site`（nullable、自由記述）, `retired_at`, `created_by`(FK User)
 
 - 種別と収容能力は型番が持つ。`container_model_id` はDB上 NULL を許すが（SQLiteで外部キー列を後から足すため）、アプリケーション層では必須
 - 名前は置き場所の中で一意で、大文字小文字を区別しない。一意の範囲は `retired_at IS NULL` の行に限る

@@ -97,7 +97,7 @@ impl Theme {
 ///
 /// # メニューの形（#122）
 ///
-/// - **上部**：領域（プロジェクト／倉庫／共有カタログ／個人設定）。頻繁には切り替えない
+/// - **上部**：領域（プロジェクト／共有カタログ／個人設定）。頻繁には切り替えない
 /// - **左**：**今いる領域の中の画面。**頻繁に行き来するのはこちら
 ///
 /// どちらも**今いる場所に印を付ける。**詳細画面では親の一覧に付ける（#118）。
@@ -126,7 +126,7 @@ pub struct Chrome {
 
 /// メニューの1項目。
 pub struct NavItem {
-    /// 見出し（プロジェクト名・倉庫名）はリンクにしない。
+    /// 見出し（プロジェクト名）はリンクにしない。
     pub href: Option<String>,
     pub label: String,
     pub current: bool,
@@ -218,17 +218,12 @@ fn t(key: &str, l: &str) -> String {
 }
 
 impl Chrome {
-    /// 領域の一覧画面。`nav` は `projects` / `warehouses` / `account` /
-    /// `users` / `admin_projects`。左メニューはその一覧だけを持つ。
+    /// 領域の一覧画面。`nav` は `projects` / `account` / `users` /
+    /// `admin_projects`。左メニューはその一覧だけを持つ。
     pub fn new(user: &entity::app_user::Model, csrf_token: String, nav: &'static str) -> Self {
         let l = Locale::parse(&user.locale).as_str();
         let side = match nav {
             "projects" => vec![NavItem::link("/projects", t("nav.project_list", l), true)],
-            "warehouses" => vec![NavItem::link(
-                "/warehouses",
-                t("nav.warehouse_list", l),
-                true,
-            )],
             // 個人設定は [`Chrome::account`] を使う。ここへは来ない
             "account" => Vec::new(),
             "users" => vec![NavItem::link("/admin/users", t("nav.user_list", l), true)],
@@ -315,33 +310,6 @@ impl Chrome {
         Self::組む(user, csrf_token, "projects", side)
     }
 
-    /// 倉庫の中の画面（#122）。`sub` は `devices` / `parts`。
-    pub fn warehouse(
-        user: &entity::app_user::Model,
-        csrf_token: String,
-        warehouse_id: i32,
-        warehouse_name: &str,
-        sub: &'static str,
-    ) -> Self {
-        let l = Locale::parse(&user.locale).as_str();
-        let base = format!("/warehouses/{warehouse_id}");
-        let side = vec![
-            NavItem::link("/warehouses", t("nav.warehouse_list", l), false),
-            NavItem::heading(warehouse_name.to_owned()),
-            NavItem::sub(
-                format!("{base}/devices"),
-                t("nav.stored_devices", l),
-                sub == "devices",
-            ),
-            NavItem::sub(
-                format!("{base}/parts"),
-                t("nav.stored_parts", l),
-                sub == "parts",
-            ),
-        ];
-        Self::組む(user, csrf_token, "warehouses", side)
-    }
-
     fn 組む(
         user: &entity::app_user::Model,
         csrf_token: String,
@@ -349,7 +317,7 @@ impl Chrome {
         side: Vec<NavItem>,
     ) -> Self {
         let l = Locale::parse(&user.locale).as_str();
-        // **System Adminはプロジェクトの中・倉庫・カタログに入れない**（3章）。
+        // **System Adminはプロジェクトの中・カタログに入れない**（3章）。
         // 出しても入れない項目は並べない
         let top = if user.is_system_admin {
             vec![
@@ -365,7 +333,6 @@ impl Chrome {
         } else {
             vec![
                 NavItem::link("/projects", t("nav.projects", l), nav == "projects"),
-                NavItem::link("/warehouses", t("warehouses.title", l), nav == "warehouses"),
                 NavItem::link("/catalog", t("catalog.nav", l), nav == "catalog"),
                 // 個人設定の先頭の画面へ入る（#120）
                 NavItem::link("/account/display", t("nav.account", l), nav == "account"),

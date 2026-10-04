@@ -45,7 +45,6 @@ lint:
       - public.configuration.created_by
       - public.cable_catalog.created_by
       - public.software_catalog.created_by
-      - public.warehouse.created_by
       - public.mount_container.created_by
       - public.container_model.created_by
       - public.audit_log.user_id
@@ -237,7 +236,7 @@ comments:
       機器の所在 — **履歴テーブル。**`to_date IS NULL` が現在有効な行であり、
       既存行を更新せず「閉じて開く」（不変条件1）。
     columnComments:
-      location_type: Warehouse / Project / Disposed。**多態的参照のため外部キーを持てない**（旧C-7）
+      location_type: Project / Disposed。**多態的参照のため外部キーを持てない**（旧C-7）。倉庫は倉庫用のプロジェクト（#220）
       location_id: Disposed のときは null
       work_order_id: この変更を引き起こしたWORK_ORDER（11章）。**WORK_ORDER未作成のため外部キーは未設定**
       to_date: null が現在有効な行
@@ -380,14 +379,10 @@ comments:
       work_order_id: "**WORK_ORDER未作成のため外部キーは未設定**"
 
   # --- 物理設置 -------------------------------------------------------------
-  - table: warehouse
-    tableComment: 倉庫。プロジェクトを横断する未割当機器の置き場（12章）。
-    columnComments:
-      retired_at: null = 現役。所在の履歴が指し続けるため、使ったことのある倉庫は消さず廃止する（#133）
   - table: mount_container
     tableComment: 機器を載せる設備・什器（ラック・机・棚、12章）。名前は置き場所の中で一意で、大文字小文字を区別しない（撤去していないものに限る、#204）
     columnComments:
-      location_type: Warehouse / Project。多態的参照のため外部キーを持てない
+      location_type: Project。多態的参照のため外部キーを持てない（倉庫の棚も倉庫用のプロジェクトに置く、#220）
       retired_at: null = 現役。搭載の履歴や費用の記録が指し続けるため、使ったことのある設備は消さず撤去済みにする（#204）
       installation_site: 設置場所（自由記述、#206）。置き場所（location_type）は所有者であって物理的な場所ではない
       container_model_id: 型番（#205）。種別と収容能力は型番が持つ。SQLiteで外部キー列を後から足したためDB上は NULL を許すが、アプリケーション層では必須

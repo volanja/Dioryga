@@ -12,7 +12,7 @@ use dioryga::auth::session;
 use dioryga::auth::setup::SetupState;
 use dioryga::config::Config;
 use dioryga::server::{router, AppState};
-use entity::{app_user, project, project_member, warehouse};
+use entity::{app_user, project, project_member};
 use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
 use std::sync::Arc;
 use tower::ServiceExt;
@@ -127,32 +127,19 @@ async fn プロジェクト一覧の左メニュー(db: &DatabaseConnection) {
 // 倉庫・個人設定・System Admin
 // ---------------------------------------------------------------------------
 
-/// 倉庫を開くと、倉庫名の下に中の画面が並ぶこと。
-async fn 倉庫の中の画面が並ぶ(db: &DatabaseConnection) {
+/// **上部に倉庫の領域を出さないこと**（#220）。
+///
+/// 倉庫は倉庫用のプロジェクトになった（#196）。予備はプロジェクトの画面で扱う。
+async fn 倉庫の領域は出さない(db: &DatabaseConnection) {
     let user = 利用者(db, "nav-warehouse", false, false).await;
     let p = プロジェクト(db, "倉庫の検証").await;
     メンバー(db, user.id, p.id, "Viewer").await;
-    let w = 倉庫(db, user.id, "第一倉庫").await;
 
-    let body = 開く(db, &user, &format!("/warehouses/{}/parts", w.id)).await;
-    let 左 = 左メニュー(&body);
-    assert!(左.contains(r#"href="/warehouses" class="""#), "{左}");
-    assert!(
-        左.contains(r#"<span class="heading">第一倉庫</span>"#),
-        "{左}"
-    );
-    assert!(
-        左.contains(&format!(
-            r#"href="/warehouses/{}/parts" class="sub current""#,
-            w.id
-        )),
-        "{左}"
-    );
-    assert_eq!(左.matches("current").count(), 1, "{左}");
-    assert!(
-        上部メニュー(&body).contains(r#"href="/warehouses" class="current""#),
-        "{body}"
-    );
+    let body = 開く(db, &user, "/projects").await;
+    let 上 = 上部メニュー(&body);
+    assert!(上.contains(r#"href="/projects" class="current""#), "{上}");
+    assert!(上.contains(r#"href="/catalog""#), "{上}");
+    assert!(!上.contains("/warehouses"), "{上}");
 }
 
 /// **個人設定はメニューつきで出し、強制変更のときはメニューを出さないこと。**
@@ -335,20 +322,6 @@ async fn メンバー(db: &DatabaseConnection, user_id: i32, project_id: i32, ro
     .unwrap();
 }
 
-async fn 倉庫(db: &DatabaseConnection, user_id: i32, name: &str) -> warehouse::Model {
-    warehouse::ActiveModel {
-        name: Set(name.to_owned()),
-        address: Set("東京".to_owned()),
-        created_by: Set(user_id),
-        created_at: Set(Utc::now()),
-        updated_at: Set(Utc::now()),
-        ..Default::default()
-    }
-    .insert(db)
-    .await
-    .unwrap()
-}
-
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, ダッシュボードにプロジェクトの画面が並ぶ);
@@ -356,7 +329,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 閲覧者には取込が出ない);
         全検証!(@one $用意, $属性, 機器一覧にボタン列が無い);
         全検証!(@one $用意, $属性, プロジェクト一覧の左メニュー);
-        全検証!(@one $用意, $属性, 倉庫の中の画面が並ぶ);
+        全検証!(@one $用意, $属性, 倉庫の領域は出さない);
         全検証!(@one $用意, $属性, 個人設定と強制変更);
         全検証!(@one $用意, $属性, システム管理者の上部メニュー);
         全検証!(@one $用意, $属性, ステータスバーに版が出る);

@@ -1453,12 +1453,13 @@ async fn 部品の廃棄は部品の所在だけを変える(db: &DatabaseConnec
     // 機器は残る
     assert_eq!(現在の所属(db, device_id).await, Some(場.project_id));
 
-    // 起票元にない部品（倉庫の予備など）は捨てられない
+    // 起票元にない部品（倉庫用のプロジェクトの予備など）は捨てられない
+    let 倉庫 = プロジェクト(db, "部品の倉庫").await;
     let 倉庫の部品 = 部品(db, 場.user.id, "MEM-DSP-2").await;
     part_instance_location::ActiveModel {
         part_instance_id: Set(倉庫の部品.id),
-        location_type: Set("Warehouse".to_owned()),
-        location_id: Set(None),
+        location_type: Set("Project".to_owned()),
+        location_id: Set(Some(倉庫.id)),
         from_date: Set(Utc::now()),
         to_date: Set(None),
         ..Default::default()

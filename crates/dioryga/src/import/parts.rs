@@ -1,7 +1,8 @@
 //! 部品の取込（設計書23.5、6.2、12.4）。
 //!
 //! `PART_INSTANCE`（部品の実物）と、その所在 `PART_INSTANCE_LOCATION` を扱う。
-//! 所在は `location_type=Device` なら搭載中、`Warehouse` なら在庫（12.4）。
+//! 所在は `location_type=Device` なら搭載中（12.4）。予備は倉庫用のプロジェクトの
+//! 棚かプロジェクトに置く（#196）。
 //!
 //! # 部品も機器と同じく、棚に置いてもプロジェクトに置いてもよい（#219、16.1）
 //!
@@ -10,7 +11,6 @@
 //! | `Device` | 機器に載っている（`location_hostname` にホスト名） | 書かない |
 //! | `MountContainer` | 設備・什器（ラック・棚）に置いてある | 設備・什器の名前 |
 //! | `Project` | どこにも載せずプロジェクトに置いてある | 書かない |
-//! | `Warehouse` | 倉庫（#220 で消す） | 倉庫名 |
 //! | `Disposed` | 廃棄 | 書かない |
 //!
 //! **置けるのはこのプロジェクトの設備・什器と、このプロジェクトだけ。**1つの
@@ -49,7 +49,7 @@
 //! 同じ）。移譲された部品を取込で引き戻すと、チケットを通らない移譲になる
 //! （11章）。候補から外さないのは、外すと2つ目を作ってしまうため。
 //!
-//! 倉庫にある部品も、このプロジェクトに関わったことが無ければ候補外になる。
+//! 倉庫用のプロジェクトにある部品も、このプロジェクトに関わったことが無ければ候補外になる。
 //! **倉庫からの払い出しは変更管理チケットの担当**であり（11章）、取込で
 //! 引き込めると誰がいつ持ち出したのかが残らない。予備部品の初期投入は、
 //! 倉庫用のプロジェクトの取込で「プロジェクトに置く」形で行う（16.1）。
@@ -59,7 +59,7 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use entity::{
     chassis_slot, configuration, device, mount_container, part_catalog, part_instance,
-    part_instance_location, vendor, warehouse,
+    part_instance_location, vendor,
 };
 use sea_orm::{
     ColumnTrait, Condition, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
@@ -74,7 +74,6 @@ use crate::repository::{Actor, AuditedTx};
 const DEVICE: &str = "Device";
 const MOUNT_CONTAINER: &str = "MountContainer";
 const PROJECT: &str = "Project";
-const WAREHOUSE: &str = "Warehouse";
 const DISPOSED: &str = "Disposed";
 
 #[derive(Debug, Clone, Deserialize)]
@@ -90,12 +89,12 @@ pub struct PartRow {
     /// `ok` / `failed`。空欄は `ok`。**機器の `health` とは独立**（設計書6.3）
     #[serde(default)]
     pub health: String,
-    /// Device / MountContainer / Project / Warehouse / Disposed。
+    /// Device / MountContainer / Project / Disposed。
     pub location_type: String,
     /// `Device` のとき、載っている機器のホスト名。
     #[serde(default)]
     pub location_hostname: String,
-    /// `MountContainer` のとき設備・什器の名前、`Warehouse` のとき倉庫名。
+    /// `MountContainer` のとき設備・什器の名前。
     #[serde(default)]
     pub location_name: String,
     /// **任意。**どのスロットに挿さっているかまでは求めない（6.2）。
@@ -150,14 +149,6 @@ async fn 計画する<C: ConnectionTrait>(
     let 候補 = このプロジェクトに関わった部品(db, project_id, &索引.ids()).await?;
     // **倉庫プロジェクトでは既存の部品の `status` を動かさない**（#221、設計書6.3）
     let 倉庫プロジェクト = crate::setting::倉庫プロジェクトか(db, project_id).await?;
-    // **廃止した倉庫は置き場の候補にしない**（#133）
-    let 倉庫: HashMap<String, i32> = warehouse::Entity::find()
-        .filter(warehouse::Column::RetiredAt.is_null())
-        .all(db)
-        .await?
-        .into_iter()
-        .map(|w| (w.name, w.id))
-        .collect();
 
     let mut report = Report::default();
     let mut planned = Vec::new();
@@ -236,27 +227,6 @@ async fn 計画する<C: ConnectionTrait>(
                 };
                 (DEVICE.to_owned(), Some(d.id), slot)
             }
-            WAREHOUSE => {
-                let Some(name) = 空ならnone(&row.location_name) else {
-                    report.push(Entry::new(
-                        Outcome::Error,
-                        表示,
-                        "location_type=Warehouse には location_name が要ります",
-                    ));
-                    continue;
-                };
-                match 倉庫.get(name) {
-                    Some(id) => (WAREHOUSE.to_owned(), Some(*id), None),
-                    None => {
-                        report.push(Entry::new(
-                            Outcome::Error,
-                            表示,
-                            format!("倉庫「{name}」が見つかりません"),
-                        ));
-                        continue;
-                    }
-                }
-            }
             MOUNT_CONTAINER => {
                 let Some(name) = 空ならnone(&row.location_name) else {
                     report.push(Entry::new(
@@ -295,12 +265,23 @@ async fn 計画する<C: ConnectionTrait>(
                 (PROJECT.to_owned(), Some(project_id), None)
             }
             DISPOSED => (DISPOSED.to_owned(), None, None),
+            // **倉庫は倉庫用のプロジェクトになった**（#220）。旧い値を黙って
+            // 読み替えず、移し方を案内する
+            "Warehouse" => {
+                report.push(Entry::new(
+                    Outcome::Error,
+                    表示,
+                    "location_type「Warehouse」は使えなくなりました。\
+                     倉庫は倉庫用のプロジェクトです。倉庫へ移すには変更管理チケット（Transfer）を使ってください",
+                ));
+                continue;
+            }
             other => {
                 report.push(Entry::new(
                     Outcome::Error,
                     表示,
                     format!(
-                        "location_type「{other}」は扱えません。Device / MountContainer / Project / Warehouse / Disposed のいずれかです"
+                        "location_type「{other}」は扱えません。Device / MountContainer / Project / Disposed のいずれかです"
                     ),
                 ));
                 continue;
@@ -686,12 +667,12 @@ mod tests {
         let rows = parse_parts(
             "serial_number,part_vendor,part_number,status,location_type,location_hostname,location_name,chassis_slot\n\
              SN-1,Samsung,M393A4K40DB3,running,Device,web01,,DIMM_A1\n\
-             SN-2,Samsung,M393A4K40DB3,,Warehouse,,本社倉庫,\n",
+             SN-2,Samsung,M393A4K40DB3,,MountContainer,,予備棚,\n",
         )
         .unwrap();
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0].chassis_slot, "DIMM_A1");
-        assert_eq!(rows[1].location_name, "本社倉庫");
+        assert_eq!(rows[1].location_name, "予備棚");
     }
 
     #[test]

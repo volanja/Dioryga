@@ -31,7 +31,6 @@ nav:
   account: Account
   admin_projects: Project admin
   project_list: Projects
-  warehouse_list: Warehouses
   user_list: Users
   display: Display
   password: Password
@@ -46,8 +45,6 @@ nav:
   power: Power
   members: Members
   import: Import
-  stored_devices: Stored devices
-  stored_parts: Parts stock
 
 account:
   display: Display
@@ -976,41 +973,6 @@ dashboard:
   overdue: Overdue
   no_due: No due date
   none: Nothing to show
-
-warehouses:
-  edit_title: Edit warehouse
-  back: Back to warehouses
-  delete: Delete
-  delete_title: Delete warehouse
-  delete_in_use: This warehouse still holds devices or parts. Move them out before deleting it
-  delete_hard: This warehouse has never been used, so the row is removed. This cannot be undone
-  delete_retire: This warehouse has been used before, so it is retired instead. Its location history stays, and you can undo this later
-  retired: Retired
-  unretire: Undo retirement
-  show_retired: Include retired
-  error_in_use: A warehouse that still holds devices or parts cannot be deleted
-  title: Warehouses
-  lead: Where devices and parts not assigned to a project are kept. Shared across projects
-  name: Warehouse
-  address: Address
-  devices: Devices in stock
-  devices_lead: Devices held in this warehouse. Hand-off to a project goes through a change ticket
-  devices_empty: No devices in this warehouse
-  parts: Parts in stock
-  parts_lead: Spare parts held in this warehouse
-  parts_empty: No parts in this warehouse
-  serial: Serial number
-  asset: Asset number
-  since: Received
-  history: Location history
-  history_note: For a device in a warehouse the full location history is shown. Once handed off, it is reachable only from the projects involved
-  from: From
-  to: To
-  current: Current
-  unknown: Referenced record not found
-  edit: Edit
-  new: Add a warehouse
-  empty: No warehouses yet
 
 device_statuses:
   running: running

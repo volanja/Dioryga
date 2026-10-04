@@ -91,7 +91,7 @@ pub async fn 同じ名前の設備<C: ConnectionTrait>(
         .find(|c| Some(c.id) != except && 名前の鍵(&c.name) == 鍵))
 }
 
-/// 撤去したときに何が起きるか（12.10）。倉庫の片付け（16.1）と同じ3分岐。
+/// 撤去したときに何が起きるか（12.10）。使用中・撤去済みにする・行ごと消す、の3分岐。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum 撤去の結末 {
     /// 機器が載っている。先に移させる。

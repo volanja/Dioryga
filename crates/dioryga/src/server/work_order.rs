@@ -1635,7 +1635,7 @@ async fn 廃棄を妨げるもの<C: ConnectionTrait>(
     if let Some(part_instance_id) = w.part_instance_id {
         // **起票元にある部品だけを捨てられる。**起票元の機器に載っているか、
         // 起票元の設備・什器やプロジェクトに置いてある部品（#219）。倉庫の部品の
-        // 廃棄は、倉庫をプロジェクトにしてから倉庫のチケットで行う（#196）
+        // 廃棄は、倉庫用のプロジェクトで起票する（#196）
         let ここにある =
             部品の現在のプロジェクト(db, part_instance_id).await? == Some(w.project_id);
         return Ok((!ここにある).then_some("work_orders.error_disposal_part_not_here"));

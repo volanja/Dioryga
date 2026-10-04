@@ -10,7 +10,7 @@
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
 | id | integer |  | false | [public.device_mount](public.device_mount.md) [public.power_circuit](public.power_circuit.md) |  |  |
 | name | varchar |  | false |  |  |  |
-| location_type | varchar |  | false |  |  | Warehouse / Project。多態的参照のため外部キーを持てない |
+| location_type | varchar |  | false |  |  | Project。多態的参照のため外部キーを持てない（倉庫の棚も倉庫用のプロジェクトに置く、#220） |
 | location_id | integer |  | false |  |  |  |
 | created_by | integer |  | false |  | [public.app_user](public.app_user.md) |  |
 | created_at | timestamp with time zone |  | false |  |  |  |

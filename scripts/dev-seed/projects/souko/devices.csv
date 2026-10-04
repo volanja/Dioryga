@@ -1,0 +1,4 @@
+uid,external_id,hostname,serial_number,asset_number,device_type,configuration_vendor,configuration_model,configuration_name,power_watt,status,health
+,SK-0001,souko-spare01,HM22-9001,A-9001,Physical,ハイマツ電機,HM-2200,標準構成,450,running,
+,SK-0002,souko-spare02,HM22-9002,A-9002,Physical,ハイマツ電機,HM-2200,標準構成,450,running,
+,SK-0003,souko-spare03,HM22-9003,A-9003,Physical,ハイマツ電機,HM-2200,標準構成,450,running,failed

@@ -12,7 +12,7 @@
 | ---- | ---- | ------- | -------- | -------- | ------- | ------- |
 | id | integer |  | false |  |  |  |
 | device_id | integer |  | false |  | [public.device](public.device.md) |  |
-| location_type | varchar |  | false |  |  | Warehouse / Project / Disposed。**多態的参照のため外部キーを持てない**（旧C-7） |
+| location_type | varchar |  | false |  |  | Project / Disposed。**多態的参照のため外部キーを持てない**（旧C-7）。倉庫は倉庫用のプロジェクト（#220） |
 | location_id | integer |  | true |  |  | Disposed のときは null |
 | work_order_id | integer |  | true |  |  | この変更を引き起こしたWORK_ORDER（11章）。**WORK_ORDER未作成のため外部キーは未設定** |
 | from_date | timestamp with time zone |  | false |  |  |  |

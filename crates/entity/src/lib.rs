@@ -61,7 +61,6 @@ pub mod software_role_assignment;
 pub mod subnet;
 pub mod vendor;
 pub mod vlan;
-pub mod warehouse;
 pub mod work_order;
 pub mod work_order_approval;
 
@@ -116,6 +115,5 @@ pub use software_role_assignment::Entity as SoftwareRoleAssignment;
 pub use subnet::Entity as Subnet;
 pub use vendor::Entity as Vendor;
 pub use vlan::Entity as Vlan;
-pub use warehouse::Entity as Warehouse;
 pub use work_order::Entity as WorkOrder;
 pub use work_order_approval::Entity as WorkOrderApproval;

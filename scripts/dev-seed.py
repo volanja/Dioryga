@@ -18,6 +18,7 @@
 #   1. 開発用のDB（.run/dev-seed.db）を作り直す。**普段の dioryga.db には触れない**
 #   2. 最初の System Admin を作る（admin create --password-stdin）
 #   3. 組織データを取り込む（System Admin）   docs/examples/organization/
+#      倉庫用のプロジェクトの担当も足す          scripts/dev-seed/organization/
 #   4. カタログを取り込む（Operator）          scripts/dev-seed/catalog.yaml
 #   5. プロジェクトごとに取り込む（編集者）    scripts/dev-seed/projects/*/
 #   6. マイルストーンとチケットを取り込む      期限のあるデータを作る()
@@ -60,6 +61,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 SEED = REPO / "scripts" / "dev-seed"
 ORGANIZATION = REPO / "docs" / "examples" / "organization" / "manifest.yaml"
+# 倉庫用のプロジェクト（#196）の担当。例とは分ける（scripts/dev-seed/organization/ の説明）
+WAREHOUSE_MEMBERS = REPO / "scripts" / "dev-seed" / "organization" / "manifest.yaml"
 RUN = REPO / ".run"
 
 # 最初の System Admin。組織データの取込を流す
@@ -219,9 +222,12 @@ def 取り込む(binary: Path, env: dict[str, str], manifest: Path, as_user: str
 
 def 管理者を作る(binary: Path, env: dict[str, str]) -> None:
     password = secrets.token_urlsafe(18)
+    # **日本語で作らせる。**倉庫用のプロジェクトの名前は作ったときの言語で決まり
+    # （#217）、動作確認用データは「倉庫」という名前で指す。下の「既に存在」も
+    # 日本語の出力を見ている
     result = 実行(
         [binary, "admin", "create", "--username", ADMIN, "--name", ADMIN_NAME, "--password-stdin"],
-        env,
+        {**env, "LC_ALL": "ja_JP.UTF-8"},
         stdin=password + "\n",
         check=False,
     )
@@ -293,6 +299,7 @@ def main() -> int:
     管理者を作る(binary, env)
 
     取り込む(binary, env, ORGANIZATION, ADMIN)
+    取り込む(binary, env, WAREHOUSE_MEMBERS, ADMIN)
     取り込む(binary, env, SEED / "catalog.yaml", IMPORTER)
     for manifest in sorted((SEED / "projects").glob("*/manifest.yaml")):
         取り込む(binary, env, manifest, IMPORTER)

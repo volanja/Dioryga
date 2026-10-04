@@ -56,7 +56,6 @@ mod session;
 mod setup;
 mod software_schema;
 mod view;
-mod warehouses;
 mod work_order_schema;
 mod work_orders;
 mod workflow_import;

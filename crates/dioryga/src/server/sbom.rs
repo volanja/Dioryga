@@ -128,6 +128,8 @@ async fn 描く(
     let (project, can_edit) = 入場(state, current, project_id).await?;
     let l = Locale::parse(&current.user.locale).as_str();
     let d = 機器(state, project_id, device_id).await?;
+    // 過去にあった機器は見せるだけで、取り込む導線を出さない
+    let can_edit = can_edit && super::device::今ここにあるか(state, project_id, device_id).await?;
 
     let imports = sbom_import::Entity::find()
         .filter(sbom_import::Column::DeviceId.eq(device_id))
@@ -215,6 +217,10 @@ pub async fn upload(
     let l = Locale::parse(&current.user.locale).as_str();
     let 訳 = |key: &str| rust_i18n::t!(key, locale = l).to_string();
     機器(&state, project_id, device_id).await?;
+    // 取り込めるのは、今このプロジェクトにある機器だけ
+    if !super::device::今ここにあるか(&state, project_id, device_id).await? {
+        return Err(AppError::Forbidden);
+    }
 
     let Some((filename, bytes)) = 受け取る(multipart).await? else {
         return 描く(

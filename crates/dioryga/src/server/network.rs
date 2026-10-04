@@ -547,6 +547,8 @@ async fn インターフェースを描く(
 ) -> AppResult<Response> {
     let (project, can_edit, l) = 入場(state, current, project_id).await?;
     let d = 対象の機器(state, project_id, device_id).await?;
+    // 過去にあった機器は見せるだけで、書き換える導線を出さない
+    let can_edit = can_edit && super::device::今ここにあるか(state, project_id, device_id).await?;
 
     let list = 現在のインターフェース(&state.db, device_id).await?;
 
@@ -664,7 +666,7 @@ pub async fn create_interface(
     Form(form): Form<InterfaceForm>,
 ) -> AppResult<Response> {
     let l = 編集入場(&state, &current, project_id).await?;
-    対象の機器(&state, project_id, device_id).await?;
+    書き換える機器(&state, project_id, device_id).await?;
     let 誤り = |key: &str| Some(rust_i18n::t!(key, locale = l).to_string());
     let 戻る = |key: &str| {
         インターフェースを描く(&state, &current, project_id, device_id, 誤り(key))
@@ -1049,7 +1051,7 @@ pub async fn close(
     Form(form): Form<CloseForm>,
 ) -> AppResult<Response> {
     編集入場(&state, &current, project_id).await?;
-    対象の機器(&state, project_id, device_id).await?;
+    書き換える機器(&state, project_id, device_id).await?;
 
     // **読み取りはトランザクションを開く前に済ませる。**接続を1本しか持たない
     // 構成（SQLiteのインメモリ）では、開いたトランザクションの内側で
@@ -1303,6 +1305,20 @@ async fn 対象の機器(
         .ok_or(AppError::NotFound)
 }
 
+/// 書き換える機器。**今このプロジェクトにある機器に限る。**過去にあった機器は
+/// 見せるだけである（[`super::device::今ここにあるか`]）。
+async fn 書き換える機器(
+    state: &AppState,
+    project_id: i32,
+    device_id: i32,
+) -> AppResult<device::Model> {
+    let d = 対象の機器(state, project_id, device_id).await?;
+    if !super::device::今ここにあるか(state, project_id, device_id).await? {
+        return Err(AppError::Forbidden);
+    }
+    Ok(d)
+}
+
 /// **この機器のインターフェースであることを確かめる。**IDだけを信じると、
 /// 別の機器のインターフェースを操作できてしまう。
 async fn このインターフェース(
@@ -1311,7 +1327,7 @@ async fn このインターフェース(
     device_id: i32,
     id: i32,
 ) -> AppResult<os_interface::Model> {
-    対象の機器(state, project_id, device_id).await?;
+    書き換える機器(state, project_id, device_id).await?;
     os_interface::Entity::find_by_id(id)
         .one(&state.db)
         .await

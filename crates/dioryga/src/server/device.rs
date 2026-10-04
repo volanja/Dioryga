@@ -774,6 +774,8 @@ pub async fn detail(
     let (project, can_edit) = 入場(&state, &current, project_id).await?;
     let l = Locale::parse(&current.user.locale).as_str();
     let d = 対象(&state, project_id, device_id).await?;
+    // 過去にあった機器は見せるだけで、書き換える導線を出さない
+    let can_edit = can_edit && 今ここにあるか(&state, project_id, device_id).await?;
 
     let 未設定 = rust_i18n::t!("devices.none", locale = l).to_string();
     let 空欄 = |value: Option<String>| value.unwrap_or_else(|| 未設定.clone());
@@ -1030,7 +1032,7 @@ pub async fn save_purchase(
     Form(form): Form<PurchaseInput>,
 ) -> AppResult<Response> {
     let project = 編集入場(&state, &current, project_id).await?;
-    let d = 対象(&state, project_id, device_id).await?;
+    let d = 書き換える対象(&state, project_id, device_id).await?;
     let 誤り = |key: &str| AppError::Validation(rust_i18n::t!(key, locale = "ja").to_string());
 
     let Some(値) = form.検証(&project.currency).map_err(誤り)? else {
@@ -1228,7 +1230,7 @@ pub async fn set_part_health(
 ) -> AppResult<Response> {
     let _project = 編集入場(&state, &current, project_id).await?;
     let l = Locale::parse(&current.user.locale).as_str();
-    let d = 対象(&state, project_id, device_id).await?;
+    let d = 書き換える対象(&state, project_id, device_id).await?;
 
     let Some(health) = DeviceForm::語彙(&form.health, device_state::HEALTHS) else {
         return Err(AppError::Validation(
@@ -2098,7 +2100,7 @@ pub async fn edit_form(
     Path((project_id, device_id)): Path<(i32, i32)>,
 ) -> AppResult<Response> {
     let project = 編集入場(&state, &current, project_id).await?;
-    let d = 対象(&state, project_id, device_id).await?;
+    let d = 書き換える対象(&state, project_id, device_id).await?;
     let form = NewDeviceForm {
         device: 既存の値(&d),
         ..Default::default()
@@ -2132,7 +2134,7 @@ pub async fn update(
 ) -> AppResult<Response> {
     let project = 編集入場(&state, &current, project_id).await?;
     let l = Locale::parse(&current.user.locale).as_str();
-    let target = 対象(&state, project_id, device_id).await?;
+    let target = 書き換える対象(&state, project_id, device_id).await?;
 
     let 入力 = match 検証(&state, &form, Some(&target)).await? {
         Ok(値) => 値,
@@ -2266,6 +2268,44 @@ async fn 対象(state: &AppState, project_id: i32, device_id: i32) -> AppResult<
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
         .ok_or(AppError::NotFound)
+}
+
+/// 機器が**今**このプロジェクトにあるか。
+///
+/// 過去にあった機器は履歴を見せる（A-6）が、書き換えられるのは今ある機器だけ
+/// である。移譲した機器を移譲元から書き換えられると、変更管理チケットを
+/// 通らずに他のプロジェクトの機器を変える経路になる。
+pub(super) async fn 今ここにあるか(
+    state: &AppState,
+    project_id: i32,
+    device_id: i32,
+) -> AppResult<bool> {
+    Ok(device_assignment::Entity::find()
+        .filter(device_assignment::Column::DeviceId.eq(device_id))
+        .filter(device_assignment::Column::LocationType.eq(PROJECT))
+        .filter(device_assignment::Column::LocationId.eq(project_id))
+        .filter(device_assignment::Column::ToDate.is_null())
+        .limit(1)
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .is_some())
+}
+
+/// 書き換える対象の機器。**今このプロジェクトにある機器に限る。**
+///
+/// 見えない機器は [`対象`] が `NotFound` にする。見えるが今は無い機器は
+/// `Forbidden` にする。
+async fn 書き換える対象(
+    state: &AppState,
+    project_id: i32,
+    device_id: i32,
+) -> AppResult<device::Model> {
+    let d = 対象(state, project_id, device_id).await?;
+    if !今ここにあるか(state, project_id, device_id).await? {
+        return Err(AppError::Forbidden);
+    }
+    Ok(d)
 }
 
 #[cfg(test)]

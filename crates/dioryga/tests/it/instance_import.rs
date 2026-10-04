@@ -95,7 +95,7 @@ async fn 倉庫プロジェクトではstatusを動かさない(db: &DatabaseCon
             .unwrap();
         assert_eq!(report.count(Outcome::Unchanged), 1, "{値}: {report}");
         let 説明あり = report.entries[0]
-            .detail
+            .詳細("ja")
             .contains("倉庫プロジェクトでは status を反映しません");
         assert_eq!(説明あり, !値.is_empty(), "{値}: {report}");
         instances::apply(db, p.id, &rows, &match_on, Utc::now(), 2)
@@ -153,7 +153,9 @@ async fn 存在しないuidはエラー(db: &DatabaseConnection) {
 
     let report = instances::dry_run(db, p.id, &rows, &[]).await.unwrap();
     assert!(report.has_error());
-    assert!(report.errors().any(|e| e.detail.contains("見つかりません")));
+    assert!(report
+        .errors()
+        .any(|e| e.詳細("ja").contains("見つかりません")));
 }
 
 /// ② external_id で突合できること。
@@ -262,7 +264,7 @@ async fn 突合できないのに識別子が一致すればエラー(db: &Datab
     assert!(report.has_error(), "重複が見逃されています");
     assert!(report
         .errors()
-        .any(|e| e.detail.contains("uid か external_id を指定")));
+        .any(|e| e.詳細("ja").contains("uid か external_id を指定")));
 
     // 反映も止まる
     assert!(
@@ -332,7 +334,9 @@ async fn ファイル内の重複はエラー(db: &DatabaseConnection) {
 
     let report = instances::dry_run(db, p.id, &rows, &[]).await.unwrap();
     assert!(report.has_error());
-    assert!(report.errors().any(|e| e.detail.contains("重複しています")));
+    assert!(report
+        .errors()
+        .any(|e| e.詳細("ja").contains("重複しています")));
 
     // **1行につき判定は1つ**（#108）。重複した行を「新規」としても数えると、
     // ドライランの件数が行数と合わなくなる（23.6）
@@ -363,10 +367,10 @@ async fn ファイル内の重複はエラー(db: &DatabaseConnection) {
 
     let エラー = report.errors().next().unwrap();
     assert!(
-        エラー.detail.contains("external_id「EX-1」")
-            && エラー.detail.contains("serial_number「SN-1」"),
+        エラー.詳細("ja").contains("external_id「EX-1」")
+            && エラー.詳細("ja").contains("serial_number「SN-1」"),
         "重複した識別子がまとめて示されていません: {}",
-        エラー.detail
+        エラー.詳細("ja")
     );
 }
 
@@ -423,7 +427,7 @@ async fn 他のプロジェクトにある機器はエラー(db: &DatabaseConnec
             .unwrap();
         assert_eq!(report.count(Outcome::Error), 1, "{report}");
         assert!(
-            report.errors().any(|e| e.detail.contains("Transfer")),
+            report.errors().any(|e| e.詳細("ja").contains("Transfer")),
             "移譲の案内がありません: {report}"
         );
         assert!(
@@ -528,7 +532,9 @@ async fn 語彙外の値は拒否される(db: &DatabaseConnection) {
 
     let report = instances::dry_run(db, p.id, &rows, &[]).await.unwrap();
     assert!(report.has_error());
-    assert!(report.errors().any(|e| e.detail.contains("device_type")));
+    assert!(report
+        .errors()
+        .any(|e| e.詳細("ja").contains("device_type")));
 }
 
 /// **種別の略語は大文字だけを受け、空欄は許すこと**（設計書8.6、#125）。
@@ -546,7 +552,7 @@ async fn 種別の旧表記は拒否される(db: &DatabaseConnection) {
     let rows = instances::parse_devices(&種別つき("Vpn")).unwrap();
     let report = instances::dry_run(db, p.id, &rows, &[]).await.unwrap();
     assert!(
-        report.errors().any(|e| e.detail.contains("「Vpn」")),
+        report.errors().any(|e| e.詳細("ja").contains("「Vpn」")),
         "{report}"
     );
 

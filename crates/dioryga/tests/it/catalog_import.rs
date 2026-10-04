@@ -79,7 +79,7 @@ chassis_models:
     assert!(report.has_error());
     assert!(report
         .errors()
-        .any(|e| e.detail.contains("存在しないベンダー")));
+        .any(|e| e.詳細("ja").contains("存在しないベンダー")));
 }
 
 /// スロットの記述が曖昧ならエラーになること（設計書23.4）。
@@ -101,7 +101,7 @@ chassis_models:
     let report = catalog::dry_run(db, &file).await.unwrap();
 
     assert!(report.has_error());
-    assert!(report.errors().any(|e| e.detail.contains("同時に指定")));
+    assert!(report.errors().any(|e| e.詳細("ja").contains("同時に指定")));
 }
 
 /// **種別の略語は大文字だけを受けること**（設計書8.6、#125）。
@@ -128,7 +128,7 @@ chassis_models:
     let file = catalog::parse(&yaml("Vpn")).unwrap();
     let report = catalog::dry_run(db, &file).await.unwrap();
     assert!(
-        report.errors().any(|e| e.detail.contains("「Vpn」")),
+        report.errors().any(|e| e.詳細("ja").contains("「Vpn」")),
         "{report}"
     );
 
@@ -177,7 +177,7 @@ chassis_models:
             .await
             .unwrap();
         assert!(
-            report.errors().any(|e| e.detail.contains(語)),
+            report.errors().any(|e| e.詳細("ja").contains(語)),
             "{語}: {report}"
         );
     }
@@ -198,7 +198,7 @@ part_catalogs:
     assert!(
         report
             .errors()
-            .any(|e| e.detail.contains("category「Psu」")),
+            .any(|e| e.詳細("ja").contains("category「Psu」")),
         "{report}"
     );
 }
@@ -472,7 +472,7 @@ async fn 語彙外のポート種別はエラー(db: &DatabaseConnection) {
     assert_eq!(report.count(Outcome::Error), 1);
     assert!(report
         .errors()
-        .any(|e| e.detail.contains("語彙にありません")));
+        .any(|e| e.詳細("ja").contains("語彙にありません")));
 
     // 反映は全体が止まる
     let user = 利用者(db, "badkind@example.com").await;
@@ -520,7 +520,7 @@ async fn 意味を持たない列は警告して捨てる(db: &DatabaseConnectio
     assert_eq!(report.count(Outcome::Warning), 1);
     assert!(report
         .warnings()
-        .any(|w| w.detail.contains("意味を持たない")));
+        .any(|w| w.詳細("ja").contains("意味を持たない")));
 
     catalog::apply(db, &file, user.id, 1).await.unwrap();
     let ports = ポート一覧(db, 部品を引く(db, "PYBPS1600").await.id).await;
@@ -564,7 +564,7 @@ async fn 逆転した電圧範囲はエラー(db: &DatabaseConnection) {
     let report = catalog::dry_run(db, &file).await.unwrap();
 
     assert_eq!(report.count(Outcome::Error), 1);
-    assert!(report.errors().any(|e| e.detail.contains("上限")));
+    assert!(report.errors().any(|e| e.詳細("ja").contains("上限")));
 }
 
 /// **同じポートに同じ方式を2行書けないこと**（設計書12.7）。
@@ -577,7 +577,7 @@ async fn 方式の重複はエラー(db: &DatabaseConnection) {
     let report = catalog::dry_run(db, &file).await.unwrap();
 
     assert_eq!(report.count(Outcome::Error), 1);
-    assert!(report.errors().any(|e| e.detail.contains("重複")));
+    assert!(report.errors().any(|e| e.詳細("ja").contains("重複")));
 }
 
 /// 上の `ポートつき` から `ports` を落としたもの。

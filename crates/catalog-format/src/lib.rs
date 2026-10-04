@@ -45,6 +45,133 @@
 
 use serde::Deserialize;
 
+// ---------------------------------------------------------------------------
+// 理由（#214）
+// ---------------------------------------------------------------------------
+
+/// 利用者に見せる理由。**文言ではなく、キーと差し込む値で持つ**（#214）。
+///
+/// 同じ理由を、画面は利用者の言語で、コンソールはOSの言語で出す。理由を作る
+/// 時点ではどちらの言語で出すかが決まらないため、**言語は表示する側が渡す。**
+/// このcrateは言語に依存しない。キーの文言は Dioryga 本体の locales
+/// （`import_detail.*`）にある。
+///
+/// 差し込む値には、別の理由を入れ子にできる（[`Arg::Message`]）。「`status`: 語彙外」
+/// のように、理由に項目名を前置する場合に使う。
+///
+/// キーが空の `Message`（[`Message::default`]）は「理由なし」を表す。
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Message {
+    pub key: &'static str,
+    pub args: Vec<(&'static str, Arg)>,
+}
+
+/// [`Message`] に差し込む値。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Arg {
+    /// そのまま差し込む値（利用者が書いた値、件数など）。訳さない。
+    Text(String),
+    /// 入れ子の理由。表示する側が同じ言語で訳す。
+    Message(Message),
+}
+
+impl Message {
+    pub fn new(key: &'static str) -> Self {
+        Self {
+            key,
+            args: Vec::new(),
+        }
+    }
+
+    /// 差し込む値を足す。`name` は文言の `%{name}` に当たる。
+    pub fn with(mut self, name: &'static str, value: impl Into<Arg>) -> Self {
+        self.args.push((name, value.into()));
+        self
+    }
+
+    /// 理由が無いか。
+    pub fn is_empty(&self) -> bool {
+        self.key.is_empty()
+    }
+}
+
+/// 訳さずにキーと値を並べる。**利用者に見せる文言ではない**（ログ・デバッグ用）。
+impl std::fmt::Display for Message {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.key)?;
+        for (name, value) in &self.args {
+            match value {
+                Arg::Text(v) => write!(f, " {name}={v}")?,
+                Arg::Message(m) => write!(f, " {name}=({m})")?,
+            }
+        }
+        Ok(())
+    }
+}
+
+impl From<Message> for Arg {
+    fn from(v: Message) -> Self {
+        Self::Message(v)
+    }
+}
+
+impl From<String> for Arg {
+    fn from(v: String) -> Self {
+        Self::Text(v)
+    }
+}
+
+impl From<&String> for Arg {
+    fn from(v: &String) -> Self {
+        Self::Text(v.clone())
+    }
+}
+
+impl From<&str> for Arg {
+    fn from(v: &str) -> Self {
+        Self::Text(v.to_owned())
+    }
+}
+
+/// **移行中だけの口**（#214）。訳されていない文言をそのまま運ぶ。
+/// 取込の種類ごとにキーへ移し終えたら消す。
+pub const 未訳: &str = "_raw";
+
+impl From<String> for Message {
+    fn from(v: String) -> Self {
+        if v.is_empty() {
+            return Self::default();
+        }
+        Self::new(未訳).with("text", v)
+    }
+}
+
+impl From<&str> for Message {
+    fn from(v: &str) -> Self {
+        Self::from(v.to_owned())
+    }
+}
+
+macro_rules! 数を差し込む {
+    ($($t:ty),*) => {
+        $(impl From<$t> for Arg {
+            fn from(v: $t) -> Self {
+                Self::Text(v.to_string())
+            }
+        })*
+    };
+}
+数を差し込む!(i32, i64, u32, u64, usize);
+
+/// [`Message`] を組み立てる。`理由!("import_detail.format.count_zero")`、
+/// `理由!("import_detail.format.not_in_vocabulary", field = "slot_type", value = v)`。
+#[macro_export]
+macro_rules! 理由 {
+    ($key:literal $(, $name:ident = $value:expr)* $(,)?) => {
+        $crate::Message::new($key)$(.with(stringify!($name), $value))*
+    };
+}
+
 /// 対応するフォーマットの版。
 pub const FORMAT_VERSION: u32 = 1;
 pub const KIND: &str = "catalog";

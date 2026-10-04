@@ -18,7 +18,7 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, Qu
 
 use super::{
     catalog, costs, file_hash, instances, network, organization, parts, placement, workflow,
-    ImportError, Outcome, Report,
+    詳細を訳す, ImportError, Outcome, Report,
 };
 use crate::auth::authorization;
 use crate::console::言語;
@@ -559,10 +559,15 @@ fn 報告の文面(executed: &Executed, apply: bool, l: &str) -> String {
     let エラー = Outcome::Error.文言(l);
     let 警告 = Outcome::Warning.文言(l);
     for entry in executed.report.errors() {
-        let _ = writeln!(out, "  {エラー}  {} — {}", entry.target, entry.detail);
+        let _ = writeln!(
+            out,
+            "  {エラー}  {} — {}",
+            entry.target,
+            entry.detail.文言(l)
+        );
     }
     for entry in executed.report.warnings() {
-        let _ = writeln!(out, "  {警告}  {} — {}", entry.target, entry.detail);
+        let _ = writeln!(out, "  {警告}  {} — {}", entry.target, entry.detail.文言(l));
     }
 
     if executed.report.errors().count() > 0 || executed.report.warnings().count() > 0 {

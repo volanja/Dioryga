@@ -216,7 +216,8 @@ async fn 倉庫は書けない(db: &DatabaseConnection) {
     assert!(
         report
             .errors()
-            .any(|e| e.detail.contains("倉庫用のプロジェクト") && e.detail.contains("Transfer")),
+            .any(|e| e.詳細("ja").contains("倉庫用のプロジェクト")
+                && e.詳細("ja").contains("Transfer")),
         "{report}"
     );
 }
@@ -567,7 +568,7 @@ async fn 今は他のプロジェクトにある部品は動かせない(db: &Da
     let report = parts::dry_run(db, 場.project.id, &置く).await.unwrap();
     assert_eq!(report.count(Outcome::Error), 1, "{report}");
     assert!(
-        report.errors().any(|e| e.detail.contains("Transfer")),
+        report.errors().any(|e| e.詳細("ja").contains("Transfer")),
         "移譲の案内がありません: {report}"
     );
     assert!(parts::apply(db, 場.project.id, &置く, Utc::now(), 2)

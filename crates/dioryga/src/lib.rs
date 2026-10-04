@@ -57,6 +57,42 @@ mod tests {
         out
     }
 
+    /// **取込の理由のキーが、すべて翻訳にあること**（#214）。
+    ///
+    /// キーを書き間違えると、画面とコンソールにキーの文字列がそのまま出る。
+    /// 翻訳のキーがそろっているかは下の検査が見るので、ここは日本語だけ見る。
+    #[test]
+    fn 取込の理由のキーが翻訳にある() {
+        let ja = キー(include_str!("../locales/ja.yml"));
+        let 根 = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let mut 無い = Vec::new();
+        for dir in [根.join("src/import"), 根.join("../catalog-format/src")] {
+            for entry in std::fs::read_dir(&dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+                    continue;
+                }
+                let src = std::fs::read_to_string(&path).unwrap();
+                for (i, _) in src.match_indices("理由!(") {
+                    // ドキュメントの例は見ない
+                    let 行頭 = src[..i].rfind('\n').map_or(0, |p| p + 1);
+                    if src[行頭..i].trim_start().starts_with("//") {
+                        continue;
+                    }
+                    let rest = src[i + "理由!(".len()..].trim_start();
+                    let Some(rest) = rest.strip_prefix('"') else {
+                        continue;
+                    };
+                    let key = &rest[..rest.find('"').unwrap()];
+                    if !ja.contains(key) {
+                        無い.push(format!("{}: {key}", path.display()));
+                    }
+                }
+            }
+        }
+        assert!(無い.is_empty(), "翻訳に無いキー: {無い:#?}");
+    }
+
     /// **日本語と英語で同じキーを持つこと**（#191）。
     ///
     /// 日本語だけ書き忘れると、既定（`fallback = "en"`）の英語が黙って出る。

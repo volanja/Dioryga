@@ -68,7 +68,7 @@ use serde::Deserialize;
 
 use super::instances::{語彙, HEALTHS, STATUSES};
 use super::placement::{機器の索引, 機器キー, 空ならnone, 読み取る};
-use super::{Entry, ImportError, Outcome, Report};
+use super::{理由, Entry, ImportError, Message, Outcome, Report};
 use crate::repository::{Actor, AuditedTx};
 
 const DEVICE: &str = "Device";
@@ -109,7 +109,8 @@ impl PartRow {
             self.part_vendor.trim(),
             self.part_number.trim(),
             match self.serial_number.trim() {
-                "" => "シリアルなし",
+                // 対象の欄は訳さない（#214）。記号で示す
+                "" => "—",
                 s => s,
             }
         )
@@ -163,7 +164,7 @@ async fn 計画する<C: ConnectionTrait>(
             report.push(Entry::new(
                 Outcome::Error,
                 表示,
-                "serial_number が要ります。シリアルの無い部品は画面から登録してください",
+                理由!("import_detail.parts.serial_required"),
             ));
             continue;
         };
@@ -173,7 +174,7 @@ async fn 計画する<C: ConnectionTrait>(
             report.push(Entry::new(
                 Outcome::Error,
                 表示,
-                format!("{}行目と同じ部品です", 前 + 2),
+                理由!("import_detail.parts.duplicate_in_file", row = 前 + 2),
             ));
             continue;
         }
@@ -189,14 +190,30 @@ async fn 計画する<C: ConnectionTrait>(
         let status = match 語彙(&row.status, STATUSES, "running") {
             Ok(s) => s,
             Err(理由) => {
-                report.push(Entry::new(Outcome::Error, 表示, format!("status: {理由}")));
+                report.push(Entry::new(
+                    Outcome::Error,
+                    表示,
+                    理由!(
+                        "import_detail.common.field_prefixed",
+                        field = "status",
+                        reason = 理由
+                    ),
+                ));
                 continue;
             }
         };
         let health = match 語彙(&row.health, HEALTHS, crate::device_state::OK) {
             Ok(s) => s,
             Err(理由) => {
-                report.push(Entry::new(Outcome::Error, 表示, format!("health: {理由}")));
+                report.push(Entry::new(
+                    Outcome::Error,
+                    表示,
+                    理由!(
+                        "import_detail.common.field_prefixed",
+                        field = "health",
+                        reason = 理由
+                    ),
+                ));
                 continue;
             }
         };
@@ -232,7 +249,7 @@ async fn 計画する<C: ConnectionTrait>(
                     report.push(Entry::new(
                         Outcome::Error,
                         表示,
-                        "location_type=MountContainer には location_name（設備・什器の名前）が要ります",
+                        理由!("import_detail.parts.container_name_required"),
                     ));
                     continue;
                 };
@@ -245,7 +262,7 @@ async fn 計画する<C: ConnectionTrait>(
                         report.push(Entry::new(
                             Outcome::Error,
                             表示,
-                            format!("設備・什器「{name}」がこのプロジェクトにありません"),
+                            理由!("import_detail.parts.container_not_found", name = name),
                         ));
                         continue;
                     }
@@ -258,7 +275,7 @@ async fn 計画する<C: ConnectionTrait>(
                     report.push(Entry::new(
                         Outcome::Error,
                         表示,
-                        "location_type=Project には location_name を書きません（置き場はこのプロジェクトに限ります）",
+                        理由!("import_detail.parts.project_name_given"),
                     ));
                     continue;
                 }
@@ -271,8 +288,7 @@ async fn 計画する<C: ConnectionTrait>(
                 report.push(Entry::new(
                     Outcome::Error,
                     表示,
-                    "location_type「Warehouse」は使えなくなりました。\
-                     倉庫は倉庫用のプロジェクトです。倉庫へ移すには変更管理チケット（Transfer）を使ってください",
+                    理由!("import_detail.common.warehouse_removed"),
                 ));
                 continue;
             }
@@ -280,9 +296,7 @@ async fn 計画する<C: ConnectionTrait>(
                 report.push(Entry::new(
                     Outcome::Error,
                     表示,
-                    format!(
-                        "location_type「{other}」は扱えません。Device / MountContainer / Project / Disposed のいずれかです"
-                    ),
+                    理由!("import_detail.parts.location_type_invalid", value = other),
                 ));
                 continue;
             }
@@ -292,7 +306,7 @@ async fn 計画する<C: ConnectionTrait>(
             report.push(Entry::new(
                 Outcome::Error,
                 表示,
-                "chassis_slot は location_type=Device のときだけ指定できます",
+                理由!("import_detail.parts.slot_only_device"),
             ));
             continue;
         }
@@ -318,11 +332,11 @@ async fn 計画する<C: ConnectionTrait>(
         });
         // 倉庫にある間の `status` には意味が無い。比べず、書き換えもしない。
         // **黙って捨てない**——書いてあれば行の説明に添える
-        let mut 説明 = String::new();
+        let mut 説明 = Message::default();
         let status = match &既存 {
             Some(p) if 倉庫プロジェクト && p.status != status => {
                 if !row.status.trim().is_empty() {
-                    説明 = "倉庫プロジェクトでは status を反映しません（保管中の機器・部品の status は動かさない）".to_owned();
+                    説明 = 理由!("import_detail.common.warehouse_status_ignored");
                 }
                 p.status.clone()
             }
@@ -363,7 +377,7 @@ async fn 計画する<C: ConnectionTrait>(
 async fn 解決する部品カタログ<C: ConnectionTrait>(
     db: &C,
     row: &PartRow,
-) -> Result<Result<part_catalog::Model, String>, sea_orm::DbErr> {
+) -> Result<Result<part_catalog::Model, Message>, sea_orm::DbErr> {
     let vendor_name = row.part_vendor.trim();
     let part_number = row.part_number.trim();
 
@@ -372,7 +386,10 @@ async fn 解決する部品カタログ<C: ConnectionTrait>(
         .one(db)
         .await?
     else {
-        return Ok(Err(format!("ベンダー「{vendor_name}」が見つかりません")));
+        return Ok(Err(理由!(
+            "import_detail.common.vendor_not_found",
+            vendor = vendor_name
+        )));
     };
     // **統合で吸収されたベンダーは統合先で引き直す**（23.9.4）
     let vendor_id = v.merged_into_vendor_id.unwrap_or(v.id);
@@ -383,8 +400,10 @@ async fn 解決する部品カタログ<C: ConnectionTrait>(
         .one(db)
         .await?
     else {
-        return Ok(Err(format!(
-            "部品カタログ「{vendor_name} {part_number}」が見つかりません"
+        return Ok(Err(理由!(
+            "import_detail.parts.catalog_not_found",
+            vendor = vendor_name,
+            part_number = part_number
         )));
     };
 
@@ -406,18 +425,18 @@ async fn 解決するスロット<C: ConnectionTrait>(
     db: &C,
     d: &device::Model,
     label: &str,
-) -> Result<Result<i32, String>, sea_orm::DbErr> {
+) -> Result<Result<i32, Message>, sea_orm::DbErr> {
     let Some(configuration_id) = d.configuration_id else {
-        return Ok(Err(format!(
-            "{} は構成を持たないため、スロットを指定できません",
-            d.hostname
+        return Ok(Err(理由!(
+            "import_detail.parts.no_configuration",
+            hostname = &d.hostname
         )));
     };
     let Some(c) = configuration::Entity::find_by_id(configuration_id)
         .one(db)
         .await?
     else {
-        return Ok(Err("構成が見つかりません".to_owned()));
+        return Ok(Err(理由!("import_detail.parts.configuration_missing")));
     };
 
     let slot = chassis_slot::Entity::find()
@@ -427,9 +446,10 @@ async fn 解決するスロット<C: ConnectionTrait>(
         .await?;
     Ok(match slot {
         Some(s) => Ok(s.id),
-        None => Err(format!(
-            "{} の筐体にスロット「{label}」がありません",
-            d.hostname
+        None => Err(理由!(
+            "import_detail.parts.slot_not_found",
+            hostname = &d.hostname,
+            label = label
         )),
     })
 }
@@ -503,7 +523,7 @@ async fn 突合<C: ConnectionTrait>(
     候補: &[part_instance::Model],
     vendor_id: i32,
     serial: &str,
-) -> Result<Result<Option<part_instance::Model>, String>, sea_orm::DbErr> {
+) -> Result<Result<Option<part_instance::Model>, Message>, sea_orm::DbErr> {
     // 同じシリアルの部品を全体から引き、ベンダーで絞る
     let 同シリアル = part_instance::Entity::find()
         .filter(part_instance::Column::SerialNumber.eq(serial))
@@ -528,22 +548,24 @@ async fn 突合<C: ConnectionTrait>(
         1 => {
             let p = 同一.remove(0);
             if !候補.iter().any(|c| c.id == p.id) {
-                return Ok(Err(format!(
-                    "シリアル「{serial}」の部品は、このプロジェクトにあったことがありません。\
-                     他のプロジェクトや倉庫からの移動は変更管理チケットで行ってください"
+                return Ok(Err(理由!(
+                    "import_detail.parts.never_in_project",
+                    serial = serial
                 )));
             }
             // **今は他のプロジェクトにある部品には触れない**（#143 の機器と同じ）
             match crate::part_location::部品の現在のプロジェクト(db, p.id).await? {
-                Some(今) if 今 != project_id => Ok(Err(format!(
-                    "シリアル「{serial}」の部品は今、他のプロジェクトにあります。\
-                     プロジェクト間の移動は変更管理チケット（Transfer）で行ってください"
+                Some(今) if 今 != project_id => Ok(Err(理由!(
+                    "import_detail.parts.in_other_project",
+                    serial = serial
                 ))),
                 _ => Ok(Ok(Some(p))),
             }
         }
-        n => Ok(Err(format!(
-            "シリアル「{serial}」の部品が同じベンダーに{n}件あります。突合できません"
+        n => Ok(Err(理由!(
+            "import_detail.parts.ambiguous",
+            serial = serial,
+            count = n
         ))),
     }
 }
@@ -680,6 +702,6 @@ mod tests {
         let rows =
             parse_parts("serial_number,part_vendor,part_number,location_type\n,Samsung,X,Device\n")
                 .unwrap();
-        assert!(rows[0].表示名().contains("シリアルなし"));
+        assert!(rows[0].表示名().contains("(—)"));
     }
 }

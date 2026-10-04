@@ -15,6 +15,14 @@
 //! 同じ仕組みで扱う。2本目以降の端は、すでに挿さっているケーブルの空いた端を
 //! 選んで挿す。
 //!
+//! # プロジェクトをまたぐ接続
+//!
+//! 共用のスイッチに、別のプロジェクトの機器をつなぐ場合である。**挿す人が、
+//! ケーブルの挿さっている先のすべてのプロジェクトで編集できること**を求める。
+//! 相手の機器は、そのプロジェクトのメンバーにだけ見せる。メンバーでない人には
+//! 「別のプロジェクトの機器」とだけ出す。外すのは、外す端の側の権限だけでよい
+//! ——両方を求めると、移譲・廃棄の前にケーブルを外せない側が出る。
+//!
 //! # 検査
 //!
 //! ケーブルの種別（`cable_kind`）とポートの種別（`port_kind`）が違えば拒否
@@ -128,6 +136,12 @@ async fn 描く(
 
     let ポート = 載っているポート(db, device_id).await?;
     let 別のプロジェクト = rust_i18n::t!("connections.other_project", locale = l).to_string();
+    let (見える, 編集できる) = 利用者のプロジェクト(db, &current.user).await?;
+    let 視野 = 視野 {
+        project_id,
+        見える: &見える,
+        別のプロジェクト: &別のプロジェクト,
+    };
     let 未接続 = rust_i18n::t!("connections.unconnected", locale = l).to_string();
 
     let mut rows = Vec::new();
@@ -143,9 +157,7 @@ async fn 描く(
                         continue;
                     }
                     let 相手 = match ケーブル.接続.get(&e.id) {
-                        Some(other) => {
-                            接続先の表示(db, project_id, other, &別のプロジェクト).await?
-                        }
+                        Some(other) => 接続先の表示(db, &視野, other).await?,
                         None => 未接続.clone(),
                     };
                     peers.push(format!("{}: {相手}", e.end_label));
@@ -195,7 +207,7 @@ async fn 描く(
     let (new_cables, open_ends) = if can_edit {
         (
             新しいケーブルの候補(db).await?,
-            空いた端の候補(db, project_id).await?,
+            空いた端の候補(db, &視野, &編集できる).await?,
         )
     } else {
         (Vec::new(), Vec::new())
@@ -280,7 +292,8 @@ pub async fn connect(
     let db = &state.db;
     let 内部 = |e: sea_orm::DbErr| AppError::Internal(anyhow::anyhow!(e));
 
-    let 入力 = match 検証(db, project_id, device_id, &form).await? {
+    let (_, 編集できる) = 利用者のプロジェクト(db, &current.user).await?;
+    let 入力 = match 検証(db, &編集できる, device_id, &form).await? {
         Ok(v) => v,
         Err(key) => {
             let message = rust_i18n::t!(key, locale = l).to_string();
@@ -337,7 +350,7 @@ pub async fn connect(
 /// 入力を確かめる。誤りは i18n のキーで返す。
 async fn 検証(
     db: &sea_orm::DatabaseConnection,
-    project_id: i32,
+    編集できる: &HashSet<i32>,
     device_id: i32,
     form: &ConnectForm,
 ) -> AppResult<Result<(i32, i32, 挿す端), &'static str>> {
@@ -385,19 +398,16 @@ async fn 検証(
             else {
                 return Ok(Err("connections.error_cable"));
             };
-            // **このプロジェクトの機器に挿さっているケーブルに限る。**IDを直接
-            // 送られても、他のプロジェクトのケーブルは挿せない
+            // **挿さっている先のすべてのプロジェクトで、編集できることを求める。**
+            // 共用のスイッチに別のプロジェクトの機器をつなぐには、両方のプロジェクトで
+            // Operator 以上が要る。IDを直接送られても、権限の無いプロジェクトの
+            // ケーブルは挿せない。どこにも挿さっていないケーブルも挿せない
             let 現行 = ケーブルの現行の接続(db, cable.id).await?;
-            let mut ここのもの = false;
-            for c in &現行 {
-                if c.cable_end_slot_id == end.id {
-                    return Ok(Err("connections.error_end_in_use"));
-                }
-                if 部品のある場所(db, c.part_instance_id).await? == Some(project_id) {
-                    ここのもの = true;
-                }
+            if 現行.iter().any(|c| c.cable_end_slot_id == end.id) {
+                return Ok(Err("connections.error_end_in_use"));
             }
-            if !ここのもの {
+            if 現行.is_empty() || !すべて編集できる(db, 現行.iter(), 編集できる).await?
+            {
                 return Ok(Err("connections.error_cable"));
             }
             挿す端::既存(cable, end)
@@ -529,6 +539,69 @@ pub async fn 部品にケーブルがある<C: ConnectionTrait>(
         .is_some())
 }
 
+/// ポートにつながっている相手（インターフェース一覧の「接続先」）。
+///
+/// つながっていなければ空。相手の端をまだ挿していなければ、ケーブルの名前だけを
+/// 出す。見せる範囲は、ポート接続の画面と同じである。
+pub async fn ポートの接続先<C: ConnectionTrait>(
+    db: &C,
+    user: &entity::app_user::Model,
+    project_id: i32,
+    part_instance_id: i32,
+    port_slot_id: i32,
+    l: &str,
+) -> AppResult<String> {
+    let Some(c) = 現行の接続(db, part_instance_id, port_slot_id).await? else {
+        return Ok(String::new());
+    };
+    let 別のプロジェクト = rust_i18n::t!("connections.other_project", locale = l).to_string();
+    let (見える, _) = 利用者のプロジェクト(db, user).await?;
+    let 視野 = 視野 {
+        project_id,
+        見える: &見える,
+        別のプロジェクト: &別のプロジェクト,
+    };
+    let k = ケーブルを引く(db, c.cable_instance_id).await?;
+    let mut 相手 = Vec::new();
+    for e in &k.ends {
+        if e.id == c.cable_end_slot_id {
+            continue;
+        }
+        if let Some(other) = k.接続.get(&e.id) {
+            相手.push(接続先の表示(db, &視野, other).await?);
+        }
+    }
+    if 相手.is_empty() {
+        let 未接続 = rust_i18n::t!("connections.unconnected", locale = l);
+        return Ok(format!("{}（{未接続}）", k.名前()));
+    }
+    Ok(相手.join(" / "))
+}
+
+/// 給電経路の本数（設計書12.6）。**機器に載っている部品の電源ポートのうち、
+/// ケーブルが挿さっている数**と、電源ポートの総数を返す。電源ポートが無ければ
+/// `None`。
+pub async fn 給電経路<C: ConnectionTrait>(
+    db: &C,
+    device_id: i32,
+) -> AppResult<Option<(usize, usize)>> {
+    let mut 総数 = 0;
+    let mut 接続 = 0;
+    for p in 載っているポート(db, device_id).await? {
+        if p.slot.port_kind != "Power" {
+            continue;
+        }
+        総数 += 1;
+        if 現行の接続(db, p.part_instance_id, p.slot.id)
+            .await?
+            .is_some()
+        {
+            接続 += 1;
+        }
+    }
+    Ok((総数 > 0).then_some((接続, 総数)))
+}
+
 // ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
@@ -546,6 +619,7 @@ fn 二つ組(value: &str) -> Option<(i32, i32)> {
 /// 機器に今載っている部品の、ポート1つ。
 struct 載っているポート1 {
     part_instance_id: i32,
+    /// 型番。同じ型番が複数載っていれば、シリアル番号（無ければ番号）つき
     part_number: String,
     slot: part_port_slot::Model,
 }
@@ -565,7 +639,9 @@ async fn 載っているポート<C: ConnectionTrait>(
         .await
         .map_err(内部)?;
 
-    let mut out = Vec::new();
+    // 先に部品と型番を集める。**同じ型番が複数載っていれば、シリアル番号を添えて
+    // 見分ける**（無ければ載せた順の番号）
+    let mut 部品 = Vec::new();
     for loc in locations {
         let Some(instance) = part_instance::Entity::find_by_id(loc.part_instance_id)
             .one(db)
@@ -580,6 +656,26 @@ async fn 載っているポート<C: ConnectionTrait>(
             .map_err(内部)?
             .map(|c| c.part_number)
             .unwrap_or_default();
+        部品.push((instance, part_number));
+    }
+    let mut 数: HashMap<String, usize> = HashMap::new();
+    for (_, n) in &部品 {
+        *数.entry(n.clone()).or_default() += 1;
+    }
+    let mut 順: HashMap<String, usize> = HashMap::new();
+
+    let mut out = Vec::new();
+    for (instance, 型番) in 部品 {
+        let 何番目 = 順.entry(型番.clone()).or_default();
+        *何番目 += 1;
+        let part_number = if 数[&型番] > 1 {
+            match instance.serial_number.as_deref().filter(|s| !s.is_empty()) {
+                Some(serial) => format!("{型番} [{serial}]"),
+                None => format!("{型番} #{何番目}"),
+            }
+        } else {
+            型番
+        };
         let slots = part_port_slot::Entity::find()
             .filter(part_port_slot::Column::PartCatalogId.eq(instance.part_catalog_id))
             .order_by_asc(part_port_slot::Column::Id)
@@ -737,39 +833,75 @@ async fn 部品のある場所<C: ConnectionTrait>(
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))
 }
 
+/// 利用者から見える範囲。接続先をどこまで出すかを決める。
+struct 視野<'a> {
+    /// 今開いているプロジェクト
+    project_id: i32,
+    /// 利用者がメンバーであるプロジェクト。**ここに無いプロジェクトの機器は、
+    /// 機器名もポートも出さない**（A-6の但し書き）
+    見える: &'a HashSet<i32>,
+    /// 見えない機器の代わりに出す文字
+    別のプロジェクト: &'a str,
+}
+
+/// 利用者がメンバーであるプロジェクトと、そのうち編集できるプロジェクト。
+async fn 利用者のプロジェクト<C: ConnectionTrait>(
+    db: &C,
+    user: &entity::app_user::Model,
+) -> AppResult<(HashSet<i32>, HashSet<i32>)> {
+    let rows = entity::project_member::Entity::find()
+        .filter(entity::project_member::Column::UserId.eq(user.id))
+        .all(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let mut 見える = HashSet::new();
+    let mut 編集できる = HashSet::new();
+    for m in rows {
+        見える.insert(m.project_id);
+        if [authorization::ADMINISTRATOR, authorization::OPERATOR].contains(&m.role.as_str()) {
+            編集できる.insert(m.project_id);
+        }
+    }
+    Ok((見える, 編集できる))
+}
+
 /// 接続の反対側を、画面に出す文字にする。
 ///
-/// **このプロジェクトに無い機器は、機器名もポートも出さない**（A-6の但し書き：
-/// 無関係な他プロジェクトのデータは見えない）。
+/// 別のプロジェクトの機器は、プロジェクト名を添える。**利用者がメンバーでない
+/// プロジェクトの機器は、機器名もポートも出さない**（A-6の但し書き：無関係な
+/// 他プロジェクトのデータは見えない）。
 async fn 接続先の表示<C: ConnectionTrait>(
     db: &C,
-    project_id: i32,
+    視野: &視野<'_>,
     c: &cable_connection::Model,
-    別のプロジェクト: &str,
 ) -> AppResult<String> {
     let 内部 = |e: sea_orm::DbErr| AppError::Internal(anyhow::anyhow!(e));
-    if 部品のある場所(db, c.part_instance_id).await? != Some(project_id) {
-        return Ok(別のプロジェクト.to_owned());
+    let 場所 = 部品のある場所(db, c.part_instance_id).await?;
+    let Some(場所) = 場所.filter(|p| 視野.見える.contains(p)) else {
+        return Ok(視野.別のプロジェクト.to_owned());
+    };
+    let 機器 = 部品の載せ先(db, c.part_instance_id).await?;
+    // 型番は、相手の機器の画面と同じ見分け（シリアル番号）で出す
+    let (型番, ポート) = match &機器 {
+        Some(d) => 載っているポート(db, d.id)
+            .await?
+            .into_iter()
+            .find(|p| p.part_instance_id == c.part_instance_id && p.slot.id == c.port_slot_id)
+            .map(|p| (p.part_number, p.slot.port_label))
+            .unwrap_or_default(),
+        None => Default::default(),
+    };
+    let 機器名 = 機器.map(|d| d.hostname).unwrap_or_default();
+    if 場所 == 視野.project_id {
+        return Ok(format!("{機器名} {型番} {ポート}"));
     }
-    let 機器名 = 部品の載せ先(db, c.part_instance_id)
-        .await?
-        .map(|d| d.hostname)
-        .unwrap_or_default();
-    let slot = part_port_slot::Entity::find_by_id(c.port_slot_id)
+    let プロジェクト名 = project::Entity::find_by_id(場所)
         .one(db)
         .await
-        .map_err(内部)?;
-    let 型番 = match &slot {
-        Some(s) => part_catalog::Entity::find_by_id(s.part_catalog_id)
-            .one(db)
-            .await
-            .map_err(内部)?
-            .map(|p| p.part_number)
-            .unwrap_or_default(),
-        None => String::new(),
-    };
-    let ポート = slot.map(|s| s.port_label).unwrap_or_default();
-    Ok(format!("{機器名} {型番} {ポート}"))
+        .map_err(内部)?
+        .map(|p| p.name)
+        .unwrap_or_default();
+    Ok(format!("{機器名} {型番} {ポート}（{プロジェクト名}）"))
 }
 
 /// 新しく作るケーブルの候補。**現役の型の、端ごとに1つ。**
@@ -810,19 +942,26 @@ async fn 新しいケーブルの候補<C: ConnectionTrait>(db: &C) -> AppResult
     Ok(out)
 }
 
-/// このプロジェクトの機器に挿さっているケーブルの、空いた端。
+/// 利用者が編集できるプロジェクトの機器に挿さっているケーブルの、空いた端。
+///
+/// **別のプロジェクトの機器に挿さっているケーブルも候補に出す**——共用の
+/// スイッチに、別のプロジェクトの機器をつなぐ場合である。ただし、そのケーブルが
+/// 挿さっているすべてのプロジェクトで、利用者が編集できることを求める。
 ///
 /// 値は `open:{cable_instance_id}:{cable_end_slot_id}`。
 async fn 空いた端の候補<C: ConnectionTrait>(
     db: &C,
-    project_id: i32,
+    視野: &視野<'_>,
+    編集できる: &HashSet<i32>,
 ) -> AppResult<Vec<Labeled>> {
     let 内部 = |e: sea_orm::DbErr| AppError::Internal(anyhow::anyhow!(e));
 
-    // このプロジェクトに今ある機器 → 載っている部品 → 挿さっているケーブル
+    // 編集できるプロジェクトに今ある機器 → 載っている部品 → 挿さっているケーブル
+    let mut プロジェクト: Vec<i32> = 編集できる.iter().copied().collect();
+    プロジェクト.sort_unstable();
     let 機器: Vec<i32> = device_assignment::Entity::find()
         .filter(device_assignment::Column::LocationType.eq(PROJECT))
-        .filter(device_assignment::Column::LocationId.eq(project_id))
+        .filter(device_assignment::Column::LocationId.is_in(プロジェクト))
         .filter(device_assignment::Column::ToDate.is_null())
         .all(db)
         .await
@@ -861,20 +1000,19 @@ async fn 空いた端の候補<C: ConnectionTrait>(
         }
     }
 
-    let 別のプロジェクト = "";
     let mut out = Vec::new();
     for id in ケーブルid {
         let k = ケーブルを引く(db, id).await?;
         if k.instance.retired_at.is_some() || k.接続.len() >= k.ends.len() {
             continue;
         }
+        if !すべて編集できる(db, k.接続.values(), 編集できる).await? {
+            continue;
+        }
         // どのケーブルかを、挿さっている側の機器とポートで示す
         let mut 挿さっている = Vec::new();
         for c in k.接続.values() {
-            let s = 接続先の表示(db, project_id, c, 別のプロジェクト).await?;
-            if !s.is_empty() {
-                挿さっている.push(s);
-            }
+            挿さっている.push(接続先の表示(db, 視野, c).await?);
         }
         挿さっている.sort();
         for e in &k.ends {
@@ -894,6 +1032,21 @@ async fn 空いた端の候補<C: ConnectionTrait>(
         }
     }
     Ok(out)
+}
+
+/// ケーブルが挿さっている先が、すべて利用者の編集できるプロジェクトにあるか。
+async fn すべて編集できる<'a, C: ConnectionTrait>(
+    db: &C,
+    接続: impl Iterator<Item = &'a cable_connection::Model>,
+    編集できる: &HashSet<i32>,
+) -> AppResult<bool> {
+    for c in 接続 {
+        match 部品のある場所(db, c.part_instance_id).await? {
+            Some(p) if 編集できる.contains(&p) => {}
+            _ => return Ok(false),
+        }
+    }
+    Ok(true)
 }
 
 /// この機器がこのプロジェクトから見えるか。**過去に所属した機器も見える**（A-6）。

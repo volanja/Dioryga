@@ -163,6 +163,8 @@ workspace:
   empty: You do not belong to any project yet. Ask a System Admin to assign you
 
 devices:
+  power_feeds: Power feeds
+  power_feeds_value: "%{connected} (of %{total} power inlets)"
   title: Devices
   lead: Manage the devices in this project
   new: Register device
@@ -1312,7 +1314,7 @@ connections:
   no_ports: No part with ports is mounted on this device
   disconnect: Disconnect
   connect: Connect
-  connect_hint: Choose a new cable, or a free end of a cable already plugged into a device in this project. To plug in the other end, open that device and choose the free end
+  connect_hint: Choose a new cable, or a free end of a cable already plugged into a device in a project you can edit. To plug in the other end, open that device and choose the free end
   new_cable: New cable
   open_end: Free end of a plugged cable
   serial_number: Serial number (optional)

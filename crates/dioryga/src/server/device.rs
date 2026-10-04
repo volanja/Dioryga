@@ -782,7 +782,7 @@ pub async fn detail(
     let 空欄 = |value: Option<String>| value.unwrap_or_else(|| 未設定.clone());
     let 保管中 = 倉庫にあるか(&state, d.id).await?;
 
-    let basic = vec![
+    let mut basic = vec![
         Labeled {
             label: rust_i18n::t!("devices.device_type", locale = l).to_string(),
             value: d.device_type.clone(),
@@ -827,6 +827,24 @@ pub async fn detail(
             value: d.uid.clone(),
         },
     ];
+    // 給電経路の本数（設計書12.6）。電源ポートを持つ部品が載っているときだけ出す。
+    // 回路・PDU単位の集計はv2
+    if let Some((接続, 総数)) = super::connection::給電経路(&state.db, d.id).await? {
+        let 位置 = basic.len() - 1;
+        basic.insert(
+            位置,
+            Labeled {
+                label: rust_i18n::t!("devices.power_feeds", locale = l).to_string(),
+                value: rust_i18n::t!(
+                    "devices.power_feeds_value",
+                    locale = l,
+                    connected = 接続,
+                    total = 総数
+                )
+                .to_string(),
+            },
+        );
+    }
 
     // 所在は履歴をすべて出す。**A-6が保証するのはこの履歴の閲覧**であり、
     // 現在地だけを見せるのでは移設の経緯が追えない

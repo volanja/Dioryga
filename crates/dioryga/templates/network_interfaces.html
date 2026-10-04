@@ -27,6 +27,7 @@
       <th>{{ t_type }}</th>
       {# 意味を持つ列だけを埋める（設計書8.5）。Physical と Bond で別 #}
       <th>{{ t_port }}</th>
+      <th>{{ t_peer }}</th>
       <th>{{ t_aggregation }}</th>
       <th>{{ t_members }}</th>
       <th>{{ t_vlans }}</th>
@@ -41,6 +42,7 @@
       <td>{{ row.name }}</td>
       <td>{{ row.interface_type }}</td>
       <td>{{ row.port }}</td>
+      <td>{{ row.peer }}</td>
       <td>{{ row.aggregation_mode }}</td>
       <td>{{ row.members }}</td>
       <td>{{ row.vlans }}</td>

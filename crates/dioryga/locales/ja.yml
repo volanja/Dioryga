@@ -1123,3 +1123,45 @@ cli:
   export: データを取込フォーマットで書き出す
   export_path: 出力先ディレクトリ
   licenses: 本体と依存のライセンス表示を出力する
+
+# 取込の差分レポートの理由（#214）。取込の種類ごとに分ける
+import_detail:
+  format:
+    labels_empty: "labels が空です"
+    count_zero: "count が 0 です"
+    count_too_large: "count が大きすぎます（%{count}）"
+    labels_and_count: "labels と count は同時に指定できません"
+    labels_or_count: "labels か count のどちらかが要ります"
+    not_in_vocabulary: "%{field}「%{value}」は語彙にありません（%{allowed}）"
+    rack_width_only_racku: "rack_width「%{width}」は mount_form が RackU のときだけ指定できます（%{mount_form}）"
+    not_positive: "%{field}「%{value}」は正の整数で書いてください"
+    model_name_empty: "model_name が空です"
+    rack_needs_height: "Rack には height_u が要ります"
+    height_only_rack: "height_u は Rack のときだけ書けます（%{container_type}）"
+    shelving_needs_shelf_count: "Shelving には shelf_count が要ります"
+    shelf_count_only_shelving: "shelf_count は Shelving のときだけ書けます（%{container_type}）"
+    port_kind_not_in_vocabulary: "port_kind「%{value}」は語彙にありません"
+    connector_empty: "%{port_kind}: connector_type が空です"
+    port_prefixed: "%{port_kind}: %{reason}"
+    port_speed_ignored: "port_speed「%{value}」は port_kind=%{port_kind} では意味を持たないため無視しました"
+    power_ratings_ignored: "power_ratings は port_kind=%{port_kind} では意味を持たないため無視しました"
+    current_type_not_in_vocabulary: "current_type「%{value}」は語彙にありません"
+    voltage_range: "%{current_type}: 電圧の下限（%{min}）が上限（%{max}）を超えています"
+    current_type_duplicate: "current_type「%{value}」が重複しています"
+    vlan_tag_range: "vlan_tag「%{value}」は%{min}〜%{max}の範囲外です"
+    name_empty: "name が空です"
+    zone_invalid: "zone「%{value}」は使えません（%{allowed}）"
+  catalog:
+    vlan_tag_shared: "タグ%{tag}は「%{other}」でも使われています"
+    vendor_not_found: "ベンダー「%{vendor}」が見つかりません"
+    slot_prefixed: "%{slot_type}: %{reason}"
+    add_slots: "スロット %{count} 本を追加します"
+    add_weight: "重量を追加します"
+    add_slots_and_weight: "スロット %{count} 本と重量を追加します"
+    already_registered: "既に登録されています（上書きしません）"
+    slots: "スロット %{count} 本"
+    add_ports: "ポート %{count} 本を追加します"
+    ports: "ポート %{count} 本"
+    chassis_model_not_found: "参照している筐体モデルが見つかりません"
+    unresolved_parts: "解決できない部品: %{parts}"
+    part_kinds: "部品 %{count} 種"

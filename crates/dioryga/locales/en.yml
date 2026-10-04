@@ -1120,3 +1120,45 @@ cli:
   export: Export data in the import format
   export_path: Output directory
   licenses: Print the license notices for Dioryga and its dependencies
+
+# Reasons in the import diff report (#214), grouped by import kind
+import_detail:
+  format:
+    labels_empty: "labels is empty"
+    count_zero: "count is 0"
+    count_too_large: "count is too large (%{count})"
+    labels_and_count: "labels and count cannot both be given"
+    labels_or_count: "Either labels or count is required"
+    not_in_vocabulary: "%{field} \"%{value}\" is not in the vocabulary (%{allowed})"
+    rack_width_only_racku: "rack_width \"%{width}\" can only be given when mount_form is RackU (%{mount_form})"
+    not_positive: "%{field} \"%{value}\" must be a positive integer"
+    model_name_empty: "model_name is empty"
+    rack_needs_height: "A Rack needs height_u"
+    height_only_rack: "height_u can only be given for a Rack (%{container_type})"
+    shelving_needs_shelf_count: "A Shelving needs shelf_count"
+    shelf_count_only_shelving: "shelf_count can only be given for a Shelving (%{container_type})"
+    port_kind_not_in_vocabulary: "port_kind \"%{value}\" is not in the vocabulary"
+    connector_empty: "%{port_kind}: connector_type is empty"
+    port_prefixed: "%{port_kind}: %{reason}"
+    port_speed_ignored: "port_speed \"%{value}\" has no meaning for port_kind=%{port_kind} and was ignored"
+    power_ratings_ignored: "power_ratings has no meaning for port_kind=%{port_kind} and was ignored"
+    current_type_not_in_vocabulary: "current_type \"%{value}\" is not in the vocabulary"
+    voltage_range: "%{current_type}: the lower voltage (%{min}) is above the upper voltage (%{max})"
+    current_type_duplicate: "current_type \"%{value}\" is duplicated"
+    vlan_tag_range: "vlan_tag \"%{value}\" is outside %{min}-%{max}"
+    name_empty: "name is empty"
+    zone_invalid: "zone \"%{value}\" cannot be used (%{allowed})"
+  catalog:
+    vlan_tag_shared: "Tag %{tag} is also used by \"%{other}\""
+    vendor_not_found: "Vendor \"%{vendor}\" was not found"
+    slot_prefixed: "%{slot_type}: %{reason}"
+    add_slots: "Adds %{count} slots"
+    add_weight: "Adds the weight"
+    add_slots_and_weight: "Adds %{count} slots and the weight"
+    already_registered: "Already registered (not overwritten)"
+    slots: "%{count} slots"
+    add_ports: "Adds %{count} ports"
+    ports: "%{count} ports"
+    chassis_model_not_found: "The referenced chassis model was not found"
+    unresolved_parts: "Parts that cannot be resolved: %{parts}"
+    part_kinds: "%{count} kinds of parts"

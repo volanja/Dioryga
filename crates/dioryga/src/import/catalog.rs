@@ -52,7 +52,7 @@ use entity::{
 use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter, Set};
 use std::collections::HashMap;
 
-use super::{Entry, ImportError, Outcome, Report};
+use super::{理由, Entry, ImportError, Message, Outcome, Report};
 // **入力型と展開記法は別crateにある**（#77）。構成図パーサ（Krounos）が同じ型を
 // 使うため、DBに触れない部分だけを切り出してある
 use crate::repository::{Actor, AuditedTx};
@@ -88,7 +88,7 @@ pub async fn dry_run<C: ConnectionTrait>(
                 Outcome::Created
             },
             format!("VENDOR {}", v.name),
-            "",
+            Message::default(),
         ));
     }
 
@@ -101,7 +101,7 @@ pub async fn dry_run<C: ConnectionTrait>(
 
         let 既存 = 既存vlan(db, v.vlan_tag, &v.name).await?;
         if 既存.is_some() {
-            report.push(Entry::new(Outcome::Unchanged, target, ""));
+            report.push(Entry::new(Outcome::Unchanged, target, Message::default()));
             continue;
         }
 
@@ -116,9 +116,13 @@ pub async fn dry_run<C: ConnectionTrait>(
             Some(他) => report.push(Entry::new(
                 Outcome::Warning,
                 target,
-                format!("タグ{}は「{}」でも使われています", v.vlan_tag, 他.name),
+                理由!(
+                    "import_detail.catalog.vlan_tag_shared",
+                    tag = v.vlan_tag,
+                    other = 他.name
+                ),
             )),
-            None => report.push(Entry::new(Outcome::Created, target, "")),
+            None => report.push(Entry::new(Outcome::Created, target, Message::default())),
         }
     }
 
@@ -133,7 +137,7 @@ pub async fn dry_run<C: ConnectionTrait>(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                format!("ベンダー「{}」が見つかりません", m.vendor),
+                理由!("import_detail.catalog.vendor_not_found", vendor = &m.vendor),
             ));
             continue;
         }
@@ -154,7 +158,11 @@ pub async fn dry_run<C: ConnectionTrait>(
             match slot.expand() {
                 Ok(labels) => ラベル数 += labels.len(),
                 Err(e) => {
-                    展開エラー = Some(format!("{}: {e}", slot.slot_type));
+                    展開エラー = Some(理由!(
+                        "import_detail.catalog.slot_prefixed",
+                        slot_type = &slot.slot_type,
+                        reason = e
+                    ));
                     break;
                 }
             }
@@ -171,31 +179,31 @@ pub async fn dry_run<C: ConnectionTrait>(
                 let 既存の本数 = スロット数(db, existing.id).await?;
                 // **重量も、空なら足す**（12.10）。値があれば上書きしない
                 let 重量を足す = existing.weight_g.is_none() && m.weight_g.is_some();
-                if (既存の本数 == 0 && ラベル数 > 0) || 重量を足す {
-                    let mut 足すもの = Vec::new();
-                    if 既存の本数 == 0 && ラベル数 > 0 {
-                        足すもの.push(format!("スロット {ラベル数} 本"));
+                let スロットを足す = 既存の本数 == 0 && ラベル数 > 0;
+                let 足すもの = match (スロットを足す, 重量を足す) {
+                    (true, true) => Some(理由!(
+                        "import_detail.catalog.add_slots_and_weight",
+                        count = ラベル数
+                    )),
+                    (true, false) => {
+                        Some(理由!("import_detail.catalog.add_slots", count = ラベル数))
                     }
-                    if 重量を足す {
-                        足すもの.push("重量".to_owned());
-                    }
-                    report.push(Entry::new(
-                        Outcome::Updated,
-                        target,
-                        format!("{}を追加します", 足すもの.join("と")),
-                    ));
-                } else {
-                    report.push(Entry::new(
+                    (false, true) => Some(理由!("import_detail.catalog.add_weight")),
+                    (false, false) => None,
+                };
+                match 足すもの {
+                    Some(m) => report.push(Entry::new(Outcome::Updated, target, m)),
+                    None => report.push(Entry::new(
                         Outcome::Unchanged,
                         target,
-                        "既に登録されています（上書きしません）",
-                    ));
+                        理由!("import_detail.catalog.already_registered"),
+                    )),
                 }
             }
             None => report.push(Entry::new(
                 Outcome::Created,
                 target,
-                format!("スロット {ラベル数} 本"),
+                理由!("import_detail.catalog.slots", count = ラベル数),
             )),
         }
     }
@@ -207,7 +215,7 @@ pub async fn dry_run<C: ConnectionTrait>(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                format!("ベンダー「{}」が見つかりません", m.vendor),
+                理由!("import_detail.catalog.vendor_not_found", vendor = &m.vendor),
             ));
             continue;
         }
@@ -219,9 +227,9 @@ pub async fn dry_run<C: ConnectionTrait>(
             Some(_) => report.push(Entry::new(
                 Outcome::Unchanged,
                 target,
-                "既に登録されています（上書きしません）",
+                理由!("import_detail.catalog.already_registered"),
             )),
-            None => report.push(Entry::new(Outcome::Created, target, "")),
+            None => report.push(Entry::new(Outcome::Created, target, Message::default())),
         }
     }
 
@@ -231,7 +239,7 @@ pub async fn dry_run<C: ConnectionTrait>(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                format!("ベンダー「{}」が見つかりません", p.vendor),
+                理由!("import_detail.catalog.vendor_not_found", vendor = &p.vendor),
             ));
             continue;
         }
@@ -257,13 +265,13 @@ pub async fn dry_run<C: ConnectionTrait>(
                     report.push(Entry::new(
                         Outcome::Updated,
                         target.clone(),
-                        format!("ポート {} 本を追加します", ports.len()),
+                        理由!("import_detail.catalog.add_ports", count = ports.len()),
                     ));
                 } else {
                     report.push(Entry::new(
                         Outcome::Unchanged,
                         target.clone(),
-                        "既に登録されています（上書きしません）",
+                        理由!("import_detail.catalog.already_registered"),
                     ));
                 }
             }
@@ -271,9 +279,9 @@ pub async fn dry_run<C: ConnectionTrait>(
                 Outcome::Created,
                 target.clone(),
                 if ports.is_empty() {
-                    String::new()
+                    Message::default()
                 } else {
-                    format!("ポート {} 本", ports.len())
+                    理由!("import_detail.catalog.ports", count = ports.len())
                 },
             )),
         }
@@ -312,7 +320,7 @@ pub async fn dry_run<C: ConnectionTrait>(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                "参照している筐体モデルが見つかりません",
+                理由!("import_detail.catalog.chassis_model_not_found"),
             ));
             continue;
         }
@@ -327,9 +335,10 @@ pub async fn dry_run<C: ConnectionTrait>(
             if !ある {
                 未解決.push(format!("{} {}", part.part.vendor, part.part.part_number));
             }
+            // 列名で書く。訳さずに読める（#214）
             if part.quantity < 1 {
                 未解決.push(format!(
-                    "{} の数量が {}",
+                    "{} (quantity={})",
                     part.part.part_number, part.quantity
                 ));
             }
@@ -338,7 +347,10 @@ pub async fn dry_run<C: ConnectionTrait>(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                format!("解決できない部品: {}", 未解決.join(", ")),
+                理由!(
+                    "import_detail.catalog.unresolved_parts",
+                    parts = 未解決.join(", ")
+                ),
             ));
             continue;
         }
@@ -350,7 +362,7 @@ pub async fn dry_run<C: ConnectionTrait>(
                 Outcome::Created
             },
             target,
-            format!("部品 {} 種", c.parts.len()),
+            理由!("import_detail.catalog.part_kinds", count = c.parts.len()),
         ));
     }
 

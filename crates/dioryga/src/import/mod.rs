@@ -228,6 +228,10 @@ pub enum ImportError {
     #[error("{}", self.文言(crate::console::言語()))]
     HasErrors(usize),
 
+    /// 利用者のCSVに書かせない列（パスワード・System Admin、設計書23.8）。
+    #[error("{}", self.文言(crate::console::言語()))]
+    ForbiddenColumn(String),
+
     #[error(transparent)]
     Db(#[from] sea_orm::DbErr),
 }
@@ -252,6 +256,13 @@ impl ImportError {
                 expected = expected
             ),
             Self::HasErrors(count) => t!("errors.import_has_errors", locale = l, count = count),
+            Self::ForbiddenColumn(column) => {
+                t!(
+                    "errors.import_forbidden_column",
+                    locale = l,
+                    column = column
+                )
+            }
             Self::Db(e) => return e.to_string(),
         }
         .into_owned()

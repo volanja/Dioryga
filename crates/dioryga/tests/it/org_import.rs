@@ -266,7 +266,10 @@ async fn パスワードの列があれば拒否する(db: &DatabaseConnection) 
 
     let 結果 = run::run(db, &dir.join("manifest.yaml"), "admin", false).await;
     assert!(
-        matches!(結果, Err(RunError::Import(ImportError::Csv(_)))),
+        matches!(
+            &結果,
+            Err(RunError::Import(ImportError::ForbiddenColumn(c))) if c == "password"
+        ),
         "{:?}",
         結果.err()
     );

@@ -165,7 +165,7 @@ async fn instances_manifest(
 /// 組織データのマニフェストを取り込む（設計書23.8）。
 ///
 /// **System Adminだけが流せる。**プロジェクトに属さず、`as_of` も持たない
-/// （利用者・メンバー・倉庫・プロジェクトは履歴テーブルではない）。
+/// （利用者・メンバー・プロジェクトは履歴テーブルではない）。
 async fn organization_manifest(
     db: &DatabaseConnection,
     path: &Path,
@@ -323,7 +323,6 @@ fn 組織を読み分ける(
         let csv = std::fs::read_to_string(&csv_path).map_err(ImportError::Io)?;
         match file.entity.as_str() {
             "user" => out.users.extend(organization::parse_users(&csv)?),
-            "warehouse" => out.warehouses.extend(organization::parse_warehouses(&csv)?),
             "project" => out.projects.extend(organization::parse_projects(&csv)?),
             "project_member" => out.members.extend(organization::parse_members(&csv)?),
             other => return Err(RunError::UnsupportedEntity(other.to_owned())),

@@ -1,0 +1,12 @@
+# 動作確認用データ：倉庫用のプロジェクトの担当（#220）。System Admin が流す。
+#
+# 倉庫用のプロジェクトは最初の System Admin を作るときにできる（#217）。名前は
+# そのときの言語で決まるので、dev-seed.py は日本語で作らせ「倉庫」にしている。
+# 取込を行う hotaka を Operator にして、棚と予備を入れられるようにする。
+#
+# 組織データの例（docs/examples/organization/）は結合テストが倉庫用の
+# プロジェクトの無いDBで流すため、ここに分けている。
+format_version: 1
+kind: organization
+files:
+  - { entity: project_member, path: members.csv }

@@ -21,7 +21,7 @@ The name comes from διώρυγα, Greek for "canal", and is pronounced *dee-OH
 - Costs and contracts: manage purchase records, fixed assets, maintenance contracts and recurring costs for devices and racks
 - Milestones: record planned and actual dates for service start, renewal, maintenance and end, and show delays against the plan
 - Change management tickets: raise tickets for adding, relocating or removing devices, and carry them out after approval
-- Warehouses: manage, across projects, where devices and parts not assigned to any project are kept
+- Warehouse: spare devices and parts are kept in a warehouse project created at first setup, and handed out to other projects with transfer tickets
 - Shared catalog: share definitions of vendors, device models, configurations, parts, cables, rack and furniture models, software and VLANs across all projects
 - Users and projects: add members to each project and assign them roles (Administrator, Operator, Approver, Viewer)
 

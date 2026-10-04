@@ -12,53 +12,53 @@
 <!-- public.app_user -->
 <g id="node1" class="node">
 <title>public.app_user</title>
-<polygon fill="#efefef" stroke="none" points="2192.03,-474.4 2192.03,-510 2454.26,-510 2454.26,-474.4 2192.03,-474.4"/>
-<polygon fill="none" stroke="black" points="2192.03,-474.4 2192.03,-510 2454.26,-510 2454.26,-474.4 2192.03,-474.4"/>
-<text text-anchor="start" x="2203.67" y="-487.8" font-family="Arial Bold" font-size="18.00">public.app_user</text>
-<text text-anchor="start" x="2318.14" y="-487.8" font-family="Arial" font-size="14.00">    </text>
-<text text-anchor="start" x="2349.25" y="-487.8" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
-<polygon fill="none" stroke="black" points="2192.03,-443.6 2192.03,-474.4 2454.26,-474.4 2454.26,-443.6 2192.03,-443.6"/>
-<text text-anchor="start" x="2199.03" y="-455.8" font-family="Arial" font-size="14.00">id </text>
-<text text-anchor="start" x="2213.82" y="-455.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="2192.03,-412.8 2192.03,-443.6 2454.26,-443.6 2454.26,-412.8 2192.03,-412.8"/>
-<text text-anchor="start" x="2199.03" y="-425" font-family="Arial" font-size="14.00">name </text>
-<text text-anchor="start" x="2237.94" y="-425" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="2192.03,-382 2192.03,-412.8 2454.26,-412.8 2454.26,-382 2192.03,-382"/>
-<text text-anchor="start" x="2199.03" y="-394.2" font-family="Arial" font-size="14.00">username </text>
-<text text-anchor="start" x="2265.18" y="-394.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="2192.03,-351.2 2192.03,-382 2454.26,-382 2454.26,-351.2 2192.03,-351.2"/>
-<text text-anchor="start" x="2199.03" y="-363.4" font-family="Arial" font-size="14.00">email </text>
-<text text-anchor="start" x="2236.38" y="-363.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="2192.03,-320.4 2192.03,-351.2 2454.26,-351.2 2454.26,-320.4 2192.03,-320.4"/>
-<text text-anchor="start" x="2199.03" y="-332.6" font-family="Arial" font-size="14.00">password_hash </text>
-<text text-anchor="start" x="2300.98" y="-332.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="2192.03,-289.6 2192.03,-320.4 2454.26,-320.4 2454.26,-289.6 2192.03,-289.6"/>
-<text text-anchor="start" x="2199.03" y="-301.8" font-family="Arial" font-size="14.00">must_change_password </text>
-<text text-anchor="start" x="2354.68" y="-301.8" font-family="Arial" font-size="14.00" fill="#666666">[boolean]</text>
-<polygon fill="none" stroke="black" points="2192.03,-258.8 2192.03,-289.6 2454.26,-289.6 2454.26,-258.8 2192.03,-258.8"/>
-<text text-anchor="start" x="2199.03" y="-271" font-family="Arial" font-size="14.00">is_system_admin </text>
-<text text-anchor="start" x="2311.07" y="-271" font-family="Arial" font-size="14.00" fill="#666666">[boolean]</text>
-<polygon fill="none" stroke="black" points="2192.03,-228 2192.03,-258.8 2454.26,-258.8 2454.26,-228 2192.03,-228"/>
-<text text-anchor="start" x="2199.03" y="-240.2" font-family="Arial" font-size="14.00">locale </text>
-<text text-anchor="start" x="2239.5" y="-240.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="2192.03,-197.2 2192.03,-228 2454.26,-228 2454.26,-197.2 2192.03,-197.2"/>
-<text text-anchor="start" x="2199.03" y="-209.4" font-family="Arial" font-size="14.00">last_login_at </text>
-<text text-anchor="start" x="2281.54" y="-209.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="2192.03,-166.4 2192.03,-197.2 2454.26,-197.2 2454.26,-166.4 2192.03,-166.4"/>
-<text text-anchor="start" x="2199.03" y="-178.6" font-family="Arial" font-size="14.00">disabled_at </text>
-<text text-anchor="start" x="2274.54" y="-178.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="2192.03,-135.6 2192.03,-166.4 2454.26,-166.4 2454.26,-135.6 2192.03,-135.6"/>
-<text text-anchor="start" x="2199.03" y="-147.8" font-family="Arial" font-size="14.00">created_at </text>
-<text text-anchor="start" x="2269.08" y="-147.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="2192.03,-104.8 2192.03,-135.6 2454.26,-135.6 2454.26,-104.8 2192.03,-104.8"/>
-<text text-anchor="start" x="2199.03" y="-117" font-family="Arial" font-size="14.00">updated_at </text>
-<text text-anchor="start" x="2272.99" y="-117" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="2192.03,-74 2192.03,-104.8 2454.26,-104.8 2454.26,-74 2192.03,-74"/>
-<text text-anchor="start" x="2199.03" y="-86.2" font-family="Arial" font-size="14.00">theme </text>
-<text text-anchor="start" x="2241.83" y="-86.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="2192.03,-43.2 2192.03,-74 2454.26,-74 2454.26,-43.2 2192.03,-43.2"/>
-<text text-anchor="start" x="2199.03" y="-55.4" font-family="Arial" font-size="14.00">timezone </text>
-<text text-anchor="start" x="2259.73" y="-55.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="#efefef" stroke="none" points="2328.03,-474.4 2328.03,-510 2590.26,-510 2590.26,-474.4 2328.03,-474.4"/>
+<polygon fill="none" stroke="black" points="2328.03,-474.4 2328.03,-510 2590.26,-510 2590.26,-474.4 2328.03,-474.4"/>
+<text text-anchor="start" x="2339.67" y="-487.8" font-family="Arial Bold" font-size="18.00">public.app_user</text>
+<text text-anchor="start" x="2454.14" y="-487.8" font-family="Arial" font-size="14.00">    </text>
+<text text-anchor="start" x="2485.25" y="-487.8" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
+<polygon fill="none" stroke="black" points="2328.03,-443.6 2328.03,-474.4 2590.26,-474.4 2590.26,-443.6 2328.03,-443.6"/>
+<text text-anchor="start" x="2335.03" y="-455.8" font-family="Arial" font-size="14.00">id </text>
+<text text-anchor="start" x="2349.82" y="-455.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="2328.03,-412.8 2328.03,-443.6 2590.26,-443.6 2590.26,-412.8 2328.03,-412.8"/>
+<text text-anchor="start" x="2335.03" y="-425" font-family="Arial" font-size="14.00">name </text>
+<text text-anchor="start" x="2373.94" y="-425" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="2328.03,-382 2328.03,-412.8 2590.26,-412.8 2590.26,-382 2328.03,-382"/>
+<text text-anchor="start" x="2335.03" y="-394.2" font-family="Arial" font-size="14.00">username </text>
+<text text-anchor="start" x="2401.18" y="-394.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="2328.03,-351.2 2328.03,-382 2590.26,-382 2590.26,-351.2 2328.03,-351.2"/>
+<text text-anchor="start" x="2335.03" y="-363.4" font-family="Arial" font-size="14.00">email </text>
+<text text-anchor="start" x="2372.38" y="-363.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="2328.03,-320.4 2328.03,-351.2 2590.26,-351.2 2590.26,-320.4 2328.03,-320.4"/>
+<text text-anchor="start" x="2335.03" y="-332.6" font-family="Arial" font-size="14.00">password_hash </text>
+<text text-anchor="start" x="2436.98" y="-332.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="2328.03,-289.6 2328.03,-320.4 2590.26,-320.4 2590.26,-289.6 2328.03,-289.6"/>
+<text text-anchor="start" x="2335.03" y="-301.8" font-family="Arial" font-size="14.00">must_change_password </text>
+<text text-anchor="start" x="2490.68" y="-301.8" font-family="Arial" font-size="14.00" fill="#666666">[boolean]</text>
+<polygon fill="none" stroke="black" points="2328.03,-258.8 2328.03,-289.6 2590.26,-289.6 2590.26,-258.8 2328.03,-258.8"/>
+<text text-anchor="start" x="2335.03" y="-271" font-family="Arial" font-size="14.00">is_system_admin </text>
+<text text-anchor="start" x="2447.07" y="-271" font-family="Arial" font-size="14.00" fill="#666666">[boolean]</text>
+<polygon fill="none" stroke="black" points="2328.03,-228 2328.03,-258.8 2590.26,-258.8 2590.26,-228 2328.03,-228"/>
+<text text-anchor="start" x="2335.03" y="-240.2" font-family="Arial" font-size="14.00">locale </text>
+<text text-anchor="start" x="2375.5" y="-240.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="2328.03,-197.2 2328.03,-228 2590.26,-228 2590.26,-197.2 2328.03,-197.2"/>
+<text text-anchor="start" x="2335.03" y="-209.4" font-family="Arial" font-size="14.00">last_login_at </text>
+<text text-anchor="start" x="2417.54" y="-209.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="2328.03,-166.4 2328.03,-197.2 2590.26,-197.2 2590.26,-166.4 2328.03,-166.4"/>
+<text text-anchor="start" x="2335.03" y="-178.6" font-family="Arial" font-size="14.00">disabled_at </text>
+<text text-anchor="start" x="2410.54" y="-178.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="2328.03,-135.6 2328.03,-166.4 2590.26,-166.4 2590.26,-135.6 2328.03,-135.6"/>
+<text text-anchor="start" x="2335.03" y="-147.8" font-family="Arial" font-size="14.00">created_at </text>
+<text text-anchor="start" x="2405.08" y="-147.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="2328.03,-104.8 2328.03,-135.6 2590.26,-135.6 2590.26,-104.8 2328.03,-104.8"/>
+<text text-anchor="start" x="2335.03" y="-117" font-family="Arial" font-size="14.00">updated_at </text>
+<text text-anchor="start" x="2408.99" y="-117" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="2328.03,-74 2328.03,-104.8 2590.26,-104.8 2590.26,-74 2328.03,-74"/>
+<text text-anchor="start" x="2335.03" y="-86.2" font-family="Arial" font-size="14.00">theme </text>
+<text text-anchor="start" x="2377.83" y="-86.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="2328.03,-43.2 2328.03,-74 2590.26,-74 2590.26,-43.2 2328.03,-43.2"/>
+<text text-anchor="start" x="2335.03" y="-55.4" font-family="Arial" font-size="14.00">timezone </text>
+<text text-anchor="start" x="2395.73" y="-55.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 </g>
 <!-- public.project -->
 <g id="node2" class="node">
@@ -132,7 +132,7 @@
 <!-- public.project_member&#45;&gt;public.app_user -->
 <g id="edge1" class="edge">
 <title>public.project_member:user_id&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M3442.4,-3187.78C3519.29,-3161.56 3416.4,-2824.64 3483.15,-2761.2 3568.55,-2680.02 3930.28,-2809.94 4012.15,-2725.2 4078.95,-2656.06 4041.15,-1956.54 4041.15,-1860.4 4041.15,-1860.4 4041.15,-1860.4 4041.15,-1315.4 4041.15,-992.33 4233.03,-822.12 4009.15,-589.2 3889.08,-464.29 2628.52,-459 2455.26,-459"/>
+<path fill="none" stroke="black" d="M3442.4,-3187.78C3519.29,-3161.56 3416.4,-2824.64 3483.15,-2761.2 3568.55,-2680.02 3930.28,-2809.94 4012.15,-2725.2 4078.95,-2656.06 4041.15,-1956.54 4041.15,-1860.4 4041.15,-1860.4 4041.15,-1860.4 4041.15,-1315.4 4041.15,-992.33 4232.1,-823.01 4009.15,-589.2 3899.97,-474.7 2749.46,-459 2591.26,-459"/>
 <polygon fill="black" stroke="black" points="3442.32,-3187.79 3431.74,-3184.9 3437.05,-3188.62 3432.77,-3189.3 3432.77,-3189.3 3432.77,-3189.3 3437.05,-3188.62 3433.14,-3193.79 3442.32,-3187.79"/>
 <text text-anchor="start" x="3439.11" y="-3199.4" font-family="Arial" font-size="10.00">FOREIGN KEY (user_id) REFERENCES app_user(id)</text>
 </g>
@@ -182,7 +182,7 @@
 <!-- public.session&#45;&gt;public.app_user -->
 <g id="edge3" class="edge">
 <title>public.session:user_id&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M517.81,-862.92C622.09,-852.29 468.84,-669.78 558.15,-589.2 693.27,-467.27 2009.02,-459 2191.03,-459"/>
+<path fill="none" stroke="black" d="M517.81,-862.91C622.08,-852.27 468.6,-669.51 558.15,-589.2 631.5,-523.41 2228.49,-459 2327.03,-459"/>
 <polygon fill="black" stroke="black" points="517.97,-862.91 507.77,-858.89 512.64,-863.16 508.32,-863.37 508.32,-863.37 508.32,-863.37 512.64,-863.16 508.2,-867.88 517.97,-862.91"/>
 <text text-anchor="start" x="514.65" y="-873.4" font-family="Arial" font-size="10.00">FOREIGN KEY (user_id) REFERENCES app_user(id)</text>
 </g>
@@ -249,49 +249,49 @@
 <!-- public.audit_log&#45;&gt;public.app_user -->
 <g id="edge4" class="edge">
 <title>public.audit_log:user_id&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M878.76,-862.92C983.81,-852.31 835.53,-670.19 925.15,-589.2 1030.05,-494.4 2049.64,-459 2191.03,-459"/>
+<path fill="none" stroke="black" d="M878.76,-862.92C983.79,-852.29 835.13,-669.74 925.15,-589.2 1041.73,-484.89 2170.6,-459 2327.03,-459"/>
 <polygon fill="black" stroke="black" points="878.86,-862.91 868.66,-858.89 873.54,-863.16 869.21,-863.37 869.21,-863.37 869.21,-863.37 873.54,-863.16 869.09,-867.88 878.86,-862.91"/>
 <text text-anchor="start" x="875.54" y="-873.4" font-family="Arial" font-size="10.00">FOREIGN KEY (user_id) REFERENCES app_user(id)</text>
 </g>
 <!-- public.vendor -->
 <g id="node7" class="node">
 <title>public.vendor</title>
-<polygon fill="#efefef" stroke="none" points="2560.3,-894.2 2560.3,-929.8 2813.99,-929.8 2813.99,-894.2 2560.3,-894.2"/>
-<polygon fill="none" stroke="black" points="2560.3,-894.2 2560.3,-929.8 2813.99,-929.8 2813.99,-894.2 2560.3,-894.2"/>
-<text text-anchor="start" x="2575.16" y="-907.6" font-family="Arial Bold" font-size="18.00">public.vendor</text>
-<text text-anchor="start" x="2674.64" y="-907.6" font-family="Arial" font-size="14.00">    </text>
-<text text-anchor="start" x="2705.76" y="-907.6" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
-<polygon fill="none" stroke="black" points="2560.3,-863.4 2560.3,-894.2 2813.99,-894.2 2813.99,-863.4 2560.3,-863.4"/>
-<text text-anchor="start" x="2567.3" y="-875.6" font-family="Arial" font-size="14.00">id </text>
-<text text-anchor="start" x="2582.09" y="-875.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="2560.3,-832.6 2560.3,-863.4 2813.99,-863.4 2813.99,-832.6 2560.3,-832.6"/>
-<text text-anchor="start" x="2567.3" y="-844.8" font-family="Arial" font-size="14.00">name </text>
-<text text-anchor="start" x="2606.21" y="-844.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="2560.3,-801.8 2560.3,-832.6 2813.99,-832.6 2813.99,-801.8 2560.3,-801.8"/>
-<text text-anchor="start" x="2567.3" y="-814" font-family="Arial" font-size="14.00">created_by </text>
-<text text-anchor="start" x="2640.46" y="-814" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="2560.3,-771 2560.3,-801.8 2813.99,-801.8 2813.99,-771 2560.3,-771"/>
-<text text-anchor="start" x="2567.3" y="-783.2" font-family="Arial" font-size="14.00">created_at </text>
-<text text-anchor="start" x="2637.35" y="-783.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="2560.3,-740.2 2560.3,-771 2813.99,-771 2813.99,-740.2 2560.3,-740.2"/>
-<text text-anchor="start" x="2567.3" y="-752.4" font-family="Arial" font-size="14.00">updated_at </text>
-<text text-anchor="start" x="2641.26" y="-752.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="2560.3,-709.4 2560.3,-740.2 2813.99,-740.2 2813.99,-709.4 2560.3,-709.4"/>
-<text text-anchor="start" x="2567.3" y="-721.6" font-family="Arial" font-size="14.00">retired_at </text>
-<text text-anchor="start" x="2630.34" y="-721.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="2560.3,-678.6 2560.3,-709.4 2813.99,-709.4 2813.99,-678.6 2560.3,-678.6"/>
-<text text-anchor="start" x="2567.3" y="-690.8" font-family="Arial" font-size="14.00">merged_into_vendor_id </text>
-<text text-anchor="start" x="2718.3" y="-690.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="2560.3,-647.8 2560.3,-678.6 2813.99,-678.6 2813.99,-647.8 2560.3,-647.8"/>
-<text text-anchor="start" x="2567.3" y="-660" font-family="Arial" font-size="14.00">merged_at </text>
-<text text-anchor="start" x="2638.12" y="-660" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="#efefef" stroke="none" points="2527.3,-894.2 2527.3,-929.8 2780.99,-929.8 2780.99,-894.2 2527.3,-894.2"/>
+<polygon fill="none" stroke="black" points="2527.3,-894.2 2527.3,-929.8 2780.99,-929.8 2780.99,-894.2 2527.3,-894.2"/>
+<text text-anchor="start" x="2542.16" y="-907.6" font-family="Arial Bold" font-size="18.00">public.vendor</text>
+<text text-anchor="start" x="2641.64" y="-907.6" font-family="Arial" font-size="14.00">    </text>
+<text text-anchor="start" x="2672.76" y="-907.6" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
+<polygon fill="none" stroke="black" points="2527.3,-863.4 2527.3,-894.2 2780.99,-894.2 2780.99,-863.4 2527.3,-863.4"/>
+<text text-anchor="start" x="2534.3" y="-875.6" font-family="Arial" font-size="14.00">id </text>
+<text text-anchor="start" x="2549.09" y="-875.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="2527.3,-832.6 2527.3,-863.4 2780.99,-863.4 2780.99,-832.6 2527.3,-832.6"/>
+<text text-anchor="start" x="2534.3" y="-844.8" font-family="Arial" font-size="14.00">name </text>
+<text text-anchor="start" x="2573.21" y="-844.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="2527.3,-801.8 2527.3,-832.6 2780.99,-832.6 2780.99,-801.8 2527.3,-801.8"/>
+<text text-anchor="start" x="2534.3" y="-814" font-family="Arial" font-size="14.00">created_by </text>
+<text text-anchor="start" x="2607.46" y="-814" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="2527.3,-771 2527.3,-801.8 2780.99,-801.8 2780.99,-771 2527.3,-771"/>
+<text text-anchor="start" x="2534.3" y="-783.2" font-family="Arial" font-size="14.00">created_at </text>
+<text text-anchor="start" x="2604.35" y="-783.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="2527.3,-740.2 2527.3,-771 2780.99,-771 2780.99,-740.2 2527.3,-740.2"/>
+<text text-anchor="start" x="2534.3" y="-752.4" font-family="Arial" font-size="14.00">updated_at </text>
+<text text-anchor="start" x="2608.26" y="-752.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="2527.3,-709.4 2527.3,-740.2 2780.99,-740.2 2780.99,-709.4 2527.3,-709.4"/>
+<text text-anchor="start" x="2534.3" y="-721.6" font-family="Arial" font-size="14.00">retired_at </text>
+<text text-anchor="start" x="2597.34" y="-721.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="2527.3,-678.6 2527.3,-709.4 2780.99,-709.4 2780.99,-678.6 2527.3,-678.6"/>
+<text text-anchor="start" x="2534.3" y="-690.8" font-family="Arial" font-size="14.00">merged_into_vendor_id </text>
+<text text-anchor="start" x="2685.3" y="-690.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="2527.3,-647.8 2527.3,-678.6 2780.99,-678.6 2780.99,-647.8 2527.3,-647.8"/>
+<text text-anchor="start" x="2534.3" y="-660" font-family="Arial" font-size="14.00">merged_at </text>
+<text text-anchor="start" x="2605.12" y="-660" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.vendor&#45;&gt;public.app_user -->
 <g id="edge5" class="edge">
 <title>public.vendor:created_by&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M2549.33,-814.66C2509.51,-792.74 2522.56,-635.27 2508.15,-589.2 2489.49,-529.59 2517.72,-459 2455.26,-459"/>
-<polygon fill="black" stroke="black" points="2549.29,-814.65 2557.87,-821.48 2554.46,-815.97 2558.66,-817.03 2558.66,-817.03 2558.66,-817.03 2554.46,-815.97 2560.09,-812.76 2549.29,-814.65"/>
-<text text-anchor="start" x="2566.3" y="-827.2" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
+<path fill="none" stroke="black" d="M2516.57,-814.23C2483.37,-791.42 2508.54,-643.9 2527.3,-604.6 2542.87,-572 2574.6,-585.75 2590.26,-553.2 2608.41,-515.47 2633.13,-459 2591.26,-459"/>
+<polygon fill="black" stroke="black" points="2516.42,-814.18 2524.67,-821.41 2521.52,-815.74 2525.66,-817 2525.66,-817 2525.66,-817 2521.52,-815.74 2527.3,-812.8 2516.42,-814.18"/>
+<text text-anchor="start" x="2533.3" y="-827.2" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
 </g>
 <!-- public.chassis_model -->
 <g id="node8" class="node">
@@ -341,14 +341,14 @@
 <!-- public.chassis_model&#45;&gt;public.app_user -->
 <g id="edge6" class="edge">
 <title>public.chassis_model:created_by&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M1804.77,-1251.75C1871.49,-1242.56 1829.73,-1138.81 1793.63,-1070.6 1763.47,-1013.63 1704.14,-1045.45 1674.15,-988.4 1591.57,-831.36 1565.08,-729.14 1674.15,-589.2 1746.96,-495.77 2072.58,-459 2191.03,-459"/>
-<polygon fill="black" stroke="black" points="1804.94,-1251.73 1794.67,-1247.89 1799.62,-1252.08 1795.3,-1252.36 1795.3,-1252.36 1795.3,-1252.36 1799.62,-1252.08 1795.25,-1256.87 1804.94,-1251.73"/>
+<path fill="none" stroke="black" d="M1804.62,-1249.87C1844.58,-1228.02 1832.67,-1071.01 1845.15,-1024.4 1897.57,-828.51 1842.83,-736.54 1982.15,-589.2 2094.71,-470.15 2163.19,-459 2327.03,-459"/>
+<polygon fill="black" stroke="black" points="1804.65,-1249.86 1793.85,-1247.96 1799.48,-1251.17 1795.28,-1252.24 1795.28,-1252.24 1795.28,-1252.24 1799.48,-1251.17 1796.06,-1256.68 1804.65,-1249.86"/>
 <text text-anchor="start" x="1665.98" y="-1236.4" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
 </g>
 <!-- public.chassis_model&#45;&gt;public.vendor -->
 <g id="edge7" class="edge">
 <title>public.chassis_model:vendor_id&#45;&gt;public.vendor:id</title>
-<path fill="none" stroke="black" d="M1804.56,-1435.64C1878.77,-1410.32 1780.27,-1085.04 1845.15,-1024.4 1899.04,-974.02 2447.01,-1029.7 2508.15,-988.4 2552.69,-958.31 2505.55,-878.8 2559.3,-878.8"/>
+<path fill="none" stroke="black" d="M1804.56,-1435.64C1878.77,-1410.32 1780.35,-1085.13 1845.15,-1024.4 1947.46,-928.5 2359.06,-1067.07 2475.15,-988.4 2519.65,-958.24 2472.55,-878.8 2526.3,-878.8"/>
 <polygon fill="black" stroke="black" points="1804.84,-1435.59 1794.26,-1432.7 1799.57,-1436.42 1795.29,-1437.1 1795.29,-1437.1 1795.29,-1437.1 1799.57,-1436.42 1795.66,-1441.59 1804.84,-1435.59"/>
 <text text-anchor="start" x="1674.32" y="-1421.2" font-family="Arial" font-size="10.00">FOREIGN KEY (vendor_id) REFERENCES vendor(id)</text>
 </g>
@@ -437,14 +437,14 @@
 <!-- public.part_catalog&#45;&gt;public.app_user -->
 <g id="edge9" class="edge">
 <title>public.part_catalog:created_by&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M1886.47,-1267.27C1794.95,-1257.09 1919.01,-1102.51 1846.15,-1024.4 1805.83,-981.19 1753.83,-1035.51 1718.15,-988.4 1664.58,-917.69 1664.38,-659.76 1718.15,-589.2 1751.17,-545.85 2136.53,-459 2191.03,-459"/>
-<polygon fill="black" stroke="black" points="1886.36,-1267.27 1896.11,-1272.28 1891.68,-1267.54 1896.01,-1267.77 1896.01,-1267.77 1896.01,-1267.77 1891.68,-1267.54 1896.58,-1263.29 1886.36,-1267.27"/>
-<text text-anchor="start" x="1632.37" y="-1277.8" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
+<path fill="none" stroke="black" d="M2185.41,-1264.8C2219.07,-1241.74 2196.74,-1092.72 2174.61,-1055.2 2143.71,-1002.8 2085.92,-1040.87 2055.15,-988.4 1965.38,-835.36 1960.59,-739.32 2055.15,-589.2 2126.55,-475.83 2193.05,-459 2327.03,-459"/>
+<polygon fill="black" stroke="black" points="2185.49,-1264.77 2174.61,-1263.4 2180.39,-1266.33 2176.25,-1267.6 2176.25,-1267.6 2176.25,-1267.6 2180.39,-1266.33 2177.25,-1272 2185.49,-1264.77"/>
+<text text-anchor="start" x="2182.61" y="-1277.8" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
 </g>
 <!-- public.part_catalog&#45;&gt;public.vendor -->
 <g id="edge10" class="edge">
 <title>public.part_catalog:vendor_id&#45;&gt;public.vendor:id</title>
-<path fill="none" stroke="black" d="M2185.64,-1420.15C2256.69,-1394.82 2166.71,-1084.74 2227.15,-1024.4 2316.25,-935.44 2406.46,-1062.66 2508.15,-988.4 2551.56,-956.7 2505.55,-878.8 2559.3,-878.8"/>
+<path fill="none" stroke="black" d="M2185.64,-1420.16C2256.73,-1394.86 2167.22,-1085.24 2227.15,-1024.4 2305.3,-945.05 2385.75,-1054.84 2475.15,-988.4 2518.29,-956.34 2472.55,-878.8 2526.3,-878.8"/>
 <polygon fill="black" stroke="black" points="2185.81,-1420.13 2175.21,-1417.31 2180.55,-1420.99 2176.27,-1421.69 2176.27,-1421.69 2176.27,-1421.69 2180.55,-1420.99 2176.67,-1426.19 2185.81,-1420.13"/>
 <text text-anchor="start" x="2182.61" y="-1431.8" font-family="Arial" font-size="10.00">FOREIGN KEY (vendor_id) REFERENCES vendor(id)</text>
 </g>
@@ -530,8 +530,8 @@
 <!-- public.configuration&#45;&gt;public.app_user -->
 <g id="edge12" class="edge">
 <title>public.configuration:created_by&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M1378.75,-1885.64C1428.24,-1862.9 1403.88,-1667.16 1410.15,-1608.4 1437.73,-1349.76 1396.87,-1279.4 1448.15,-1024.4 1488.48,-823.83 1445.35,-725.26 1598.15,-589.2 1698.89,-499.49 2056.14,-459 2191.03,-459"/>
-<polygon fill="black" stroke="black" points="1378.73,-1885.64 1368.01,-1883.33 1373.51,-1886.76 1369.27,-1887.66 1369.27,-1887.66 1369.27,-1887.66 1373.51,-1886.76 1369.89,-1892.13 1378.73,-1885.64"/>
+<path fill="none" stroke="black" d="M1376.21,-1880.71C1418.16,-1800.52 1430.19,-1066.25 1448.15,-1024.4 1631.31,-597.58 1862.57,-459 2327.03,-459"/>
+<polygon fill="black" stroke="black" points="1376.17,-1880.75 1365.79,-1884.28 1372.27,-1884.39 1369.11,-1887.34 1369.11,-1887.34 1369.11,-1887.34 1372.27,-1884.39 1371.94,-1890.86 1376.17,-1880.75"/>
 <text text-anchor="start" x="1307.79" y="-1871.8" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
 </g>
 <!-- public.configuration&#45;&gt;public.chassis_model -->
@@ -633,16 +633,16 @@
 <!-- public.cable_catalog&#45;&gt;public.app_user -->
 <g id="edge16" class="edge">
 <title>public.cable_catalog:created_by&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M3530.8,-1296.42C3483.1,-1273.44 3516.7,-1075.85 3489.15,-1024.4 3358.38,-780.26 3286.79,-720.9 3043.15,-589.2 2807.72,-461.95 2722.87,-459 2455.26,-459"/>
-<polygon fill="black" stroke="black" points="3530.59,-1296.37 3539.39,-1302.92 3535.8,-1297.52 3540.03,-1298.46 3540.03,-1298.46 3540.03,-1298.46 3535.8,-1297.52 3541.33,-1294.13 3530.59,-1296.37"/>
-<text text-anchor="start" x="3276.38" y="-1308.6" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
+<path fill="none" stroke="black" d="M3530.52,-1296.26C3483.41,-1272.53 3518,-1075 3489.15,-1024.4 3255.56,-614.73 3062.85,-459 2591.26,-459"/>
+<polygon fill="black" stroke="black" points="3530.61,-1296.28 3539.35,-1302.91 3535.81,-1297.48 3540.03,-1298.45 3540.03,-1298.45 3540.03,-1298.45 3535.81,-1297.48 3541.37,-1294.14 3530.61,-1296.28"/>
+<text text-anchor="start" x="3547.69" y="-1308.6" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
 </g>
 <!-- public.cable_catalog&#45;&gt;public.vendor -->
 <g id="edge17" class="edge">
 <title>public.cable_catalog:vendor_id&#45;&gt;public.vendor:id</title>
-<path fill="none" stroke="black" d="M3530.68,-1358.25C3472.28,-1333.31 3538.37,-1076.69 3489.15,-1024.4 3462.88,-996.5 2853.3,-878.8 2814.99,-878.8"/>
+<path fill="none" stroke="black" d="M3530.68,-1358.25C3472.3,-1333.29 3538.62,-1076.45 3489.15,-1024.4 3461.51,-995.33 2822.1,-878.8 2781.99,-878.8"/>
 <polygon fill="black" stroke="black" points="3530.54,-1358.22 3539.5,-1364.55 3535.78,-1359.24 3540.03,-1360.07 3540.03,-1360.07 3540.03,-1360.07 3535.78,-1359.24 3541.22,-1355.72 3530.54,-1358.22"/>
-<text text-anchor="start" x="3293.06" y="-1370.2" font-family="Arial" font-size="10.00">FOREIGN KEY (vendor_id) REFERENCES vendor(id)</text>
+<text text-anchor="start" x="3547.69" y="-1370.2" font-family="Arial" font-size="10.00">FOREIGN KEY (vendor_id) REFERENCES vendor(id)</text>
 </g>
 <!-- public.cable_end_slot -->
 <g id="node15" class="node">
@@ -729,15 +729,15 @@
 <!-- public.software_catalog&#45;&gt;public.app_user -->
 <g id="edge19" class="edge">
 <title>public.software_catalog:created_by&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M3051.38,-1218.74C3111.73,-1180.44 3052.15,-767.77 2866.15,-589.2 2797.05,-522.87 2551.04,-459 2455.26,-459"/>
-<polygon fill="black" stroke="black" points="3051.52,-1218.7 3040.66,-1217.19 3046.41,-1220.2 3042.25,-1221.41 3042.25,-1221.41 3042.25,-1221.41 3046.41,-1220.2 3043.19,-1225.82 3051.52,-1218.7"/>
-<text text-anchor="start" x="3048.61" y="-1231.6" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
+<path fill="none" stroke="black" d="M2718.28,-1220.75C2665.93,-1211.43 2701.97,-1127.53 2729.68,-1070.6 2755.39,-1017.8 2807.62,-1041.29 2833.15,-988.4 2910.27,-828.62 2924.14,-741.51 2833.15,-589.2 2770.53,-484.39 2713.35,-459 2591.26,-459"/>
+<polygon fill="black" stroke="black" points="2718.38,-1220.76 2727.98,-1226.06 2723.7,-1221.19 2728.02,-1221.55 2728.02,-1221.55 2728.02,-1221.55 2723.7,-1221.19 2728.72,-1217.09 2718.38,-1220.76"/>
+<text text-anchor="start" x="2464.38" y="-1231.6" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
 </g>
 <!-- public.software_catalog&#45;&gt;public.vendor -->
 <g id="edge20" class="edge">
 <title>public.software_catalog:vendor_id&#45;&gt;public.vendor:id</title>
-<path fill="none" stroke="black" d="M2718.62,-1404.55C2658.84,-1380.9 2704.83,-1137.09 2729.68,-1070.6 2749.75,-1016.91 2793.71,-1026.61 2813.99,-973 2828.8,-933.84 2856.86,-878.8 2814.99,-878.8"/>
-<polygon fill="black" stroke="black" points="2718.52,-1404.53 2727.54,-1410.77 2723.77,-1405.5 2728.03,-1406.28 2728.03,-1406.28 2728.03,-1406.28 2723.77,-1405.5 2729.17,-1401.91 2718.52,-1404.53"/>
+<path fill="none" stroke="black" d="M2718.68,-1404.57C2659.6,-1381.13 2712.57,-1139.49 2729.68,-1070.6 2741.5,-1023.04 2768.99,-1020.51 2780.99,-973 2791.23,-932.4 2823.86,-878.8 2781.99,-878.8"/>
+<polygon fill="black" stroke="black" points="2718.52,-1404.54 2727.55,-1410.77 2723.77,-1405.5 2728.03,-1406.28 2728.03,-1406.28 2728.03,-1406.28 2723.77,-1405.5 2729.17,-1401.91 2718.52,-1404.54"/>
 <text text-anchor="start" x="2481.06" y="-1416.4" font-family="Arial" font-size="10.00">FOREIGN KEY (vendor_id) REFERENCES vendor(id)</text>
 </g>
 <!-- public.device -->
@@ -846,7 +846,7 @@
 <title>public.device_assignment:device_id&#45;&gt;public.device:id</title>
 <path fill="none" stroke="black" d="M1596.36,-3187.81C1519.11,-3161.97 1617.4,-2829.94 1556.15,-2761.2 1509.96,-2709.37 1459.29,-2767.38 1404.15,-2725.2 1366.3,-2696.26 1400.63,-2631 1352.99,-2631"/>
 <polygon fill="black" stroke="black" points="1596.46,-3187.82 1605.66,-3193.8 1601.73,-3188.64 1606.01,-3189.3 1606.01,-3189.3 1606.01,-3189.3 1601.73,-3188.64 1607.03,-3184.9 1596.46,-3187.82"/>
-<text text-anchor="start" x="1613.68" y="-3199.4" font-family="Arial" font-size="10.00">FOREIGN KEY (device_id) REFERENCES device(id)</text>
+<text text-anchor="start" x="1362.39" y="-3199.4" font-family="Arial" font-size="10.00">FOREIGN KEY (device_id) REFERENCES device(id)</text>
 </g>
 <!-- public.part_instance -->
 <g id="node19" class="node">
@@ -935,45 +935,45 @@
 <!-- public.firmware_version -->
 <g id="node21" class="node">
 <title>public.firmware_version</title>
-<polygon fill="#efefef" stroke="none" points="1770.18,-909.6 1770.18,-945.2 2086.11,-945.2 2086.11,-909.6 1770.18,-909.6"/>
-<polygon fill="none" stroke="black" points="1770.18,-909.6 1770.18,-945.2 2086.11,-945.2 2086.11,-909.6 1770.18,-909.6"/>
-<text text-anchor="start" x="1777.18" y="-923" font-family="Arial Bold" font-size="18.00">public.firmware_version</text>
-<text text-anchor="start" x="1954.62" y="-923" font-family="Arial" font-size="14.00">    </text>
-<text text-anchor="start" x="1985.74" y="-923" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
-<polygon fill="none" stroke="black" points="1770.18,-878.8 1770.18,-909.6 2086.11,-909.6 2086.11,-878.8 1770.18,-878.8"/>
-<text text-anchor="start" x="1777.18" y="-891" font-family="Arial" font-size="14.00">id </text>
-<text text-anchor="start" x="1791.97" y="-891" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="1770.18,-848 1770.18,-878.8 2086.11,-878.8 2086.11,-848 1770.18,-848"/>
-<text text-anchor="start" x="1777.18" y="-860.2" font-family="Arial" font-size="14.00">item_type </text>
-<text text-anchor="start" x="1841.77" y="-860.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="1770.18,-817.2 1770.18,-848 2086.11,-848 2086.11,-817.2 1770.18,-817.2"/>
-<text text-anchor="start" x="1777.18" y="-829.4" font-family="Arial" font-size="14.00">item_id </text>
-<text text-anchor="start" x="1826.2" y="-829.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="1770.18,-786.4 1770.18,-817.2 2086.11,-817.2 2086.11,-786.4 1770.18,-786.4"/>
-<text text-anchor="start" x="1777.18" y="-798.6" font-family="Arial" font-size="14.00">component </text>
-<text text-anchor="start" x="1850.34" y="-798.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="1770.18,-755.6 1770.18,-786.4 2086.11,-786.4 2086.11,-755.6 1770.18,-755.6"/>
-<text text-anchor="start" x="1777.18" y="-767.8" font-family="Arial" font-size="14.00">version </text>
-<text text-anchor="start" x="1826.2" y="-767.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="1770.18,-724.8 1770.18,-755.6 2086.11,-755.6 2086.11,-724.8 1770.18,-724.8"/>
-<text text-anchor="start" x="1777.18" y="-737" font-family="Arial" font-size="14.00">work_order_id </text>
-<text text-anchor="start" x="1869.78" y="-737" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="1770.18,-694 1770.18,-724.8 2086.11,-724.8 2086.11,-694 1770.18,-694"/>
-<text text-anchor="start" x="1777.18" y="-706.2" font-family="Arial" font-size="14.00">changed_by </text>
-<text text-anchor="start" x="1857.36" y="-706.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="1770.18,-663.2 1770.18,-694 2086.11,-694 2086.11,-663.2 1770.18,-663.2"/>
-<text text-anchor="start" x="1777.18" y="-675.4" font-family="Arial" font-size="14.00">from_date </text>
-<text text-anchor="start" x="1844.1" y="-675.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="1770.18,-632.4 1770.18,-663.2 2086.11,-663.2 2086.11,-632.4 1770.18,-632.4"/>
-<text text-anchor="start" x="1777.18" y="-644.6" font-family="Arial" font-size="14.00">to_date </text>
-<text text-anchor="start" x="1827.78" y="-644.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="#efefef" stroke="none" points="2107.18,-909.6 2107.18,-945.2 2423.11,-945.2 2423.11,-909.6 2107.18,-909.6"/>
+<polygon fill="none" stroke="black" points="2107.18,-909.6 2107.18,-945.2 2423.11,-945.2 2423.11,-909.6 2107.18,-909.6"/>
+<text text-anchor="start" x="2114.18" y="-923" font-family="Arial Bold" font-size="18.00">public.firmware_version</text>
+<text text-anchor="start" x="2291.62" y="-923" font-family="Arial" font-size="14.00">    </text>
+<text text-anchor="start" x="2322.74" y="-923" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
+<polygon fill="none" stroke="black" points="2107.18,-878.8 2107.18,-909.6 2423.11,-909.6 2423.11,-878.8 2107.18,-878.8"/>
+<text text-anchor="start" x="2114.18" y="-891" font-family="Arial" font-size="14.00">id </text>
+<text text-anchor="start" x="2128.97" y="-891" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="2107.18,-848 2107.18,-878.8 2423.11,-878.8 2423.11,-848 2107.18,-848"/>
+<text text-anchor="start" x="2114.18" y="-860.2" font-family="Arial" font-size="14.00">item_type </text>
+<text text-anchor="start" x="2178.77" y="-860.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="2107.18,-817.2 2107.18,-848 2423.11,-848 2423.11,-817.2 2107.18,-817.2"/>
+<text text-anchor="start" x="2114.18" y="-829.4" font-family="Arial" font-size="14.00">item_id </text>
+<text text-anchor="start" x="2163.2" y="-829.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="2107.18,-786.4 2107.18,-817.2 2423.11,-817.2 2423.11,-786.4 2107.18,-786.4"/>
+<text text-anchor="start" x="2114.18" y="-798.6" font-family="Arial" font-size="14.00">component </text>
+<text text-anchor="start" x="2187.34" y="-798.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="2107.18,-755.6 2107.18,-786.4 2423.11,-786.4 2423.11,-755.6 2107.18,-755.6"/>
+<text text-anchor="start" x="2114.18" y="-767.8" font-family="Arial" font-size="14.00">version </text>
+<text text-anchor="start" x="2163.2" y="-767.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="2107.18,-724.8 2107.18,-755.6 2423.11,-755.6 2423.11,-724.8 2107.18,-724.8"/>
+<text text-anchor="start" x="2114.18" y="-737" font-family="Arial" font-size="14.00">work_order_id </text>
+<text text-anchor="start" x="2206.78" y="-737" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="2107.18,-694 2107.18,-724.8 2423.11,-724.8 2423.11,-694 2107.18,-694"/>
+<text text-anchor="start" x="2114.18" y="-706.2" font-family="Arial" font-size="14.00">changed_by </text>
+<text text-anchor="start" x="2194.36" y="-706.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="2107.18,-663.2 2107.18,-694 2423.11,-694 2423.11,-663.2 2107.18,-663.2"/>
+<text text-anchor="start" x="2114.18" y="-675.4" font-family="Arial" font-size="14.00">from_date </text>
+<text text-anchor="start" x="2181.1" y="-675.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="2107.18,-632.4 2107.18,-663.2 2423.11,-663.2 2423.11,-632.4 2107.18,-632.4"/>
+<text text-anchor="start" x="2114.18" y="-644.6" font-family="Arial" font-size="14.00">to_date </text>
+<text text-anchor="start" x="2164.78" y="-644.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.firmware_version&#45;&gt;public.app_user -->
 <g id="edge27" class="edge">
 <title>public.firmware_version:changed_by&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M2095.54,-703.7C2124.97,-666.43 2163.62,-459 2191.03,-459"/>
-<polygon fill="black" stroke="black" points="2095.67,-703.61 2084.87,-705.49 2091.25,-706.6 2087.67,-709.03 2087.67,-709.03 2087.67,-709.03 2091.25,-706.6 2089.91,-712.94 2095.67,-703.61"/>
-<text text-anchor="start" x="2094.11" y="-719.4" font-family="Arial" font-size="10.00">FOREIGN KEY (changed_by) REFERENCES app_user(id)</text>
+<path fill="none" stroke="black" d="M2434.26,-708.31C2474.14,-698.82 2451.51,-629.95 2423.11,-589.2 2397.28,-552.13 2353.91,-590.24 2328.03,-553.2 2304.06,-518.88 2285.16,-459 2327.03,-459"/>
+<polygon fill="black" stroke="black" points="2434.39,-708.29 2423.96,-704.89 2429.08,-708.86 2424.78,-709.33 2424.78,-709.33 2424.78,-709.33 2429.08,-708.86 2424.93,-713.84 2434.39,-708.29"/>
+<text text-anchor="start" x="2431.11" y="-719.4" font-family="Arial" font-size="10.00">FOREIGN KEY (changed_by) REFERENCES app_user(id)</text>
 </g>
 <!-- public.device_stack -->
 <g id="node22" class="node">
@@ -1007,54 +1007,17 @@
 <title>public.device_stack:logical_device_id&#45;&gt;public.device:id</title>
 <path fill="none" stroke="black" d="M1211.65,-3173.39C1146.49,-3164.79 1205.22,-3067.37 1222.68,-2992.2 1252.51,-2863.77 1321.82,-2853.55 1351.99,-2725.2 1361.56,-2684.44 1394.86,-2631 1352.99,-2631"/>
 <polygon fill="black" stroke="black" points="1211.36,-3173.37 1221.07,-3178.47 1216.69,-3173.7 1221.01,-3173.96 1221.01,-3173.96 1221.01,-3173.96 1216.69,-3173.7 1221.62,-3169.49 1211.36,-3173.37"/>
-<text text-anchor="start" x="1228.68" y="-3184" font-family="Arial" font-size="10.00">FOREIGN KEY (logical_device_id) REFERENCES device(id)</text>
+<text text-anchor="start" x="943.48" y="-3184" font-family="Arial" font-size="10.00">FOREIGN KEY (logical_device_id) REFERENCES device(id)</text>
 </g>
 <!-- public.device_stack&#45;&gt;public.device -->
 <g id="edge29" class="edge">
 <title>public.device_stack:member_device_id&#45;&gt;public.device:id</title>
 <path fill="none" stroke="black" d="M1211.4,-3142.4C1160.44,-3133.56 1208.32,-3053.86 1222.68,-2992.2 1242.03,-2909.09 1438.32,-2631 1352.99,-2631"/>
 <polygon fill="black" stroke="black" points="1211.38,-3142.39 1220.99,-3147.66 1216.69,-3142.81 1221.01,-3143.15 1221.01,-3143.15 1221.01,-3143.15 1216.69,-3142.81 1221.7,-3138.69 1211.38,-3142.39"/>
-<text text-anchor="start" x="1228.68" y="-3153.2" font-family="Arial" font-size="10.00">FOREIGN KEY (member_device_id) REFERENCES device(id)</text>
-</g>
-<!-- public.warehouse -->
-<g id="node23" class="node">
-<title>public.warehouse</title>
-<polygon fill="#efefef" stroke="none" points="2190.67,-878.8 2190.67,-914.4 2455.62,-914.4 2455.62,-878.8 2190.67,-878.8"/>
-<polygon fill="none" stroke="black" points="2190.67,-878.8 2190.67,-914.4 2455.62,-914.4 2455.62,-878.8 2190.67,-878.8"/>
-<text text-anchor="start" x="2197.67" y="-892.2" font-family="Arial Bold" font-size="18.00">public.warehouse</text>
-<text text-anchor="start" x="2324.13" y="-892.2" font-family="Arial" font-size="14.00">    </text>
-<text text-anchor="start" x="2355.25" y="-892.2" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
-<polygon fill="none" stroke="black" points="2190.67,-848 2190.67,-878.8 2455.62,-878.8 2455.62,-848 2190.67,-848"/>
-<text text-anchor="start" x="2197.67" y="-860.2" font-family="Arial" font-size="14.00">id </text>
-<text text-anchor="start" x="2212.46" y="-860.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="2190.67,-817.2 2190.67,-848 2455.62,-848 2455.62,-817.2 2190.67,-817.2"/>
-<text text-anchor="start" x="2197.67" y="-829.4" font-family="Arial" font-size="14.00">name </text>
-<text text-anchor="start" x="2236.58" y="-829.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="2190.67,-786.4 2190.67,-817.2 2455.62,-817.2 2455.62,-786.4 2190.67,-786.4"/>
-<text text-anchor="start" x="2197.67" y="-798.6" font-family="Arial" font-size="14.00">address </text>
-<text text-anchor="start" x="2251.37" y="-798.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="2190.67,-755.6 2190.67,-786.4 2455.62,-786.4 2455.62,-755.6 2190.67,-755.6"/>
-<text text-anchor="start" x="2197.67" y="-767.8" font-family="Arial" font-size="14.00">created_by </text>
-<text text-anchor="start" x="2270.83" y="-767.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="2190.67,-724.8 2190.67,-755.6 2455.62,-755.6 2455.62,-724.8 2190.67,-724.8"/>
-<text text-anchor="start" x="2197.67" y="-737" font-family="Arial" font-size="14.00">created_at </text>
-<text text-anchor="start" x="2267.72" y="-737" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="2190.67,-694 2190.67,-724.8 2455.62,-724.8 2455.62,-694 2190.67,-694"/>
-<text text-anchor="start" x="2197.67" y="-706.2" font-family="Arial" font-size="14.00">updated_at </text>
-<text text-anchor="start" x="2271.63" y="-706.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="2190.67,-663.2 2190.67,-694 2455.62,-694 2455.62,-663.2 2190.67,-663.2"/>
-<text text-anchor="start" x="2197.67" y="-675.4" font-family="Arial" font-size="14.00">retired_at </text>
-<text text-anchor="start" x="2260.71" y="-675.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-</g>
-<!-- public.warehouse&#45;&gt;public.app_user -->
-<g id="edge30" class="edge">
-<title>public.warehouse:created_by&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M2466.63,-768.67C2525.64,-740.12 2521.07,-459 2455.26,-459"/>
-<polygon fill="black" stroke="black" points="2466.68,-768.66 2455.92,-766.54 2461.49,-769.87 2457.27,-770.85 2457.27,-770.85 2457.27,-770.85 2461.49,-769.87 2457.96,-775.31 2466.68,-768.66"/>
-<text text-anchor="start" x="2463.62" y="-781" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
+<text text-anchor="start" x="935.16" y="-3153.2" font-family="Arial" font-size="10.00">FOREIGN KEY (member_device_id) REFERENCES device(id)</text>
 </g>
 <!-- public.mount_container -->
-<g id="node24" class="node">
+<g id="node23" class="node">
 <title>public.mount_container</title>
 <polygon fill="#efefef" stroke="none" points="668.17,-1995.6 668.17,-2031.2 978.12,-2031.2 978.12,-1995.6 668.17,-1995.6"/>
 <polygon fill="none" stroke="black" points="668.17,-1995.6 668.17,-2031.2 978.12,-2031.2 978.12,-1995.6 668.17,-1995.6"/>
@@ -1093,14 +1056,14 @@
 <text text-anchor="start" x="774.79" y="-1699.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 </g>
 <!-- public.mount_container&#45;&gt;public.app_user -->
-<g id="edge31" class="edge">
+<g id="edge30" class="edge">
 <title>public.mount_container:created_by&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M983.08,-1847.61C1000.5,-1757.21 988.22,-1044.56 996.15,-1024.4 1210.94,-477.56 1603.52,-459 2191.03,-459"/>
+<path fill="none" stroke="black" d="M983.08,-1847.61C1000.5,-1757.21 988.24,-1044.57 996.15,-1024.4 1090.62,-783.42 1154.83,-711.13 1383.15,-589.2 1569.92,-489.45 2115.29,-459 2327.03,-459"/>
 <polygon fill="black" stroke="black" points="983.14,-1847.48 975.1,-1854.94 981.06,-1852.39 979.38,-1856.38 979.38,-1856.38 979.38,-1856.38 981.06,-1852.39 983.39,-1858.44 983.14,-1847.48"/>
 <text text-anchor="start" x="850.47" y="-1841" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
 </g>
 <!-- public.container_model -->
-<g id="node53" class="node">
+<g id="node52" class="node">
 <title>public.container_model</title>
 <polygon fill="#efefef" stroke="none" points="1048.68,-1529.6 1048.68,-1565.2 1357.61,-1565.2 1357.61,-1529.6 1048.68,-1529.6"/>
 <polygon fill="none" stroke="black" points="1048.68,-1529.6 1048.68,-1565.2 1357.61,-1565.2 1357.61,-1529.6 1048.68,-1529.6"/>
@@ -1154,14 +1117,14 @@
 <text text-anchor="start" x="1129.64" y="-1079.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.mount_container&#45;&gt;public.container_model -->
-<g id="edge32" class="edge">
+<g id="edge31" class="edge">
 <title>public.mount_container:container_model_id&#45;&gt;public.container_model:id</title>
 <path fill="none" stroke="black" d="M989.29,-1732.96C1071.85,-1718.22 949.13,-1514.2 1047.68,-1514.2"/>
 <polygon fill="black" stroke="black" points="989.42,-1732.95 979.08,-1729.29 984.1,-1733.39 979.79,-1733.74 979.79,-1733.74 979.79,-1733.74 984.1,-1733.39 979.82,-1738.26 989.42,-1732.95"/>
 <text text-anchor="start" x="815.45" y="-1717.8" font-family="Arial" font-size="10.00">FOREIGN KEY (container_model_id) REFERENCES container_model(id)</text>
 </g>
 <!-- public.device_mount -->
-<g id="node25" class="node">
+<g id="node24" class="node">
 <title>public.device_mount</title>
 <polygon fill="#efefef" stroke="none" points="828.17,-3281.8 828.17,-3317.4 1118.12,-3317.4 1118.12,-3281.8 828.17,-3281.8"/>
 <polygon fill="none" stroke="black" points="828.17,-3281.8 828.17,-3317.4 1118.12,-3317.4 1118.12,-3281.8 828.17,-3281.8"/>
@@ -1200,28 +1163,28 @@
 <text text-anchor="start" x="885.77" y="-2986" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.device_mount&#45;&gt;public.device -->
-<g id="edge33" class="edge">
+<g id="edge32" class="edge">
 <title>public.device_mount:device_id&#45;&gt;public.device:id</title>
 <path fill="none" stroke="black" d="M1129.35,-3234.39C1224.5,-3210.3 1104.17,-2834.9 1098.3,-2725.2 1096.07,-2683.39 1055.44,-2631 1097.3,-2631"/>
 <polygon fill="black" stroke="black" points="1129.38,-3234.38 1118.92,-3231.09 1124.09,-3235.01 1119.79,-3235.52 1119.79,-3235.52 1119.79,-3235.52 1124.09,-3235.01 1119.98,-3240.03 1129.38,-3234.38"/>
-<text text-anchor="start" x="1126.12" y="-3245.6" font-family="Arial" font-size="10.00">FOREIGN KEY (device_id) REFERENCES device(id)</text>
+<text text-anchor="start" x="1000.48" y="-3219.6" font-family="Arial" font-size="10.00">FOREIGN KEY (device_id) REFERENCES device(id)</text>
 </g>
 <!-- public.device_mount&#45;&gt;public.device -->
-<g id="edge34" class="edge">
+<g id="edge33" class="edge">
 <title>public.device_mount:host_device_id&#45;&gt;public.device:id</title>
 <path fill="none" stroke="black" d="M1128.98,-3079.78C1203.32,-3048.78 1000.77,-2631 1097.3,-2631"/>
 <polygon fill="black" stroke="black" points="1129.28,-3079.73 1118.64,-3077.11 1124.04,-3080.69 1119.78,-3081.48 1119.78,-3081.48 1119.78,-3081.48 1124.04,-3080.69 1120.26,-3085.97 1129.28,-3079.73"/>
-<text text-anchor="start" x="1126.12" y="-3091.6" font-family="Arial" font-size="10.00">FOREIGN KEY (host_device_id) REFERENCES device(id)</text>
+<text text-anchor="start" x="988.25" y="-3065.6" font-family="Arial" font-size="10.00">FOREIGN KEY (host_device_id) REFERENCES device(id)</text>
 </g>
 <!-- public.device_mount&#45;&gt;public.mount_container -->
-<g id="edge35" class="edge">
+<g id="edge34" class="edge">
 <title>public.device_mount:container_id&#45;&gt;public.mount_container:id</title>
 <path fill="none" stroke="black" d="M1129.26,-3202.38C1173.77,-3178.63 1127.81,-2986.9 1118.12,-2930.6 1101.72,-2835.27 1065.31,-2820.01 1046.15,-2725.2 1029.68,-2643.73 1062.23,-1980.2 979.12,-1980.2"/>
 <polygon fill="black" stroke="black" points="1129.17,-3202.4 1118.4,-3200.35 1123.98,-3203.64 1119.77,-3204.64 1119.77,-3204.64 1119.77,-3204.64 1123.98,-3203.64 1120.49,-3209.1 1129.17,-3202.4"/>
-<text text-anchor="start" x="1126.12" y="-3214.8" font-family="Arial" font-size="10.00">FOREIGN KEY (container_id) REFERENCES mount_container(id)</text>
+<text text-anchor="start" x="817.02" y="-3214.8" font-family="Arial" font-size="10.00">FOREIGN KEY (container_id) REFERENCES mount_container(id)</text>
 </g>
 <!-- public.import_run -->
-<g id="node26" class="node">
+<g id="node25" class="node">
 <title>public.import_run</title>
 <polygon fill="#efefef" stroke="none" points="4311.66,-3281.8 4311.66,-3317.4 4580.63,-3317.4 4580.63,-3281.8 4311.66,-3281.8"/>
 <polygon fill="none" stroke="black" points="4311.66,-3281.8 4311.66,-3317.4 4580.63,-3317.4 4580.63,-3281.8 4311.66,-3281.8"/>
@@ -1260,21 +1223,21 @@
 <text text-anchor="start" x="4396.48" y="-2986" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.import_run&#45;&gt;public.app_user -->
-<g id="edge36" class="edge">
+<g id="edge35" class="edge">
 <title>public.import_run:imported_by&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M4300.64,-3018.49C4276.99,-3009.79 4302.88,-2965.2 4311.66,-2930.6 4337.06,-2830.53 4394.04,-2825.08 4420.15,-2725.2 4517.38,-2353.22 4442.15,-2244.88 4442.15,-1860.4 4442.15,-1860.4 4442.15,-1860.4 4442.15,-1315.4 4442.15,-954.17 4376.79,-790.95 4077.15,-589.2 3927.18,-488.23 2636.05,-459 2455.26,-459"/>
+<path fill="none" stroke="black" d="M4300.64,-3018.49C4276.99,-3009.79 4302.88,-2965.2 4311.66,-2930.6 4337.06,-2830.53 4394.04,-2825.08 4420.15,-2725.2 4517.38,-2353.22 4442.15,-2244.88 4442.15,-1860.4 4442.15,-1860.4 4442.15,-1860.4 4442.15,-1315.4 4442.15,-954.17 4376.05,-792.04 4077.15,-589.2 3940.01,-496.14 2756.99,-459 2591.26,-459"/>
 <polygon fill="black" stroke="black" points="4300.44,-3018.46 4309.66,-3024.4 4305.72,-3019.26 4310,-3019.9 4310,-3019.9 4310,-3019.9 4305.72,-3019.26 4311,-3015.5 4300.44,-3018.46"/>
 <text text-anchor="start" x="4040.8" y="-3004" font-family="Arial" font-size="10.00">FOREIGN KEY (imported_by) REFERENCES app_user(id)</text>
 </g>
 <!-- public.import_run&#45;&gt;public.project -->
-<g id="edge37" class="edge">
+<g id="edge36" class="edge">
 <title>public.import_run:project_id&#45;&gt;public.project:id</title>
 <path fill="none" stroke="black" d="M4300.55,-3233.2C4221.89,-3192.25 4367.4,-2640.28 4368.14,-2632.8 4372.28,-2591.14 4411.01,-2538.6 4369.14,-2538.6"/>
 <polygon fill="black" stroke="black" points="4300.6,-3233.22 4309.3,-3239.9 4305.79,-3234.45 4310.01,-3235.45 4310.01,-3235.45 4310.01,-3235.45 4305.79,-3234.45 4311.37,-3231.14 4300.6,-3233.22"/>
-<text text-anchor="start" x="4127.53" y="-3219.6" font-family="Arial" font-size="10.00">FOREIGN KEY (project_id) REFERENCES project(id)</text>
+<text text-anchor="start" x="4064.16" y="-3245.6" font-family="Arial" font-size="10.00">FOREIGN KEY (project_id) REFERENCES project(id)</text>
 </g>
 <!-- public.vlan -->
-<g id="node27" class="node">
+<g id="node26" class="node">
 <title>public.vlan</title>
 <polygon fill="#efefef" stroke="none" points="272.3,-2538.6 272.3,-2574.2 525.99,-2574.2 525.99,-2538.6 272.3,-2538.6"/>
 <polygon fill="none" stroke="black" points="272.3,-2538.6 272.3,-2574.2 525.99,-2574.2 525.99,-2538.6 272.3,-2538.6"/>
@@ -1310,14 +1273,14 @@
 <text text-anchor="start" x="342.34" y="-2273.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.vlan&#45;&gt;public.app_user -->
-<g id="edge38" class="edge">
+<g id="edge37" class="edge">
 <title>public.vlan:created_by&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M261.03,-2367.7C72.76,-2312.16 58.16,-731.13 191.15,-589.2 267.27,-507.95 2079.69,-459 2191.03,-459"/>
+<path fill="none" stroke="black" d="M261.03,-2367.7C72.75,-2312.15 57.86,-730.85 191.15,-589.2 272.61,-502.62 2208.15,-459 2327.03,-459"/>
 <polygon fill="black" stroke="black" points="261.08,-2367.71 270.32,-2373.6 266.36,-2368.48 270.64,-2369.1 270.64,-2369.1 270.64,-2369.1 266.36,-2368.48 271.62,-2364.7 261.08,-2367.71"/>
 <text text-anchor="start" x="7" y="-2379.2" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
 </g>
 <!-- public.subnet -->
-<g id="node28" class="node">
+<g id="node27" class="node">
 <title>public.subnet</title>
 <polygon fill="#efefef" stroke="none" points="470.3,-3266.4 470.3,-3302 723.99,-3302 723.99,-3266.4 470.3,-3266.4"/>
 <polygon fill="none" stroke="black" points="470.3,-3266.4 470.3,-3302 723.99,-3302 723.99,-3266.4 470.3,-3266.4"/>
@@ -1353,28 +1316,28 @@
 <text text-anchor="start" x="551.26" y="-3001.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.subnet&#45;&gt;public.app_user -->
-<g id="edge39" class="edge">
+<g id="edge38" class="edge">
 <title>public.subnet:created_by&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M735.35,-3065.11C772.31,-3056.17 735.33,-2994.14 723.99,-2946 698.95,-2839.7 640.74,-2831.61 616.15,-2725.2 589.1,-2608.2 590.29,-1761.67 616.15,-1644.4 685.32,-1330.59 816.31,-1292.5 920.15,-988.4 978.95,-816.19 875.34,-710.32 1011.15,-589.2 1109.58,-501.41 2059.14,-459 2191.03,-459"/>
+<path fill="none" stroke="black" d="M735.35,-3065.11C772.31,-3056.17 735.33,-2994.14 723.99,-2946 698.95,-2839.7 640.74,-2831.61 616.15,-2725.2 589.1,-2608.2 590.29,-1761.67 616.15,-1644.4 685.32,-1330.59 817.4,-1292.87 920.15,-988.4 978.24,-816.26 872.29,-709.83 1008.15,-589.2 1118.26,-491.43 2179.78,-459 2327.03,-459"/>
 <polygon fill="black" stroke="black" points="735.26,-3065.12 724.85,-3061.69 729.96,-3065.68 725.65,-3066.13 725.65,-3066.13 725.65,-3066.13 729.96,-3065.68 725.79,-3070.64 735.26,-3065.12"/>
 <text text-anchor="start" x="596.33" y="-3050.2" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
 </g>
 <!-- public.subnet&#45;&gt;public.project -->
-<g id="edge40" class="edge">
+<g id="edge39" class="edge">
 <title>public.subnet:project_id&#45;&gt;public.project:id</title>
-<path fill="none" stroke="black" d="M735.23,-3218.71C818.67,-3192.43 702.83,-2827.61 776.15,-2761.2 836.99,-2706.09 3651.3,-2744.26 3731.15,-2725.2 3914.16,-2681.51 3923,-2538.6 4111.15,-2538.6"/>
+<path fill="none" stroke="black" d="M735.23,-3218.71C818.67,-3192.43 702.83,-2827.61 776.15,-2761.2 836.8,-2706.26 3642.46,-2743.84 3722.15,-2725.2 3908.86,-2681.53 3919.4,-2538.6 4111.15,-2538.6"/>
 <polygon fill="black" stroke="black" points="735.21,-3218.71 724.67,-3215.7 729.93,-3219.48 725.65,-3220.1 725.65,-3220.1 725.65,-3220.1 729.93,-3219.48 725.97,-3224.6 735.21,-3218.71"/>
-<text text-anchor="start" x="605.24" y="-3204.2" font-family="Arial" font-size="10.00">FOREIGN KEY (project_id) REFERENCES project(id)</text>
+<text text-anchor="start" x="478.48" y="-3230.2" font-family="Arial" font-size="10.00">FOREIGN KEY (project_id) REFERENCES project(id)</text>
 </g>
 <!-- public.subnet&#45;&gt;public.vlan -->
-<g id="edge41" class="edge">
+<g id="edge40" class="edge">
 <title>public.subnet:vlan_id&#45;&gt;public.vlan:id</title>
 <path fill="none" stroke="black" d="M459.75,-3185.88C409.01,-3142.65 517.29,-2714.61 525.99,-2617.4 529.72,-2575.7 568.86,-2523.2 526.99,-2523.2"/>
 <polygon fill="black" stroke="black" points="459.61,-3185.82 467.43,-3193.51 464.61,-3187.67 468.68,-3189.17 468.68,-3189.17 468.68,-3189.17 464.61,-3187.67 470.55,-3185.06 459.61,-3185.82"/>
 <text text-anchor="start" x="246.14" y="-3199.4" font-family="Arial" font-size="10.00">FOREIGN KEY (vlan_id) REFERENCES vlan(id)</text>
 </g>
 <!-- public.os_interface -->
-<g id="node29" class="node">
+<g id="node28" class="node">
 <title>public.os_interface</title>
 <polygon fill="#efefef" stroke="none" points="2037.18,-3281.8 2037.18,-3317.4 2313.11,-3317.4 2313.11,-3281.8 2037.18,-3281.8"/>
 <polygon fill="none" stroke="black" points="2037.18,-3281.8 2037.18,-3317.4 2313.11,-3317.4 2313.11,-3281.8 2037.18,-3281.8"/>
@@ -1413,28 +1376,28 @@
 <text text-anchor="start" x="2094.78" y="-2986" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.os_interface&#45;&gt;public.part_port_slot -->
-<g id="edge42" class="edge">
+<g id="edge41" class="edge">
 <title>public.os_interface:port_slot_id&#45;&gt;public.part_port_slot:id</title>
 <path fill="none" stroke="black" d="M2324.48,-3143.01C2530.73,-3135.15 2453.29,-2890.21 2626.15,-2761.2 2659.35,-2736.42 2689.19,-2759.7 2712.15,-2725.2 2749.99,-2668.33 2758.62,-2160.47 2712.15,-2110.4 2639.08,-2031.67 2317.11,-2137.44 2230.15,-2074.4 2181.49,-2039.13 2238.72,-1949.4 2178.63,-1949.4"/>
 <polygon fill="black" stroke="black" points="2324.44,-3143.01 2314.36,-3138.69 2319.11,-3143.11 2314.78,-3143.19 2314.78,-3143.19 2314.78,-3143.19 2319.11,-3143.11 2314.53,-3147.69 2324.44,-3143.01"/>
 <text text-anchor="start" x="2321.11" y="-3153.2" font-family="Arial" font-size="10.00">FOREIGN KEY (port_slot_id) REFERENCES part_port_slot(id)</text>
 </g>
 <!-- public.os_interface&#45;&gt;public.device -->
-<g id="edge43" class="edge">
+<g id="edge42" class="edge">
 <title>public.os_interface:device_id&#45;&gt;public.device:id</title>
 <path fill="none" stroke="black" d="M2025.86,-3234.14C1939.15,-3207.8 2059.1,-2831.88 1985.15,-2761.2 1891.63,-2671.82 1513.22,-2794.74 1404.15,-2725.2 1363.97,-2699.59 1400.63,-2631 1352.99,-2631"/>
 <polygon fill="black" stroke="black" points="2025.95,-3234.16 2035.22,-3240.01 2031.23,-3234.9 2035.52,-3235.51 2035.52,-3235.51 2035.52,-3235.51 2031.23,-3234.9 2036.48,-3231.1 2025.95,-3234.16"/>
-<text text-anchor="start" x="1791.89" y="-3245.6" font-family="Arial" font-size="10.00">FOREIGN KEY (device_id) REFERENCES device(id)</text>
+<text text-anchor="start" x="1854.72" y="-3219.6" font-family="Arial" font-size="10.00">FOREIGN KEY (device_id) REFERENCES device(id)</text>
 </g>
 <!-- public.os_interface&#45;&gt;public.part_instance -->
-<g id="edge44" class="edge">
+<g id="edge43" class="edge">
 <title>public.os_interface:part_instance_id&#45;&gt;public.part_instance:id</title>
-<path fill="none" stroke="black" d="M2324.33,-3173.81C2540.95,-3165.54 2440.78,-2891.37 2626.15,-2761.2 2670.32,-2730.18 2710.13,-2768.66 2742.15,-2725.2 2823.18,-2615.2 2824.19,-2219.65 2742.15,-2110.4 2707.69,-2064.51 2660.04,-2113.62 2618.15,-2074.4 2569.67,-2029.03 2633.51,-1934 2567.12,-1934"/>
+<path fill="none" stroke="black" d="M2324.33,-3173.81C2540.95,-3165.54 2440.78,-2891.37 2626.15,-2761.2 2670.32,-2730.18 2710.13,-2768.66 2742.15,-2725.2 2782.66,-2670.2 2783.17,-2165.02 2742.15,-2110.4 2707.69,-2064.51 2660.04,-2113.62 2618.15,-2074.4 2569.67,-2029.03 2633.51,-1934 2567.12,-1934"/>
 <polygon fill="black" stroke="black" points="2324.44,-3173.81 2314.36,-3169.49 2319.11,-3173.91 2314.78,-3173.99 2314.78,-3173.99 2314.78,-3173.99 2319.11,-3173.91 2314.53,-3178.49 2324.44,-3173.81"/>
 <text text-anchor="start" x="2321.11" y="-3184" font-family="Arial" font-size="10.00">FOREIGN KEY (part_instance_id) REFERENCES part_instance(id)</text>
 </g>
 <!-- public.interface_stack -->
-<g id="node30" class="node">
+<g id="node29" class="node">
 <title>public.interface_stack</title>
 <polygon fill="#efefef" stroke="none" points="2026.69,-3824.8 2026.69,-3860.4 2323.6,-3860.4 2323.6,-3824.8 2026.69,-3824.8"/>
 <polygon fill="none" stroke="black" points="2026.69,-3824.8 2026.69,-3860.4 2323.6,-3860.4 2323.6,-3824.8 2026.69,-3824.8"/>
@@ -1458,21 +1421,21 @@
 <text text-anchor="start" x="2084.29" y="-3683" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.interface_stack&#45;&gt;public.os_interface -->
-<g id="edge45" class="edge">
+<g id="edge44" class="edge">
 <title>public.interface_stack:lower_interface_id&#45;&gt;public.os_interface:id</title>
 <path fill="none" stroke="black" d="M2334.87,-3746.24C2430.8,-3716.36 2417.56,-3266.4 2314.11,-3266.4"/>
 <polygon fill="black" stroke="black" points="2334.82,-3746.25 2324.26,-3743.3 2329.55,-3747.05 2325.26,-3747.7 2325.26,-3747.7 2325.26,-3747.7 2329.55,-3747.05 2325.61,-3752.2 2334.82,-3746.25"/>
 <text text-anchor="start" x="2331.6" y="-3757.8" font-family="Arial" font-size="10.00">FOREIGN KEY (lower_interface_id) REFERENCES os_interface(id)</text>
 </g>
 <!-- public.interface_stack&#45;&gt;public.os_interface -->
-<g id="edge46" class="edge">
+<g id="edge45" class="edge">
 <title>public.interface_stack:upper_interface_id&#45;&gt;public.os_interface:id</title>
 <path fill="none" stroke="black" d="M2334.91,-3777.13C2437.69,-3747.09 2424.4,-3266.4 2314.11,-3266.4"/>
 <polygon fill="black" stroke="black" points="2334.83,-3777.14 2324.3,-3774.1 2329.55,-3777.89 2325.26,-3778.51 2325.26,-3778.51 2325.26,-3778.51 2329.55,-3777.89 2325.57,-3783.01 2334.83,-3777.14"/>
 <text text-anchor="start" x="2331.6" y="-3788.6" font-family="Arial" font-size="10.00">FOREIGN KEY (upper_interface_id) REFERENCES os_interface(id)</text>
 </g>
 <!-- public.interface_vlan -->
-<g id="node31" class="node">
+<g id="node30" class="node">
 <title>public.interface_vlan</title>
 <polygon fill="#efefef" stroke="none" points="407.69,-3855.6 407.69,-3891.2 698.6,-3891.2 698.6,-3855.6 407.69,-3855.6"/>
 <polygon fill="none" stroke="black" points="407.69,-3855.6 407.69,-3891.2 698.6,-3891.2 698.6,-3855.6 407.69,-3855.6"/>
@@ -1502,21 +1465,21 @@
 <text text-anchor="start" x="465.29" y="-3652.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.interface_vlan&#45;&gt;public.vlan -->
-<g id="edge47" class="edge">
+<g id="edge46" class="edge">
 <title>public.interface_vlan:vlan_id&#45;&gt;public.vlan:id</title>
 <path fill="none" stroke="black" d="M396.48,-3776.97C326.96,-3756.29 155.48,-3533.12 418.15,-2761.2 443.88,-2685.57 500.32,-2693.05 525.99,-2617.4 539.44,-2577.75 568.86,-2523.2 526.99,-2523.2"/>
 <polygon fill="black" stroke="black" points="396.48,-3776.97 405.65,-3782.99 401.75,-3777.81 406.03,-3778.49 406.03,-3778.49 406.03,-3778.49 401.75,-3777.81 407.07,-3774.1 396.48,-3776.97"/>
 <text text-anchor="start" x="183.52" y="-3788.6" font-family="Arial" font-size="10.00">FOREIGN KEY (vlan_id) REFERENCES vlan(id)</text>
 </g>
 <!-- public.interface_vlan&#45;&gt;public.os_interface -->
-<g id="edge48" class="edge">
+<g id="edge47" class="edge">
 <title>public.interface_vlan:os_interface_id&#45;&gt;public.os_interface:id</title>
 <path fill="none" stroke="black" d="M709.84,-3809.22C891.66,-3802.82 878.48,-3625.06 1058.15,-3566 1156.07,-3533.81 1906.92,-3597.13 1985.15,-3530 2075.7,-3452.29 1916.85,-3266.4 2036.18,-3266.4"/>
 <polygon fill="black" stroke="black" points="709.94,-3809.22 699.86,-3804.89 704.6,-3809.31 700.27,-3809.39 700.27,-3809.39 700.27,-3809.39 704.6,-3809.31 700.02,-3813.89 709.94,-3809.22"/>
 <text text-anchor="start" x="706.6" y="-3819.4" font-family="Arial" font-size="10.00">FOREIGN KEY (os_interface_id) REFERENCES os_interface(id)</text>
 </g>
 <!-- public.interface_role -->
-<g id="node32" class="node">
+<g id="node31" class="node">
 <title>public.interface_role</title>
 <polygon fill="#efefef" stroke="none" points="1634.19,-3824.8 1634.19,-3860.4 1922.1,-3860.4 1922.1,-3824.8 1634.19,-3824.8"/>
 <polygon fill="none" stroke="black" points="1634.19,-3824.8 1634.19,-3860.4 1922.1,-3860.4 1922.1,-3824.8 1634.19,-3824.8"/>
@@ -1540,14 +1503,14 @@
 <text text-anchor="start" x="1691.79" y="-3683" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.interface_role&#45;&gt;public.os_interface -->
-<g id="edge49" class="edge">
+<g id="edge48" class="edge">
 <title>public.interface_role:os_interface_id&#45;&gt;public.os_interface:id</title>
 <path fill="none" stroke="black" d="M1932.98,-3775.98C1970.28,-3754.66 1962.32,-3609.4 1974.15,-3566 1978.54,-3549.86 1981.11,-3546.24 1985.15,-3530 1999.55,-3472.1 1976.51,-3266.4 2036.18,-3266.4"/>
 <polygon fill="black" stroke="black" points="1933.09,-3775.95 1922.27,-3774.16 1927.93,-3777.32 1923.75,-3778.43 1923.75,-3778.43 1923.75,-3778.43 1927.93,-3777.32 1924.58,-3782.86 1933.09,-3775.95"/>
 <text text-anchor="start" x="1930.1" y="-3788.6" font-family="Arial" font-size="10.00">FOREIGN KEY (os_interface_id) REFERENCES os_interface(id)</text>
 </g>
 <!-- public.ip_address -->
-<g id="node33" class="node">
+<g id="node32" class="node">
 <title>public.ip_address</title>
 <polygon fill="#efefef" stroke="none" points="1110.66,-3871 1110.66,-3906.6 1375.63,-3906.6 1375.63,-3871 1110.66,-3871"/>
 <polygon fill="none" stroke="black" points="1110.66,-3871 1110.66,-3906.6 1375.63,-3906.6 1375.63,-3871 1110.66,-3871"/>
@@ -1580,21 +1543,21 @@
 <text text-anchor="start" x="1168.26" y="-3636.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.ip_address&#45;&gt;public.subnet -->
-<g id="edge50" class="edge">
+<g id="edge49" class="edge">
 <title>public.ip_address:subnet_id&#45;&gt;public.subnet:id</title>
 <path fill="none" stroke="black" d="M1099.63,-3732.33C933.85,-3730.04 872.61,-3669.99 776.15,-3530 740.38,-3478.1 788.02,-3251 724.99,-3251"/>
 <polygon fill="black" stroke="black" points="1099.33,-3732.33 1109.3,-3736.9 1104.66,-3732.37 1108.99,-3732.4 1108.99,-3732.4 1108.99,-3732.4 1104.66,-3732.37 1109.36,-3727.9 1099.33,-3732.33"/>
 <text text-anchor="start" x="863.14" y="-3742.4" font-family="Arial" font-size="10.00">FOREIGN KEY (subnet_id) REFERENCES subnet(id)</text>
 </g>
 <!-- public.ip_address&#45;&gt;public.os_interface -->
-<g id="edge51" class="edge">
+<g id="edge50" class="edge">
 <title>public.ip_address:os_interface_id&#45;&gt;public.os_interface:id</title>
 <path fill="none" stroke="black" d="M1387,-3824.47C1520.18,-3815.64 1456.01,-3633.99 1582.15,-3566 1661.29,-3523.34 1918.41,-3590.25 1985.15,-3530 2073.72,-3450.04 1916.85,-3266.4 2036.18,-3266.4"/>
 <polygon fill="black" stroke="black" points="1386.96,-3824.47 1376.82,-3820.29 1381.62,-3824.64 1377.3,-3824.78 1377.3,-3824.78 1377.3,-3824.78 1381.62,-3824.64 1377.11,-3829.29 1386.96,-3824.47"/>
 <text text-anchor="start" x="1383.63" y="-3834.8" font-family="Arial" font-size="10.00">FOREIGN KEY (os_interface_id) REFERENCES os_interface(id)</text>
 </g>
 <!-- public.cable_instance -->
-<g id="node34" class="node">
+<g id="node33" class="node">
 <title>public.cable_instance</title>
 <polygon fill="#efefef" stroke="none" points="3600.18,-1949.4 3600.18,-1985 3894.11,-1985 3894.11,-1949.4 3600.18,-1949.4"/>
 <polygon fill="none" stroke="black" points="3600.18,-1949.4 3600.18,-1985 3894.11,-1985 3894.11,-1949.4 3600.18,-1949.4"/>
@@ -1624,75 +1587,75 @@
 <text text-anchor="start" x="3670.22" y="-1746" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.cable_instance&#45;&gt;public.cable_catalog -->
-<g id="edge52" class="edge">
+<g id="edge51" class="edge">
 <title>public.cable_instance:cable_catalog_id&#45;&gt;public.cable_catalog:id</title>
 <path fill="none" stroke="black" d="M3589.24,-1902.66C3508.07,-1893.44 3552,-1767.78 3600.18,-1690.6 3660.16,-1594.52 3768.34,-1673.5 3828.6,-1577.6 3850.88,-1542.15 3871.47,-1483.4 3829.6,-1483.4"/>
 <polygon fill="black" stroke="black" points="3588.86,-1902.64 3598.61,-1907.68 3594.19,-1902.93 3598.52,-1903.16 3598.52,-1903.16 3598.52,-1903.16 3594.19,-1902.93 3599.09,-1898.69 3588.86,-1902.64"/>
 <text text-anchor="start" x="3289.28" y="-1913.2" font-family="Arial" font-size="10.00">FOREIGN KEY (cable_catalog_id) REFERENCES cable_catalog(id)</text>
 </g>
 <!-- public.cable_connection -->
-<g id="node35" class="node">
+<g id="node34" class="node">
 <title>public.cable_connection</title>
-<polygon fill="#efefef" stroke="none" points="2925.19,-2523.2 2925.19,-2558.8 3239.1,-2558.8 3239.1,-2523.2 2925.19,-2523.2"/>
-<polygon fill="none" stroke="black" points="2925.19,-2523.2 2925.19,-2558.8 3239.1,-2558.8 3239.1,-2523.2 2925.19,-2523.2"/>
-<text text-anchor="start" x="2932.19" y="-2536.6" font-family="Arial Bold" font-size="18.00">public.cable_connection</text>
-<text text-anchor="start" x="3107.62" y="-2536.6" font-family="Arial" font-size="14.00">    </text>
-<text text-anchor="start" x="3138.73" y="-2536.6" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
-<polygon fill="none" stroke="black" points="2925.19,-2492.4 2925.19,-2523.2 3239.1,-2523.2 3239.1,-2492.4 2925.19,-2492.4"/>
-<text text-anchor="start" x="2932.19" y="-2504.6" font-family="Arial" font-size="14.00">id </text>
-<text text-anchor="start" x="2946.97" y="-2504.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="2925.19,-2461.6 2925.19,-2492.4 3239.1,-2492.4 3239.1,-2461.6 2925.19,-2461.6"/>
-<text text-anchor="start" x="2932.19" y="-2473.8" font-family="Arial" font-size="14.00">cable_instance_id </text>
-<text text-anchor="start" x="3048.16" y="-2473.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="2925.19,-2430.8 2925.19,-2461.6 3239.1,-2461.6 3239.1,-2430.8 2925.19,-2430.8"/>
-<text text-anchor="start" x="2932.19" y="-2443" font-family="Arial" font-size="14.00">cable_end_slot_id </text>
-<text text-anchor="start" x="3048.94" y="-2443" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="2925.19,-2400 2925.19,-2430.8 3239.1,-2430.8 3239.1,-2400 2925.19,-2400"/>
-<text text-anchor="start" x="2932.19" y="-2412.2" font-family="Arial" font-size="14.00">part_instance_id </text>
-<text text-anchor="start" x="3038.81" y="-2412.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="2925.19,-2369.2 2925.19,-2400 3239.1,-2400 3239.1,-2369.2 2925.19,-2369.2"/>
-<text text-anchor="start" x="2932.19" y="-2381.4" font-family="Arial" font-size="14.00">port_slot_id </text>
-<text text-anchor="start" x="3008.45" y="-2381.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="2925.19,-2338.4 2925.19,-2369.2 3239.1,-2369.2 3239.1,-2338.4 2925.19,-2338.4"/>
-<text text-anchor="start" x="2932.19" y="-2350.6" font-family="Arial" font-size="14.00">work_order_id </text>
-<text text-anchor="start" x="3024.79" y="-2350.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="2925.19,-2307.6 2925.19,-2338.4 3239.1,-2338.4 3239.1,-2307.6 2925.19,-2307.6"/>
-<text text-anchor="start" x="2932.19" y="-2319.8" font-family="Arial" font-size="14.00">from_date </text>
-<text text-anchor="start" x="2999.11" y="-2319.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="2925.19,-2276.8 2925.19,-2307.6 3239.1,-2307.6 3239.1,-2276.8 2925.19,-2276.8"/>
-<text text-anchor="start" x="2932.19" y="-2289" font-family="Arial" font-size="14.00">to_date </text>
-<text text-anchor="start" x="2982.79" y="-2289" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="#efefef" stroke="none" points="2897.19,-2523.2 2897.19,-2558.8 3211.1,-2558.8 3211.1,-2523.2 2897.19,-2523.2"/>
+<polygon fill="none" stroke="black" points="2897.19,-2523.2 2897.19,-2558.8 3211.1,-2558.8 3211.1,-2523.2 2897.19,-2523.2"/>
+<text text-anchor="start" x="2904.19" y="-2536.6" font-family="Arial Bold" font-size="18.00">public.cable_connection</text>
+<text text-anchor="start" x="3079.62" y="-2536.6" font-family="Arial" font-size="14.00">    </text>
+<text text-anchor="start" x="3110.73" y="-2536.6" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
+<polygon fill="none" stroke="black" points="2897.19,-2492.4 2897.19,-2523.2 3211.1,-2523.2 3211.1,-2492.4 2897.19,-2492.4"/>
+<text text-anchor="start" x="2904.19" y="-2504.6" font-family="Arial" font-size="14.00">id </text>
+<text text-anchor="start" x="2918.97" y="-2504.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="2897.19,-2461.6 2897.19,-2492.4 3211.1,-2492.4 3211.1,-2461.6 2897.19,-2461.6"/>
+<text text-anchor="start" x="2904.19" y="-2473.8" font-family="Arial" font-size="14.00">cable_instance_id </text>
+<text text-anchor="start" x="3020.16" y="-2473.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="2897.19,-2430.8 2897.19,-2461.6 3211.1,-2461.6 3211.1,-2430.8 2897.19,-2430.8"/>
+<text text-anchor="start" x="2904.19" y="-2443" font-family="Arial" font-size="14.00">cable_end_slot_id </text>
+<text text-anchor="start" x="3020.94" y="-2443" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="2897.19,-2400 2897.19,-2430.8 3211.1,-2430.8 3211.1,-2400 2897.19,-2400"/>
+<text text-anchor="start" x="2904.19" y="-2412.2" font-family="Arial" font-size="14.00">part_instance_id </text>
+<text text-anchor="start" x="3010.81" y="-2412.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="2897.19,-2369.2 2897.19,-2400 3211.1,-2400 3211.1,-2369.2 2897.19,-2369.2"/>
+<text text-anchor="start" x="2904.19" y="-2381.4" font-family="Arial" font-size="14.00">port_slot_id </text>
+<text text-anchor="start" x="2980.45" y="-2381.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="2897.19,-2338.4 2897.19,-2369.2 3211.1,-2369.2 3211.1,-2338.4 2897.19,-2338.4"/>
+<text text-anchor="start" x="2904.19" y="-2350.6" font-family="Arial" font-size="14.00">work_order_id </text>
+<text text-anchor="start" x="2996.79" y="-2350.6" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="2897.19,-2307.6 2897.19,-2338.4 3211.1,-2338.4 3211.1,-2307.6 2897.19,-2307.6"/>
+<text text-anchor="start" x="2904.19" y="-2319.8" font-family="Arial" font-size="14.00">from_date </text>
+<text text-anchor="start" x="2971.11" y="-2319.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="2897.19,-2276.8 2897.19,-2307.6 3211.1,-2307.6 3211.1,-2276.8 2897.19,-2276.8"/>
+<text text-anchor="start" x="2904.19" y="-2289" font-family="Arial" font-size="14.00">to_date </text>
+<text text-anchor="start" x="2954.79" y="-2289" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.cable_connection&#45;&gt;public.part_port_slot -->
-<g id="edge53" class="edge">
+<g id="edge52" class="edge">
 <title>public.cable_connection:port_slot_id&#45;&gt;public.part_port_slot:id</title>
-<path fill="none" stroke="black" d="M2913.94,-2384.25C2783,-2374.89 2867.58,-2182.31 2745.15,-2110.4 2646.22,-2052.3 2323.19,-2141.51 2230.15,-2074.4 2181.41,-2039.25 2238.72,-1949.4 2178.63,-1949.4"/>
-<polygon fill="black" stroke="black" points="2913.86,-2384.24 2923.7,-2389.09 2919.19,-2384.43 2923.52,-2384.58 2923.52,-2384.58 2923.52,-2384.58 2919.19,-2384.43 2924.01,-2380.09 2913.86,-2384.24"/>
-<text text-anchor="start" x="2711.46" y="-2368.6" font-family="Arial" font-size="10.00">FOREIGN KEY (port_slot_id) REFERENCES part_port_slot(id)</text>
+<path fill="none" stroke="black" d="M2886.05,-2384.22C2762.26,-2374.56 2859.41,-2183.41 2745.15,-2110.4 2648.47,-2048.63 2323.19,-2141.51 2230.15,-2074.4 2181.41,-2039.25 2238.72,-1949.4 2178.63,-1949.4"/>
+<polygon fill="black" stroke="black" points="2885.86,-2384.21 2895.68,-2389.08 2891.19,-2384.41 2895.52,-2384.57 2895.52,-2384.57 2895.52,-2384.57 2891.19,-2384.41 2896.02,-2380.09 2885.86,-2384.21"/>
+<text text-anchor="start" x="2756.7" y="-2368.6" font-family="Arial" font-size="10.00">FOREIGN KEY (port_slot_id) REFERENCES part_port_slot(id)</text>
 </g>
 <!-- public.cable_connection&#45;&gt;public.cable_end_slot -->
-<g id="edge54" class="edge">
+<g id="edge53" class="edge">
 <title>public.cable_connection:cable_end_slot_id&#45;&gt;public.cable_end_slot:id</title>
-<path fill="none" stroke="black" d="M3250.45,-2445.35C3364.21,-2425.28 3167.74,-2058.02 3162.17,-2028.2 3154.49,-1987.04 3119.3,-1934 3161.17,-1934"/>
-<polygon fill="black" stroke="black" points="3250.4,-2445.35 3240.07,-2441.69 3245.09,-2445.79 3240.77,-2446.14 3240.77,-2446.14 3240.77,-2446.14 3245.09,-2445.79 3240.81,-2450.66 3250.4,-2445.35"/>
-<text text-anchor="start" x="3247.1" y="-2456.2" font-family="Arial" font-size="10.00">FOREIGN KEY (cable_end_slot_id) REFERENCES cable_end_slot(id)</text>
+<path fill="none" stroke="black" d="M3222.12,-2444C3287.75,-2411.79 3163.22,-2036.76 3162.17,-2028.2 3157.07,-1986.64 3119.3,-1934 3161.17,-1934"/>
+<polygon fill="black" stroke="black" points="3222.2,-2443.98 3211.47,-2441.73 3216.99,-2445.13 3212.76,-2446.06 3212.76,-2446.06 3212.76,-2446.06 3216.99,-2445.13 3213.4,-2450.52 3222.2,-2443.98"/>
+<text text-anchor="start" x="3219.1" y="-2456.2" font-family="Arial" font-size="10.00">FOREIGN KEY (cable_end_slot_id) REFERENCES cable_end_slot(id)</text>
 </g>
 <!-- public.cable_connection&#45;&gt;public.part_instance -->
-<g id="edge55" class="edge">
+<g id="edge54" class="edge">
 <title>public.cable_connection:part_instance_id&#45;&gt;public.part_instance:id</title>
-<path fill="none" stroke="black" d="M2913.86,-2414.97C2794.47,-2404.4 2956.66,-2202.77 2858.15,-2110.4 2779.46,-2036.62 2701.64,-2142.68 2618.15,-2074.4 2566.75,-2032.37 2633.51,-1934 2567.12,-1934"/>
-<polygon fill="black" stroke="black" points="2913.86,-2414.97 2923.66,-2419.88 2919.19,-2415.19 2923.52,-2415.37 2923.52,-2415.37 2923.52,-2415.37 2919.19,-2415.19 2924.04,-2410.89 2913.86,-2414.97"/>
-<text text-anchor="start" x="2617.64" y="-2425.4" font-family="Arial" font-size="10.00">FOREIGN KEY (part_instance_id) REFERENCES part_instance(id)</text>
+<path fill="none" stroke="black" d="M2885.86,-2414.97C2766.55,-2404.45 2928.58,-2203.77 2831.15,-2110.4 2761.82,-2043.97 2691.9,-2135.87 2618.15,-2074.4 2567.14,-2031.89 2633.51,-1934 2567.12,-1934"/>
+<polygon fill="black" stroke="black" points="2885.86,-2414.97 2895.66,-2419.88 2891.19,-2415.19 2895.52,-2415.37 2895.52,-2415.37 2895.52,-2415.37 2891.19,-2415.19 2896.04,-2410.89 2885.86,-2414.97"/>
+<text text-anchor="start" x="2746.41" y="-2399.4" font-family="Arial" font-size="10.00">FOREIGN KEY (part_instance_id) REFERENCES part_instance(id)</text>
 </g>
 <!-- public.cable_connection&#45;&gt;public.cable_instance -->
-<g id="edge56" class="edge">
+<g id="edge55" class="edge">
 <title>public.cable_connection:cable_instance_id&#45;&gt;public.cable_instance:id</title>
-<path fill="none" stroke="black" d="M3250.27,-2476.66C3396.84,-2466.32 3193.92,-2224.6 3309.15,-2110.4 3373.6,-2046.51 3434.81,-2125 3510.15,-2074.4 3571.49,-2033.2 3525.29,-1934 3599.18,-1934"/>
-<polygon fill="black" stroke="black" points="3250.43,-2476.65 3240.29,-2472.49 3245.1,-2476.83 3240.77,-2476.98 3240.77,-2476.98 3240.77,-2476.98 3245.1,-2476.83 3240.59,-2481.49 3250.43,-2476.65"/>
-<text text-anchor="start" x="3247.1" y="-2487" font-family="Arial" font-size="10.00">FOREIGN KEY (cable_instance_id) REFERENCES cable_instance(id)</text>
+<path fill="none" stroke="black" d="M3222.4,-2476.65C3371.15,-2466.23 3180.45,-2222.46 3300.15,-2110.4 3369.27,-2045.68 3431.34,-2126.9 3510.15,-2074.4 3571.64,-2033.43 3525.29,-1934 3599.18,-1934"/>
+<polygon fill="black" stroke="black" points="3222.43,-2476.65 3212.29,-2472.49 3217.1,-2476.83 3212.77,-2476.98 3212.77,-2476.98 3212.77,-2476.98 3217.1,-2476.83 3212.59,-2481.49 3222.43,-2476.65"/>
+<text text-anchor="start" x="3219.1" y="-2487" font-family="Arial" font-size="10.00">FOREIGN KEY (cable_instance_id) REFERENCES cable_instance(id)</text>
 </g>
 <!-- public.fixed_asset -->
-<g id="node36" class="node">
+<g id="node35" class="node">
 <title>public.fixed_asset</title>
 <polygon fill="#efefef" stroke="none" points="4419.67,-4321.6 4419.67,-4357.2 4688.62,-4357.2 4688.62,-4321.6 4419.67,-4321.6"/>
 <polygon fill="none" stroke="black" points="4419.67,-4321.6 4419.67,-4357.2 4688.62,-4357.2 4688.62,-4321.6 4419.67,-4321.6"/>
@@ -1728,7 +1691,7 @@
 <text text-anchor="start" x="4500.63" y="-4056.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.recurring_cost -->
-<g id="node37" class="node">
+<g id="node36" class="node">
 <title>public.recurring_cost</title>
 <polygon fill="#efefef" stroke="none" points="3145.18,-1483.4 3145.18,-1519 3437.11,-1519 3437.11,-1483.4 3145.18,-1483.4"/>
 <polygon fill="none" stroke="black" points="3145.18,-1483.4 3145.18,-1519 3437.11,-1519 3437.11,-1483.4 3145.18,-1483.4"/>
@@ -1773,21 +1736,21 @@
 <text text-anchor="start" x="3226.13" y="-1126" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.recurring_cost&#45;&gt;public.app_user -->
-<g id="edge57" class="edge">
+<g id="edge56" class="edge">
 <title>public.recurring_cost:created_by&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M3139.96,-1181.44C3113.43,-1105.65 2980.91,-594.8 2975.15,-589.2 2889.74,-506.19 2574.36,-459 2455.26,-459"/>
-<polygon fill="black" stroke="black" points="3139.93,-1181.38 3139.94,-1192.34 3142.12,-1186.24 3143.9,-1190.19 3143.9,-1190.19 3143.9,-1190.19 3142.12,-1186.24 3148.14,-1188.65 3139.93,-1181.38"/>
-<text text-anchor="start" x="3151.18" y="-1200.8" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
+<path fill="none" stroke="black" d="M3133.77,-1190.14C3071.98,-1181.63 3120.25,-1092.8 3093.15,-1024.4 3013.74,-824.02 3034,-739.13 2879.15,-589.2 2778.26,-491.52 2731.69,-459 2591.26,-459"/>
+<polygon fill="black" stroke="black" points="3133.86,-1190.14 3143.56,-1195.27 3139.19,-1190.48 3143.51,-1190.76 3143.51,-1190.76 3143.51,-1190.76 3139.19,-1190.48 3144.13,-1186.29 3133.86,-1190.14"/>
+<text text-anchor="start" x="2947.7" y="-1174.8" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
 </g>
 <!-- public.recurring_cost&#45;&gt;public.vendor -->
-<g id="edge58" class="edge">
+<g id="edge57" class="edge">
 <title>public.recurring_cost:vendor_id&#45;&gt;public.vendor:id</title>
-<path fill="none" stroke="black" d="M3134.21,-1342.84C3078.22,-1318.73 3133.09,-1079.97 3093.15,-1024.4 3011.7,-911.1 2954.52,-878.8 2814.99,-878.8"/>
-<polygon fill="black" stroke="black" points="3134.04,-1342.8 3142.98,-1349.15 3139.27,-1343.83 3143.52,-1344.67 3143.52,-1344.67 3143.52,-1344.67 3139.27,-1343.83 3144.72,-1340.32 3134.04,-1342.8"/>
+<path fill="none" stroke="black" d="M3134.22,-1342.83C3078.35,-1318.64 3134.32,-1079.07 3093.15,-1024.4 3001.29,-902.44 2934.67,-878.8 2781.99,-878.8"/>
+<polygon fill="black" stroke="black" points="3134.04,-1342.79 3142.97,-1349.15 3139.27,-1343.83 3143.52,-1344.67 3143.52,-1344.67 3143.52,-1344.67 3139.27,-1343.83 3144.72,-1340.32 3134.04,-1342.79"/>
 <text text-anchor="start" x="2960.21" y="-1328.8" font-family="Arial" font-size="10.00">FOREIGN KEY (vendor_id) REFERENCES vendor(id)</text>
 </g>
 <!-- public.milestone -->
-<g id="node38" class="node">
+<g id="node37" class="node">
 <title>public.milestone</title>
 <polygon fill="#efefef" stroke="none" points="3535.16,-3297.2 3535.16,-3332.8 3793.13,-3332.8 3793.13,-3297.2 3535.16,-3297.2"/>
 <polygon fill="none" stroke="black" points="3535.16,-3297.2 3535.16,-3332.8 3793.13,-3332.8 3793.13,-3297.2 3535.16,-3297.2"/>
@@ -1829,14 +1792,14 @@
 <text text-anchor="start" x="3614.54" y="-2970.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 </g>
 <!-- public.milestone&#45;&gt;public.project -->
-<g id="edge59" class="edge">
+<g id="edge58" class="edge">
 <title>public.milestone:project_id&#45;&gt;public.project:id</title>
 <path fill="none" stroke="black" d="M3804.24,-3249.67C3894.95,-3224.14 3772.84,-2838.44 3845.15,-2761.2 3909.86,-2692.07 3984.24,-2787.96 4055.15,-2725.2 4119.99,-2667.81 4024.56,-2538.6 4111.15,-2538.6"/>
 <polygon fill="black" stroke="black" points="3804.38,-3249.65 3793.87,-3246.49 3799.09,-3250.35 3794.79,-3250.91 3794.79,-3250.91 3794.79,-3250.91 3799.09,-3250.35 3795.05,-3255.42 3804.38,-3249.65"/>
 <text text-anchor="start" x="3674.38" y="-3235" font-family="Arial" font-size="10.00">FOREIGN KEY (project_id) REFERENCES project(id)</text>
 </g>
 <!-- public.milestone_device -->
-<g id="node39" class="node">
+<g id="node38" class="node">
 <title>public.milestone_device</title>
 <polygon fill="#efefef" stroke="none" points="3088.18,-3855.6 3088.18,-3891.2 3402.11,-3891.2 3402.11,-3855.6 3088.18,-3855.6"/>
 <polygon fill="none" stroke="black" points="3088.18,-3855.6 3088.18,-3891.2 3402.11,-3891.2 3402.11,-3855.6 3088.18,-3855.6"/>
@@ -1866,21 +1829,21 @@
 <text text-anchor="start" x="3169.14" y="-3652.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.milestone_device&#45;&gt;public.device -->
-<g id="edge60" class="edge">
+<g id="edge59" class="edge">
 <title>public.milestone_device:device_id&#45;&gt;public.device:id</title>
 <path fill="none" stroke="black" d="M3077.03,-3778.31C2951.28,-3771.02 2981.8,-3626.54 2862.15,-3566 2782.34,-3525.62 2731.77,-3588.53 2664.15,-3530 2391.63,-3294.13 2694.92,-2976.86 2406.15,-2761.2 2316.89,-2694.54 1498.85,-2783.87 1404.15,-2725.2 1363.64,-2700.11 1400.63,-2631 1352.99,-2631"/>
 <polygon fill="black" stroke="black" points="3076.85,-3778.31 3086.72,-3783.09 3082.18,-3778.46 3086.51,-3778.58 3086.51,-3778.58 3086.51,-3778.58 3082.18,-3778.46 3086.97,-3774.09 3076.85,-3778.31"/>
 <text text-anchor="start" x="2842.89" y="-3788.6" font-family="Arial" font-size="10.00">FOREIGN KEY (device_id) REFERENCES device(id)</text>
 </g>
 <!-- public.milestone_device&#45;&gt;public.milestone -->
-<g id="edge61" class="edge">
+<g id="edge60" class="edge">
 <title>public.milestone_device:milestone_id&#45;&gt;public.milestone:id</title>
 <path fill="none" stroke="black" d="M3413.25,-3809.06C3528,-3801 3453.18,-3652.01 3483.15,-3530 3496.58,-3475.32 3477.85,-3281.8 3534.16,-3281.8"/>
 <polygon fill="black" stroke="black" points="3413.44,-3809.05 3403.3,-3804.89 3408.11,-3809.23 3403.78,-3809.38 3403.78,-3809.38 3403.78,-3809.38 3408.11,-3809.23 3403.6,-3813.89 3413.44,-3809.05"/>
 <text text-anchor="start" x="3410.11" y="-3819.4" font-family="Arial" font-size="10.00">FOREIGN KEY (milestone_id) REFERENCES milestone(id)</text>
 </g>
 <!-- public.work_order -->
-<g id="node40" class="node">
+<g id="node39" class="node">
 <title>public.work_order</title>
 <polygon fill="#efefef" stroke="none" points="2749.17,-3451.2 2749.17,-3486.8 3021.12,-3486.8 3021.12,-3451.2 2749.17,-3451.2"/>
 <polygon fill="none" stroke="black" points="2749.17,-3451.2 2749.17,-3486.8 3021.12,-3486.8 3021.12,-3451.2 2749.17,-3451.2"/>
@@ -1952,49 +1915,49 @@
 <text text-anchor="start" x="2828.55" y="-2816.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 </g>
 <!-- public.work_order&#45;&gt;public.app_user -->
-<g id="edge62" class="edge">
+<g id="edge61" class="edge">
 <title>public.work_order:primary_assignee_id&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M3032.41,-3187.78C3109.23,-3161.48 3005.51,-2823.7 3073.15,-2761.2 3147.14,-2692.83 3908.33,-2796.86 3979.15,-2725.2 4046.71,-2656.82 4003.15,-1956.53 4003.15,-1860.4 4003.15,-1860.4 4003.15,-1860.4 4003.15,-1315.4 4003.15,-1234.67 4034.72,-647.76 3979.15,-589.2 3862.16,-465.94 2625.2,-459 2455.26,-459"/>
+<path fill="none" stroke="black" d="M3032.41,-3187.78C3109.23,-3161.48 3005.51,-2823.7 3073.15,-2761.2 3147.14,-2692.83 3908.33,-2796.86 3979.15,-2725.2 4046.71,-2656.82 4003.15,-1956.53 4003.15,-1860.4 4003.15,-1860.4 4003.15,-1860.4 4003.15,-1315.4 4003.15,-1234.67 4034.48,-647.99 3979.15,-589.2 3872.99,-476.42 2746.15,-459 2591.26,-459"/>
 <polygon fill="black" stroke="black" points="3032.33,-3187.79 3021.75,-3184.9 3027.06,-3188.62 3022.78,-3189.3 3022.78,-3189.3 3022.78,-3189.3 3027.06,-3188.62 3023.15,-3193.79 3032.33,-3187.79"/>
 <text text-anchor="start" x="2872.07" y="-3173.4" font-family="Arial" font-size="10.00">FOREIGN KEY (primary_assignee_id) REFERENCES app_user(id)</text>
 </g>
 <!-- public.work_order&#45;&gt;public.app_user -->
-<g id="edge63" class="edge">
+<g id="edge62" class="edge">
 <title>public.work_order:secondary_assignee_id&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M3032.13,-3156.94C3102.97,-3131.44 3010.61,-2819.33 3073.15,-2761.2 3180.41,-2661.5 3614.85,-2814.2 3731.15,-2725.2 4047.36,-2483.22 3965.15,-2258.58 3965.15,-1860.4 3965.15,-1860.4 3965.15,-1860.4 3965.15,-1315.4 3965.15,-543.91 3226.75,-459 2455.26,-459"/>
+<path fill="none" stroke="black" d="M3032.13,-3156.94C3102.97,-3131.44 3010.63,-2819.35 3073.15,-2761.2 3178.91,-2662.82 3606.93,-2812.31 3722.15,-2725.2 4040.61,-2484.43 3965.15,-2259.64 3965.15,-1860.4 3965.15,-1860.4 3965.15,-1860.4 3965.15,-1315.4 3965.15,-595.87 3310.79,-459 2591.26,-459"/>
 <polygon fill="black" stroke="black" points="3032.32,-3156.91 3021.72,-3154.11 3027.05,-3157.78 3022.78,-3158.49 3022.78,-3158.49 3022.78,-3158.49 3027.05,-3157.78 3023.19,-3162.98 3032.32,-3156.91"/>
 <text text-anchor="start" x="2865.67" y="-3142.6" font-family="Arial" font-size="10.00">FOREIGN KEY (secondary_assignee_id) REFERENCES app_user(id)</text>
 </g>
 <!-- public.work_order&#45;&gt;public.project -->
-<g id="edge64" class="edge">
+<g id="edge63" class="edge">
 <title>public.work_order:project_id&#45;&gt;public.project:id</title>
 <path fill="none" stroke="black" d="M3031.63,-3400.88C3087.09,-3348.28 3023.9,-2808.46 3073.15,-2761.2 3148.87,-2688.51 3928.84,-2781.94 4017.15,-2725.2 4095.27,-2675 4018.29,-2538.6 4111.15,-2538.6"/>
 <polygon fill="black" stroke="black" points="3031.61,-3400.89 3020.64,-3400.74 3026.71,-3403.01 3022.74,-3404.73 3022.74,-3404.73 3022.74,-3404.73 3026.71,-3403.01 3024.22,-3409 3031.61,-3400.89"/>
 <text text-anchor="start" x="3029.12" y="-3415" font-family="Arial" font-size="10.00">FOREIGN KEY (project_id) REFERENCES project(id)</text>
 </g>
 <!-- public.work_order&#45;&gt;public.project -->
-<g id="edge65" class="edge">
+<g id="edge64" class="edge">
 <title>public.work_order:target_project_id&#45;&gt;public.project:id</title>
 <path fill="none" stroke="black" d="M3031.52,-3369.97C3083.99,-3318.08 3026.25,-2806.03 3073.15,-2761.2 3149.02,-2688.66 3928.84,-2781.94 4017.15,-2725.2 4095.27,-2675 4018.29,-2538.6 4111.15,-2538.6"/>
 <polygon fill="black" stroke="black" points="3031.54,-3369.95 3020.58,-3369.96 3026.68,-3372.15 3022.73,-3373.93 3022.73,-3373.93 3022.73,-3373.93 3026.68,-3372.15 3024.27,-3378.17 3031.54,-3369.95"/>
 <text text-anchor="start" x="3029.12" y="-3384.2" font-family="Arial" font-size="10.00">FOREIGN KEY (target_project_id) REFERENCES project(id)</text>
 </g>
 <!-- public.work_order&#45;&gt;public.device -->
-<g id="edge66" class="edge">
+<g id="edge65" class="edge">
 <title>public.work_order:device_id&#45;&gt;public.device:id</title>
 <path fill="none" stroke="black" d="M2737.83,-3342.23C2627.55,-3315.77 2784.43,-2847.42 2692.15,-2761.2 2639.84,-2712.33 1465.15,-2762.65 1404.15,-2725.2 1363.54,-2700.27 1400.63,-2631 1352.99,-2631"/>
 <polygon fill="black" stroke="black" points="2737.9,-3342.24 2747.33,-3347.83 2743.2,-3342.84 2747.51,-3343.32 2747.51,-3343.32 2747.51,-3343.32 2743.2,-3342.84 2748.34,-3338.89 2737.9,-3342.24"/>
 <text text-anchor="start" x="2503.88" y="-3353.4" font-family="Arial" font-size="10.00">FOREIGN KEY (device_id) REFERENCES device(id)</text>
 </g>
 <!-- public.work_order&#45;&gt;public.part_instance -->
-<g id="edge67" class="edge">
+<g id="edge66" class="edge">
 <title>public.work_order:part_instance_id&#45;&gt;public.part_instance:id</title>
-<path fill="none" stroke="black" d="M2738.99,-3308.31C2691.02,-3259.76 2726.25,-2814.39 2749.17,-2761.2 2758.38,-2739.84 2777.96,-2746.57 2787.15,-2725.2 2841.11,-2599.69 2873.1,-2216.59 2787.15,-2110.4 2738.83,-2050.71 2676.08,-2124.81 2618.15,-2074.4 2568.06,-2030.82 2633.51,-1934 2567.12,-1934"/>
-<polygon fill="black" stroke="black" points="2738.81,-3308.22 2745.96,-3316.54 2743.64,-3310.48 2747.56,-3312.32 2747.56,-3312.32 2747.56,-3312.32 2743.64,-3310.48 2749.77,-3308.38 2738.81,-3308.22"/>
+<path fill="none" stroke="black" d="M2739.06,-3308.33C2691.81,-3260.04 2733.45,-2816.94 2749.17,-2761.2 2754.26,-2743.16 2766.07,-2743.25 2771.15,-2725.2 2808.12,-2593.68 2855.97,-2217.5 2771.15,-2110.4 2727.77,-2055.64 2670.36,-2120.81 2618.15,-2074.4 2568.52,-2030.29 2633.51,-1934 2567.12,-1934"/>
+<polygon fill="black" stroke="black" points="2738.81,-3308.22 2745.96,-3316.53 2743.64,-3310.48 2747.56,-3312.32 2747.56,-3312.32 2747.56,-3312.32 2743.64,-3310.48 2749.77,-3308.38 2738.81,-3308.22"/>
 <text text-anchor="start" x="2441.62" y="-3322.6" font-family="Arial" font-size="10.00">FOREIGN KEY (part_instance_id) REFERENCES part_instance(id)</text>
 </g>
 <!-- public.work_order_approval -->
-<g id="node41" class="node">
+<g id="node40" class="node">
 <title>public.work_order_approval</title>
 <polygon fill="#efefef" stroke="none" points="4068.18,-3886.4 4068.18,-3922 4412.11,-3922 4412.11,-3886.4 4068.18,-3886.4"/>
 <polygon fill="none" stroke="black" points="4068.18,-3886.4 4068.18,-3922 4412.11,-3922 4412.11,-3886.4 4068.18,-3886.4"/>
@@ -2030,65 +1993,65 @@
 <text text-anchor="start" x="4167.02" y="-3621.4" font-family="Arial" font-size="14.00" fill="#666666">[boolean]</text>
 </g>
 <!-- public.work_order_approval&#45;&gt;public.app_user -->
-<g id="edge68" class="edge">
+<g id="edge67" class="edge">
 <title>public.work_order_approval:approver_id&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M4423.25,-3778.3C4548.86,-3770.72 4515.68,-3620.63 4638.15,-3566 4727.13,-3526.3 5008.52,-3601.11 5075.15,-3530 5244,-3349.78 5094.15,-2665.77 5094.15,-2418.8 5094.15,-2418.8 5094.15,-2418.8 5094.15,-1315.4 5094.15,-883.13 4835.6,-778.83 4447.15,-589.2 4247.83,-491.9 2677.05,-459 2455.26,-459"/>
+<path fill="none" stroke="black" d="M4423.25,-3778.3C4548.86,-3770.72 4515.68,-3620.63 4638.15,-3566 4727.13,-3526.3 5008.52,-3601.11 5075.15,-3530 5244,-3349.78 5094.15,-2665.77 5094.15,-2418.8 5094.15,-2418.8 5094.15,-2418.8 5094.15,-1315.4 5094.15,-883.13 4835.15,-779.76 4447.15,-589.2 4261.6,-498.07 2797.98,-459 2591.26,-459"/>
 <polygon fill="black" stroke="black" points="4423.44,-3778.3 4413.31,-3774.09 4418.11,-3778.45 4413.78,-3778.58 4413.78,-3778.58 4413.78,-3778.58 4418.11,-3778.45 4413.57,-3783.09 4423.44,-3778.3"/>
 <text text-anchor="start" x="4420.11" y="-3788.6" font-family="Arial" font-size="10.00">FOREIGN KEY (approver_id) REFERENCES app_user(id)</text>
 </g>
 <!-- public.work_order_approval&#45;&gt;public.project -->
-<g id="edge69" class="edge">
+<g id="edge68" class="edge">
 <title>public.work_order_approval:required_project_id&#45;&gt;public.project:id</title>
 <path fill="none" stroke="black" d="M4423.39,-3808.88C4518.48,-3798.94 4477.21,-3647.86 4412.11,-3566 4368.63,-3511.34 4302.51,-3584.75 4259.15,-3530 4206.11,-3463.03 4229.7,-2841.39 4259.15,-2761.2 4284.95,-2690.93 4341.97,-2702.93 4368.14,-2632.8 4382.78,-2593.57 4411.01,-2538.6 4369.14,-2538.6"/>
 <polygon fill="black" stroke="black" points="4423.43,-3808.88 4413.22,-3804.89 4418.1,-3809.15 4413.78,-3809.37 4413.78,-3809.37 4413.78,-3809.37 4418.1,-3809.15 4413.67,-3813.88 4423.43,-3808.88"/>
 <text text-anchor="start" x="4420.11" y="-3819.4" font-family="Arial" font-size="10.00">FOREIGN KEY (required_project_id) REFERENCES project(id)</text>
 </g>
 <!-- public.work_order_approval&#45;&gt;public.work_order -->
-<g id="edge70" class="edge">
+<g id="edge69" class="edge">
 <title>public.work_order_approval:work_order_id&#45;&gt;public.work_order:id</title>
 <path fill="none" stroke="black" d="M4056.9,-3839.79C3936.55,-3829.73 4040.75,-3638.05 3929.15,-3566 3769.19,-3462.74 3234.64,-3630.84 3073.15,-3530 3032.76,-3504.78 3069.74,-3435.8 3022.12,-3435.8"/>
 <polygon fill="black" stroke="black" points="4056.86,-3839.79 4066.67,-3844.68 4062.19,-3840 4066.51,-3840.17 4066.51,-3840.17 4066.51,-3840.17 4062.19,-3840 4067.03,-3835.69 4056.86,-3839.79"/>
 <text text-anchor="start" x="3927.43" y="-3824.2" font-family="Arial" font-size="10.00">FOREIGN KEY (work_order_id) REFERENCES work_order(id)</text>
 </g>
 <!-- public.software_instance -->
-<g id="node42" class="node">
+<g id="node41" class="node">
 <title>public.software_instance</title>
-<polygon fill="#efefef" stroke="none" points="3361.18,-2507.8 3361.18,-2543.4 3679.11,-2543.4 3679.11,-2507.8 3361.18,-2507.8"/>
-<polygon fill="none" stroke="black" points="3361.18,-2507.8 3361.18,-2543.4 3679.11,-2543.4 3679.11,-2507.8 3361.18,-2507.8"/>
-<text text-anchor="start" x="3368.18" y="-2521.2" font-family="Arial Bold" font-size="18.00">public.software_instance</text>
-<text text-anchor="start" x="3547.62" y="-2521.2" font-family="Arial" font-size="14.00">    </text>
-<text text-anchor="start" x="3578.74" y="-2521.2" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
-<polygon fill="none" stroke="black" points="3361.18,-2477 3361.18,-2507.8 3679.11,-2507.8 3679.11,-2477 3361.18,-2477"/>
-<text text-anchor="start" x="3368.18" y="-2489.2" font-family="Arial" font-size="14.00">id </text>
-<text text-anchor="start" x="3382.97" y="-2489.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="3361.18,-2446.2 3361.18,-2477 3679.11,-2477 3679.11,-2446.2 3361.18,-2446.2"/>
-<text text-anchor="start" x="3368.18" y="-2458.4" font-family="Arial" font-size="14.00">software_catalog_id </text>
-<text text-anchor="start" x="3496.6" y="-2458.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="3361.18,-2415.4 3361.18,-2446.2 3679.11,-2446.2 3679.11,-2415.4 3361.18,-2415.4"/>
-<text text-anchor="start" x="3368.18" y="-2427.6" font-family="Arial" font-size="14.00">license_key </text>
-<text text-anchor="start" x="3445.22" y="-2427.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="3361.18,-2384.6 3361.18,-2415.4 3679.11,-2415.4 3679.11,-2384.6 3361.18,-2384.6"/>
-<text text-anchor="start" x="3368.18" y="-2396.8" font-family="Arial" font-size="14.00">asset_number </text>
-<text text-anchor="start" x="3460.79" y="-2396.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="3361.18,-2353.8 3361.18,-2384.6 3679.11,-2384.6 3679.11,-2353.8 3361.18,-2353.8"/>
-<text text-anchor="start" x="3368.18" y="-2366" font-family="Arial" font-size="14.00">retired_at </text>
-<text text-anchor="start" x="3431.22" y="-2366" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="3361.18,-2323 3361.18,-2353.8 3679.11,-2353.8 3679.11,-2323 3361.18,-2323"/>
-<text text-anchor="start" x="3368.18" y="-2335.2" font-family="Arial" font-size="14.00">created_at </text>
-<text text-anchor="start" x="3438.23" y="-2335.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="3361.18,-2292.2 3361.18,-2323 3679.11,-2323 3679.11,-2292.2 3361.18,-2292.2"/>
-<text text-anchor="start" x="3368.18" y="-2304.4" font-family="Arial" font-size="14.00">updated_at </text>
-<text text-anchor="start" x="3442.14" y="-2304.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="#efefef" stroke="none" points="3352.18,-2507.8 3352.18,-2543.4 3670.11,-2543.4 3670.11,-2507.8 3352.18,-2507.8"/>
+<polygon fill="none" stroke="black" points="3352.18,-2507.8 3352.18,-2543.4 3670.11,-2543.4 3670.11,-2507.8 3352.18,-2507.8"/>
+<text text-anchor="start" x="3359.18" y="-2521.2" font-family="Arial Bold" font-size="18.00">public.software_instance</text>
+<text text-anchor="start" x="3538.62" y="-2521.2" font-family="Arial" font-size="14.00">    </text>
+<text text-anchor="start" x="3569.74" y="-2521.2" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
+<polygon fill="none" stroke="black" points="3352.18,-2477 3352.18,-2507.8 3670.11,-2507.8 3670.11,-2477 3352.18,-2477"/>
+<text text-anchor="start" x="3359.18" y="-2489.2" font-family="Arial" font-size="14.00">id </text>
+<text text-anchor="start" x="3373.97" y="-2489.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="3352.18,-2446.2 3352.18,-2477 3670.11,-2477 3670.11,-2446.2 3352.18,-2446.2"/>
+<text text-anchor="start" x="3359.18" y="-2458.4" font-family="Arial" font-size="14.00">software_catalog_id </text>
+<text text-anchor="start" x="3487.6" y="-2458.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="3352.18,-2415.4 3352.18,-2446.2 3670.11,-2446.2 3670.11,-2415.4 3352.18,-2415.4"/>
+<text text-anchor="start" x="3359.18" y="-2427.6" font-family="Arial" font-size="14.00">license_key </text>
+<text text-anchor="start" x="3436.22" y="-2427.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="3352.18,-2384.6 3352.18,-2415.4 3670.11,-2415.4 3670.11,-2384.6 3352.18,-2384.6"/>
+<text text-anchor="start" x="3359.18" y="-2396.8" font-family="Arial" font-size="14.00">asset_number </text>
+<text text-anchor="start" x="3451.79" y="-2396.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="3352.18,-2353.8 3352.18,-2384.6 3670.11,-2384.6 3670.11,-2353.8 3352.18,-2353.8"/>
+<text text-anchor="start" x="3359.18" y="-2366" font-family="Arial" font-size="14.00">retired_at </text>
+<text text-anchor="start" x="3422.22" y="-2366" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="3352.18,-2323 3352.18,-2353.8 3670.11,-2353.8 3670.11,-2323 3352.18,-2323"/>
+<text text-anchor="start" x="3359.18" y="-2335.2" font-family="Arial" font-size="14.00">created_at </text>
+<text text-anchor="start" x="3429.23" y="-2335.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="3352.18,-2292.2 3352.18,-2323 3670.11,-2323 3670.11,-2292.2 3352.18,-2292.2"/>
+<text text-anchor="start" x="3359.18" y="-2304.4" font-family="Arial" font-size="14.00">updated_at </text>
+<text text-anchor="start" x="3433.14" y="-2304.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.software_instance&#45;&gt;public.software_catalog -->
-<g id="edge71" class="edge">
+<g id="edge70" class="edge">
 <title>public.software_instance:software_catalog_id&#45;&gt;public.software_catalog:id</title>
-<path fill="none" stroke="black" d="M3690.46,-2461.05C3769.54,-2452.04 3708.03,-2335.07 3679.11,-2249 3648.22,-2157.05 3582.85,-2164.98 3548.15,-2074.4 3513.83,-1984.82 3578.05,-1712.16 3510.15,-1644.4 3444.31,-1578.7 3167.05,-1664.88 3093.15,-1608.4 3040.33,-1568.04 3108.08,-1468 3041.61,-1468"/>
-<polygon fill="black" stroke="black" points="3690.43,-2461.05 3680.2,-2457.09 3685.1,-2461.33 3680.78,-2461.56 3680.78,-2461.56 3680.78,-2461.56 3685.1,-2461.33 3680.68,-2466.08 3690.43,-2461.05"/>
-<text text-anchor="start" x="3687.11" y="-2471.6" font-family="Arial" font-size="10.00">FOREIGN KEY (software_catalog_id) REFERENCES software_catalog(id)</text>
+<path fill="none" stroke="black" d="M3681.45,-2461.05C3760.43,-2452.08 3697.57,-2335.55 3670.11,-2249 3641.48,-2158.77 3580.51,-2163.35 3548.15,-2074.4 3515.35,-1984.25 3578.05,-1712.16 3510.15,-1644.4 3444.31,-1578.7 3167.05,-1664.88 3093.15,-1608.4 3040.33,-1568.04 3108.08,-1468 3041.61,-1468"/>
+<polygon fill="black" stroke="black" points="3681.43,-2461.05 3671.2,-2457.09 3676.1,-2461.33 3671.78,-2461.56 3671.78,-2461.56 3671.78,-2461.56 3676.1,-2461.33 3671.68,-2466.08 3681.43,-2461.05"/>
+<text text-anchor="start" x="3678.11" y="-2471.6" font-family="Arial" font-size="10.00">FOREIGN KEY (software_catalog_id) REFERENCES software_catalog(id)</text>
 </g>
 <!-- public.software_installation -->
-<g id="node43" class="node">
+<g id="node42" class="node">
 <title>public.software_installation</title>
 <polygon fill="#efefef" stroke="none" points="2470.67,-3840.2 2470.67,-3875.8 2809.62,-3875.8 2809.62,-3840.2 2470.67,-3840.2"/>
 <polygon fill="none" stroke="black" points="2470.67,-3840.2 2470.67,-3875.8 2809.62,-3875.8 2809.62,-3840.2 2470.67,-3840.2"/>
@@ -2115,28 +2078,28 @@
 <text text-anchor="start" x="2528.27" y="-3667.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.software_installation&#45;&gt;public.device -->
-<g id="edge72" class="edge">
+<g id="edge71" class="edge">
 <title>public.software_installation:device_id&#45;&gt;public.device:id</title>
 <path fill="none" stroke="black" d="M2459.55,-3762.58C2254.53,-3736.84 2526.07,-2911.76 2365.15,-2761.2 2287.12,-2688.2 1494.94,-2781.54 1404.15,-2725.2 1363.66,-2700.08 1400.63,-2631 1352.99,-2631"/>
 <polygon fill="black" stroke="black" points="2459.36,-3762.57 2469.07,-3767.67 2464.68,-3762.9 2469.01,-3763.16 2469.01,-3763.16 2469.01,-3763.16 2464.68,-3762.9 2469.61,-3758.69 2459.36,-3762.57"/>
 <text text-anchor="start" x="2288.21" y="-3747.2" font-family="Arial" font-size="10.00">FOREIGN KEY (device_id) REFERENCES device(id)</text>
 </g>
 <!-- public.software_installation&#45;&gt;public.work_order -->
-<g id="edge73" class="edge">
+<g id="edge72" class="edge">
 <title>public.software_installation:work_order_id&#45;&gt;public.work_order:id</title>
 <path fill="none" stroke="black" d="M2820.94,-3732.03C2939.69,-3722.99 2756.29,-3551.31 2749.17,-3530 2735.91,-3490.29 2706.3,-3435.8 2748.17,-3435.8"/>
 <polygon fill="black" stroke="black" points="2820.94,-3732.03 2810.79,-3727.89 2815.61,-3732.22 2811.28,-3732.38 2811.28,-3732.38 2811.28,-3732.38 2815.61,-3732.22 2811.11,-3736.89 2820.94,-3732.03"/>
 <text text-anchor="start" x="2817.62" y="-3742.4" font-family="Arial" font-size="10.00">FOREIGN KEY (work_order_id) REFERENCES work_order(id)</text>
 </g>
 <!-- public.software_installation&#45;&gt;public.software_instance -->
-<g id="edge74" class="edge">
+<g id="edge73" class="edge">
 <title>public.software_installation:software_instance_id&#45;&gt;public.software_instance:id</title>
-<path fill="none" stroke="black" d="M2820.76,-3793.35C2887.39,-3784.21 2844.74,-3680.91 2809.62,-3612.2 2781.43,-3557.07 2725.18,-3585.21 2697.15,-3530 2542.45,-3225.33 2462.96,-3010.01 2697.15,-2761.2 2787.78,-2664.9 3187.62,-2807.48 3291.15,-2725.2 3375.63,-2658.05 3252.26,-2492.4 3360.18,-2492.4"/>
+<path fill="none" stroke="black" d="M2820.76,-3793.35C2887.39,-3784.21 2844.74,-3680.91 2809.62,-3612.2 2781.43,-3557.07 2725.18,-3585.21 2697.15,-3530 2542.45,-3225.33 2463.33,-3010.36 2697.15,-2761.2 2783.39,-2669.3 3161.78,-2800.1 3263.15,-2725.2 3352.11,-2659.46 3240.56,-2492.4 3351.18,-2492.4"/>
 <polygon fill="black" stroke="black" points="2820.93,-3793.34 2810.66,-3789.49 2815.61,-3793.68 2811.28,-3793.96 2811.28,-3793.96 2811.28,-3793.96 2815.61,-3793.68 2811.24,-3798.47 2820.93,-3793.34"/>
 <text text-anchor="start" x="2817.62" y="-3804" font-family="Arial" font-size="10.00">FOREIGN KEY (software_instance_id) REFERENCES software_instance(id)</text>
 </g>
 <!-- public.software_role_assignment -->
-<g id="node44" class="node">
+<g id="node43" class="node">
 <title>public.software_role_assignment</title>
 <polygon fill="#efefef" stroke="none" points="2451.68,-4260 2451.68,-4295.6 2828.61,-4295.6 2828.61,-4260 2451.68,-4260"/>
 <polygon fill="none" stroke="black" points="2451.68,-4260 2451.68,-4295.6 2828.61,-4295.6 2828.61,-4260 2451.68,-4260"/>
@@ -2160,14 +2123,14 @@
 <text text-anchor="start" x="2509.28" y="-4118.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.software_role_assignment&#45;&gt;public.software_installation -->
-<g id="edge75" class="edge">
+<g id="edge74" class="edge">
 <title>public.software_role_assignment:software_installation_id&#45;&gt;public.software_installation:id</title>
 <path fill="none" stroke="black" d="M2840.02,-4213.32C3001.86,-4198.01 2980.16,-3824.8 2810.62,-3824.8"/>
 <polygon fill="black" stroke="black" points="2839.93,-4213.32 2829.73,-4209.29 2834.6,-4213.57 2830.28,-4213.77 2830.28,-4213.77 2830.28,-4213.77 2834.6,-4213.57 2830.15,-4218.28 2839.93,-4213.32"/>
 <text text-anchor="start" x="2836.61" y="-4223.8" font-family="Arial" font-size="10.00">FOREIGN KEY (software_installation_id) REFERENCES software_installation(id)</text>
 </g>
 <!-- public.sbom_snapshot -->
-<g id="node45" class="node">
+<g id="node44" class="node">
 <title>public.sbom_snapshot</title>
 <polygon fill="#efefef" stroke="none" points="4723.65,-3189.4 4723.65,-3225 5022.64,-3225 5022.64,-3189.4 4723.65,-3189.4"/>
 <polygon fill="none" stroke="black" points="4723.65,-3189.4 4723.65,-3225 5022.64,-3225 5022.64,-3189.4 4723.65,-3189.4"/>
@@ -2188,7 +2151,7 @@
 <text text-anchor="start" x="4814.7" y="-3078.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.sbom_import -->
-<g id="node46" class="node">
+<g id="node45" class="node">
 <title>public.sbom_import</title>
 <polygon fill="#efefef" stroke="none" points="3593.15,-3871 3593.15,-3906.6 3877.14,-3906.6 3877.14,-3871 3593.15,-3871"/>
 <polygon fill="none" stroke="black" points="3593.15,-3871 3593.15,-3906.6 3877.14,-3906.6 3877.14,-3871 3593.15,-3871"/>
@@ -2221,35 +2184,35 @@
 <text text-anchor="start" x="3696.67" y="-3636.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.sbom_import&#45;&gt;public.app_user -->
-<g id="edge76" class="edge">
+<g id="edge75" class="edge">
 <title>public.sbom_import:imported_by&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M3888.16,-3701.1C3962.12,-3693.45 3940.76,-3599.43 4016.15,-3566 4078.92,-3538.16 4585.6,-3579.55 4633.15,-3530 4675.9,-3485.45 4652.15,-2480.54 4652.15,-2418.8 4652.15,-2418.8 4652.15,-2418.8 4652.15,-1315.4 4652.15,-947.56 4564.56,-788.12 4255.15,-589.2 4086.48,-480.77 2655.77,-459 2455.26,-459"/>
+<path fill="none" stroke="black" d="M3888.16,-3701.1C3962.12,-3693.45 3940.76,-3599.43 4016.15,-3566 4078.92,-3538.16 4585.6,-3579.55 4633.15,-3530 4675.9,-3485.45 4652.15,-2480.54 4652.15,-2418.8 4652.15,-2418.8 4652.15,-2418.8 4652.15,-1315.4 4652.15,-947.56 4563.97,-789.03 4255.15,-589.2 4099.45,-488.46 2776.7,-459 2591.26,-459"/>
 <polygon fill="black" stroke="black" points="3888.46,-3701.09 3878.25,-3697.09 3883.13,-3701.35 3878.81,-3701.57 3878.81,-3701.57 3878.81,-3701.57 3883.13,-3701.35 3878.69,-3706.08 3888.46,-3701.09"/>
 <text text-anchor="start" x="3885.14" y="-3711.6" font-family="Arial" font-size="10.00">FOREIGN KEY (imported_by) REFERENCES app_user(id)</text>
 </g>
 <!-- public.sbom_import&#45;&gt;public.device -->
-<g id="edge77" class="edge">
+<g id="edge76" class="edge">
 <title>public.sbom_import:device_id&#45;&gt;public.device:id</title>
 <path fill="none" stroke="black" d="M3581.97,-3824.38C3467.25,-3814.55 3561.28,-3633.8 3454.15,-3566 3382.99,-3520.97 2760.78,-3585.15 2697.15,-3530 2434.19,-3302.11 2813.93,-2986.96 2549.15,-2761.2 2452.29,-2678.62 1512.5,-2791.99 1404.15,-2725.2 1363.59,-2700.2 1400.63,-2631 1352.99,-2631"/>
 <polygon fill="black" stroke="black" points="3581.83,-3824.38 3591.64,-3829.28 3587.16,-3824.59 3591.49,-3824.77 3591.49,-3824.77 3591.49,-3824.77 3587.16,-3824.59 3592,-3820.29 3581.83,-3824.38"/>
 <text text-anchor="start" x="3347.87" y="-3834.8" font-family="Arial" font-size="10.00">FOREIGN KEY (device_id) REFERENCES device(id)</text>
 </g>
 <!-- public.sbom_import&#45;&gt;public.work_order -->
-<g id="edge78" class="edge">
+<g id="edge77" class="edge">
 <title>public.sbom_import:work_order_id&#45;&gt;public.work_order:id</title>
 <path fill="none" stroke="black" d="M3581.77,-3731.88C3499.16,-3723.26 3535.85,-3609.19 3454.15,-3566 3303.78,-3486.51 3215.02,-3623.82 3073.15,-3530 3033.43,-3503.74 3069.74,-3435.8 3022.12,-3435.8"/>
 <polygon fill="black" stroke="black" points="3581.83,-3731.89 3591.6,-3736.88 3587.16,-3732.15 3591.49,-3732.37 3591.49,-3732.37 3591.49,-3732.37 3587.16,-3732.15 3592.04,-3727.89 3581.83,-3731.89"/>
 <text text-anchor="start" x="3452.4" y="-3716.4" font-family="Arial" font-size="10.00">FOREIGN KEY (work_order_id) REFERENCES work_order(id)</text>
 </g>
 <!-- public.sbom_import&#45;&gt;public.sbom_snapshot -->
-<g id="edge79" class="edge">
+<g id="edge78" class="edge">
 <title>public.sbom_import:content_hash&#45;&gt;public.sbom_snapshot:content_hash</title>
 <path fill="none" stroke="black" d="M3888.35,-3793.55C3991.79,-3783.99 3917.68,-3625.15 4016.15,-3566 4078.15,-3528.75 4612.46,-3578.47 4666.15,-3530 4725.6,-3476.32 4642.55,-3174 4722.65,-3174"/>
 <polygon fill="black" stroke="black" points="3888.46,-3793.54 3878.27,-3789.49 3883.13,-3793.78 3878.81,-3793.97 3878.81,-3793.97 3878.81,-3793.97 3883.13,-3793.78 3878.67,-3798.48 3888.46,-3793.54"/>
 <text text-anchor="start" x="3794.38" y="-3778" font-family="Arial" font-size="10.00">FOREIGN KEY (content_hash) REFERENCES sbom_snapshot(content_hash)</text>
 </g>
 <!-- public.sbom_component_change -->
-<g id="node47" class="node">
+<g id="node46" class="node">
 <title>public.sbom_component_change</title>
 <polygon fill="#efefef" stroke="none" points="3547.18,-4290.8 3547.18,-4326.4 3923.11,-4326.4 3923.11,-4290.8 3547.18,-4290.8"/>
 <polygon fill="none" stroke="black" points="3547.18,-4290.8 3547.18,-4326.4 3923.11,-4326.4 3923.11,-4290.8 3547.18,-4290.8"/>
@@ -2279,14 +2242,14 @@
 <text text-anchor="start" x="3622.66" y="-4087.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 </g>
 <!-- public.sbom_component_change&#45;&gt;public.sbom_import -->
-<g id="edge80" class="edge">
+<g id="edge79" class="edge">
 <title>public.sbom_component_change:sbom_import_id&#45;&gt;public.sbom_import:id</title>
 <path fill="none" stroke="black" d="M3934.16,-4242.69C4007.32,-4213.34 3961.61,-3855.6 3878.14,-3855.6"/>
 <polygon fill="black" stroke="black" points="3934.27,-4242.67 3923.6,-4240.12 3929.02,-4243.67 3924.77,-4244.48 3924.77,-4244.48 3924.77,-4244.48 3929.02,-4243.67 3925.28,-4248.96 3934.27,-4242.67"/>
 <text text-anchor="start" x="3776.58" y="-4228.6" font-family="Arial" font-size="10.00">FOREIGN KEY (sbom_import_id) REFERENCES sbom_import(id)</text>
 </g>
 <!-- public.sbom_component_index -->
-<g id="node48" class="node">
+<g id="node47" class="node">
 <title>public.sbom_component_index</title>
 <polygon fill="#efefef" stroke="none" points="4690.67,-3824.8 4690.67,-3860.4 5055.62,-3860.4 5055.62,-3824.8 4690.67,-3824.8"/>
 <polygon fill="none" stroke="black" points="4690.67,-3824.8 4690.67,-3860.4 5055.62,-3860.4 5055.62,-3824.8 4690.67,-3824.8"/>
@@ -2310,14 +2273,14 @@
 <text text-anchor="start" x="4746.69" y="-3683" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 </g>
 <!-- public.sbom_component_index&#45;&gt;public.sbom_snapshot -->
-<g id="edge81" class="edge">
+<g id="edge80" class="edge">
 <title>public.sbom_component_index:content_hash&#45;&gt;public.sbom_snapshot:content_hash</title>
 <path fill="none" stroke="black" d="M5066.92,-3777.36C5189.37,-3747.14 5154.65,-3174 5023.64,-3174"/>
 <polygon fill="black" stroke="black" points="5066.88,-3777.37 5056.42,-3774.09 5061.59,-3778 5057.29,-3778.52 5057.29,-3778.52 5057.29,-3778.52 5061.59,-3778 5057.49,-3783.03 5066.88,-3777.37"/>
 <text text-anchor="start" x="5063.62" y="-3788.6" font-family="Arial" font-size="10.00">FOREIGN KEY (content_hash) REFERENCES sbom_snapshot(content_hash)</text>
 </g>
 <!-- public.port_power_rating -->
-<g id="node49" class="node">
+<g id="node48" class="node">
 <title>public.port_power_rating</title>
 <polygon fill="#efefef" stroke="none" points="2338.17,-2507.8 2338.17,-2543.4 2660.12,-2543.4 2660.12,-2507.8 2338.17,-2507.8"/>
 <polygon fill="none" stroke="black" points="2338.17,-2507.8 2338.17,-2543.4 2660.12,-2543.4 2660.12,-2507.8 2338.17,-2507.8"/>
@@ -2347,14 +2310,14 @@
 <text text-anchor="start" x="2419.13" y="-2304.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.port_power_rating&#45;&gt;public.part_port_slot -->
-<g id="edge82" class="edge">
+<g id="edge81" class="edge">
 <title>public.port_power_rating:part_port_slot_id&#45;&gt;public.part_port_slot:id</title>
 <path fill="none" stroke="black" d="M2327.04,-2459.77C2264.67,-2435.37 2326.83,-2173.61 2286.15,-2110.4 2270.13,-2085.52 2249.1,-2097.12 2230.15,-2074.4 2191.66,-2028.26 2238.72,-1949.4 2178.63,-1949.4"/>
 <polygon fill="black" stroke="black" points="2327,-2459.77 2336.05,-2465.97 2332.25,-2460.71 2336.52,-2461.48 2336.52,-2461.48 2336.52,-2461.48 2332.25,-2460.71 2337.64,-2457.11 2327,-2459.77"/>
-<text text-anchor="start" x="2107.35" y="-2445.6" font-family="Arial" font-size="10.00">FOREIGN KEY (part_port_slot_id) REFERENCES part_port_slot(id)</text>
+<text text-anchor="start" x="2344.17" y="-2445.6" font-family="Arial" font-size="10.00">FOREIGN KEY (part_port_slot_id) REFERENCES part_port_slot(id)</text>
 </g>
 <!-- public.purchase -->
-<g id="node50" class="node">
+<g id="node49" class="node">
 <title>public.purchase</title>
 <polygon fill="#efefef" stroke="none" points="4793.3,-4321.6 4793.3,-4357.2 5046.99,-4357.2 5046.99,-4321.6 4793.3,-4321.6"/>
 <polygon fill="none" stroke="black" points="4793.3,-4321.6 4793.3,-4357.2 5046.99,-4357.2 5046.99,-4321.6 4793.3,-4321.6"/>
@@ -2390,7 +2353,7 @@
 <text text-anchor="start" x="4874.26" y="-4056.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.maintenance_contract -->
-<g id="node51" class="node">
+<g id="node50" class="node">
 <title>public.maintenance_contract</title>
 <polygon fill="#efefef" stroke="none" points="2279.2,-1468 2279.2,-1503.6 2625.09,-1503.6 2625.09,-1468 2279.2,-1468"/>
 <polygon fill="none" stroke="black" points="2279.2,-1468 2279.2,-1503.6 2625.09,-1503.6 2625.09,-1468 2279.2,-1468"/>
@@ -2432,14 +2395,14 @@
 <text text-anchor="start" x="2360.16" y="-1141.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.maintenance_contract&#45;&gt;public.vendor -->
-<g id="edge83" class="edge">
+<g id="edge82" class="edge">
 <title>public.maintenance_contract:vendor_id&#45;&gt;public.vendor:id</title>
-<path fill="none" stroke="black" d="M2636.17,-1388.92C2688.37,-1365.32 2641.68,-1147.89 2625.09,-1086 2610.1,-1030.08 2575.5,-1028.86 2560.3,-973 2549.31,-932.6 2517.44,-878.8 2559.3,-878.8"/>
-<polygon fill="black" stroke="black" points="2636.21,-1388.91 2625.51,-1386.53 2630.99,-1389.99 2626.75,-1390.86 2626.75,-1390.86 2626.75,-1390.86 2630.99,-1389.99 2627.33,-1395.34 2636.21,-1388.91"/>
+<path fill="none" stroke="black" d="M2636.22,-1388.9C2689.01,-1365.12 2647.56,-1146 2625.09,-1086 2601.8,-1023.8 2550.82,-1035.11 2527.3,-973 2512.48,-933.84 2484.44,-878.8 2526.3,-878.8"/>
+<polygon fill="black" stroke="black" points="2636.21,-1388.9 2625.51,-1386.53 2630.99,-1389.99 2626.75,-1390.86 2626.75,-1390.86 2626.75,-1390.86 2630.99,-1389.99 2627.33,-1395.34 2636.21,-1388.9"/>
 <text text-anchor="start" x="2505.78" y="-1375" font-family="Arial" font-size="10.00">FOREIGN KEY (vendor_id) REFERENCES vendor(id)</text>
 </g>
 <!-- public.maintenance_contract_item -->
-<g id="node52" class="node">
+<g id="node51" class="node">
 <title>public.maintenance_contract_item</title>
 <polygon fill="#efefef" stroke="none" points="2670.7,-1934 2670.7,-1969.6 3057.59,-1969.6 3057.59,-1934 2670.7,-1934"/>
 <polygon fill="none" stroke="black" points="2670.7,-1934 2670.7,-1969.6 3057.59,-1969.6 3057.59,-1934 2670.7,-1934"/>
@@ -2466,28 +2429,28 @@
 <text text-anchor="start" x="2751.66" y="-1761.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.maintenance_contract_item&#45;&gt;public.maintenance_contract -->
-<g id="edge84" class="edge">
+<g id="edge83" class="edge">
 <title>public.maintenance_contract_item:maintenance_contract_id&#45;&gt;public.maintenance_contract:id</title>
 <path fill="none" stroke="black" d="M2659.88,-1886.05C2583.36,-1856.1 2719.68,-1452.6 2626.09,-1452.6"/>
 <polygon fill="black" stroke="black" points="2659.53,-1885.98 2668.58,-1892.17 2664.78,-1886.92 2669.04,-1887.68 2669.04,-1887.68 2669.04,-1887.68 2664.78,-1886.92 2670.16,-1883.31 2659.53,-1885.98"/>
 <text text-anchor="start" x="2676.7" y="-1897.8" font-family="Arial" font-size="10.00">FOREIGN KEY (maintenance_contract_id) REFERENCES maintenance_contract(id)</text>
 </g>
 <!-- public.container_model&#45;&gt;public.app_user -->
-<g id="edge85" class="edge">
+<g id="edge84" class="edge">
 <title>public.container_model:created_by&#45;&gt;public.app_user:id</title>
-<path fill="none" stroke="black" d="M1368.82,-1143.42C1473.95,-1117.68 1332.8,-677.07 1415.15,-589.2 1534.7,-461.64 2016.2,-459 2191.03,-459"/>
-<polygon fill="black" stroke="black" points="1368.88,-1143.42 1358.43,-1140.09 1363.58,-1144.03 1359.28,-1144.52 1359.28,-1144.52 1359.28,-1144.52 1363.58,-1144.03 1359.46,-1149.03 1368.88,-1143.42"/>
+<path fill="none" stroke="black" d="M1368.82,-1143.42C1473.89,-1117.62 1331.73,-676.06 1415.15,-589.2 1486.04,-515.38 2224.68,-459 2327.03,-459"/>
+<polygon fill="black" stroke="black" points="1368.88,-1143.41 1358.43,-1140.09 1363.58,-1144.03 1359.28,-1144.52 1359.28,-1144.52 1359.28,-1144.52 1363.58,-1144.03 1359.46,-1149.03 1368.88,-1143.41"/>
 <text text-anchor="start" x="1297.79" y="-1128.6" font-family="Arial" font-size="10.00">FOREIGN KEY (created_by) REFERENCES app_user(id)</text>
 </g>
 <!-- public.container_model&#45;&gt;public.vendor -->
-<g id="edge86" class="edge">
+<g id="edge85" class="edge">
 <title>public.container_model:vendor_id&#45;&gt;public.vendor:id</title>
-<path fill="none" stroke="black" d="M1368.85,-1483.12C1557.14,-1472.38 1292.69,-1156.95 1448.15,-1024.4 1537.82,-947.94 2409.83,-1053.38 2508.15,-988.4 2552.99,-958.76 2505.55,-878.8 2559.3,-878.8"/>
+<path fill="none" stroke="black" d="M1368.85,-1483.12C1557.14,-1472.38 1292.77,-1157.04 1448.15,-1024.4 1534.99,-950.27 2379.92,-1051.41 2475.15,-988.4 2519.98,-958.74 2472.55,-878.8 2526.3,-878.8"/>
 <polygon fill="black" stroke="black" points="1368.94,-1483.12 1358.82,-1478.89 1363.61,-1483.26 1359.28,-1483.38 1359.28,-1483.38 1359.28,-1483.38 1363.61,-1483.26 1359.07,-1487.89 1368.94,-1483.12"/>
 <text text-anchor="start" x="1301.96" y="-1467.4" font-family="Arial" font-size="10.00">FOREIGN KEY (vendor_id) REFERENCES vendor(id)</text>
 </g>
 <!-- public.power_circuit -->
-<g id="node54" class="node">
+<g id="node53" class="node">
 <title>public.power_circuit</title>
 <polygon fill="#efefef" stroke="none" points="668.18,-2538.6 668.18,-2574.2 956.11,-2574.2 956.11,-2538.6 668.18,-2538.6"/>
 <polygon fill="none" stroke="black" points="668.18,-2538.6 668.18,-2574.2 956.11,-2574.2 956.11,-2538.6 668.18,-2538.6"/>
@@ -2523,14 +2486,14 @@
 <text text-anchor="start" x="725.78" y="-2273.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.power_circuit&#45;&gt;public.mount_container -->
-<g id="edge87" class="edge">
+<g id="edge86" class="edge">
 <title>public.power_circuit:container_id&#45;&gt;public.mount_container:id</title>
 <path fill="none" stroke="black" d="M967.2,-2490.04C1014.43,-2466.09 986.31,-2266.83 956.11,-2218.2 880.66,-2096.67 744.05,-2195.66 668.17,-2074.4 645.96,-2038.91 625.3,-1980.2 667.17,-1980.2"/>
 <polygon fill="black" stroke="black" points="967.18,-2490.05 956.42,-2487.94 961.98,-2491.26 957.77,-2492.25 957.77,-2492.25 957.77,-2492.25 961.98,-2491.26 958.46,-2496.71 967.18,-2490.05"/>
 <text text-anchor="start" x="964.11" y="-2502.4" font-family="Arial" font-size="10.00">FOREIGN KEY (container_id) REFERENCES mount_container(id)</text>
 </g>
 <!-- public.app_setting -->
-<g id="node55" class="node">
+<g id="node54" class="node">
 <title>public.app_setting</title>
 <polygon fill="#efefef" stroke="none" points="3897.66,-3189.4 3897.66,-3225 4168.63,-3225 4168.63,-3189.4 3897.66,-3189.4"/>
 <polygon fill="none" stroke="black" points="3897.66,-3189.4 3897.66,-3225 4168.63,-3225 4168.63,-3189.4 3897.66,-3189.4"/>
@@ -2551,11 +2514,11 @@
 <text text-anchor="start" x="3978.62" y="-3078.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.app_setting&#45;&gt;public.project -->
-<g id="edge88" class="edge">
+<g id="edge87" class="edge">
 <title>public.app_setting:default_project_id&#45;&gt;public.project:id</title>
 <path fill="none" stroke="black" d="M4179.68,-3141.87C4287,-3110.59 3979.86,-2538.6 4111.15,-2538.6"/>
 <polygon fill="black" stroke="black" points="4179.87,-3141.84 4169.37,-3138.7 4174.59,-3142.54 4170.29,-3143.11 4170.29,-3143.11 4170.29,-3143.11 4174.59,-3142.54 4170.55,-3147.62 4179.87,-3141.84"/>
-<text text-anchor="start" x="4176.63" y="-3153.2" font-family="Arial" font-size="10.00">FOREIGN KEY (default_project_id) REFERENCES project(id)</text>
+<text text-anchor="start" x="4032.08" y="-3127.2" font-family="Arial" font-size="10.00">FOREIGN KEY (default_project_id) REFERENCES project(id)</text>
 </g>
 </g>
 </svg>

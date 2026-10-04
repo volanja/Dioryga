@@ -1,0 +1,5 @@
+serial_number,part_vendor,part_number,status,location_type,location_hostname,location_name,chassis_slot,health
+HMD-9001,ハイマツ電機,HM-DIMM-64G,running,MountContainer,,予備棚A,,
+HMD-9002,ハイマツ電機,HM-DIMM-64G,running,MountContainer,,予備棚A,,
+HMP-9001,ハイマツ電機,HM-PSU-800,running,MountContainer,,予備棚A,,
+HMP-9002,ハイマツ電機,HM-PSU-800,running,Project,,,,failed

@@ -1,14 +1,14 @@
 //! 物理設置のスキーマの結合テスト（設計書12章、13.2）。
 
 use chrono::Utc;
-use entity::{app_user, device, device_mount, mount_container, warehouse};
+use entity::{app_user, device, device_mount, mount_container, project};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
 /// 什器に直接搭載できること（設計書12.2）。
 async fn 什器に搭載できる(db: &DatabaseConnection) {
     let user = 利用者(db, "mount@example.com").await;
-    let w = 倉庫(db, "本社倉庫", user.id).await;
-    let rack = 什器(db, "Rack-01", "Rack", "Warehouse", w.id, Some(42), user.id).await;
+    let w = 置き場(db, "本社", user.id).await;
+    let rack = 什器(db, "Rack-01", "Rack", "Project", w.id, Some(42), user.id).await;
     let d = 機器(db, "srv-01").await;
 
     device_mount::ActiveModel {
@@ -67,9 +67,9 @@ async fn 機器の上にも載せられる(db: &DatabaseConnection) {
 /// 搭載位置の変更が履歴として残ること（不変条件1）。
 async fn 移設は履歴として残る(db: &DatabaseConnection) {
     let user = 利用者(db, "relocate@example.com").await;
-    let w = 倉庫(db, "移設元", user.id).await;
-    let 旧ラック = 什器(db, "Rack-A", "Rack", "Warehouse", w.id, Some(42), user.id).await;
-    let 新ラック = 什器(db, "Rack-B", "Rack", "Warehouse", w.id, Some(42), user.id).await;
+    let w = 置き場(db, "移設元", user.id).await;
+    let 旧ラック = 什器(db, "Rack-A", "Rack", "Project", w.id, Some(42), user.id).await;
+    let 新ラック = 什器(db, "Rack-B", "Rack", "Project", w.id, Some(42), user.id).await;
     let d = 機器(db, "move-me").await;
 
     let 旧 = device_mount::ActiveModel {
@@ -121,17 +121,8 @@ async fn 移設は履歴として残る(db: &DatabaseConnection) {
 /// **ラック図はこの什器に載っているものを1回で引けること**（設計書12.2）。
 async fn 什器から搭載機器を引ける(db: &DatabaseConnection) {
     let user = 利用者(db, "rackview@example.com").await;
-    let w = 倉庫(db, "図面用", user.id).await;
-    let rack = 什器(
-        db,
-        "Rack-View",
-        "Rack",
-        "Warehouse",
-        w.id,
-        Some(42),
-        user.id,
-    )
-    .await;
+    let w = 置き場(db, "図面用", user.id).await;
+    let rack = 什器(db, "Rack-View", "Rack", "Project", w.id, Some(42), user.id).await;
 
     for (i, name) in ["sw-01", "srv-01", "srv-02"].iter().enumerate() {
         let d = 機器(db, name).await;
@@ -167,14 +158,14 @@ async fn 什器から搭載機器を引ける(db: &DatabaseConnection) {
 /// 制約ではなく目安である。そもそも持たない什器もある。
 async fn 収容能力なしの什器も登録できる(db: &DatabaseConnection) {
     let user = 利用者(db, "nocap@example.com").await;
-    let w = 倉庫(db, "作業机置き場", user.id).await;
+    let w = 置き場(db, "作業机置き場", user.id).await;
 
     let 結果 = mount_container::ActiveModel {
         name: Set("作業机".to_owned()),
         container_model_id: Set(Some(
             crate::support::設備の型番(db, user.id, "Desk".to_owned(), None).await,
         )),
-        location_type: Set("Warehouse".to_owned()),
+        location_type: Set("Project".to_owned()),
         location_id: Set(w.id),
         created_by: Set(user.id),
         created_at: Set(Utc::now()),
@@ -221,11 +212,16 @@ async fn 利用者(db: &DatabaseConnection, email: &str) -> app_user::Model {
     .unwrap()
 }
 
-async fn 倉庫(db: &DatabaseConnection, name: &str, user_id: i32) -> warehouse::Model {
-    warehouse::ActiveModel {
+/// 什器の置き場所にするプロジェクト。倉庫も倉庫用のプロジェクトである（#220）。
+async fn 置き場(db: &DatabaseConnection, name: &str, _user_id: i32) -> project::Model {
+    project::ActiveModel {
+        uid: Set(uuid::Uuid::new_v4().to_string()),
+        code: Set(None),
         name: Set(name.to_owned()),
-        address: Set(String::new()),
-        created_by: Set(user_id),
+        description: Set(String::new()),
+        currency: Set("JPY".to_owned()),
+        archived_at: Set(None),
+        closure_reason: Set(None),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
         ..Default::default()
@@ -285,9 +281,27 @@ async fn 機器(db: &DatabaseConnection, hostname: &str) -> device::Model {
     .unwrap()
 }
 
+/// **倉庫のテーブルを消し、戻せること**（#220）。
+///
+/// 倉庫は倉庫用のプロジェクトになった。`down` は空の表を作り直すだけ。
+async fn 倉庫のテーブルを消す(db: &DatabaseConnection) {
+    use migration::m20261004_000001_drop_warehouse::Migration as 倉庫を消す;
+    use migration::{MigrationTrait, SchemaManager};
+
+    let manager = SchemaManager::new(db);
+    assert!(!manager.has_table("warehouse").await.unwrap());
+
+    倉庫を消す.down(&manager).await.unwrap();
+    assert!(manager.has_table("warehouse").await.unwrap());
+
+    倉庫を消す.up(&manager).await.unwrap();
+    assert!(!manager.has_table("warehouse").await.unwrap());
+}
+
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, 什器に搭載できる);
+        全検証!(@one $用意, $属性, 倉庫のテーブルを消す);
         全検証!(@one $用意, $属性, 機器の上にも載せられる);
         全検証!(@one $用意, $属性, 移設は履歴として残る);
         全検証!(@one $用意, $属性, 什器から搭載機器を引ける);

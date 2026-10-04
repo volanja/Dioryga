@@ -17,13 +17,13 @@
 
 use chrono::{Duration, Utc};
 use dioryga::import::{placement, Outcome};
-use entity::{device, device_assignment, device_mount, mount_container, project, warehouse};
+use entity::{device, device_assignment, device_mount, mount_container, project};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
     QueryOrder, Set,
 };
 
-const 所属見出し: &str = "uid,external_id,hostname,serial_number,location_type,location_name\n";
+const 所属見出し: &str = "uid,external_id,hostname,serial_number,location_type\n";
 const 搭載見出し: &str = "uid,external_id,hostname,serial_number,container,position,horizontal_position,depth_position,host_hostname\n";
 
 fn 所属csv(rows: &[&str]) -> String {
@@ -38,29 +38,25 @@ fn 搭載csv(rows: &[&str]) -> String {
 // 所属（DEVICE_ASSIGNMENT）
 // ---------------------------------------------------------------------------
 
-/// **倉庫へ払い出せること。**閉じて開く（4章）。
-async fn 倉庫へ払い出せる(db: &DatabaseConnection) {
-    let 場 = 舞台(db, "払い出し").await;
+/// **`location_type=Warehouse` はエラーにすること**（#220）。
+///
+/// 倉庫は倉庫用のプロジェクトになった。黙って読み替えず、移し方を案内する。
+async fn 倉庫は書けない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "旧い倉庫").await;
     let d = 機器(db, 場.project.id, "web01", Some("SN-1")).await;
 
-    let rows = placement::parse_assignments(&所属csv(&[",,web01,,Warehouse,本社倉庫"])).unwrap();
-
+    let rows = placement::parse_assignments(&所属csv(&[",,web01,,Warehouse"])).unwrap();
     let report = placement::assignments_dry_run(db, 場.project.id, &rows)
         .await
         .unwrap();
-    assert_eq!(report.count(Outcome::Updated), 1, "{report}");
-
-    placement::assignments_apply(db, 場.project.id, &rows, Utc::now(), 1)
-        .await
-        .unwrap();
-
-    let 履歴 = 所属の履歴(db, d.id).await;
-    assert_eq!(履歴.len(), 2, "閉じて開いていません");
-    assert_eq!(履歴[0].location_type, "Project");
-    assert!(履歴[0].to_date.is_some(), "前の行を閉じていません");
-    assert_eq!(履歴[1].location_type, "Warehouse");
-    assert_eq!(履歴[1].location_id, Some(場.warehouse.id));
-    assert!(履歴[1].to_date.is_none());
+    assert_eq!(report.count(Outcome::Error), 1, "{report}");
+    assert!(
+        report
+            .errors()
+            .any(|e| e.detail.contains("倉庫用のプロジェクト") && e.detail.contains("Transfer")),
+        "{report}"
+    );
+    assert_eq!(所属の履歴(db, d.id).await.len(), 1);
 }
 
 /// **廃棄は参照先を持たないこと**（12章）。
@@ -68,7 +64,7 @@ async fn 廃棄は参照先を持たない(db: &DatabaseConnection) {
     let 場 = 舞台(db, "廃棄").await;
     let d = 機器(db, 場.project.id, "web01", Some("SN-1")).await;
 
-    let rows = placement::parse_assignments(&所属csv(&[",,web01,,Disposed,"])).unwrap();
+    let rows = placement::parse_assignments(&所属csv(&[",,web01,,Disposed"])).unwrap();
     placement::assignments_apply(db, 場.project.id, &rows, Utc::now(), 1)
         .await
         .unwrap();
@@ -86,10 +82,7 @@ async fn 他プロジェクトへは移せない(db: &DatabaseConnection) {
     let 場 = 舞台(db, "移譲").await;
     let _ = 機器(db, 場.project.id, "web01", Some("SN-1")).await;
 
-    // プロジェクト名を location_name に書いても通らないこと
-    let rows =
-        placement::parse_assignments(&所属csv(&[",,web01,,OtherProject,よそのプロジェクト"]))
-            .unwrap();
+    let rows = placement::parse_assignments(&所属csv(&[",,web01,,OtherProject"])).unwrap();
 
     let report = placement::assignments_dry_run(db, 場.project.id, &rows)
         .await
@@ -111,11 +104,7 @@ async fn 他プロジェクトにある機器は引き戻せない(db: &Database
     let d = 機器(db, 場.project.id, "web01", Some("SN-1")).await;
     所属を移す(db, d.id, "Project", Some(よそ.id)).await;
 
-    for 行 in [
-        ",,web01,,Project,",
-        ",,web01,,Warehouse,本社倉庫",
-        ",,web01,,Disposed,",
-    ] {
+    for 行 in [",,web01,,Project", ",,web01,,Disposed"] {
         let rows = placement::parse_assignments(&所属csv(&[行])).unwrap();
         let report = placement::assignments_dry_run(db, 場.project.id, &rows)
             .await
@@ -140,48 +129,6 @@ async fn 他プロジェクトにある機器は引き戻せない(db: &Database
     assert!(履歴[1].to_date.is_none());
 }
 
-/// **倉庫名が解決できなければエラー。**黙って別の倉庫に入れない。
-async fn 知らない倉庫はエラー(db: &DatabaseConnection) {
-    let 場 = 舞台(db, "未知倉庫").await;
-    let _ = 機器(db, 場.project.id, "web01", Some("SN-1")).await;
-
-    let rows = placement::parse_assignments(&所属csv(&[",,web01,,Warehouse,無い倉庫"])).unwrap();
-    let report = placement::assignments_dry_run(db, 場.project.id, &rows)
-        .await
-        .unwrap();
-    assert_eq!(report.count(Outcome::Error), 1, "{report}");
-}
-
-/// **廃止した倉庫は置き場にできないこと**（#133）。
-///
-/// 廃止は「もう使わない」という表明であり、取込から入れられると意味がない。
-async fn 廃止した倉庫はエラー(db: &DatabaseConnection) {
-    let 場 = 舞台(db, "廃止倉庫").await;
-    let _ = 機器(db, 場.project.id, "web01", Some("SN-1")).await;
-
-    let mut w: warehouse::ActiveModel = 場.warehouse.clone().into();
-    w.retired_at = Set(Some(Utc::now()));
-    w.update(db).await.unwrap();
-
-    let rows = placement::parse_assignments(&所属csv(&[",,web01,,Warehouse,本社倉庫"])).unwrap();
-    let report = placement::assignments_dry_run(db, 場.project.id, &rows)
-        .await
-        .unwrap();
-    assert_eq!(report.count(Outcome::Error), 1, "{report}");
-}
-
-/// **`Warehouse` に倉庫名が無ければエラー。**どこへ入れるか決められない。
-async fn 倉庫名が無ければエラー(db: &DatabaseConnection) {
-    let 場 = 舞台(db, "倉庫名なし").await;
-    let _ = 機器(db, 場.project.id, "web01", Some("SN-1")).await;
-
-    let rows = placement::parse_assignments(&所属csv(&[",,web01,,Warehouse,"])).unwrap();
-    let report = placement::assignments_dry_run(db, 場.project.id, &rows)
-        .await
-        .unwrap();
-    assert_eq!(report.count(Outcome::Error), 1, "{report}");
-}
-
 /// **二度流しても履歴が増えないこと**（23.1）。
 ///
 /// 宣言的であることの核心。命令形なら2回目で履歴行が重複し、事実が壊れる。
@@ -189,7 +136,7 @@ async fn 所属は二度流しても増えない(db: &DatabaseConnection) {
     let 場 = 舞台(db, "冪等").await;
     let d = 機器(db, 場.project.id, "web01", Some("SN-1")).await;
 
-    let rows = placement::parse_assignments(&所属csv(&[",,web01,,Warehouse,本社倉庫"])).unwrap();
+    let rows = placement::parse_assignments(&所属csv(&[",,web01,,Disposed"])).unwrap();
     placement::assignments_apply(db, 場.project.id, &rows, Utc::now(), 1)
         .await
         .unwrap();
@@ -211,7 +158,7 @@ async fn 所属は二度流しても増えない(db: &DatabaseConnection) {
 async fn 知らない機器はエラー(db: &DatabaseConnection) {
     let 場 = 舞台(db, "未知機器").await;
 
-    let rows = placement::parse_assignments(&所属csv(&[",,いない,,Warehouse,本社倉庫"])).unwrap();
+    let rows = placement::parse_assignments(&所属csv(&[",,いない,,Project"])).unwrap();
     let report = placement::assignments_dry_run(db, 場.project.id, &rows)
         .await
         .unwrap();
@@ -388,7 +335,7 @@ async fn as_ofが開始日になる(db: &DatabaseConnection) {
     let d = 機器(db, 場.project.id, "web01", Some("SN-1")).await;
 
     let 基準 = Utc::now() - Duration::days(10);
-    let rows = placement::parse_assignments(&所属csv(&[",,web01,,Warehouse,本社倉庫"])).unwrap();
+    let rows = placement::parse_assignments(&所属csv(&[",,web01,,Disposed"])).unwrap();
     placement::assignments_apply(db, 場.project.id, &rows, 基準, 1)
         .await
         .unwrap();
@@ -411,11 +358,13 @@ fn マイクロ秒(t: chrono::DateTime<Utc>) -> i64 {
     t.timestamp_micros()
 }
 
-/// **倉庫の什器には載せられないこと**（16.1のC領域）。
+/// **他のプロジェクトの什器には載せられないこと**（23.5）。
 ///
-/// 搭載のCSVはプロジェクトに閉じており、倉庫内の配置は倉庫領域の担当である。
-async fn 倉庫の什器には載せられない(db: &DatabaseConnection) {
-    let 場 = 舞台(db, "倉庫什器").await;
+/// 搭載のCSVはプロジェクトに閉じる。倉庫の棚も倉庫用のプロジェクトのもので、
+/// そのプロジェクトの取込で書く（#220）。
+async fn 他のプロジェクトの什器には載せられない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "よその什器").await;
+    let よそ = プロジェクト(db, "倉庫用").await;
     let _ = 機器(db, 場.project.id, "web01", Some("SN-1")).await;
 
     mount_container::ActiveModel {
@@ -423,8 +372,8 @@ async fn 倉庫の什器には載せられない(db: &DatabaseConnection) {
         container_model_id: Set(Some(
             crate::support::設備の型番(db, 場.user_id, "Rack".to_owned(), Some(42)).await,
         )),
-        location_type: Set("Warehouse".to_owned()),
-        location_id: Set(場.warehouse.id),
+        location_type: Set("Project".to_owned()),
+        location_id: Set(よそ.id),
         created_by: Set(場.user_id),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
@@ -447,7 +396,6 @@ async fn 倉庫の什器には載せられない(db: &DatabaseConnection) {
 
 struct 舞台情報 {
     project: project::Model,
-    warehouse: warehouse::Model,
     container: mount_container::Model,
     user_id: i32,
 }
@@ -455,18 +403,6 @@ struct 舞台情報 {
 async fn 舞台(db: &DatabaseConnection, name: &str) -> 舞台情報 {
     let p = プロジェクト(db, name).await;
     let user_id = 利用者(db, &format!("{name}@example.com")).await;
-
-    let w = warehouse::ActiveModel {
-        name: Set("本社倉庫".to_owned()),
-        address: Set("東京".to_owned()),
-        created_by: Set(user_id),
-        created_at: Set(Utc::now()),
-        updated_at: Set(Utc::now()),
-        ..Default::default()
-    }
-    .insert(db)
-    .await
-    .unwrap();
 
     let c = mount_container::ActiveModel {
         name: Set("Rack-01".to_owned()),
@@ -486,7 +422,6 @@ async fn 舞台(db: &DatabaseConnection, name: &str) -> 舞台情報 {
 
     舞台情報 {
         project: p,
-        warehouse: w,
         container: c,
         user_id,
     }
@@ -637,13 +572,10 @@ async fn 機器(
 
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
-        全検証!(@one $用意, $属性, 倉庫へ払い出せる);
+        全検証!(@one $用意, $属性, 倉庫は書けない);
         全検証!(@one $用意, $属性, 廃棄は参照先を持たない);
         全検証!(@one $用意, $属性, 他プロジェクトへは移せない);
         全検証!(@one $用意, $属性, 他プロジェクトにある機器は引き戻せない);
-        全検証!(@one $用意, $属性, 知らない倉庫はエラー);
-        全検証!(@one $用意, $属性, 廃止した倉庫はエラー);
-        全検証!(@one $用意, $属性, 倉庫名が無ければエラー);
         全検証!(@one $用意, $属性, 所属は二度流しても増えない);
         全検証!(@one $用意, $属性, 知らない機器はエラー);
         全検証!(@one $用意, $属性, 什器に載せられる);
@@ -655,7 +587,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 搭載は二度流しても増えない);
         全検証!(@one $用意, $属性, 移設は閉じて開く);
         全検証!(@one $用意, $属性, as_ofが開始日になる);
-        全検証!(@one $用意, $属性, 倉庫の什器には載せられない);
+        全検証!(@one $用意, $属性, 他のプロジェクトの什器には載せられない);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

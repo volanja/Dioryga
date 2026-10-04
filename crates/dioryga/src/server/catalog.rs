@@ -562,7 +562,7 @@ async fn ベンダーの詳細を描く(
         t_back: rust_i18n::t!("catalog.back_vendors", locale = l).to_string(),
         t_retired: rust_i18n::t!("catalog.retired", locale = l).to_string(),
         t_registered: rust_i18n::t!("catalog.vendor_registered", locale = l).to_string(),
-        t_edit: rust_i18n::t!("warehouses.edit", locale = l).to_string(),
+        t_edit: rust_i18n::t!("projects.edit", locale = l).to_string(),
         t_edit_hint: rust_i18n::t!("catalog.vendor_edit_hint", locale = l).to_string(),
         t_name: rust_i18n::t!("catalog.name", locale = l).to_string(),
         t_submit: rust_i18n::t!("common.save", locale = l).to_string(),

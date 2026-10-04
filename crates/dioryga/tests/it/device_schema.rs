@@ -88,10 +88,10 @@ async fn 所在の履歴は閉じて開く(db: &DatabaseConnection) {
     let 昨日 = Utc::now() - Duration::days(1);
     let 今日 = Utc::now();
 
-    // 倉庫にあった
+    // 倉庫用のプロジェクトにあった
     let 旧 = device_assignment::ActiveModel {
         device_id: Set(d.id),
-        location_type: Set("Warehouse".to_owned()),
+        location_type: Set("Project".to_owned()),
         location_id: Set(Some(1)),
         work_order_id: Set(None),
         from_date: Set(昨日),
@@ -102,7 +102,7 @@ async fn 所在の履歴は閉じて開く(db: &DatabaseConnection) {
     .await
     .unwrap();
 
-    // プロジェクトへ移した：旧行を閉じ、新行を開く
+    // 別のプロジェクトへ移した：旧行を閉じ、新行を開く
     let mut 閉じる: device_assignment::ActiveModel = 旧.clone().into();
     閉じる.to_date = Set(Some(今日));
     閉じる.update(db).await.unwrap();

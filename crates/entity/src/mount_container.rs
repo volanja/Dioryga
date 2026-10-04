@@ -17,7 +17,7 @@ pub struct Model {
     /// **DB上はnullableだが、アプリケーション層では必須**——SQLiteは外部キーを
     /// 持つ列を後から足すとき、既定値を NULL にしか取れない（`cable_kind` と同じ）。
     pub container_model_id: Option<i32>,
-    /// Warehouse / Project
+    /// Project。倉庫の棚も倉庫用のプロジェクトに置く（#196、#220）
     pub location_type: String,
     pub location_id: i32,
     /// 設置場所（自由記述、#206）。データセンター・フロア・列など。**置き場所

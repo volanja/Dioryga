@@ -16,7 +16,6 @@ use dioryga::import::{parts, Outcome};
 use entity::{
     app_user, chassis_model, chassis_slot, configuration, device, device_assignment,
     mount_container, part_catalog, part_instance, part_instance_location, project, vendor,
-    warehouse,
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
@@ -113,7 +112,7 @@ async fn ファイル内の重複はエラー(db: &DatabaseConnection) {
 
     let rows = parts::parse_parts(&csv(&[
         "SN-1,Samsung,DIMM-32G,running,Device,web01,,",
-        "SN-1,Samsung,DIMM-32G,running,Warehouse,,本社倉庫,",
+        "SN-1,Samsung,DIMM-32G,running,Project,,,",
     ]))
     .unwrap();
     let report = parts::dry_run(db, 場.project.id, &rows).await.unwrap();
@@ -122,12 +121,13 @@ async fn ファイル内の重複はエラー(db: &DatabaseConnection) {
 
 /// **このプロジェクトに関わったことのない部品は動かせないこと。**
 ///
-/// 倉庫にある部品でも、関わりが無ければ取込では引き込めない。倉庫からの
-/// 払い出しは変更管理チケットの担当（11章）。黙って2つ目も作らない。
+/// 倉庫用のプロジェクトにある部品でも、関わりが無ければ取込では引き込めない。
+/// 倉庫からの払い出しは変更管理チケットの担当（11章）。黙って2つ目も作らない。
 async fn 関わりの無い部品は動かせない(db: &DatabaseConnection) {
     let 場 = 舞台(db, "部品候補外").await;
+    let 倉庫 = プロジェクト(db, "倉庫用").await;
 
-    // どのプロジェクトにも関わっていない、倉庫の部品
+    // このプロジェクトに関わっていない、倉庫用のプロジェクトの部品
     let c = カタログを引く(db, "Samsung", "DIMM-32G").await;
     let p = part_instance::ActiveModel {
         part_catalog_id: Set(c.id),
@@ -142,8 +142,8 @@ async fn 関わりの無い部品は動かせない(db: &DatabaseConnection) {
     .unwrap();
     part_instance_location::ActiveModel {
         part_instance_id: Set(p.id),
-        location_type: Set("Warehouse".to_owned()),
-        location_id: Set(Some(場.warehouse.id)),
+        location_type: Set("Project".to_owned()),
+        location_id: Set(Some(倉庫.id)),
         chassis_slot_id: Set(None),
         work_order_id: Set(None),
         from_date: Set(Utc::now()),
@@ -170,8 +170,8 @@ async fn 関わりの無い部品は動かせない(db: &DatabaseConnection) {
 // 所在（12.4）
 // ---------------------------------------------------------------------------
 
-/// **機器から倉庫へ移すと閉じて開くこと**（4章、12.4）。
-async fn 倉庫へ戻すと閉じて開く(db: &DatabaseConnection) {
+/// **機器から下ろしてプロジェクトに置くと閉じて開くこと**（4章、12.4）。
+async fn 機器から下ろすと閉じて開く(db: &DatabaseConnection) {
     let 場 = 舞台(db, "部品移動").await;
 
     let 載せる =
@@ -186,10 +186,7 @@ async fn 倉庫へ戻すと閉じて開く(db: &DatabaseConnection) {
     .await
     .unwrap();
 
-    let 戻す = parts::parse_parts(&csv(&[
-        "SN-1,Samsung,DIMM-32G,running,Warehouse,,本社倉庫,",
-    ]))
-    .unwrap();
+    let 戻す = parts::parse_parts(&csv(&["SN-1,Samsung,DIMM-32G,running,Project,,,"])).unwrap();
     let report = parts::dry_run(db, 場.project.id, &戻す).await.unwrap();
     assert_eq!(report.count(Outcome::Updated), 1, "{report}");
 
@@ -201,7 +198,27 @@ async fn 倉庫へ戻すと閉じて開く(db: &DatabaseConnection) {
     let 履歴 = 所在の履歴(db, p.id).await;
     assert_eq!(履歴.len(), 2, "閉じて開いていません");
     assert!(履歴[0].to_date.is_some());
-    assert_eq!(履歴[1].location_type, "Warehouse");
+    assert_eq!(履歴[1].location_type, "Project");
+}
+
+/// **`location_type=Warehouse` はエラーにすること**（#220）。
+///
+/// 倉庫は倉庫用のプロジェクトになった。黙って読み替えず、移し方を案内する。
+async fn 倉庫は書けない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "部品の旧い倉庫").await;
+
+    let rows = parts::parse_parts(&csv(&[
+        "SN-1,Samsung,DIMM-32G,running,Warehouse,,本社倉庫,",
+    ]))
+    .unwrap();
+    let report = parts::dry_run(db, 場.project.id, &rows).await.unwrap();
+    assert_eq!(report.count(Outcome::Error), 1, "{report}");
+    assert!(
+        report
+            .errors()
+            .any(|e| e.detail.contains("倉庫用のプロジェクト") && e.detail.contains("Transfer")),
+        "{report}"
+    );
 }
 
 /// **部品の故障は `health` の列に書くこと**（#221、設計書6.3）。
@@ -296,14 +313,12 @@ async fn 無いスロットはエラー(db: &DatabaseConnection) {
     assert_eq!(report.count(Outcome::Error), 1, "{report}");
 }
 
-/// **倉庫にある部品にスロットは付けられないこと。**挿さっている先が無い。
-async fn 倉庫ではスロットを指定できない(db: &DatabaseConnection) {
-    let 場 = 舞台(db, "倉庫スロット").await;
+/// **プロジェクトに置いた部品にスロットは付けられないこと。**挿さっている先が無い。
+async fn 機器の外ではスロットを指定できない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "置き場スロット").await;
 
-    let rows = parts::parse_parts(&csv(&[
-        "SN-1,Samsung,DIMM-32G,running,Warehouse,,本社倉庫,DIMM_A1",
-    ]))
-    .unwrap();
+    let rows =
+        parts::parse_parts(&csv(&["SN-1,Samsung,DIMM-32G,running,Project,,,DIMM_A1"])).unwrap();
     let report = parts::dry_run(db, 場.project.id, &rows).await.unwrap();
     assert_eq!(report.count(Outcome::Error), 1, "{report}");
 }
@@ -481,7 +496,7 @@ async fn 撤去した棚に置かれていた部品も候補に入る(db: &Datab
     .insert(db)
     .await
     .unwrap();
-    // 棚に置いていたが、いまは倉庫にある
+    // 棚に置いていたが、いまはプロジェクトに置いてある
     for (location_type, location_id, from, to) in [
         (
             "MountContainer",
@@ -490,8 +505,8 @@ async fn 撤去した棚に置かれていた部品も候補に入る(db: &Datab
             Some(Utc::now() - Duration::days(1)),
         ),
         (
-            "Warehouse",
-            場.warehouse.id,
+            "Project",
+            場.project.id,
             Utc::now() - Duration::days(1),
             None,
         ),
@@ -512,10 +527,7 @@ async fn 撤去した棚に置かれていた部品も候補に入る(db: &Datab
     active.retired_at = Set(Some(Utc::now()));
     active.update(db).await.unwrap();
 
-    let rows = parts::parse_parts(&csv(&[
-        "SN-OLD,Samsung,DIMM-32G,running,Warehouse,,本社倉庫,",
-    ]))
-    .unwrap();
+    let rows = parts::parse_parts(&csv(&["SN-OLD,Samsung,DIMM-32G,running,Project,,,"])).unwrap();
     let report = parts::dry_run(db, 場.project.id, &rows).await.unwrap();
     assert_eq!(report.count(Outcome::Unchanged), 1, "{report}");
 }
@@ -575,12 +587,11 @@ async fn 今は他のプロジェクトにある部品は動かせない(db: &Da
 struct 舞台情報 {
     project: project::Model,
     device: device::Model,
-    warehouse: warehouse::Model,
     slot_id: i32,
     user_id: i32,
 }
 
-/// Samsung DIMM-32G のカタログ、DIMM_A1 を持つ筐体の web01、本社倉庫を用意する。
+/// Samsung DIMM-32G のカタログ、DIMM_A1 を持つ筐体の web01 を用意する。
 async fn 舞台(db: &DatabaseConnection, name: &str) -> 舞台情報 {
     let p = プロジェクト(db, name).await;
     let user_id = 利用者(db, &format!("{name}@example.com")).await;
@@ -673,22 +684,9 @@ async fn 舞台(db: &DatabaseConnection, name: &str) -> 舞台情報 {
     .await
     .unwrap();
 
-    let w = warehouse::ActiveModel {
-        name: Set("本社倉庫".to_owned()),
-        address: Set("東京".to_owned()),
-        created_by: Set(user_id),
-        created_at: Set(Utc::now()),
-        updated_at: Set(Utc::now()),
-        ..Default::default()
-    }
-    .insert(db)
-    .await
-    .unwrap();
-
     舞台情報 {
         project: p,
         device: d,
-        warehouse: w,
         slot_id: slot.id,
         user_id,
     }
@@ -851,12 +849,13 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, ベンダーが違えば別の部品);
         全検証!(@one $用意, $属性, ファイル内の重複はエラー);
         全検証!(@one $用意, $属性, 関わりの無い部品は動かせない);
-        全検証!(@one $用意, $属性, 倉庫へ戻すと閉じて開く);
+        全検証!(@one $用意, $属性, 機器から下ろすと閉じて開く);
+        全検証!(@one $用意, $属性, 倉庫は書けない);
         全検証!(@one $用意, $属性, 状態だけの変更で所在は増えない);
         全検証!(@one $用意, $属性, 故障はhealthの列に書く);
         全検証!(@one $用意, $属性, スロットを指定できる);
         全検証!(@one $用意, $属性, 無いスロットはエラー);
-        全検証!(@one $用意, $属性, 倉庫ではスロットを指定できない);
+        全検証!(@one $用意, $属性, 機器の外ではスロットを指定できない);
         全検証!(@one $用意, $属性, 知らないカタログはエラー);
         全検証!(@one $用意, $属性, 語彙外の状態は拒否);
         全検証!(@one $用意, $属性, 棚やプロジェクトに置ける);

@@ -81,3 +81,11 @@ container_models:
     height_mm: 2000
     weight_g: 110000
     static_load_g: 800000
+  # 倉庫用のプロジェクトの棚（#220）
+  - vendor: チングルマ製作所
+    model_name: CG-SH-5
+    container_type: Shelving
+    shelf_count: 5
+    width_mm: 900
+    depth_mm: 450
+    height_mm: 1800

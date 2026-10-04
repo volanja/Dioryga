@@ -1,0 +1,14 @@
+# 動作確認用データ：倉庫用のプロジェクト（#196、#220）
+#
+# 予備の機器・部品は、倉庫用のプロジェクトの棚に置く。画面では状態の代わりに
+# 「保管中」と出る（#221）。故障した予備（souko-spare03）は修理中・故障の枚に出る。
+format_version: 1
+kind: instances
+project: "倉庫"
+as_of: 2026-03-01T00:00:00+09:00
+match_on:
+  device: [serial_number]
+files:
+  - { entity: device,          path: devices.csv }
+  - { entity: mount_container, path: containers.csv }
+  - { entity: part_instance,   path: parts.csv }

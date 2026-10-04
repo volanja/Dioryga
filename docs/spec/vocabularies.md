@@ -154,14 +154,16 @@ Planned / Approved / InProgress --> Cancelled : 中止
 
 | 対象 | 値 |
 |---|---|
-| `DEVICE_ASSIGNMENT.location_type` | `Warehouse` / `Project` / `Disposed` |
-| `PART_INSTANCE_LOCATION.location_type` | `Warehouse` / `Device` / `MountContainer` / `Project` / `Disposed`。`MountContainer`・`Project` は #219 で追加。`Warehouse` は #220 で消す |
-| `MOUNT_CONTAINER.location_type` | `Warehouse` / `Project` |
+| `DEVICE_ASSIGNMENT.location_type` | `Project` / `Disposed` |
+| `PART_INSTANCE_LOCATION.location_type` | `Device` / `MountContainer` / `Project` / `Disposed`。`MountContainer`・`Project` は #219 で追加 |
+| `MOUNT_CONTAINER.location_type` | `Project` |
 | `FIRMWARE_VERSION.item_type` | `Device` / `PartInstance` |
 | `PURCHASE.item_type` | `Device` / `PartInstance` / `SoftwareInstance` / `MountContainer` |
 | `FIXED_ASSET.item_type` | 同上 |
 | `MAINTENANCE_CONTRACT_ITEM.item_type` | `Device` / `PartInstance` / `SoftwareInstance`（設備・什器は指せない） |
 | `RECURRING_COST.item_type` | `MountContainer` / `Project` |
+
+**`Warehouse` は使わない**（#220）。倉庫は倉庫用のプロジェクトであり、予備は `Project` として置く。取込で `Warehouse` を書くとエラーにする。
 
 ## コスト
 

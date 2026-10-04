@@ -685,7 +685,7 @@ async fn 現在の所在(
     Ok(rows.into_iter().map(|a| (a.device_id, a)).collect())
 }
 
-/// 所在の表示名。プロジェクト名・倉庫名まで解決する。
+/// 所在の表示名。プロジェクト名まで解決する。
 async fn 所在の表示(
     state: &AppState,
     assignment: &device_assignment::Model,
@@ -697,11 +697,6 @@ async fn 所在の表示(
             .await
             .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
             .map(|p| p.name),
-        ("Warehouse", Some(id)) => entity::warehouse::Entity::find_by_id(id)
-            .one(&state.db)
-            .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-            .map(|w| w.name),
         _ => None,
     };
 

@@ -34,10 +34,12 @@ use dioryga_catalog_format::DEVICE_CATEGORIES;
 
 use crate::auth::authorization;
 use crate::auth::middleware::CurrentUser;
+use crate::device_state;
 use crate::error::{AppError, AppResult};
 use crate::repository::{Actor, AuditedTx};
 use crate::server::view::{
-    render, 状態の表示, 状態の選択肢, 種別の表示, 種別の選択肢, Choice, Chrome, Locale,
+    render, 保管中の表示, 容体の表示, 容体の選択肢, 状態の表示, 状態の選択肢, 種別の表示,
+    種別の選択肢, Choice, Chrome, Locale, STORED,
 };
 use crate::server::AppState;
 
@@ -45,8 +47,7 @@ use crate::server::AppState;
 const PROJECT: &str = "Project";
 
 /// 予約中の機器（設計書11.6）。ラック図でも区別表示する。
-/// 機器の状態（8.6）
-const DEVICE_PLANNED: &str = "planned";
+const DEVICE_PLANNED: &str = device_state::PLANNED;
 
 // ---------------------------------------------------------------------------
 // 画面
@@ -62,6 +63,8 @@ struct DeviceRow {
     status_label: String,
     /// 予約中は区別して表示する（設計書11.6）
     planned: bool,
+    /// 故障・修理中の表示名。**機器か、載っている部品が `failed`**（設計書6.3）
+    attention: Option<String>,
     location: String,
     /// このプロジェクトを離れた機器。A-6により履歴は見える
     departed: bool,
@@ -100,6 +103,15 @@ struct Labeled {
     value: String,
 }
 
+/// 機器に載っている部品の1行。故障の有無をここで変える（設計書6.3）。
+struct PartRow {
+    id: i32,
+    label: String,
+    serial_number: String,
+    health: String,
+    health_label: String,
+}
+
 #[derive(askama::Template)]
 #[template(path = "device_detail.html")]
 struct DeviceDetailPage {
@@ -122,13 +134,19 @@ struct DeviceDetailPage {
     t_interfaces: String,
     hostname: String,
     planned: bool,
+    /// 故障・修理中の表示名（設計書6.3）
+    attention: Option<String>,
     /// 統合先。**統合された機器は削除されず、ここへ誘導する**（設計書23.9）
     merged_into: Option<i32>,
     t_merged: String,
     basic: Vec<Labeled>,
     locations: Vec<Labeled>,
     mount: Vec<Labeled>,
-    parts: Vec<Labeled>,
+    parts: Vec<PartRow>,
+    healths: Vec<Choice>,
+    t_health: String,
+    t_serial_number: String,
+    t_part_health_save: String,
     firmware: Vec<Labeled>,
     stack: Vec<Labeled>,
     /// 購入の記録（10.2）。**機器1台につき1行。専用の一覧画面を持たず、ここに出す。**
@@ -194,6 +212,9 @@ struct DeviceFormPage {
     power_watt: String,
     status: String,
     statuses: Vec<Choice>,
+    /// 編集のときだけ出す（設計書6.3）
+    health: String,
+    healths: Vec<Choice>,
     /// 「もう1台」で戻ったとき、直前に登録した機器のホスト名
     registered: Option<String>,
     // --- お金の記録（登録のときだけ） ---
@@ -257,6 +278,8 @@ struct FormText {
     asset_hint: String,
     status: String,
     status_hint: String,
+    health: String,
+    health_hint: String,
     power_watt: String,
     power_hint: String,
     order_number: String,
@@ -300,10 +323,6 @@ struct FormText {
 
 /// 語彙（`vocabularies.md`）。DB制約にはせず、画面はリストから選ばせる。
 const DEVICE_TYPES: &[&str] = &["Physical", "Virtual", "Container", "Logical"];
-const STATUSES: &[&str] = &["running", "failed", "repairing", "planned", "provisioning"];
-/// 登録で選べる状態。**`planned` を含まない**——予約は増設の変更管理チケットが
-/// 作る（設計書11.6）。この画面からも作れると、同じ状態を作る経路が2つになる。
-const STATUSES_ON_CREATE: &[&str] = &["provisioning", "running", "repairing", "failed"];
 /// 筐体のある1台。構成とシリアル番号を持つのはこれだけ（設計書6.2、13.2）。
 const PHYSICAL: &str = "Physical";
 /// `PURCHASE` / `FIXED_ASSET` / `MAINTENANCE_CONTRACT_ITEM` の `item_type`。
@@ -449,6 +468,13 @@ pub async fn list(
     // 表示に要る情報をまとめて引く。行ごとに問い合わせるとN+1になる
     let 所在 = 現在の所在(&state.db, &devices).await?;
     let 型名 = 構成名(&state.db, &devices).await?;
+    let 容体 = device_state::容体を求める(&state.db, &devices)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    // **倉庫にある機器の `status` には意味が無い**（設計書6.3）。保管中と出す
+    let 倉庫 = crate::setting::倉庫プロジェクトか(&state.db, project_id)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
     let mut rows = Vec::new();
     for d in devices {
@@ -472,10 +498,19 @@ pub async fn list(
                 None => rust_i18n::t!("devices.location_unknown", locale = l).to_string(),
             },
             departed: !このプロジェクトにいる,
-            planned: d.status == DEVICE_PLANNED,
+            planned: !(倉庫 && このプロジェクトにいる) && d.status == DEVICE_PLANNED,
+            attention: 要対応の表示(容体.get(&d.id).copied(), l),
             // クラス名には生の値を、文字には表示名を当てる（#172）
-            status_label: 状態の表示(&d.status, l),
-            status: d.status,
+            status_label: if 倉庫 && このプロジェクトにいる {
+                保管中の表示(l)
+            } else {
+                状態の表示(&d.status, l)
+            },
+            status: if 倉庫 && このプロジェクトにいる {
+                STORED.to_owned()
+            } else {
+                d.status
+            },
             id: d.id,
             hostname: d.hostname,
             device_type: d.device_type,
@@ -747,6 +782,7 @@ pub async fn detail(
 
     let 未設定 = rust_i18n::t!("devices.none", locale = l).to_string();
     let 空欄 = |value: Option<String>| value.unwrap_or_else(|| 未設定.clone());
+    let 保管中 = 倉庫にあるか(&state, d.id).await?;
 
     let basic = vec![
         Labeled {
@@ -776,7 +812,17 @@ pub async fn detail(
         },
         Labeled {
             label: rust_i18n::t!("devices.status", locale = l).to_string(),
-            value: 状態の表示(&d.status, l),
+            // **倉庫にある間は `status` を出さない**（設計書6.3）
+            value: if 保管中 {
+                保管中の表示(l)
+            } else {
+                状態の表示(&d.status, l)
+            },
+        },
+        // **機器自身の値を出す。**部品の故障は部品の欄に出る（設計書6.3）
+        Labeled {
+            label: rust_i18n::t!("devices.health", locale = l).to_string(),
+            value: 容体の表示(&d.health, l),
         },
         Labeled {
             label: "UID".to_owned(),
@@ -839,12 +885,24 @@ pub async fn detail(
         t_interfaces: rust_i18n::t!("network.interfaces", locale = l).to_string(),
         t_merged: rust_i18n::t!("devices.merged", locale = l).to_string(),
         hostname: d.hostname.clone(),
-        planned: d.status == DEVICE_PLANNED,
+        planned: !保管中 && d.status == DEVICE_PLANNED,
+        attention: 要対応の表示(
+            device_state::容体を求める(&state.db, std::slice::from_ref(&d))
+                .await
+                .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+                .get(&d.id)
+                .copied(),
+            l,
+        ),
         merged_into: d.merged_into_device_id,
         basic,
         locations,
         mount: 搭載位置(&state, &d, l).await?,
-        parts: 搭載部品(&state, &d).await?,
+        parts: 搭載部品(&state, &d, l).await?,
+        healths: 容体の選択肢(device_state::HEALTHS, l),
+        t_health: rust_i18n::t!("devices.health", locale = l).to_string(),
+        t_serial_number: rust_i18n::t!("devices.serial_number", locale = l).to_string(),
+        t_part_health_save: rust_i18n::t!("devices.part_health_save", locale = l).to_string(),
         firmware: ファームウェア(&state, &d).await?,
         stack: スタック構成(&state, &d).await?,
         purchase: 購入の表示(&購入, &project.currency),
@@ -1105,14 +1163,12 @@ async fn 搭載位置(
 }
 
 /// 現在搭載されている部品。
-async fn 搭載部品(state: &AppState, d: &device::Model) -> AppResult<Vec<Labeled>> {
-    let locations = part_instance_location::Entity::find()
-        .filter(part_instance_location::Column::LocationType.eq("Device"))
-        .filter(part_instance_location::Column::LocationId.eq(d.id))
-        .filter(part_instance_location::Column::ToDate.is_null())
-        .all(&state.db)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+async fn 搭載部品(
+    state: &AppState,
+    d: &device::Model,
+    locale: &str,
+) -> AppResult<Vec<PartRow>> {
+    let locations = 載っている部品の所在(&state.db, d.id).await?;
 
     let mut rows = Vec::new();
     for l in locations {
@@ -1128,15 +1184,95 @@ async fn 搭載部品(state: &AppState, d: &device::Model) -> AppResult<Vec<Labe
             .await
             .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
 
-        rows.push(Labeled {
+        rows.push(PartRow {
+            id: instance.id,
             label: catalog
                 .as_ref()
                 .map(|c| format!("{} {}", c.category, c.part_number))
                 .unwrap_or_default(),
-            value: instance.serial_number.unwrap_or_default(),
+            serial_number: instance.serial_number.unwrap_or_default(),
+            health_label: 容体の表示(&instance.health, locale),
+            health: instance.health,
         });
     }
     Ok(rows)
+}
+
+/// 機器に今載っている部品の所在の行。
+async fn 載っている部品の所在<C: ConnectionTrait>(
+    db: &C,
+    device_id: i32,
+) -> AppResult<Vec<part_instance_location::Model>> {
+    part_instance_location::Entity::find()
+        .filter(part_instance_location::Column::LocationType.eq("Device"))
+        .filter(part_instance_location::Column::LocationId.eq(device_id))
+        .filter(part_instance_location::Column::ToDate.is_null())
+        .all(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PartHealthForm {
+    #[serde(default)]
+    pub health: String,
+}
+
+/// 部品の故障の有無を変える（設計書6.3）。
+///
+/// **変更管理チケットは使わない。**故障は起きた事実であり、承認を待てない。
+/// 誰がいつ変えたかは監査ログで追う。**機器の `health` は書き換えない**——
+/// 機器と部品は独立に持ち、表示で合わせる。
+///
+/// 対象は**この機器に今載っている部品**に限る。
+pub async fn set_part_health(
+    State(state): State<AppState>,
+    Extension(current): Extension<CurrentUser>,
+    Path((project_id, device_id, part_id)): Path<(i32, i32, i32)>,
+    Form(form): Form<PartHealthForm>,
+) -> AppResult<Response> {
+    let _project = 編集入場(&state, &current, project_id).await?;
+    let l = Locale::parse(&current.user.locale).as_str();
+    let d = 対象(&state, project_id, device_id).await?;
+
+    let Some(health) = DeviceForm::語彙(&form.health, device_state::HEALTHS) else {
+        return Err(AppError::Validation(
+            rust_i18n::t!("devices.part_health_invalid", locale = l).to_string(),
+        ));
+    };
+    // **読み取りはトランザクションを開く前に済ませる**（SQLiteで自分の書き込みロックを待つ）
+    if !載っている部品の所在(&state.db, d.id)
+        .await?
+        .iter()
+        .any(|p| p.part_instance_id == part_id)
+    {
+        return Err(AppError::NotFound);
+    }
+    let part = part_instance::Entity::find_by_id(part_id)
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .ok_or(AppError::NotFound)?;
+
+    let 戻り先 = Redirect::to(&format!("/projects/{project_id}/devices/{device_id}"));
+    if part.health == health {
+        return Ok(戻り先.into_response());
+    }
+
+    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let mut active: part_instance::ActiveModel = part.clone().into();
+    active.health = Set(health);
+    active.updated_at = Set(Utc::now());
+    tx.update(&part, active)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+
+    Ok(戻り先.into_response())
 }
 
 /// 現在有効なファームウェアの版。
@@ -1205,6 +1341,9 @@ pub struct DeviceForm {
     pub power_watt: String,
     #[serde(default)]
     pub status: String,
+    /// 編集のときだけ送られる。登録では `ok` にする（設計書6.3）
+    #[serde(default)]
+    pub health: String,
 }
 
 /// 登録の入力（設計書16.1）。機器の欄に、お金の記録と送信後の行き先が加わる。
@@ -1272,6 +1411,7 @@ struct 検証済み {
     asset_number: Option<String>,
     power_watt: i32,
     status: String,
+    health: String,
 }
 
 impl DeviceForm {
@@ -1306,7 +1446,7 @@ impl DeviceForm {
 async fn 検証(
     state: &AppState,
     form: &DeviceForm,
-    新規: bool,
+    既存: Option<&device::Model>,
 ) -> AppResult<Result<検証済み, &'static str>> {
     let hostname = form.hostname.trim().to_owned();
     if hostname.is_empty() {
@@ -1316,10 +1456,18 @@ async fn 検証(
     let Some(device_type) = DeviceForm::語彙(&form.device_type, DEVICE_TYPES) else {
         return Ok(Err("devices.device_type_invalid"));
     };
-    // **予約は登録から作らない**（設計書11.6）。編集では予約中の機器もありうる
-    let 選べる状態 = if 新規 { STATUSES_ON_CREATE } else { STATUSES };
-    let Some(status) = DeviceForm::語彙(&form.status, 選べる状態) else {
+    // **予約は画面から作らない**（設計書11.6、6.3）。予約中の機器を編集しても、
+    // 変えなければ予約中のまま残る
+    let Some(status) = DeviceForm::語彙(&form.status, &選べる状態(既存)) else {
         return Ok(Err("devices.status_invalid"));
+    };
+    // **故障にするのは人が機器の詳細から行う**（設計書6.3）。登録は `ok` で始める
+    let health = match 既存 {
+        None => device_state::OK.to_owned(),
+        Some(_) => match DeviceForm::語彙(&form.health, device_state::HEALTHS) {
+            Some(v) => v,
+            None => return Ok(Err("devices.health_invalid")),
+        },
     };
     let 物理 = device_type == PHYSICAL;
 
@@ -1384,7 +1532,21 @@ async fn 検証(
         asset_number: DeviceForm::空ならnone(&form.asset_number),
         power_watt,
         status,
+        health,
     }))
+}
+
+/// 登録・編集で選べる状態（設計書6.3）。
+///
+/// **`planned` は、今予約中の機器を編集するときだけ残す。**予約中から先へ
+/// 進めることはできるが、予約中にすることはできない。
+fn 選べる状態(既存: Option<&device::Model>) -> Vec<&'static str> {
+    let mut v = Vec::new();
+    if 既存.is_some_and(|d| d.status == DEVICE_PLANNED) {
+        v.push(DEVICE_PLANNED);
+    }
+    v.extend_from_slice(device_state::STATUSES_ON_EDIT);
+    v
 }
 
 /// 検証を通ったお金の記録（設計書16.1、10.2）。
@@ -1571,13 +1733,13 @@ async fn フォーム(
     state: &AppState,
     current: &CurrentUser,
     project: &project::Model,
-    device_id: Option<i32>,
+    既存: Option<&device::Model>,
     form: &NewDeviceForm,
     registered: Option<String>,
     error: Option<String>,
 ) -> AppResult<DeviceFormPage> {
     let l = Locale::parse(&current.user.locale).as_str();
-    let 新規 = device_id.is_none();
+    let 新規 = 既存.is_none();
     let t = |key: &str| rust_i18n::t!(key, locale = l).to_string();
     let d = &form.device;
 
@@ -1666,6 +1828,8 @@ async fn フォーム(
             asset_number: t("devices.asset_number"),
             asset_hint: t("devices.asset_hint"),
             status: t("devices.status"),
+            health: t("devices.health"),
+            health_hint: t("devices.health_hint"),
             status_hint: t(if 新規 {
                 "devices.status_hint_new"
             } else {
@@ -1711,8 +1875,8 @@ async fn フォーム(
             step_sbom: t("devices.step_sbom"),
             step_sbom_where: t("devices.step_sbom_where"),
         },
-        action: match device_id {
-            Some(id) => format!("/projects/{}/devices/{id}", project.id),
+        action: match 既存 {
+            Some(e) => format!("/projects/{}/devices/{}", project.id, e.id),
             None => format!("/projects/{}/devices", project.id),
         },
         hostname: d.hostname.clone(),
@@ -1726,7 +1890,9 @@ async fn フォーム(
         asset_number: d.asset_number.clone(),
         power_watt: d.power_watt.clone(),
         status: d.status.clone(),
-        statuses: 状態の選択肢(if 新規 { STATUSES_ON_CREATE } else { STATUSES }, l),
+        statuses: 状態の選択肢(&選べる状態(既存), l),
+        health: d.health.clone(),
+        healths: 容体の選択肢(device_state::HEALTHS, l),
         registered,
         currency: project.currency.clone(),
         order_number: form.purchase.order_number.clone(),
@@ -1795,7 +1961,7 @@ pub async fn create(
 
     // **読み取りはすべてトランザクションの前に済ませる**（SQLiteで自分の
     // 書き込みロックを待って止まる）。検証が読むのもここまで
-    let 入力 = match 検証(&state, &form.device, true).await? {
+    let 入力 = match 検証(&state, &form.device, None).await? {
         Ok(値) => 値,
         Err(key) => {
             let page = フォーム(
@@ -1848,6 +2014,7 @@ pub async fn create(
             asset_number: Set(入力.asset_number),
             power_watt: Set(入力.power_watt),
             status: Set(入力.status),
+            health: Set(入力.health),
             created_at: Set(now),
             updated_at: Set(now),
             ..Default::default()
@@ -1941,7 +2108,7 @@ pub async fn edit_form(
         device: 既存の値(&d),
         ..Default::default()
     };
-    let page = フォーム(&state, &current, &project, Some(d.id), &form, None, None).await?;
+    let page = フォーム(&state, &current, &project, Some(&d), &form, None, None).await?;
     render(&page)
 }
 
@@ -1958,6 +2125,7 @@ fn 既存の値(d: &device::Model) -> DeviceForm {
         asset_number: d.asset_number.clone().unwrap_or_default(),
         power_watt: d.power_watt.to_string(),
         status: d.status.clone(),
+        health: d.health.clone(),
     }
 }
 
@@ -1971,7 +2139,7 @@ pub async fn update(
     let l = Locale::parse(&current.user.locale).as_str();
     let target = 対象(&state, project_id, device_id).await?;
 
-    let 入力 = match 検証(&state, &form, false).await? {
+    let 入力 = match 検証(&state, &form, Some(&target)).await? {
         Ok(値) => 値,
         Err(key) => {
             let form = NewDeviceForm {
@@ -1982,7 +2150,7 @@ pub async fn update(
                 &state,
                 &current,
                 &project,
-                Some(target.id),
+                Some(&target),
                 &form,
                 None,
                 Some(rust_i18n::t!(key, locale = l).to_string()),
@@ -2004,6 +2172,7 @@ pub async fn update(
     active.asset_number = Set(入力.asset_number);
     active.power_watt = Set(入力.power_watt);
     active.status = Set(入力.status);
+    active.health = Set(入力.health);
     active.updated_at = Set(Utc::now());
     tx.update(&target, active)
         .await
@@ -2018,6 +2187,30 @@ pub async fn update(
 // ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
+
+/// 機器が今、倉庫プロジェクトにあるか（設計書6.3）。
+async fn 倉庫にあるか(state: &AppState, device_id: i32) -> AppResult<bool> {
+    let 現在 = device_assignment::Entity::find()
+        .filter(device_assignment::Column::DeviceId.eq(device_id))
+        .filter(device_assignment::Column::ToDate.is_null())
+        .one(&state.db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    match 現在 {
+        Some(a) if a.location_type == PROJECT => match a.location_id {
+            Some(pid) => crate::setting::倉庫プロジェクトか(&state.db, pid)
+                .await
+                .map_err(|e| AppError::Internal(anyhow::anyhow!(e))),
+            None => Ok(false),
+        },
+        _ => Ok(false),
+    }
+}
+
+/// 故障・修理中なら表示名を返す（設計書6.3）。正常なら `None`。
+fn 要対応の表示(v: Option<device_state::容体>, l: &str) -> Option<String> {
+    v.filter(|v| v.要対応()).map(|v| 容体の表示(v.as_str(), l))
+}
 
 /// 閲覧の可否を確かめ、プロジェクトと「編集できるか」を返す。
 async fn 入場(
@@ -2098,7 +2291,7 @@ mod tests {
             Some("Virtual".to_owned())
         );
         assert_eq!(DeviceForm::語彙("なりすまし", DEVICE_TYPES), None);
-        assert_eq!(DeviceForm::語彙("", STATUSES), None);
+        assert_eq!(DeviceForm::語彙("", device_state::STATUSES), None);
     }
 
     #[test]

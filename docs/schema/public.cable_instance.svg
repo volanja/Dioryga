@@ -30,14 +30,14 @@
 <text text-anchor="start" x="60.2" y="-709.2" font-family="Arial" font-size="14.00">asset_number </text>
 <text text-anchor="start" x="152.8" y="-709.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 <polygon fill="none" stroke="black" points="53.2,-666.2 53.2,-697 347.12,-697 347.12,-666.2 53.2,-666.2"/>
-<text text-anchor="start" x="60.2" y="-678.4" font-family="Arial" font-size="14.00">status </text>
-<text text-anchor="start" x="101.44" y="-678.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<text text-anchor="start" x="60.2" y="-678.4" font-family="Arial" font-size="14.00">created_at </text>
+<text text-anchor="start" x="130.25" y="-678.4" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 <polygon fill="none" stroke="black" points="53.2,-635.4 53.2,-666.2 347.12,-666.2 347.12,-635.4 53.2,-635.4"/>
-<text text-anchor="start" x="60.2" y="-647.6" font-family="Arial" font-size="14.00">created_at </text>
-<text text-anchor="start" x="130.25" y="-647.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<text text-anchor="start" x="60.2" y="-647.6" font-family="Arial" font-size="14.00">updated_at </text>
+<text text-anchor="start" x="134.16" y="-647.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 <polygon fill="none" stroke="black" points="53.2,-604.6 53.2,-635.4 347.12,-635.4 347.12,-604.6 53.2,-604.6"/>
-<text text-anchor="start" x="60.2" y="-616.8" font-family="Arial" font-size="14.00">updated_at </text>
-<text text-anchor="start" x="134.16" y="-616.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<text text-anchor="start" x="60.2" y="-616.8" font-family="Arial" font-size="14.00">retired_at </text>
+<text text-anchor="start" x="123.23" y="-616.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 <polygon fill="none" stroke="black" stroke-width="3" points="51.7,-603.1 51.7,-857.3 348.62,-857.3 348.62,-603.1 51.7,-603.1"/>
 </g>
 <!-- public.cable_catalog -->

@@ -275,3 +275,21 @@ pub async fn 設備の型番(
     .unwrap()
     .id
 }
+
+/// プロジェクトを倉庫プロジェクト（新しい利用者の既定の参加先）にする（#217、#221）。
+///
+/// 倉庫かどうかの印は持たず、既定の参加先を倉庫とみなす。
+pub async fn 倉庫プロジェクトにする(db: &DatabaseConnection, project_id: i32) {
+    use chrono::Utc;
+    use sea_orm::{ActiveModelTrait, Set};
+
+    entity::app_setting::ActiveModel {
+        id: Set(entity::app_setting::ID),
+        default_project_id: Set(project_id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+    }
+    .insert(db)
+    .await
+    .unwrap();
+}

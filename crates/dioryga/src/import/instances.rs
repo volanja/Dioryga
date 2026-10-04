@@ -135,6 +135,9 @@ pub struct DeviceRow {
     pub power_watt: String,
     #[serde(default)]
     pub status: String,
+    /// `ok` / `failed`。空欄は `ok`（設計書6.3）
+    #[serde(default)]
+    pub health: String,
 }
 
 impl DeviceRow {
@@ -420,6 +423,7 @@ struct Planned {
     configuration_id: Option<i32>,
     device_type: String,
     status: String,
+    health: String,
     power_watt: i32,
     /// このプロジェクトへの割当を作る必要があるか。**新規作成と、現在の所属が
     /// 無い機器だけ**が立つ。既存の機器の所属は付け替えない（#143）。
@@ -428,7 +432,9 @@ struct Planned {
 
 const DEVICE_TYPES: &[&str] = &["Physical", "Virtual", "Container", "Logical"];
 /// **部品（`PART_INSTANCE`）も同じ語彙を持つ**ため、`parts.rs` と共有する。
-pub(super) const STATUSES: &[&str] = &["running", "failed", "repairing", "planned", "provisioning"];
+/// 旧い `failed` / `repairing` は語彙外としてエラーにする（設計書6.3、Q-21）。
+/// 故障は `health` の列に書く。黙って読み替えない
+pub(super) use crate::device_state::{HEALTHS, STATUSES};
 
 /// 閉じた語彙で検証する（8.6）。**語彙外は既定へ寄せず拒否し、空欄は既定にする。**
 pub(super) fn 語彙(
@@ -460,6 +466,8 @@ async fn 計画する<C: ConnectionTrait>(
     // **索引は取込のはじめに1度だけ作る**（#111）。行ごとに候補を読み直すと、
     // 行数×台数で伸びる
     let 索引 = 機器の索引::作る(db, project_id).await?;
+    // **倉庫プロジェクトでは既存の機器の `status` を動かさない**（#221、設計書6.3）
+    let 倉庫プロジェクト = crate::setting::倉庫プロジェクトか(db, project_id).await?;
 
     // **ファイル内の重複を先に見る。**DBと突き合わせる前に弾かないと、
     // 同じ機器を2回作るか、2行目が1行目を上書きする
@@ -515,6 +523,13 @@ async fn 計画する<C: ConnectionTrait>(
             Ok(v) => v,
             Err(e) => {
                 report.push(Entry::new(Outcome::Error, target, format!("status: {e}")));
+                continue;
+            }
+        };
+        let health = match 語彙(&row.health, HEALTHS, crate::device_state::OK) {
+            Ok(v) => v,
+            Err(e) => {
+                report.push(Entry::new(Outcome::Error, target, format!("health: {e}")));
                 continue;
             }
         };
@@ -584,6 +599,19 @@ async fn 計画する<C: ConnectionTrait>(
         // 所属を作るのは、新規作成と、現在の所属が無い機器だけ
         let needs_assignment = 現在の所属.is_none();
 
+        // 倉庫にある間の `status` には意味が無い。比べず、書き換えもしない。
+        // **黙って捨てない**——書いてあれば行の説明に添える
+        let mut 説明 = None;
+        let status = match &existing {
+            Some(d) if 倉庫プロジェクト && d.status != status => {
+                if !row.status.trim().is_empty() {
+                    説明 = Some("倉庫プロジェクトでは status を反映しません（保管中の機器・部品の status は動かさない）");
+                }
+                d.status.clone()
+            }
+            _ => status,
+        };
+
         let 変更あり = match &existing {
             None => true,
             Some(d) => {
@@ -593,6 +621,7 @@ async fn 計画する<C: ConnectionTrait>(
                     || d.external_id != DeviceRow::空ならnone(&row.external_id)
                     || d.device_type != device_type
                     || d.status != status
+                    || d.health != health
                     || d.power_watt != power_watt
                     || d.configuration_id != configuration_id
                     || d.device_category != DeviceRow::空ならnone(&row.device_category)
@@ -609,8 +638,12 @@ async fn 計画する<C: ConnectionTrait>(
         report.push(Entry::new(
             outcome,
             target,
-            match &existing {
-                Some(d) if outcome != Outcome::Unchanged => format!("既存 uid={}", d.uid),
+            match (&existing, 説明) {
+                (Some(d), Some(説明)) if outcome != Outcome::Unchanged => {
+                    format!("既存 uid={}。{説明}", d.uid)
+                }
+                (_, Some(説明)) => 説明.to_owned(),
+                (Some(d), None) if outcome != Outcome::Unchanged => format!("既存 uid={}", d.uid),
                 _ => String::new(),
             },
         ));
@@ -621,6 +654,7 @@ async fn 計画する<C: ConnectionTrait>(
             configuration_id,
             device_type,
             status,
+            health,
             power_watt,
             needs_assignment,
         });
@@ -689,6 +723,7 @@ pub async fn 取り込む(
                 active.configuration_id = Set(p.configuration_id);
                 active.power_watt = Set(p.power_watt);
                 active.status = Set(p.status.clone());
+                active.health = Set(p.health.clone());
                 active.updated_at = Set(now);
                 tx.update(existing, active).await?;
                 existing.id
@@ -712,6 +747,7 @@ pub async fn 取り込む(
                     asset_number: Set(DeviceRow::空ならnone(&p.row.asset_number)),
                     power_watt: Set(p.power_watt),
                     status: Set(p.status.clone()),
+                    health: Set(p.health.clone()),
                     created_at: Set(now),
                     updated_at: Set(now),
                     ..Default::default()

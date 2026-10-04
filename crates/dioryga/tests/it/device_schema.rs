@@ -455,10 +455,69 @@ async fn 状態の語彙を書き換える(db: &DatabaseConnection) {
     語彙変更.up(&manager).await.unwrap();
 }
 
+/// **状態を運用と故障の2列に分け、戻せること**（#221、設計書6.3）。
+///
+/// 旧い `failed` / `repairing` の行は `health=failed`・`status=running` になる。
+async fn 状態を運用と故障に分ける(db: &DatabaseConnection) {
+    use migration::m20261003_000001_split_health::Migration as 分割;
+    use migration::{MigrationTrait, SchemaManager};
+    use sea_orm::ConnectionTrait;
+
+    // **このマイグレーションだけを名指しで戻す。**後から足しても対象がずれない
+    let manager = SchemaManager::new(db);
+    分割.down(&manager).await.unwrap();
+
+    // 戻した後は `health` 列が無く、エンティティでは書けない
+    for (uid, status) in [
+        ("split-failed", "failed"),
+        ("split-repairing", "repairing"),
+        ("split-planned", "planned"),
+        ("split-running", "running"),
+    ] {
+        db.execute_unprepared(&format!(
+            "INSERT INTO device (uid, device_type, hostname, power_watt, status, created_at, updated_at) \
+             VALUES ('{uid}', 'Physical', '{uid}', 0, '{status}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+        ))
+        .await
+        .unwrap();
+    }
+
+    分割.up(&manager).await.unwrap();
+
+    let mut 結果 = Vec::new();
+    for uid in [
+        "split-failed",
+        "split-repairing",
+        "split-planned",
+        "split-running",
+    ] {
+        let d = device::Entity::find()
+            .filter(device::Column::Uid.eq(uid))
+            .one(db)
+            .await
+            .unwrap()
+            .unwrap();
+        結果.push((d.status, d.health));
+    }
+    let 期待 = [
+        ("running", "failed"),
+        ("running", "failed"),
+        ("planned", "ok"),
+        ("running", "ok"),
+    ]
+    .map(|(a, b)| (a.to_owned(), b.to_owned()));
+    assert_eq!(結果, 期待);
+
+    // 戻しても壊れない（`health=failed` は旧い `failed` に戻る）
+    分割.down(&manager).await.unwrap();
+    分割.up(&manager).await.unwrap();
+}
+
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, 識別子が無くても登録できる);
         全検証!(@one $用意, $属性, 状態の語彙を書き換える);
+        全検証!(@one $用意, $属性, 状態を運用と故障に分ける);
         全検証!(@one $用意, $属性, 統合された機器は残る);
         全検証!(@one $用意, $属性, 所在の履歴は閉じて開く);
         全検証!(@one $用意, $属性, 廃棄は所在で表す);

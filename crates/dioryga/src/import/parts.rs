@@ -66,7 +66,7 @@ use sea_orm::{
 };
 use serde::Deserialize;
 
-use super::instances::{語彙, STATUSES};
+use super::instances::{語彙, HEALTHS, STATUSES};
 use super::placement::{機器の索引, 機器キー, 空ならnone, 読み取る};
 use super::{Entry, ImportError, Outcome, Report};
 use crate::repository::{Actor, AuditedTx};
@@ -87,6 +87,9 @@ pub struct PartRow {
     pub part_number: String,
     #[serde(default)]
     pub status: String,
+    /// `ok` / `failed`。空欄は `ok`。**機器の `health` とは独立**（設計書6.3）
+    #[serde(default)]
+    pub health: String,
     /// Device / MountContainer / Project / Warehouse / Disposed。
     pub location_type: String,
     /// `Device` のとき、載っている機器のホスト名。
@@ -128,6 +131,7 @@ struct 部品の計画 {
     part_catalog_id: i32,
     serial_number: String,
     status: String,
+    health: String,
     location_type: String,
     location_id: Option<i32>,
     chassis_slot_id: Option<i32>,
@@ -144,6 +148,8 @@ async fn 計画する<C: ConnectionTrait>(
 ) -> Result<(Report, Vec<部品の計画>), ImportError> {
     let 索引 = 機器の索引::作る(db, project_id).await?;
     let 候補 = このプロジェクトに関わった部品(db, project_id, &索引.ids()).await?;
+    // **倉庫プロジェクトでは既存の部品の `status` を動かさない**（#221、設計書6.3）
+    let 倉庫プロジェクト = crate::setting::倉庫プロジェクトか(db, project_id).await?;
     // **廃止した倉庫は置き場の候補にしない**（#133）
     let 倉庫: HashMap<String, i32> = warehouse::Entity::find()
         .filter(warehouse::Column::RetiredAt.is_null())
@@ -193,6 +199,13 @@ async fn 計画する<C: ConnectionTrait>(
             Ok(s) => s,
             Err(理由) => {
                 report.push(Entry::new(Outcome::Error, 表示, format!("status: {理由}")));
+                continue;
+            }
+        };
+        let health = match 語彙(&row.health, HEALTHS, crate::device_state::OK) {
+            Ok(s) => s,
+            Err(理由) => {
+                report.push(Entry::new(Outcome::Error, 表示, format!("health: {理由}")));
                 continue;
             }
         };
@@ -322,16 +335,28 @@ async fn 計画する<C: ConnectionTrait>(
                 && l.location_id == location_id
                 && l.chassis_slot_id == chassis_slot_id
         });
-        let 属性が同じ = 既存
-            .as_ref()
-            .is_some_and(|p| p.part_catalog_id == catalog.id && p.status == status);
+        // 倉庫にある間の `status` には意味が無い。比べず、書き換えもしない。
+        // **黙って捨てない**——書いてあれば行の説明に添える
+        let mut 説明 = String::new();
+        let status = match &既存 {
+            Some(p) if 倉庫プロジェクト && p.status != status => {
+                if !row.status.trim().is_empty() {
+                    説明 = "倉庫プロジェクトでは status を反映しません（保管中の機器・部品の status は動かさない）".to_owned();
+                }
+                p.status.clone()
+            }
+            _ => status,
+        };
+        let 属性が同じ = 既存.as_ref().is_some_and(|p| {
+            p.part_catalog_id == catalog.id && p.status == status && p.health == health
+        });
 
         let outcome = match (&既存, 所在が同じ && 属性が同じ) {
             (None, _) => Outcome::Created,
             (Some(_), true) => Outcome::Unchanged,
             (Some(_), false) => Outcome::Updated,
         };
-        report.push(Entry::new(outcome, 表示, String::new()));
+        report.push(Entry::new(outcome, 表示, 説明));
         if outcome == Outcome::Unchanged {
             continue;
         }
@@ -341,6 +366,7 @@ async fn 計画する<C: ConnectionTrait>(
             part_catalog_id: catalog.id,
             serial_number: serial.to_owned(),
             status,
+            health,
             location_type,
             location_id,
             chassis_slot_id,
@@ -588,6 +614,7 @@ pub async fn 取り込む(
                 let mut active: part_instance::ActiveModel = existing.clone().into();
                 active.part_catalog_id = Set(p.part_catalog_id);
                 active.status = Set(p.status.clone());
+                active.health = Set(p.health.clone());
                 active.updated_at = Set(now);
                 tx.update(existing, active).await?;
                 existing.id
@@ -597,6 +624,7 @@ pub async fn 取り込む(
                     part_catalog_id: Set(p.part_catalog_id),
                     serial_number: Set(Some(p.serial_number.clone())),
                     status: Set(p.status.clone()),
+                    health: Set(p.health.clone()),
                     created_at: Set(now),
                     updated_at: Set(now),
                     ..Default::default()

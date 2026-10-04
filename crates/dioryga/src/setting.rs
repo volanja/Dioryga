@@ -17,6 +17,13 @@
 //!
 //! 利用者を作ると、この先へ `Viewer` として加える（#218）。画面（System Admin の
 //! ユーザー登録）と組織データの取込の両方が [`既定の参加先に加える`] を通る。
+//!
+//! # 倉庫プロジェクトの判別
+//!
+//! 倉庫にある機器・部品の `status` には意味が無い（#221、設計書6.3）。画面は
+//! `status` を出さずに「保管中」と出し、払い出しで `planned` にする。**倉庫
+//! プロジェクトかどうかは [`倉庫プロジェクトか`] だけで判別する**——既定の
+//! 参加先を倉庫とみなす、という読み替えを1か所に閉じ込める。
 
 use chrono::Utc;
 use entity::{app_setting, app_user, project, project_member};
@@ -31,6 +38,16 @@ pub async fn 既定の参加先<C: ConnectionTrait>(db: &C) -> Result<Option<i32
         .one(db)
         .await?
         .map(|s| s.default_project_id))
+}
+
+/// 倉庫プロジェクトか（#221、設計書6.3）。**判別はここだけで行う。**
+///
+/// 区別の印は持たず、新しい利用者の既定の参加先を倉庫とみなす（#217）。
+pub async fn 倉庫プロジェクトか<C: ConnectionTrait>(
+    db: &C,
+    project_id: i32,
+) -> Result<bool, DbErr> {
+    Ok(既定の参加先(db).await? == Some(project_id))
 }
 
 /// 倉庫用のプロジェクトを作り、新しい利用者の既定の参加先にする。

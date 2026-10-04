@@ -23,7 +23,8 @@ use dioryga::config::Config;
 use dioryga::server::{router, AppState};
 use entity::{
     app_user, device, device_assignment, maintenance_contract, maintenance_contract_item,
-    milestone, project, project_member, vendor, work_order,
+    milestone, part_catalog, part_instance, part_instance_location, project, project_member,
+    vendor, work_order,
 };
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use std::sync::Arc;
@@ -83,10 +84,10 @@ async fn 予約中は分けて数える(db: &DatabaseConnection) {
     assert_eq!(抜き出す(&body, "予約中"), "1", "{body}");
 }
 
-/// **5つの状態すべてに枠を出すこと**（#170）。
+/// **6つの状態すべてに枠を出すこと**（#170、#221）。
 ///
 /// 0件の状態を落とすと、並びが詰まって位置で読めなくなる。
-async fn 状態は5つとも枠を出す(db: &DatabaseConnection) {
+async fn 状態は6つとも枠を出す(db: &DatabaseConnection) {
     let 場 = 舞台(db, "dash-metrics@example.com", "Operator").await;
 
     let (状態, token) = 認証済み(db, &場.user).await;
@@ -94,6 +95,7 @@ async fn 状態は5つとも枠を出す(db: &DatabaseConnection) {
 
     for (ラベル, 台数) in [
         ("稼働中", "1"),
+        ("待機", "0"),
         ("予約中", "0"),
         ("構築中", "0"),
         ("修理中", "0"),
@@ -109,7 +111,7 @@ async fn 状態は5つとも枠を出す(db: &DatabaseConnection) {
 async fn 対応が必要な機器を出す(db: &DatabaseConnection) {
     let 場 = 舞台(db, "dash-attention@example.com", "Operator").await;
 
-    let 故障 = 機器(db, "srv-failed", "failed").await;
+    let 故障 = 故障した機器(db, "srv-failed", "running").await;
     割り当て(db, 故障.id, 場.project.id).await;
 
     let (状態, token) = 認証済み(db, &場.user).await;
@@ -125,6 +127,127 @@ async fn 対応が必要な機器を出す(db: &DatabaseConnection) {
         )),
         "{body}"
     );
+}
+
+/// **枚は排他的に数えること**（#221、設計書6.3）。
+///
+/// 冗長構成の片側が壊れた `running` の機器は運用を続けているが、直すのは人の
+/// 作業なので故障の枚に入れる。稼働中にも数えると、枚の合計が台数と合わない。
+async fn 故障は状態によらず故障に数える(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "dash-exclusive@example.com", "Operator").await;
+
+    for (名前, 状態) in [("srv-f-run", "running"), ("srv-f-standby", "standby")] {
+        let d = 故障した機器(db, 名前, 状態).await;
+        割り当て(db, d.id, 場.project.id).await;
+    }
+    let 待機 = 機器(db, "srv-standby", "standby").await;
+    割り当て(db, 待機.id, 場.project.id).await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}", 場.project.id), &token).await;
+
+    for (ラベル, 台数) in [
+        ("稼働中", "1"),
+        ("待機", "1"),
+        ("修理中", "0"),
+        ("故障", "2"),
+    ] {
+        assert_eq!(抜き出す(&body, ラベル), 台数, "{ラベル}: {body}");
+    }
+}
+
+/// **載っている部品が故障していれば、機器を故障に数えること**（#221、設計書6.3）。
+///
+/// 部品を `failed` にしても機器の `health` は書き換えない。機器の値だけを見ると、
+/// 電源が1つ壊れた機器がダッシュボードに出ない。
+async fn 部品の故障で機器を故障に数える(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "dash-part@example.com", "Operator").await;
+
+    let d = 機器(db, "srv-psu", "running").await;
+    割り当て(db, d.id, 場.project.id).await;
+    部品を載せる(db, 場.user.id, d.id, "PSU-1", "failed").await;
+    // 正常な部品だけの機器は数えない
+    部品を載せる(db, 場.user.id, 場の機器(db, &場).await.id, "PSU-2", "ok").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}", 場.project.id), &token).await;
+
+    assert_eq!(抜き出す(&body, "稼働中"), "1", "{body}");
+    assert_eq!(抜き出す(&body, "故障"), "1", "{body}");
+    assert!(body.contains("srv-psu"), "{body}");
+    // 機器の値は書き換えない
+    let 後 = device::Entity::find_by_id(d.id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(後.health, "ok");
+}
+
+/// **未完了の修理があれば修理中、中止すれば故障に戻ること**（#221、設計書6.3）。
+///
+/// 修理中は列に持たず、修理のチケットから導く。修理する部品が対象のチケットも見る。
+async fn 未完了の修理があれば修理中に数える(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "dash-repairing@example.com", "Operator").await;
+
+    let 機器の修理 = 故障した機器(db, "srv-repair-device", "running").await;
+    割り当て(db, 機器の修理.id, 場.project.id).await;
+    修理(db, &場, Some(機器の修理.id), None, "in_progress").await;
+
+    let 部品の修理 = 機器(db, "srv-repair-part", "running").await;
+    割り当て(db, 部品の修理.id, 場.project.id).await;
+    let psu = 部品を載せる(db, 場.user.id, 部品の修理.id, "PSU-R", "failed").await;
+    let 部品のチケット = 修理(db, &場, None, Some(psu), "approved").await;
+
+    // 中止した修理では修理中にならない
+    let 中止 = 故障した機器(db, "srv-repair-cancelled", "running").await;
+    割り当て(db, 中止.id, 場.project.id).await;
+    修理(db, &場, Some(中止.id), None, "cancelled").await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}", 場.project.id), &token).await;
+
+    assert_eq!(抜き出す(&body, "修理中"), "2", "{body}");
+    assert_eq!(抜き出す(&body, "故障"), "1", "{body}");
+    assert_eq!(抜き出す(&body, "稼働中"), "1", "{body}");
+    // 部品が対象の修理も、載せ先の機器のチケットとして開ける
+    assert!(
+        body.contains(&format!(
+            r#"href="/projects/{}/work-orders/{部品のチケット}""#,
+            場.project.id
+        )),
+        "{body}"
+    );
+}
+
+/// **倉庫プロジェクトは保管中・修理中・故障の3枚で数えること**（#221、設計書6.3）。
+///
+/// 倉庫にある機器の `status` には意味が無い。通常と同じく `status` で数えると、
+/// 保管しているだけの機器が「稼働中 N台」と出る。
+async fn 倉庫は3枚で数える(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "dash-warehouse@example.com", "Operator").await;
+    crate::support::倉庫プロジェクトにする(db, 場.project.id).await;
+
+    // 舞台の稼働中1台に、予約中と待機と故障を足す
+    for (名前, 状態) in [("spare-planned", "planned"), ("spare-standby", "standby")] {
+        let d = 機器(db, 名前, 状態).await;
+        割り当て(db, d.id, 場.project.id).await;
+    }
+    let 故障 = 故障した機器(db, "spare-failed", "running").await;
+    割り当て(db, 故障.id, 場.project.id).await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}", 場.project.id), &token).await;
+
+    for (ラベル, 台数) in [("保管中", "3"), ("修理中", "0"), ("故障", "1")] {
+        assert_eq!(抜き出す(&body, ラベル), 台数, "{ラベル}: {body}");
+    }
+    for 出ない in ["稼働中", "待機", "予約中", "構築中"] {
+        assert!(
+            !body.contains(&format!("{出ない}</span>")),
+            "{出ない}の枚が出ています: {body}"
+        );
+    }
 }
 
 /// **故障も修理中も無ければ、表ごと出さないこと**（#170）。
@@ -451,6 +574,102 @@ async fn 機器(db: &DatabaseConnection, hostname: &str, status: &str) -> device
     .unwrap()
 }
 
+async fn 故障した機器(
+    db: &DatabaseConnection,
+    hostname: &str,
+    status: &str,
+) -> device::Model {
+    let d = 機器(db, hostname, status).await;
+    let mut active: device::ActiveModel = d.into();
+    active.health = Set("failed".to_owned());
+    active.update(db).await.unwrap()
+}
+
+/// 機器に部品を載せる。部品の id を返す。
+async fn 部品を載せる(
+    db: &DatabaseConnection,
+    user_id: i32,
+    device_id: i32,
+    serial: &str,
+    health: &str,
+) -> i32 {
+    let v = vendor::ActiveModel {
+        name: Set(format!("部品ベンダー-{serial}")),
+        created_by: Set(user_id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let c = part_catalog::ActiveModel {
+        category: Set("PSU".to_owned()),
+        vendor_id: Set(v.id),
+        part_number: Set(format!("PSU-{serial}")),
+        spec_json: Set("{}".to_owned()),
+        created_by: Set(user_id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let p = part_instance::ActiveModel {
+        part_catalog_id: Set(c.id),
+        serial_number: Set(Some(serial.to_owned())),
+        status: Set("running".to_owned()),
+        health: Set(health.to_owned()),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    part_instance_location::ActiveModel {
+        part_instance_id: Set(p.id),
+        location_type: Set("Device".to_owned()),
+        location_id: Set(Some(device_id)),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    p.id
+}
+
+/// 修理（`Repair`）のチケットを作る。
+async fn 修理(
+    db: &DatabaseConnection,
+    場: &舞台情報,
+    device_id: Option<i32>,
+    part_instance_id: Option<i32>,
+    status: &str,
+) -> i32 {
+    work_order::ActiveModel {
+        uid: Set(uuid::Uuid::new_v4().to_string()),
+        project_id: Set(場.project.id),
+        target_project_id: Set(None),
+        device_id: Set(device_id),
+        part_instance_id: Set(part_instance_id),
+        work_type: Set("Repair".to_owned()),
+        title: Set("修理".to_owned()),
+        description: Set(String::new()),
+        status: Set(status.to_owned()),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap()
+    .id
+}
+
 async fn 割り当て(db: &DatabaseConnection, device_id: i32, project_id: i32) {
     device_assignment::ActiveModel {
         device_id: Set(device_id),
@@ -589,8 +808,12 @@ macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, 移管した機器は数えない);
         全検証!(@one $用意, $属性, 予約中は分けて数える);
-        全検証!(@one $用意, $属性, 状態は5つとも枠を出す);
+        全検証!(@one $用意, $属性, 状態は6つとも枠を出す);
         全検証!(@one $用意, $属性, 対応が必要な機器を出す);
+        全検証!(@one $用意, $属性, 故障は状態によらず故障に数える);
+        全検証!(@one $用意, $属性, 部品の故障で機器を故障に数える);
+        全検証!(@one $用意, $属性, 未完了の修理があれば修理中に数える);
+        全検証!(@one $用意, $属性, 倉庫は3枚で数える);
         全検証!(@one $用意, $属性, 対応が必要な機器が無ければ出さない);
         全検証!(@one $用意, $属性, 期限を過ぎたものも出す);
         全検証!(@one $用意, $属性, 遠い予定は出さない);

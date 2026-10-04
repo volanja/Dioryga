@@ -38,6 +38,7 @@ mod m20260927_000002_create_container_model;
 mod m20260927_000003_create_power_circuit;
 mod m20260928_000001_add_user_timezone;
 mod m20261002_000001_create_app_setting;
+pub mod m20261003_000001_split_health;
 
 pub struct Migrator;
 
@@ -74,6 +75,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260927_000003_create_power_circuit::Migration),
             Box::new(m20260928_000001_add_user_timezone::Migration),
             Box::new(m20261002_000001_create_app_setting::Migration),
+            Box::new(m20261003_000001_split_health::Migration),
         ]
     }
 }

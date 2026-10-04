@@ -705,13 +705,29 @@ async fn 図を描く(
         phases: PHASES.to_vec(),
         power: {
             let 電力 = crate::server::power::什器の電力(&state.db, container_id).await?;
-            rust_i18n::t!(
+            let mut v = rust_i18n::t!(
                 "containers.power_total",
                 watt = 電力.watt,
                 with_plan = 電力.watt_with_plan,
                 locale = l
             )
-            .to_string()
+            .to_string();
+            // **外した台数を黙らせない**（12.5）
+            if 電力.stored > 0 {
+                v.push_str(&rust_i18n::t!(
+                    "containers.power_stored",
+                    count = 電力.stored,
+                    locale = l
+                ));
+            }
+            if 電力.standby > 0 {
+                v.push_str(&rust_i18n::t!(
+                    "containers.power_standby",
+                    count = 電力.standby,
+                    locale = l
+                ));
+            }
+            v
         },
         t_power: rust_i18n::t!("containers.power", locale = l).to_string(),
         t_circuits: rust_i18n::t!("containers.circuits", locale = l).to_string(),

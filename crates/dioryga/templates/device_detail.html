@@ -11,6 +11,7 @@
     <h1>
       {{ hostname }}
       {% if planned %}<span class="badge plan">{{ t_planned }}</span>{% endif %}
+      {% if let Some(h) = attention %}<span class="badge danger">{{ h }}</span>{% endif %}
     </h1>
   </div>
   <div class="head-actions">
@@ -67,11 +68,37 @@
     {% if parts.is_empty() %}
     <p class="empty">{{ t_none }}</p>
     {% else %}
-    <dl>
-      {% for item in parts %}
-      <dt>{{ item.label }}</dt><dd>{{ item.value }}</dd>
-      {% endfor %}
-    </dl>
+    {# 部品の故障の有無はここで変える。チケットは使わず、機器の値は書き換えない（設計書6.3） #}
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th></th><th>{{ t_serial_number }}</th><th>{{ t_health }}</th></tr>
+      </thead>
+      <tbody>
+        {% for item in parts %}
+        <tr>
+          <td>{{ item.label }}</td>
+          <td class="mono">{{ item.serial_number }}</td>
+          <td>
+            {% if can_edit %}
+            <form method="post" action="/projects/{{ project_id }}/devices/{{ device_id }}/parts/{{ item.id }}/health" class="inline-health">
+              <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+              <select name="health" aria-label="{{ t_health }}">
+                {% for h in healths %}
+                <option value="{{ h.value }}" {% if item.health == h.value %}selected{% endif %}>{{ h.label }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit">{{ t_part_health_save }}</button>
+            </form>
+            {% else %}
+            <span class="st"><span class="led sm {{ item.health }}"></span>{{ item.health_label }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
     {% endif %}
   </section>
 

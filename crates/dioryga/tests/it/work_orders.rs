@@ -650,18 +650,20 @@ async fn 実行すると予約が実機になる(db: &DatabaseConnection) {
     assert!(現行の搭載(db, 場.device_id).await.is_some());
 }
 
-/// **稼働中の機器の状態を勝手に書き換えないこと**。
+/// **予約中でない機器の状態を勝手に書き換えないこと**。
 ///
-/// 修理（Repair）の実行で `failed` が `running` に変わってはいけない。
+/// 実行で `standby` が `running` に変わってはいけない。**`health` も動かさない**
+/// ——実行は「直ったこと」を意味しない（設計書6.3）。
 async fn 予約でない機器の状態は変えない(db: &DatabaseConnection) {
     let 場 = 増設の舞台(db, "keepstatus@example.com").await;
     let 承認者 = 利用者(db, "keep-approver@example.com").await;
     メンバー(db, 承認者.id, 場.project_id, "Approver").await;
 
-    // 対象機器を故障中にしておく
+    // 対象機器を、待機中で故障しているものにしておく
     device::ActiveModel {
         id: Set(場.device_id),
-        status: Set("failed".to_owned()),
+        status: Set("standby".to_owned()),
+        health: Set("failed".to_owned()),
         updated_at: Set(Utc::now()),
         ..Default::default()
     }
@@ -684,7 +686,235 @@ async fn 予約でない機器の状態は変えない(db: &DatabaseConnection) 
     let (状態, token) = 認証済み(db, &場.user).await;
     遷移(状態, &token, 場.project_id, 場.work_order_id, "execute", "").await;
 
-    assert_eq!(機器の状態(db, 場.device_id).await, "failed");
+    assert_eq!(機器の状態(db, 場.device_id).await, "standby");
+    assert_eq!(機器の故障(db, 場.device_id).await, "failed");
+}
+
+/// **移譲の実行では、予約中から稼働中へ進めないこと**（設計書6.3）。
+///
+/// 進めるのは増設の実行だけ。倉庫からの払い出しで予約中にした機器が、
+/// 同じ実行の中で稼働中になってしまう。
+async fn 移譲の実行では予約中を進めない(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "xfer-planned@example.com").await;
+    let 移譲先 = プロジェクト(db, "予約中の受入先").await;
+    let device_id = 予約対象の機器(db, &場, "xfer-planned-srv", "planned").await;
+    let w = 移譲のチケット(db, 場.project_id, 移譲先.id, Some(device_id)).await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "execute", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+
+    assert_eq!(現在の所属(db, device_id).await, Some(移譲先.id));
+    assert_eq!(機器の状態(db, device_id).await, "planned");
+}
+
+/// **倉庫からの払い出しで、機器を予約中にすること**（#221、設計書6.3）。
+///
+/// 倉庫にある間の `status` には意味が無い。受け取る側が先へ進める。倉庫への
+/// 入庫では `status` を動かさない。
+async fn 倉庫から払い出すと予約中になる(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "payout@example.com").await;
+    crate::support::倉庫プロジェクトにする(db, 場.project_id).await;
+    let 受入先 = プロジェクト(db, "払い出し先").await;
+    let device_id = 予約対象の機器(db, &場, "payout-srv", "running").await;
+    故障させる(db, device_id).await;
+    let w = 移譲のチケット(db, 場.project_id, 受入先.id, Some(device_id)).await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "execute", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+
+    assert_eq!(現在の所属(db, device_id).await, Some(受入先.id));
+    assert_eq!(機器の状態(db, device_id).await, "planned");
+    // 故障の有無は動かさない
+    assert_eq!(機器の故障(db, device_id).await, "failed");
+}
+
+/// **倉庫への入庫では、状態を動かさないこと**（#221、設計書6.3）。
+async fn 倉庫へ入れても状態は変えない(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "stock-in@example.com").await;
+    let 倉庫 = プロジェクト(db, "入庫先の倉庫").await;
+    crate::support::倉庫プロジェクトにする(db, 倉庫.id).await;
+    let device_id = 予約対象の機器(db, &場, "stock-in-srv", "running").await;
+    let w = 移譲のチケット(db, 場.project_id, 倉庫.id, Some(device_id)).await;
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "execute", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+
+    assert_eq!(現在の所属(db, device_id).await, Some(倉庫.id));
+    assert_eq!(機器の状態(db, device_id).await, "running");
+}
+
+// ---------------------------------------------------------------------------
+// 修理と故障（#221、設計書6.3）
+// ---------------------------------------------------------------------------
+
+/// **修理の正常完了で機器の故障が戻り、中止では戻らないこと**（設計書6.3）。
+///
+/// 直らなかったときは中止にし、理由を書く。完了を「作業が終わった」の意味で
+/// 使うと、直らなかったのに正常に戻る。
+async fn 修理の完了で機器の故障を戻す(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "repair-device@example.com").await;
+    let 直る = 予約対象の機器(db, &場, "repair-ok", "running").await;
+    let 直らない = 予約対象の機器(db, &場, "repair-ng", "running").await;
+    for id in [直る, 直らない] {
+        故障させる(db, id).await;
+    }
+
+    let w = 修理のチケット(db, 場.project_id, Some(直る), None, "approved").await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    遷移(状態, &token, 場.project_id, w.id, "execute", "").await;
+    // 実行では戻さない
+    assert_eq!(機器の故障(db, 直る).await, "failed");
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "complete", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    assert_eq!(機器の故障(db, 直る).await, "ok");
+    // status は動かさない
+    assert_eq!(機器の状態(db, 直る).await, "running");
+
+    let w = 修理のチケット(db, 場.project_id, Some(直らない), None, "in_progress").await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "abort", "部材が届かない").await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    assert_eq!(機器の故障(db, 直らない).await, "failed");
+}
+
+/// **部品が対象の修理は、部品の故障だけを戻すこと**（設計書6.3）。
+///
+/// 機器と部品の `health` は独立に持つ。載せ先の機器を添えていても、機器の値は
+/// 書き換えない。
+async fn 部品の修理は部品の故障だけを戻す(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "repair-part@example.com").await;
+    let device_id = 予約対象の機器(db, &場, "repair-part-host", "running").await;
+    故障させる(db, device_id).await;
+    let psu = 部品(db, 場.user.id, "PSU-RPR").await;
+    part_instance_location::ActiveModel {
+        part_instance_id: Set(psu.id),
+        location_type: Set("Device".to_owned()),
+        location_id: Set(Some(device_id)),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let mut active: part_instance::ActiveModel = psu.clone().into();
+    active.health = Set("failed".to_owned());
+    active.update(db).await.unwrap();
+
+    let w = 修理のチケット(
+        db,
+        場.project_id,
+        Some(device_id),
+        Some(psu.id),
+        "in_progress",
+    )
+    .await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "complete", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+
+    let 後 = part_instance::Entity::find_by_id(psu.id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(後.health, "ok");
+    assert_eq!(
+        機器の故障(db, device_id).await,
+        "failed",
+        "機器の値を書き換えています"
+    );
+}
+
+/// **修理の起票で部品を対象にできること**（設計書6.3）。
+///
+/// 部品を対象にできるのは修理と廃棄だけ。対象は今このプロジェクトにある部品。
+async fn 修理の起票で部品を指定できる(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "repair-create@example.com").await;
+    let device_id = 予約対象の機器(db, &場, "repair-create-host", "running").await;
+    let psu = 部品(db, 場.user.id, "PSU-NEW").await;
+    part_instance_location::ActiveModel {
+        part_instance_id: Set(psu.id),
+        location_type: Set("Device".to_owned()),
+        location_id: Set(Some(device_id)),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let よその = 部品(db, 場.user.id, "PSU-ELSEWHERE").await;
+    let psu_id = psu.id.to_string();
+    let よその_id = よその.id.to_string();
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, form) = 取得(
+        状態,
+        &format!("/projects/{}/work-orders/new", 場.project_id),
+        &token,
+    )
+    .await;
+    // 他の選択肢と id が重なるので、表示名で確かめる
+    assert!(form.contains("PSU-NEW（SN-PSU-NEW）"), "{form}");
+    assert!(!form.contains("PSU-ELSEWHERE"), "{form}");
+
+    for (種類, 部品id, 期待) in [
+        (
+            "Addition",
+            psu_id.as_str(),
+            "部品を対象にできるのは修理と廃棄だけです",
+        ),
+        (
+            "Repair",
+            よその_id.as_str(),
+            "このプロジェクトにある部品を指定してください",
+        ),
+    ] {
+        let (状態, token) = 認証済み(db, &場.user).await;
+        let (status, body) = 送信(
+            状態,
+            &format!("/projects/{}/work-orders", 場.project_id),
+            &token,
+            &[
+                ("work_type", 種類),
+                ("title", "部品の修理"),
+                ("part_instance_id", 部品id),
+            ],
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{種類}");
+        assert!(body.contains(期待), "{種類}: {body}");
+    }
+
+    let 前 = チケット数(db).await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, _) = 送信(
+        状態,
+        &format!("/projects/{}/work-orders", 場.project_id),
+        &token,
+        &[
+            ("work_type", "Repair"),
+            ("title", "電源ユニット交換"),
+            ("device_id", &device_id.to_string()),
+            ("part_instance_id", &psu_id),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(チケット数(db).await, 前 + 1);
+    let w = work_order::Entity::find()
+        .order_by_desc(work_order::Column::Id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(w.part_instance_id, Some(psu.id));
+    assert_eq!(w.device_id, Some(device_id));
 }
 
 /// **承認後は予約を作れないこと**（設計書11.6）。
@@ -1514,6 +1744,43 @@ async fn 現行の搭載(db: &DatabaseConnection, device_id: i32) -> Option<devi
         .unwrap()
 }
 
+async fn 機器の故障(db: &DatabaseConnection, device_id: i32) -> String {
+    device::Entity::find_by_id(device_id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap()
+        .health
+}
+
+async fn 故障させる(db: &DatabaseConnection, device_id: i32) {
+    device::ActiveModel {
+        id: Set(device_id),
+        health: Set("failed".to_owned()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .update(db)
+    .await
+    .unwrap();
+}
+
+/// 修理のチケット。承認の流れは別のテストで確かめている。
+async fn 修理のチケット(
+    db: &DatabaseConnection,
+    project_id: i32,
+    device_id: Option<i32>,
+    part_instance_id: Option<i32>,
+    status: &str,
+) -> work_order::Model {
+    let w = 起票(db, project_id, None, "Repair", None).await;
+    let mut active: work_order::ActiveModel = w.into();
+    active.device_id = Set(device_id);
+    active.part_instance_id = Set(part_instance_id);
+    active.status = Set(status.to_owned());
+    active.update(db).await.unwrap()
+}
+
 async fn 機器の状態(db: &DatabaseConnection, device_id: i32) -> String {
     device::Entity::find_by_id(device_id)
         .one(db)
@@ -1818,6 +2085,12 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 部品の廃棄は部品の所在だけを変える);
         全検証!(@one $用意, $属性, 棚やプロジェクトに置いた部品も廃棄できる);
         全検証!(@one $用意, $属性, 移譲先からもチケットが見える);
+        全検証!(@one $用意, $属性, 移譲の実行では予約中を進めない);
+        全検証!(@one $用意, $属性, 倉庫から払い出すと予約中になる);
+        全検証!(@one $用意, $属性, 倉庫へ入れても状態は変えない);
+        全検証!(@one $用意, $属性, 修理の完了で機器の故障を戻す);
+        全検証!(@one $用意, $属性, 部品の修理は部品の故障だけを戻す);
+        全検証!(@one $用意, $属性, 修理の起票で部品を指定できる);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

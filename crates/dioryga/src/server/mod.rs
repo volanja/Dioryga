@@ -178,6 +178,11 @@ pub fn router(state: AppState) -> Router {
             "/projects/{id}/devices/{device_id}/purchase",
             post(device::save_purchase),
         )
+        // 部品の故障の有無。チケットは使わず、機器の詳細の部品の欄で変える（設計書6.3）
+        .route(
+            "/projects/{id}/devices/{device_id}/parts/{part_id}/health",
+            post(device::set_part_health),
+        )
         .route(
             "/projects/{id}/devices/{device_id}/sbom",
             get(sbom::show).post(sbom::upload),

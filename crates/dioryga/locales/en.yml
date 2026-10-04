@@ -176,6 +176,10 @@ devices:
   device_type: Type
   model: Model / configuration
   status: Status
+  health: Health
+  health_hint: Set to “Failed” when you notice a failure. It returns to “OK” when a repair work order is completed. If you set it by mistake, change it back here
+  part_health_save: Change
+  part_health_invalid: The part health value is not valid
   location: Location
   detail: Details
   empty: No matching devices
@@ -208,6 +212,7 @@ devices:
   hostname_required: Enter a hostname
   device_type_invalid: The device type is not valid
   status_invalid: The status is not valid
+  health_invalid: The health value is not valid
   device_category_invalid: The category is not valid
   configuration_invalid: The configuration selection is not valid
   power_watt_invalid: Enter the power draw as a whole number of zero or more
@@ -246,8 +251,8 @@ devices:
   tip_container: A container. It has no configuration or serial number
   tip_logical: Several chassis acting as one (a stack or HA pair). It has no configuration or serial number
   hostname_hint: The name used in operation
-  status_hint_new: Defaults to “Provisioning”. “Planned” cannot be chosen here; reservations are made by addition work orders
-  status_hint_edit: A planned device becomes running when its addition work order is carried out
+  status_hint_new: Defaults to “Provisioning”. “Standby” is a ready-to-use spare. “Planned” cannot be chosen here; reservations are made by addition work orders
+  status_hint_edit: A device cannot be set back to “Planned”. A planned device can be moved on here, or becomes running when its addition work order is carried out
   power_hint: Enter a measured value if there is one, otherwise an expected value
   manage_as_fixed_asset: Manage as a fixed asset
   fixed_asset_hint: The acquisition cost and date above are used. Add only the two values depreciation needs
@@ -343,6 +348,8 @@ work_orders:
   target_project_hint: Only for Transfer. The target project must approve as well
   device: Target device
   device_hint: Optional. Leave empty to plan ahead before the device is decided
+  part: Target part
+  part_hint: Only for repairs and disposals. When a repair is completed, the part is set back to OK (the device is not changed)
   assignee: Primary assignee
   primary_assignee: Primary assignee
   secondary_assignee: Secondary assignee
@@ -375,6 +382,8 @@ work_orders:
   error_target_project: Transfer requires a target project
   error_target_project_unused: A target project can only be set for Transfer
   error_target_project_same: Choose a different project as the target
+  error_part_work_type: Only repair and disposal work orders can target a part
+  error_part_invalid: Choose a part that is in this project
   error_due_date: The due date cannot be read. Enter it like 2026-09-23
   error_already_decided: This approval has already been decided
   error_not_planned: Only planned work orders can be approved
@@ -460,6 +469,8 @@ containers:
   circuits_hint: Circuits supplied to this rack or furniture. It can have several, such as feed A and feed B. Per-circuit load and redundancy checks are not available yet
   power: Total power draw
   power_total: "%{watt}W running (%{with_plan}W including reservations)"
+  power_standby: ". %{count} standby devices are not included"
+  power_stored: ". %{count} devices in storage are not included"
   circuit_label: Feed
   voltage: Voltage (V)
   phase: Phase
@@ -936,6 +947,10 @@ power:
   planned: Reserved devices
   watt_with_plan: Power (incl. reserved)
   virtual: Virtual (not counted)
+  standby: Standby (not counted)
+  stored: In storage (not counted)
+  stored_hint: Devices in the warehouse are only stored, so they are not counted
+  standby_hint: Standby devices are not counted. Hot standby devices do draw power, so many standby devices make the total look lower than it is
   total: Total
 
 dashboard:
@@ -944,6 +959,8 @@ dashboard:
   open_work_order: Open work order
   create_work_order: Create work order
   note_running: Currently in this project
+  note_standby: Ready-to-use spares
+  note_stored: Spares ready to hand out
   note_planned: Held by a work order
   note_provisioning: A work order is in progress
   note_repairing: Being worked on
@@ -999,8 +1016,17 @@ device_statuses:
   running: running
   planned: planned
   provisioning: provisioning
-  repairing: repairing
+  standby: standby
+
+# Whether a device or part has failed (health), and "repairing" derived from it (design 6.3)
+device_healths:
+  ok: OK
   failed: failed
+  repairing: repairing
+
+# Shown from the location, not a status value (design 6.3)
+device_locations:
+  stored: in storage
 
 work_order_statuses:
   planned: planned

@@ -205,15 +205,16 @@
 | serial_number | string | nullable、Virtual/Containerは無し |
 | asset_number | string | |
 | power_watt | int | |
-| status | string | running/failed/repairing/planned/provisioning |
+| status | string | planned/provisioning/running/standby（運用の段階） |
+| health | string | ok/failed（故障の有無） |
 
-**`in_stock`/`disposed` は `status` に持たない**（DEVICE_ASSIGNMENTから導出。旧B-1）。
+**`in_stock`/`disposed` は `status` に持たない**（DEVICE_ASSIGNMENTから導出。旧B-1）。**修理中は `health` に持たない**（未完了の `Repair` のWORK_ORDERから導出。6.3）。
 
 ### DEVICE_ASSIGNMENT (6.2) — 履歴
 `device_id`(FK), `location_type`(Warehouse/Project/Disposed), `location_id`(nullable、Disposedはnull), `work_order_id`, `from_date`, `to_date`
 
 ### PART_INSTANCE (6.2)
-`part_catalog_id`(FK), `serial_number`, `status`
+`part_catalog_id`(FK), `serial_number`, `status`, `health`（語彙はDEVICEと同じ。**`health` は機器と独立**。6.3）
 
 ### PART_INSTANCE_LOCATION (6.2, 12.4) — 履歴
 `part_instance_id`(FK), `location_type`(Warehouse/Device/MountContainer/Project/Disposed), `location_id`, `chassis_slot_id`(nullable、location_type=Deviceのみ、**任意項目**), `work_order_id`, `from_date`, `to_date`
@@ -318,7 +319,9 @@
 **`UNIQUE(subnet_id, ip_address) WHERE to_date IS NULL`** の部分インデックスはPostgreSQL/SQLite双方が対応するため、**例外的にDB制約として実装できる**（14.2）。
 
 ### CABLE_INSTANCE (8.3)
-`cable_catalog_id`(FK), `serial_number`(nullable), `asset_number`(nullable), `status`(in_stock/in_use/broken/disposed)
+`cable_catalog_id`(FK), `serial_number`(nullable), `asset_number`(nullable), `retired_at`(nullable、使えなくなった日)
+
+**`status` を持たない**（8.4）。故障と廃棄は区別せず、理由は備考に書く。
 
 ### CABLE_CONNECTION (8.3) — 履歴
 `cable_instance_id`(FK), `cable_end_slot_id`(FK), `part_instance_id`(FK), `port_slot_id`(FK), `work_order_id`, `from_date`, `to_date`
@@ -332,7 +335,7 @@
 ### SOFTWARE_INSTANCE (9.4, 9.4.1)
 `software_catalog_id`(FK), `license_key`(nullable), `asset_number`(nullable), `retired_at`(datetime nullable、null=保有中)
 
-**`status` を持たない。**「インストールされているか」は `SOFTWARE_INSTALLATION` の現行行から導出する（旧B-1と同じ判断）。ハードウェアの `failed`/`repairing` はライセンスに対応物がなく、稼働中サービスの異常は監視ツールの領域でスコープ外。導出できない「まだ保有しているか」だけを `retired_at` で持つ。
+**`status` を持たない。**「インストールされているか」は `SOFTWARE_INSTALLATION` の現行行から導出する（旧B-1と同じ判断）。ハードウェアの故障（`health`）はライセンスに対応物がなく、稼働中サービスの異常は監視ツールの領域でスコープ外。導出できない「まだ保有しているか」だけを `retired_at` で持つ。
 
 ### SOFTWARE_INSTALLATION (9.4) — 履歴
 `software_instance_id`(FK), `device_id`(FK), `work_order_id`, `from_date`, `to_date`

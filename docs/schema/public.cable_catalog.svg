@@ -214,14 +214,14 @@
 <text text-anchor="start" x="459.12" y="-1301.4" font-family="Arial" font-size="14.00">asset_number </text>
 <text text-anchor="start" x="551.73" y="-1301.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 <polygon fill="none" stroke="black" points="452.12,-1258.4 452.12,-1289.2 746.05,-1289.2 746.05,-1258.4 452.12,-1258.4"/>
-<text text-anchor="start" x="459.12" y="-1270.6" font-family="Arial" font-size="14.00">status </text>
-<text text-anchor="start" x="500.36" y="-1270.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<text text-anchor="start" x="459.12" y="-1270.6" font-family="Arial" font-size="14.00">created_at </text>
+<text text-anchor="start" x="529.17" y="-1270.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 <polygon fill="none" stroke="black" points="452.12,-1227.6 452.12,-1258.4 746.05,-1258.4 746.05,-1227.6 452.12,-1227.6"/>
-<text text-anchor="start" x="459.12" y="-1239.8" font-family="Arial" font-size="14.00">created_at </text>
-<text text-anchor="start" x="529.17" y="-1239.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<text text-anchor="start" x="459.12" y="-1239.8" font-family="Arial" font-size="14.00">updated_at </text>
+<text text-anchor="start" x="533.08" y="-1239.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 <polygon fill="none" stroke="black" points="452.12,-1196.8 452.12,-1227.6 746.05,-1227.6 746.05,-1196.8 452.12,-1196.8"/>
-<text text-anchor="start" x="459.12" y="-1209" font-family="Arial" font-size="14.00">updated_at </text>
-<text text-anchor="start" x="533.08" y="-1209" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<text text-anchor="start" x="459.12" y="-1209" font-family="Arial" font-size="14.00">retired_at </text>
+<text text-anchor="start" x="522.16" y="-1209" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
 </g>
 <!-- public.cable_instance&#45;&gt;public.cable_catalog -->
 <g id="edge2" class="edge">

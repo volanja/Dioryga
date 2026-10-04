@@ -10,7 +10,8 @@ use dioryga::config::Config;
 use dioryga::server::{router, AppState};
 use entity::{
     app_user, chassis_model, configuration, device, device_assignment, fixed_asset,
-    maintenance_contract, maintenance_contract_item, project, project_member, purchase, vendor,
+    maintenance_contract, maintenance_contract_item, part_catalog, part_instance,
+    part_instance_location, project, project_member, purchase, vendor,
 };
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use std::sync::Arc;
@@ -227,6 +228,9 @@ async fn 不正な入力は拒否される(db: &DatabaseConnection) {
         ("status", "でたらめ", "状態の値が不正です"),
         // **予約は登録から作らない**（設計書11.6）
         ("status", "planned", "状態の値が不正です"),
+        // **故障は `health` に持つ**（設計書6.3）。旧い値は語彙外
+        ("status", "failed", "状態の値が不正です"),
+        ("status", "repairing", "状態の値が不正です"),
         // 数値として読めない
         ("configuration_id", "abc", "構成の指定が不正です"),
         // **存在しないID。**確かめないと外部キー違反で500になる
@@ -720,6 +724,299 @@ async fn もう1台は選択を引き継ぐ(db: &DatabaseConnection) {
 }
 
 // ---------------------------------------------------------------------------
+// 運用の段階と故障（#221、設計書6.3）
+// ---------------------------------------------------------------------------
+
+/// **登録では待機を選べ、故障の有無は正常で始まること**（設計書6.3）。
+///
+/// 故障にするのは人が機器の詳細から行う。登録のフォームに `health` が
+/// 紛れ込んでも捨てる。
+async fn 登録は待機を選べて正常で始まる(db: &DatabaseConnection) {
+    let (user, p, cfg) = 登録の舞台(db, "standby").await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _, _) = 送信して行き先(
+        状態,
+        &format!("/projects/{}/devices", p.id),
+        &token,
+        &[
+            ("hostname", "spare-01"),
+            ("device_type", "Physical"),
+            ("configuration_id", &cfg.to_string()),
+            ("status", "standby"),
+            ("health", "failed"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+
+    let d = 登録された(db, "spare-01").await;
+    assert_eq!((d.status.as_str(), d.health.as_str()), ("standby", "ok"));
+}
+
+/// **編集で故障にでき、誤りなら編集で正常に戻せること**（設計書6.3）。
+///
+/// 変更管理チケットは使わない。故障は起きた事実であり、承認を待てない。
+async fn 編集で故障にして戻せる(db: &DatabaseConnection) {
+    let user = 利用者(db, "health-edit@example.com").await;
+    let p = プロジェクト(db, "故障の編集").await;
+    メンバー(db, user.id, p.id, "Operator").await;
+    let d = 機器(db, "srv-health").await;
+    割当(db, d.id, p.id, Utc::now()).await;
+    let uri = format!("/projects/{}/devices/{}", p.id, d.id);
+    let 欄 = |status: &'static str, health: &'static str| {
+        vec![
+            ("hostname", "srv-health"),
+            ("device_type", "Virtual"),
+            ("device_category", "Server"),
+            ("status", status),
+            ("health", health),
+        ]
+    };
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, form) = 取得(状態, &format!("{uri}/edit"), &token).await;
+    assert!(form.contains(r#"name="health""#), "{form}");
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = 送信(状態, &uri, &token, &欄("running", "failed")).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let 後 = device::Entity::find_by_id(d.id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    // 運用を続けたまま故障を記録できる
+    assert_eq!(
+        (後.status.as_str(), 後.health.as_str()),
+        ("running", "failed")
+    );
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}/devices", p.id), &token).await;
+    assert!(
+        body.contains(r#"<span class="badge danger">故障</span>"#),
+        "{body}"
+    );
+
+    // 語彙外は拒否する
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 送信(状態, &uri, &token, &欄("running", "broken")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("故障の有無の値が不正です"), "{body}");
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = 送信(状態, &uri, &token, &欄("standby", "ok")).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let 後 = device::Entity::find_by_id(d.id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!((後.status.as_str(), 後.health.as_str()), ("standby", "ok"));
+}
+
+/// **予約中の機器は編集で先へ進められるが、予約中には戻せないこと**（設計書6.3）。
+///
+/// 予約は増設のチケットが作る。変えなければ予約中のまま残る。
+async fn 予約中は先へ進めるが戻せない(db: &DatabaseConnection) {
+    let user = 利用者(db, "planned-edit@example.com").await;
+    let p = プロジェクト(db, "予約の編集").await;
+    メンバー(db, user.id, p.id, "Operator").await;
+    let d = 機器(db, "srv-planned").await;
+    let mut active: device::ActiveModel = d.clone().into();
+    active.status = Set("planned".to_owned());
+    active.update(db).await.unwrap();
+    割当(db, d.id, p.id, Utc::now()).await;
+    let uri = format!("/projects/{}/devices/{}", p.id, d.id);
+    let 欄 = |status: &'static str| {
+        vec![
+            ("hostname", "srv-planned"),
+            ("device_type", "Virtual"),
+            ("device_category", "Server"),
+            ("status", status),
+            ("health", "ok"),
+        ]
+    };
+    let 状態は = |db: &DatabaseConnection| {
+        let db = db.clone();
+        async move {
+            device::Entity::find_by_id(d.id)
+                .one(&db)
+                .await
+                .unwrap()
+                .unwrap()
+                .status
+        }
+    };
+
+    // 予約中の機器の編集画面には予約中が残る
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, form) = 取得(状態, &format!("{uri}/edit"), &token).await;
+    assert!(
+        form.contains(r#"<option value="planned" selected>"#),
+        "{form}"
+    );
+
+    // 変えなければ予約中のまま
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = 送信(状態, &uri, &token, &欄("planned")).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(状態は(db).await, "planned");
+
+    // 先へ進められる
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = 送信(状態, &uri, &token, &欄("running")).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(状態は(db).await, "running");
+
+    // 予約中には戻せない。選択肢にも出ない
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, form) = 取得(状態, &format!("{uri}/edit"), &token).await;
+    assert!(!form.contains(r#"value="planned""#), "{form}");
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 送信(状態, &uri, &token, &欄("planned")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("状態の値が不正です"), "{body}");
+    assert_eq!(状態は(db).await, "running");
+}
+
+/// **倉庫プロジェクトにある機器は、状態を保管中と出すこと**（#221、設計書6.3）。
+///
+/// 倉庫にある間の `status` には意味が無く、`running` のままかもしれない。
+/// 倉庫を出た機器は、その後の状態で出す。
+async fn 倉庫では状態を保管中と出す(db: &DatabaseConnection) {
+    let user = 利用者(db, "stored@example.com").await;
+    let p = プロジェクト(db, "倉庫").await;
+    メンバー(db, user.id, p.id, "Operator").await;
+    crate::support::倉庫プロジェクトにする(db, p.id).await;
+    let d = 機器(db, "spare-stored").await;
+    割当(db, d.id, p.id, Utc::now()).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}/devices", p.id), &token).await;
+    assert!(
+        body.contains(r#"<span class="led sm stored"></span>保管中"#),
+        "{body}"
+    );
+    assert!(!body.contains("稼働中"), "{body}");
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, body) = 取得(
+        状態,
+        &format!("/projects/{}/devices/{}", p.id, d.id),
+        &token,
+    )
+    .await;
+    assert!(body.contains("<dd>保管中</dd>"), "{body}");
+
+    // 通常のプロジェクトでは状態で出す
+    let 通常 = プロジェクト(db, "通常").await;
+    メンバー(db, user.id, 通常.id, "Operator").await;
+    let e = 機器(db, "srv-normal").await;
+    割当(db, e.id, 通常.id, Utc::now()).await;
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}/devices", 通常.id), &token).await;
+    assert!(body.contains("稼働中"), "{body}");
+    assert!(!body.contains("保管中"), "{body}");
+}
+
+/// **部品の故障の有無を機器の詳細で変えられること**（設計書6.3）。
+///
+/// 機器の `health` は書き換えない（独立に持ち、表示で合わせる）。対象は
+/// この機器に今載っている部品だけ。
+async fn 部品の故障を詳細で変える(db: &DatabaseConnection) {
+    let user = 利用者(db, "part-health@example.com").await;
+    let p = プロジェクト(db, "部品の故障").await;
+    メンバー(db, user.id, p.id, "Operator").await;
+    let d = 機器(db, "srv-part").await;
+    割当(db, d.id, p.id, Utc::now()).await;
+    let 載っている = 部品(db, user.id, "PSU-ON", Some(d.id)).await;
+    let 載っていない = 部品(db, user.id, "PSU-OFF", None).await;
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, body) = 取得(
+        状態,
+        &format!("/projects/{}/devices/{}", p.id, d.id),
+        &token,
+    )
+    .await;
+    assert!(
+        body.contains(&format!("/parts/{載っている}/health")),
+        "{body}"
+    );
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = 送信(
+        状態,
+        &format!(
+            "/projects/{}/devices/{}/parts/{載っている}/health",
+            p.id, d.id
+        ),
+        &token,
+        &[("health", "failed")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let 部品の後 = part_instance::Entity::find_by_id(載っている)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(部品の後.health, "failed");
+    let 機器の後 = device::Entity::find_by_id(d.id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(機器の後.health, "ok", "機器の値を書き換えています");
+
+    // 一覧では機器を故障として出す
+    let (状態, token) = 認証済み(db, &user).await;
+    let (_, body) = 取得(状態, &format!("/projects/{}/devices", p.id), &token).await;
+    assert!(
+        body.contains(r#"<span class="badge danger">故障</span>"#),
+        "{body}"
+    );
+
+    // この機器に載っていない部品は変えられない
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = 送信(
+        状態,
+        &format!(
+            "/projects/{}/devices/{}/parts/{載っていない}/health",
+            p.id, d.id
+        ),
+        &token,
+        &[("health", "failed")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    // 閲覧者は変えられない
+    let viewer = 利用者(db, "part-health-viewer@example.com").await;
+    メンバー(db, viewer.id, p.id, "Viewer").await;
+    let (状態, token) = 認証済み(db, &viewer).await;
+    let (status, _) = 送信(
+        状態,
+        &format!(
+            "/projects/{}/devices/{}/parts/{載っている}/health",
+            p.id, d.id
+        ),
+        &token,
+        &[("health", "ok")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let 部品の後 = part_instance::Entity::find_by_id(載っている)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(部品の後.health, "failed");
+}
+
+// ---------------------------------------------------------------------------
 // 表示
 // ---------------------------------------------------------------------------
 
@@ -1173,6 +1470,55 @@ async fn 機器(db: &DatabaseConnection, hostname: &str) -> device::Model {
     .unwrap()
 }
 
+/// 部品を作る。`device_id` があればその機器に載せる。部品の id を返す。
+async fn 部品(
+    db: &DatabaseConnection,
+    user_id: i32,
+    serial: &str,
+    device_id: Option<i32>,
+) -> i32 {
+    let v = ベンダー(db, &format!("部品-{serial}"), user_id).await;
+    let c = part_catalog::ActiveModel {
+        category: Set("PSU".to_owned()),
+        vendor_id: Set(v),
+        part_number: Set(format!("PSU-{serial}")),
+        spec_json: Set("{}".to_owned()),
+        created_by: Set(user_id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let p = part_instance::ActiveModel {
+        part_catalog_id: Set(c.id),
+        serial_number: Set(Some(serial.to_owned())),
+        status: Set("running".to_owned()),
+        health: Set("ok".to_owned()),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    if let Some(device_id) = device_id {
+        part_instance_location::ActiveModel {
+            part_instance_id: Set(p.id),
+            location_type: Set("Device".to_owned()),
+            location_id: Set(Some(device_id)),
+            from_date: Set(Utc::now()),
+            to_date: Set(None),
+            ..Default::default()
+        }
+        .insert(db)
+        .await
+        .unwrap();
+    }
+    p.id
+}
+
 async fn 割当(
     db: &DatabaseConnection,
     device_id: i32,
@@ -1218,6 +1564,11 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 見えない契約には足せない);
         全検証!(@one $用意, $属性, もう1台は選択を引き継ぐ);
         全検証!(@one $用意, $属性, 予約中の機器は区別表示される);
+        全検証!(@one $用意, $属性, 登録は待機を選べて正常で始まる);
+        全検証!(@one $用意, $属性, 編集で故障にして戻せる);
+        全検証!(@one $用意, $属性, 予約中は先へ進めるが戻せない);
+        全検証!(@one $用意, $属性, 部品の故障を詳細で変える);
+        全検証!(@one $用意, $属性, 倉庫では状態を保管中と出す);
         全検証!(@one $用意, $属性, 統合された機器は一覧に出ない);
         全検証!(@one $用意, $属性, 所属するプロジェクトだけ見える);
         全検証!(@one $用意, $属性, 種別は表示だけを訳す);

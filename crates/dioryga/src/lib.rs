@@ -17,6 +17,7 @@ pub mod cost;
 pub mod currency;
 pub mod date;
 pub mod db;
+pub mod device_state;
 pub mod error;
 pub mod import;
 pub mod licenses;

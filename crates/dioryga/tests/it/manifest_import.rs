@@ -124,7 +124,7 @@ async fn 倉庫にある機器を二度流しても変わらない(db: &Database
                 "device",
                 "devices.csv",
                 "uid,external_id,hostname,serial_number,asset_number,device_type,power_watt,status\n\
-                 ,KT-0901,spare01,HM22-0901,,Physical,0,failed\n",
+                 ,KT-0901,spare01,HM22-0901,,Physical,0,standby\n",
             ),
             (
                 "device_assignment",

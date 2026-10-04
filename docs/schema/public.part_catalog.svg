@@ -233,36 +233,39 @@
 <!-- public.part_instance -->
 <g id="node4" class="node">
 <title>public.part_instance</title>
-<polygon fill="#efefef" stroke="none" points="862.71,-1412.4 862.71,-1448 1146.65,-1448 1146.65,-1412.4 862.71,-1412.4"/>
-<polygon fill="none" stroke="black" points="862.71,-1412.4 862.71,-1448 1146.65,-1448 1146.65,-1412.4 862.71,-1412.4"/>
-<text text-anchor="start" x="869.71" y="-1425.8" font-family="Arial Bold" font-size="18.00">public.part_instance</text>
-<text text-anchor="start" x="1015.16" y="-1425.8" font-family="Arial" font-size="14.00">    </text>
-<text text-anchor="start" x="1046.28" y="-1425.8" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
-<polygon fill="none" stroke="black" points="862.71,-1381.6 862.71,-1412.4 1146.65,-1412.4 1146.65,-1381.6 862.71,-1381.6"/>
-<text text-anchor="start" x="869.71" y="-1393.8" font-family="Arial" font-size="14.00">id </text>
-<text text-anchor="start" x="884.5" y="-1393.8" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="862.71,-1350.8 862.71,-1381.6 1146.65,-1381.6 1146.65,-1350.8 862.71,-1350.8"/>
-<text text-anchor="start" x="869.71" y="-1363" font-family="Arial" font-size="14.00">part_catalog_id </text>
-<text text-anchor="start" x="969.34" y="-1363" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
-<polygon fill="none" stroke="black" points="862.71,-1320 862.71,-1350.8 1146.65,-1350.8 1146.65,-1320 862.71,-1320"/>
-<text text-anchor="start" x="869.71" y="-1332.2" font-family="Arial" font-size="14.00">serial_number </text>
-<text text-anchor="start" x="962.31" y="-1332.2" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="862.71,-1289.2 862.71,-1320 1146.65,-1320 1146.65,-1289.2 862.71,-1289.2"/>
-<text text-anchor="start" x="869.71" y="-1301.4" font-family="Arial" font-size="14.00">status </text>
-<text text-anchor="start" x="910.95" y="-1301.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
-<polygon fill="none" stroke="black" points="862.71,-1258.4 862.71,-1289.2 1146.65,-1289.2 1146.65,-1258.4 862.71,-1258.4"/>
-<text text-anchor="start" x="869.71" y="-1270.6" font-family="Arial" font-size="14.00">created_at </text>
-<text text-anchor="start" x="939.76" y="-1270.6" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
-<polygon fill="none" stroke="black" points="862.71,-1227.6 862.71,-1258.4 1146.65,-1258.4 1146.65,-1227.6 862.71,-1227.6"/>
-<text text-anchor="start" x="869.71" y="-1239.8" font-family="Arial" font-size="14.00">updated_at </text>
-<text text-anchor="start" x="943.67" y="-1239.8" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="#efefef" stroke="none" points="862.71,-1427.8 862.71,-1463.4 1146.65,-1463.4 1146.65,-1427.8 862.71,-1427.8"/>
+<polygon fill="none" stroke="black" points="862.71,-1427.8 862.71,-1463.4 1146.65,-1463.4 1146.65,-1427.8 862.71,-1427.8"/>
+<text text-anchor="start" x="869.71" y="-1441.2" font-family="Arial Bold" font-size="18.00">public.part_instance</text>
+<text text-anchor="start" x="1015.16" y="-1441.2" font-family="Arial" font-size="14.00">    </text>
+<text text-anchor="start" x="1046.28" y="-1441.2" font-family="Arial" font-size="14.00" fill="#666666">[BASE TABLE]</text>
+<polygon fill="none" stroke="black" points="862.71,-1397 862.71,-1427.8 1146.65,-1427.8 1146.65,-1397 862.71,-1397"/>
+<text text-anchor="start" x="869.71" y="-1409.2" font-family="Arial" font-size="14.00">id </text>
+<text text-anchor="start" x="884.5" y="-1409.2" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="862.71,-1366.2 862.71,-1397 1146.65,-1397 1146.65,-1366.2 862.71,-1366.2"/>
+<text text-anchor="start" x="869.71" y="-1378.4" font-family="Arial" font-size="14.00">part_catalog_id </text>
+<text text-anchor="start" x="969.34" y="-1378.4" font-family="Arial" font-size="14.00" fill="#666666">[integer]</text>
+<polygon fill="none" stroke="black" points="862.71,-1335.4 862.71,-1366.2 1146.65,-1366.2 1146.65,-1335.4 862.71,-1335.4"/>
+<text text-anchor="start" x="869.71" y="-1347.6" font-family="Arial" font-size="14.00">serial_number </text>
+<text text-anchor="start" x="962.31" y="-1347.6" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="862.71,-1304.6 862.71,-1335.4 1146.65,-1335.4 1146.65,-1304.6 862.71,-1304.6"/>
+<text text-anchor="start" x="869.71" y="-1316.8" font-family="Arial" font-size="14.00">status </text>
+<text text-anchor="start" x="910.95" y="-1316.8" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
+<polygon fill="none" stroke="black" points="862.71,-1273.8 862.71,-1304.6 1146.65,-1304.6 1146.65,-1273.8 862.71,-1273.8"/>
+<text text-anchor="start" x="869.71" y="-1286" font-family="Arial" font-size="14.00">created_at </text>
+<text text-anchor="start" x="939.76" y="-1286" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="862.71,-1243 862.71,-1273.8 1146.65,-1273.8 1146.65,-1243 862.71,-1243"/>
+<text text-anchor="start" x="869.71" y="-1255.2" font-family="Arial" font-size="14.00">updated_at </text>
+<text text-anchor="start" x="943.67" y="-1255.2" font-family="Arial" font-size="14.00" fill="#666666">[timestamp with time zone]</text>
+<polygon fill="none" stroke="black" points="862.71,-1212.2 862.71,-1243 1146.65,-1243 1146.65,-1212.2 862.71,-1212.2"/>
+<text text-anchor="start" x="869.71" y="-1224.4" font-family="Arial" font-size="14.00">health </text>
+<text text-anchor="start" x="911.75" y="-1224.4" font-family="Arial" font-size="14.00" fill="#666666">[varchar]</text>
 </g>
 <!-- public.part_instance&#45;&gt;public.part_catalog -->
 <g id="edge3" class="edge">
 <title>public.part_instance:part_catalog_id&#45;&gt;public.part_catalog:id</title>
-<path fill="none" stroke="black" d="M851.62,-1365.7C770.41,-1357.19 844.52,-1240.84 810.68,-1153.6 786.23,-1090.55 804.77,-1020.4 737.15,-1020.4"/>
-<polygon fill="black" stroke="black" points="851.39,-1365.69 861.16,-1370.68 856.72,-1365.95 861.05,-1366.17 861.05,-1366.17 861.05,-1366.17 856.72,-1365.95 861.6,-1361.69 851.39,-1365.69"/>
-<text text-anchor="start" x="868.71" y="-1376.2" font-family="Arial" font-size="10.00">FOREIGN KEY (part_catalog_id) REFERENCES part_catalog(id)</text>
+<path fill="none" stroke="black" d="M851.78,-1379.05C812.32,-1357.01 827.79,-1198.74 810.68,-1153.6 786.72,-1090.37 804.77,-1020.4 737.15,-1020.4"/>
+<polygon fill="black" stroke="black" points="851.7,-1379.03 860.27,-1385.88 856.87,-1380.36 861.07,-1381.43 861.07,-1381.43 861.07,-1381.43 856.87,-1380.36 862.51,-1377.16 851.7,-1379.03"/>
+<text text-anchor="start" x="868.71" y="-1391.6" font-family="Arial" font-size="10.00">FOREIGN KEY (part_catalog_id) REFERENCES part_catalog(id)</text>
 </g>
 </g>
 </svg>

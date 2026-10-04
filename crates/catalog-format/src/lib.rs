@@ -151,25 +151,6 @@ impl From<&str> for Arg {
     }
 }
 
-/// **移行中だけの口**（#214）。訳されていない文言をそのまま運ぶ。
-/// 取込の種類ごとにキーへ移し終えたら消す。
-pub const 未訳: &str = "_raw";
-
-impl From<String> for Message {
-    fn from(v: String) -> Self {
-        if v.is_empty() {
-            return Self::default();
-        }
-        Self::new(未訳).with("text", v)
-    }
-}
-
-impl From<&str> for Message {
-    fn from(v: &str) -> Self {
-        Self::from(v.to_owned())
-    }
-}
-
 macro_rules! 数を差し込む {
     ($($t:ty),*) => {
         $(impl From<$t> for Arg {

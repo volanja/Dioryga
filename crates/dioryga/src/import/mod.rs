@@ -84,11 +84,11 @@ pub struct Entry {
 }
 
 impl Entry {
-    pub fn new(outcome: Outcome, target: impl Into<String>, detail: impl Into<Message>) -> Self {
+    pub fn new(outcome: Outcome, target: impl Into<String>, detail: Message) -> Self {
         Self {
             outcome,
             target: target.into(),
-            detail: detail.into(),
+            detail,
         }
     }
 
@@ -130,10 +130,6 @@ impl 詳細を訳す for Message {
                     }
                 })
         };
-        // 移行中だけの口（#214）。訳されていない文言をそのまま出す
-        if self.key == dioryga_catalog_format::未訳 {
-            return 値("text").unwrap_or_default();
-        }
         let names: Vec<&str> = self.args.iter().map(|(n, _)| *n).collect();
         let values: Vec<String> = names.iter().map(|n| 値(n).unwrap_or_default()).collect();
         let 型 = rust_i18n::t!(self.key, locale = l);
@@ -299,22 +295,81 @@ mod tests {
     #[test]
     fn エラーが1件でもあれば取り込まない() {
         let mut report = Report::default();
-        report.push(Entry::new(Outcome::Created, "a", ""));
+        report.push(Entry::new(Outcome::Created, "a", Message::default()));
         assert!(!report.has_error());
 
-        report.push(Entry::new(Outcome::Warning, "b", "スロット超過"));
+        report.push(Entry::new(
+            Outcome::Warning,
+            "b",
+            理由!("import_detail.catalog.add_weight"),
+        ));
         assert!(!report.has_error(), "警告で止めてはならない");
 
-        report.push(Entry::new(Outcome::Error, "c", "参照先が無い"));
+        report.push(Entry::new(
+            Outcome::Error,
+            "c",
+            理由!("import_detail.catalog.chassis_model_not_found"),
+        ));
         assert!(report.has_error());
+    }
+
+    /// **理由は表示する側の言語で訳すこと**（#214）。入れ子の理由と並びも同じ言語にする。
+    #[test]
+    fn 理由を言語ごとに訳す() {
+        let 理由 = 理由!(
+            "import_detail.common.field_prefixed",
+            field = "status",
+            reason = 理由!(
+                "import_detail.common.not_in_vocabulary",
+                value = "failed",
+                allowed = "planned / running"
+            )
+        );
+        assert_eq!(
+            理由.文言("ja"),
+            "status: 「failed」は使えません（planned / running）"
+        );
+        assert_eq!(
+            理由.文言("en"),
+            "status: \"failed\" cannot be used (planned / running)"
+        );
+
+        let 並び = 理由!(
+            "import_detail.common.duplicate_in_file",
+            items = vec![
+                理由!(
+                    "import_detail.common.duplicate_item",
+                    key = "uid",
+                    value = "U1",
+                    row = 2
+                ),
+                理由!(
+                    "import_detail.common.duplicate_item",
+                    key = "external_id",
+                    value = "E1",
+                    row = 3
+                ),
+            ]
+        );
+        assert_eq!(
+            並び.文言("ja"),
+            "uid「U1」が2行目、external_id「E1」が3行目と重複しています"
+        );
+        assert_eq!(
+            並び.文言("en"),
+            "Duplicates uid \"U1\" in row 2, external_id \"E1\" in row 3"
+        );
+
+        // 理由なしは空
+        assert_eq!(Message::default().文言("ja"), "");
     }
 
     #[test]
     fn 集計が判定ごとに分かれる() {
         let mut report = Report::default();
-        report.push(Entry::new(Outcome::Created, "a", ""));
-        report.push(Entry::new(Outcome::Created, "b", ""));
-        report.push(Entry::new(Outcome::Unchanged, "c", ""));
+        report.push(Entry::new(Outcome::Created, "a", Message::default()));
+        report.push(Entry::new(Outcome::Created, "b", Message::default()));
+        report.push(Entry::new(Outcome::Unchanged, "c", Message::default()));
 
         assert_eq!(report.count(Outcome::Created), 2);
         assert_eq!(report.count(Outcome::Unchanged), 1);

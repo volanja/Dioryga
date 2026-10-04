@@ -322,6 +322,8 @@
 
 **`status` を持たない**（8.4）。故障と廃棄は区別せず、理由は備考に書く。
 
+**プロジェクトへの所属も、所在の履歴も持たない。**つながっている機器（`CABLE_CONNECTION` → `PART_INSTANCE_LOCATION` → 機器の所属）から辿る。実物は最初の接続と同時に作る（validation.md N-11）。
+
 ### CABLE_CONNECTION (8.3) — 履歴
 `cable_instance_id`(FK), `cable_end_slot_id`(FK), `part_instance_id`(FK), `port_slot_id`(FK), `work_order_id`, `from_date`, `to_date`
 

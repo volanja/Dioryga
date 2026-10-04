@@ -1544,6 +1544,8 @@ enum 動かせない理由 {
     載せている,
     /// 現行のIPアドレスがある。
     アドレス,
+    /// 載っている部品にケーブルが挿さっている（#225）。
+    ケーブル,
 }
 
 async fn 機器を動かせない理由<C: ConnectionTrait>(
@@ -1602,6 +1604,12 @@ async fn 機器を動かせない理由<C: ConnectionTrait>(
         }
     }
 
+    // ケーブルは機器について移らない。挿さったまま動かすと、つながった先が
+    // 別のプロジェクトの機器になる
+    if super::connection::機器にケーブルがある(db, device_id).await? {
+        return Ok(Some(動かせない理由::ケーブル));
+    }
+
     Ok(None)
 }
 
@@ -1621,6 +1629,7 @@ async fn 移譲を妨げるもの<C: ConnectionTrait>(
             動かせない理由::搭載 => "work_orders.error_transfer_mounted",
             動かせない理由::載せている => "work_orders.error_transfer_hosting",
             動かせない理由::アドレス => "work_orders.error_transfer_has_ip",
+            動かせない理由::ケーブル => "work_orders.error_transfer_has_cable",
         }))
 }
 
@@ -1638,7 +1647,14 @@ async fn 廃棄を妨げるもの<C: ConnectionTrait>(
         // 廃棄は、倉庫用のプロジェクトで起票する（#196）
         let ここにある =
             部品の現在のプロジェクト(db, part_instance_id).await? == Some(w.project_id);
-        return Ok((!ここにある).then_some("work_orders.error_disposal_part_not_here"));
+        if !ここにある {
+            return Ok(Some("work_orders.error_disposal_part_not_here"));
+        }
+        // 挿さったままの部品は捨てられない（#225）
+        if super::connection::部品にケーブルがある(db, part_instance_id).await? {
+            return Ok(Some("work_orders.error_disposal_part_has_cable"));
+        }
+        return Ok(None);
     }
 
     let Some(device_id) = w.device_id else {
@@ -1651,6 +1667,7 @@ async fn 廃棄を妨げるもの<C: ConnectionTrait>(
             動かせない理由::搭載 => "work_orders.error_disposal_mounted",
             動かせない理由::載せている => "work_orders.error_disposal_hosting",
             動かせない理由::アドレス => "work_orders.error_disposal_has_ip",
+            動かせない理由::ケーブル => "work_orders.error_disposal_has_cable",
         }))
 }
 

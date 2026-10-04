@@ -69,6 +69,93 @@ async fn 過去に所属した機器も閲覧できる(db: &DatabaseConnection) 
     assert!(body.contains("移管先"), "移設後の所在が見えません");
 }
 
+/// **過去に所属した機器は、見られるが書き換えられないこと**（#243）。
+///
+/// A-6は見るための規則である。移譲した機器を移譲元から書き換えられると、
+/// 変更管理チケットを通らずに他のプロジェクトの機器を変える経路になる。
+async fn 過去に所属した機器は書き換えられない(db: &DatabaseConnection) {
+    let user = 利用者(db, "a6-edit@example.com").await;
+    let 旧 = プロジェクト(db, "書き換えの移管元").await;
+    let 新 = プロジェクト(db, "書き換えの移管先").await;
+    メンバー(db, user.id, 旧.id, "Operator").await;
+
+    let d = 機器(db, "moved-ro").await;
+    let 昔 = 割当(db, d.id, 旧.id, Utc::now() - Duration::days(30)).await;
+    閉じる(db, 昔).await;
+    割当(db, d.id, 新.id, Utc::now()).await;
+    let uri = format!("/projects/{}/devices/{}", 旧.id, d.id);
+
+    // 詳細は開けるが、編集の導線は出ない
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 取得(状態, &uri, &token).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        !body.contains(&format!("{uri}/edit")),
+        "編集の導線が出ています"
+    );
+
+    // 編集画面は開けない
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = 取得(状態, &format!("{uri}/edit"), &token).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+
+    // 送っても変わらない
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = 送信(
+        状態,
+        &uri,
+        &token,
+        &[
+            ("hostname", "renamed"),
+            ("device_type", "Virtual"),
+            ("device_category", "Server"),
+            ("status", "running"),
+            ("health", "failed"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let 後 = device::Entity::find_by_id(d.id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(後.hostname, "moved-ro");
+    assert_eq!(後.health, "ok");
+
+    // 機器の下の書き込みも同じ。インターフェースの画面は開けるが、足せない
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = 取得(状態, &format!("{uri}/interfaces"), &token).await;
+    assert_eq!(status, StatusCode::OK);
+    for (path, fields) in [
+        ("interfaces", vec![("os_interface_name", "eth0")]),
+        ("purchase", vec![("purchase_price", "1000")]),
+        ("parts/1/health", vec![("health", "failed")]),
+    ] {
+        let (状態, token) = 認証済み(db, &user).await;
+        let (status, _) = 送信(状態, &format!("{uri}/{path}"), &token, &fields).await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{path}");
+    }
+    let 数 = entity::os_interface::Entity::find()
+        .filter(entity::os_interface::Column::DeviceId.eq(d.id))
+        .all(db)
+        .await
+        .unwrap()
+        .len();
+    assert_eq!(数, 0, "インターフェースが作られています");
+
+    // 移管先からは、今までどおり編集できる
+    メンバー(db, user.id, 新.id, "Operator").await;
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, _) = 取得(
+        状態,
+        &format!("/projects/{}/devices/{}/edit", 新.id, d.id),
+        &token,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+}
+
 /// **所属したことのないプロジェクトからは見えないこと。**
 ///
 /// URLを直接叩かれても通さない。A-6は「一度でも所属したか」で判定する。
@@ -1548,6 +1635,7 @@ async fn 閉じる(db: &DatabaseConnection, row: device_assignment::Model) {
 macro_rules! 全検証 {
     ($用意:path, $属性:meta) => {
         全検証!(@one $用意, $属性, 過去に所属した機器も閲覧できる);
+        全検証!(@one $用意, $属性, 過去に所属した機器は書き換えられない);
         全検証!(@one $用意, $属性, 無関係なプロジェクトからは見えない);
         全検証!(@one $用意, $属性, 非メンバーは入れない);
         全検証!(@one $用意, $属性, 閲覧のみのロールは登録できない);

@@ -5,6 +5,7 @@ pub mod admin;
 pub mod cable;
 pub mod catalog;
 pub mod component;
+pub mod connection;
 pub mod container_model;
 pub mod cost;
 pub mod dashboard;
@@ -251,6 +252,15 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/projects/{id}/devices/{device_id}/interfaces/close",
             post(network::close),
+        )
+        // ポート接続（設計書16.1のB領域、8.4）。画面は機器の下に置く
+        .route(
+            "/projects/{id}/devices/{device_id}/connections",
+            get(connection::show).post(connection::connect),
+        )
+        .route(
+            "/projects/{id}/devices/{device_id}/connections/disconnect",
+            post(connection::disconnect),
         )
         .route(
             "/projects/{id}/import",

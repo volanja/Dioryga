@@ -25,6 +25,7 @@ mod catalog_rest;
 mod catalog_schema;
 mod components;
 mod config_cli;
+mod connections;
 mod costs;
 mod costs_import;
 mod dashboard;

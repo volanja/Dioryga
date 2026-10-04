@@ -1,0 +1,120 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb">
+      <a href="/projects">{{ chrome.t_nav_projects }}</a> / <a href="/projects/{{ project_id }}">{{ project_name }}</a> /
+      <a href="/projects/{{ project_id }}/devices/{{ device_id }}">{{ hostname }}</a>
+      <span class="hint">（{{ t_back }}）</span>
+    </p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_no_ports }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_part }}</th>
+      <th>{{ t_port }}</th>
+      <th>{{ t_kind }}</th>
+      <th>{{ t_connector }}</th>
+      <th>{{ t_cable }}</th>
+      <th>{{ t_end }}</th>
+      <th>{{ t_peer }}</th>
+      {% if can_edit %}<th></th>{% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td class="mono">{{ r.part }}</td>
+      <td class="mono">{{ r.port }}</td>
+      <td>{{ r.kind }}</td>
+      <td>{{ r.connector }}</td>
+      {% if let Some(link) = r.link %}
+      <td>
+        {{ link.cable }}
+        {# コネクタ形状が同じ値でない。対になる組（C13とC14）もここに出る #}
+        {% if let Some(w) = link.warning %}<span class="cell-warn">{{ w }}</span>{% endif %}
+      </td>
+      <td>{{ link.end }}</td>
+      <td>{% for p in link.peers %}{{ p }}{% if !loop.last %}<br>{% endif %}{% endfor %}</td>
+      {% if can_edit %}
+      <td>
+        <form method="post" action="/projects/{{ project_id }}/devices/{{ device_id }}/connections/disconnect">
+          <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+          <input type="hidden" name="connection_id" value="{{ link.connection_id }}">
+          <button type="submit" class="ghost">{{ t_disconnect }}</button>
+        </form>
+      </td>
+      {% endif %}
+      {% else %}
+      <td colspan="3" class="hint">{{ t_none }}</td>
+      {% if can_edit %}<td></td>{% endif %}
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_connect }}</h2>
+{% if free_ports.is_empty() %}
+<p class="empty">{{ t_no_free_port }}</p>
+{% else %}
+<div class="card">
+  <form method="post" action="/projects/{{ project_id }}/devices/{{ device_id }}/connections" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="port">{{ t_port }}</label>
+    <select id="port" name="port" required>
+      {% for p in free_ports %}
+      <option value="{{ p.value }}">{{ p.label }}</option>
+      {% endfor %}
+    </select>
+
+    {# 型と端を1つの選択肢で選ぶ。素のHTMLフォームだけで動かすため #}
+    <label for="cable">{{ t_cable }}</label>
+    <select id="cable" name="cable" required>
+      {% if !open_ends.is_empty() %}
+      <optgroup label="{{ t_open_end }}">
+        {% for c in open_ends %}
+        <option value="{{ c.value }}">{{ c.label }}</option>
+        {% endfor %}
+      </optgroup>
+      {% endif %}
+      <optgroup label="{{ t_new_cable }}">
+        {% for c in new_cables %}
+        <option value="{{ c.value }}">{{ c.label }}</option>
+        {% endfor %}
+      </optgroup>
+    </select>
+    <p class="hint">{{ t_connect_hint }}</p>
+
+    <label for="serial_number">{{ t_serial_number }}</label>
+    <input type="text" id="serial_number" name="serial_number">
+
+    <label for="asset_number">{{ t_asset_number }}</label>
+    <input type="text" id="asset_number" name="asset_number">
+    <p class="hint">{{ t_new_only_hint }}</p>
+
+    <button type="submit">{{ t_connect }}</button>
+  </form>
+</div>
+{% endif %}
+{% endif %}
+
+{% endblock %}

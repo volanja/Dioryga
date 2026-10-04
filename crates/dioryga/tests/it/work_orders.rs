@@ -17,9 +17,10 @@ use dioryga::auth::setup::SetupState;
 use dioryga::config::Config;
 use dioryga::server::{router, AppState};
 use entity::{
-    app_user, audit_log, device, device_assignment, device_mount, ip_address, mount_container,
-    os_interface, part_catalog, part_instance, part_instance_location, project, project_member,
-    vendor, work_order, work_order_approval,
+    app_user, audit_log, cable_catalog, cable_connection, cable_end_slot, cable_instance, device,
+    device_assignment, device_mount, ip_address, mount_container, os_interface, part_catalog,
+    part_instance, part_instance_location, part_port_slot, project, project_member, vendor,
+    work_order, work_order_approval,
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
@@ -1407,6 +1408,145 @@ async fn 外すものが残る廃棄は完了できない(db: &DatabaseConnectio
     assert!(body.contains("起票元のプロジェクトにありません"), "{body}");
 }
 
+/// **ケーブルが挿さった機器・部品は、移譲も廃棄もできないこと**（#225）。
+///
+/// ケーブルは機器について移らない。挿さったまま動かすと、つながった先が別の
+/// プロジェクトの機器になる。自動では外さず、利用者に外させる。
+async fn ケーブルが挿さっていると動かせない(db: &DatabaseConnection) {
+    let 場 = 増設の舞台(db, "cable-block@example.com").await;
+    let 移譲先 = プロジェクト(db, "ケーブルの受入先").await;
+    let device_id = 予約対象の機器(db, &場, "cable-held", "running").await;
+    let nic = 部品(db, 場.user.id, "NIC-CABLE-1").await;
+    part_instance_location::ActiveModel {
+        part_instance_id: Set(nic.id),
+        location_type: Set("Device".to_owned()),
+        location_id: Set(Some(device_id)),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let 接続 = ケーブルを挿す(db, 場.user.id, &nic).await;
+
+    // 移譲の実行
+    let w = 移譲のチケット(db, 場.project_id, 移譲先.id, Some(device_id)).await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "execute", "").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("ケーブルが挿さっています"), "{body}");
+    assert_eq!(現在の所属(db, device_id).await, Some(場.project_id));
+
+    // 機器の廃棄の完了
+    let 廃棄 = 廃棄のチケット(db, 場.project_id, Some(device_id), None, "in_progress").await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, 廃棄.id, "complete", "").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("ケーブルが挿さっています"), "{body}");
+    assert_eq!(再取得(db, 廃棄.id).await.status, "in_progress");
+
+    // 部品の廃棄の完了
+    let 部品の廃棄 = 廃棄のチケット(
+        db,
+        場.project_id,
+        Some(device_id),
+        Some(nic.id),
+        "in_progress",
+    )
+    .await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, 部品の廃棄.id, "complete", "").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("部品にケーブルが挿さっています"), "{body}");
+    assert_eq!(再取得(db, 部品の廃棄.id).await.status, "in_progress");
+
+    // **外したあとは妨げにならない。**
+    let mut active: cable_connection::ActiveModel = 接続.into();
+    active.to_date = Set(Some(Utc::now()));
+    active.update(db).await.unwrap();
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 遷移(状態, &token, 場.project_id, w.id, "execute", "").await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    assert_eq!(現在の所属(db, device_id).await, Some(移譲先.id));
+}
+
+/// 部品の型にポートを1つ足し、新しいケーブルの端を挿す。
+async fn ケーブルを挿す(
+    db: &DatabaseConnection,
+    user_id: i32,
+    part: &part_instance::Model,
+) -> cable_connection::Model {
+    let slot = part_port_slot::ActiveModel {
+        part_catalog_id: Set(part.part_catalog_id),
+        port_kind: Set("Network".to_owned()),
+        port_label: Set("Port1".to_owned()),
+        connector_type: Set("LC".to_owned()),
+        port_speed: Set(None),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let c = cable_catalog::ActiveModel {
+        cable_kind: Set(Some("Network".to_owned())),
+        cable_type: Set("OM4".to_owned()),
+        length_mm: Set(Some(2000)),
+        color: Set(String::new()),
+        vendor_id: Set(None),
+        part_number: Set(None),
+        rated_voltage: Set(None),
+        rated_current_ma: Set(None),
+        retired_at: Set(None),
+        created_by: Set(user_id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let end = cable_end_slot::ActiveModel {
+        cable_catalog_id: Set(c.id),
+        end_label: Set("A".to_owned()),
+        connector_type: Set("LC".to_owned()),
+        port_speed: Set(None),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let k = cable_instance::ActiveModel {
+        cable_catalog_id: Set(c.id),
+        serial_number: Set(None),
+        asset_number: Set(None),
+        retired_at: Set(None),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    cable_connection::ActiveModel {
+        cable_instance_id: Set(k.id),
+        cable_end_slot_id: Set(end.id),
+        part_instance_id: Set(part.id),
+        port_slot_id: Set(slot.id),
+        work_order_id: Set(None),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap()
+}
+
 /// **部品を指す廃棄は、部品の所在だけを `Disposed` にすること**（11.4、#216）。
 ///
 /// 機器も指していても、機器は残す。部品単位の廃棄は、機器から部品を外して捨てる
@@ -2083,6 +2223,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 起票元にない機器は移譲できない);
         全検証!(@one $用意, $属性, 廃棄を完了すると所在がdisposedになる);
         全検証!(@one $用意, $属性, 外すものが残る廃棄は完了できない);
+        全検証!(@one $用意, $属性, ケーブルが挿さっていると動かせない);
         全検証!(@one $用意, $属性, 部品の廃棄は部品の所在だけを変える);
         全検証!(@one $用意, $属性, 棚やプロジェクトに置いた部品も廃棄できる);
         全検証!(@one $用意, $属性, 移譲先からもチケットが見える);

@@ -399,6 +399,9 @@ work_orders:
   error_disposal_hosting: Other devices are mounted on this device. Remove them first
   error_disposal_has_ip: The device still has IP addresses. Close them before completing
   error_disposal_part_not_here: This part is not in the originating project now
+  error_transfer_has_cable: Cables are plugged into this device. Disconnect them on the port connections page before executing
+  error_disposal_has_cable: Cables are plugged into this device. Disconnect them on the port connections page before completing
+  error_disposal_part_has_cable: A cable is plugged into this part. Disconnect it on the port connections page before completing
   reservations: Reserved placement
   reservations_hint: Hold a rack position while the work is still planned. It appears in the rack diagram as reserved so nobody else takes the spot, and it is released if the work order is cancelled
   reserve: Reserve a rack position
@@ -727,7 +730,7 @@ components:
 cables:
   title: Cable catalog
   lead: Register cable types and the connectors on each end
-  v2_hint: Cable instances and connections are v2. This page defines types only, and there is no import
+  v2_hint: This page defines types only. Register cable instances and connections on the port connections page of a device. There is no import
   kind: Kind
   cable_type: Type
   cable_type_hint: Cat6A / OM4 / OS2 / DAC / Power Cord and so on. Types not listed can still be registered
@@ -1293,3 +1296,32 @@ import_detail:
     approvals_pending: "The status is %{status}, but %{count} approvals are still missing"
     vocabulary_empty: "Empty (%{allowed})"
     assignee_not_member: "Assignee \"%{username}\" is not a member of this project"
+connections:
+  title: Port connections
+  lead: Record which cable is plugged into each port of the parts mounted on this device
+  part: Part
+  port: Port
+  kind: Kind
+  connector: Connector
+  cable: Cable
+  end: End
+  peer: Connected to
+  none: Not connected
+  unconnected: not connected
+  other_project: A device in another project
+  no_ports: No part with ports is mounted on this device
+  disconnect: Disconnect
+  connect: Connect
+  connect_hint: Choose a new cable, or a free end of a cable already plugged into a device in this project. To plug in the other end, open that device and choose the free end
+  new_cable: New cable
+  open_end: Free end of a plugged cable
+  serial_number: Serial number (optional)
+  asset_number: Asset number (optional)
+  new_only_hint: The serial number and asset number are used only for a new cable
+  no_free_port: This device has no free port
+  connector_differs: "Connector types differ (cable %{cable} / port %{port})"
+  error_port: Choose a free port of this device
+  error_port_in_use: A cable is already plugged into this port
+  error_cable: Choose a cable
+  error_end_in_use: This end of the cable is already plugged in
+  error_kind: The cable kind and the port kind differ (Network / Power / Stack)

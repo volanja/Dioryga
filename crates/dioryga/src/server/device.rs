@@ -132,6 +132,7 @@ struct DeviceDetailPage {
     t_not_implemented: String,
     t_sbom: String,
     t_interfaces: String,
+    t_connections: String,
     hostname: String,
     planned: bool,
     /// 故障・修理中の表示名（設計書6.3）
@@ -880,6 +881,7 @@ pub async fn detail(
         t_not_implemented: rust_i18n::t!("devices.section_pending", locale = l).to_string(),
         t_sbom: rust_i18n::t!("sbom.title", locale = l).to_string(),
         t_interfaces: rust_i18n::t!("network.interfaces", locale = l).to_string(),
+        t_connections: rust_i18n::t!("connections.title", locale = l).to_string(),
         t_merged: rust_i18n::t!("devices.merged", locale = l).to_string(),
         hostname: d.hostname.clone(),
         planned: !保管中 && d.status == DEVICE_PLANNED,

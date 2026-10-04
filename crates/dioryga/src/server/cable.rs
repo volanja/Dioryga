@@ -19,9 +19,10 @@
 //!
 //! # 取込は無いが手入力はできる（16.1、23.8）
 //!
-//! ケーブルの**インスタンスと接続**（`CABLE_INSTANCE` / `CABLE_CONNECTION`）は
-//! v2である。取込の需要が薄いことがその理由で（23.8）、**カタログは別**——
-//! 数十行の手入力マスタであり、22.2の「手入力が成立しない規模」に当たらない。
+//! ケーブルの**取込**はv2である。需要が薄いことがその理由で（23.8）、
+//! **カタログは別**——数十行の手入力マスタであり、22.2の「手入力が成立しない
+//! 規模」に当たらない。実物と接続（`CABLE_INSTANCE` / `CABLE_CONNECTION`）は、
+//! 機器のポート接続の画面で手で登録する（[`super::connection`]）。
 
 use axum::extract::{Path, Query, State};
 use axum::response::{IntoResponse, Redirect, Response};

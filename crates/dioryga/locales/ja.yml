@@ -399,6 +399,9 @@ work_orders:
   error_disposal_hosting: この機器の上に載っている機器があります。先にそちらを外してください
   error_disposal_has_ip: 機器にIPアドレスが残っています。IPアドレスを閉じてから完了してください
   error_disposal_part_not_here: この部品は、いま起票元のプロジェクトにありません
+  error_transfer_has_cable: 機器にケーブルが挿さっています。ポート接続の画面で外してから実行してください
+  error_disposal_has_cable: 機器にケーブルが挿さっています。ポート接続の画面で外してから完了してください
+  error_disposal_part_has_cable: 部品にケーブルが挿さっています。ポート接続の画面で外してから完了してください
   reservations: 予約している配置
   reservations_hint: 計画の時点でラック位置を確保します。ラック図に予約中として現れ、他の担当者が同じ場所を使えなくなります。中止すると解放されます
   reserve: ラック位置を予約する
@@ -727,7 +730,7 @@ components:
 cables:
   title: ケーブルカタログ
   lead: ケーブルの型と、その両端のコネクタを登録します
-  v2_hint: ケーブルの実物と接続の記録はv2です。ここで登録するのは型の定義だけで、取込はありません
+  v2_hint: ここで登録するのは型の定義だけです。ケーブルの実物と接続は、機器のポート接続の画面で登録します。取込はありません
   kind: 種別
   cable_type: 種類
   cable_type_hint: Cat6A / OM4 / OS2 / DAC / Power Cord など。表にない種類も登録できます
@@ -1296,3 +1299,32 @@ import_detail:
     approvals_pending: "状態が %{status} ですが、揃っていない承認が%{count}件あります"
     vocabulary_empty: "空です（%{allowed}）"
     assignee_not_member: "担当者「%{username}」はこのプロジェクトのメンバーではありません"
+connections:
+  title: ポート接続
+  lead: この機器に載っている部品のポートごとに、挿さっているケーブルを記録します
+  part: 部品
+  port: ポート
+  kind: 種別
+  connector: コネクタ
+  cable: ケーブル
+  end: 端
+  peer: 接続先
+  none: つながっていません
+  unconnected: 未接続
+  other_project: 別のプロジェクトの機器
+  no_ports: ポートを持つ部品が、この機器に載っていません
+  disconnect: 外す
+  connect: 接続する
+  connect_hint: 新しいケーブルか、このプロジェクトの機器に挿さっているケーブルの空いた端を選びます。反対の端を挿すときは、相手の機器の画面を開いて空いた端を選びます
+  new_cable: 新しいケーブル
+  open_end: 挿さっているケーブルの空いた端
+  serial_number: シリアル番号（任意）
+  asset_number: 資産番号（任意）
+  new_only_hint: シリアル番号と資産番号は、新しいケーブルのときだけ使います
+  no_free_port: この機器に空いたポートがありません
+  connector_differs: "コネクタ形状が違います（ケーブル %{cable} / ポート %{port}）"
+  error_port: この機器の空いたポートを選んでください
+  error_port_in_use: このポートには、すでにケーブルが挿さっています
+  error_cable: ケーブルを選んでください
+  error_end_in_use: このケーブルの端は、すでに挿さっています
+  error_kind: ケーブルの種別とポートの種別が違います（Network / Power / Stack）

@@ -49,7 +49,7 @@ use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
 
 use super::placement::{機器の索引, 機器キー, 空ならnone, 読み取る};
-use super::{Entry, ImportError, Outcome, Report};
+use super::{理由, Entry, ImportError, Message, Outcome, Report};
 use crate::cost::DEPRECIATION_METHODS;
 use crate::currency;
 use crate::repository::AuditedTx;
@@ -163,7 +163,11 @@ pub async fn 購入を取り込む(
                     report.push(Entry::new(
                         Outcome::Error,
                         target,
-                        format!("acquired_on「{v}」を日付として読めません"),
+                        理由!(
+                            "import_detail.common.not_a_date",
+                            field = "acquired_on",
+                            value = v
+                        ),
                     ));
                     continue;
                 }
@@ -209,7 +213,7 @@ pub async fn 購入を取り込む(
                     && 既存.amount == amount
                     && 既存.supplier == supplier =>
             {
-                report.push(Entry::new(Outcome::Unchanged, target, ""));
+                report.push(Entry::new(Outcome::Unchanged, target, Message::default()));
             }
             Some(既存) => {
                 let mut active: purchase::ActiveModel = 既存.clone().into();
@@ -219,7 +223,7 @@ pub async fn 購入を取り込む(
                 active.supplier = Set(supplier);
                 active.updated_at = Set(now);
                 tx.update(&既存, active).await?;
-                report.push(Entry::new(Outcome::Updated, target, ""));
+                report.push(Entry::new(Outcome::Updated, target, Message::default()));
             }
             None => {
                 tx.insert(purchase::ActiveModel {
@@ -234,7 +238,7 @@ pub async fn 購入を取り込む(
                     ..Default::default()
                 })
                 .await?;
-                report.push(Entry::new(Outcome::Created, target, ""));
+                report.push(Entry::new(Outcome::Created, target, Message::default()));
             }
         }
     }
@@ -263,9 +267,10 @@ pub async fn 固定資産を取り込む(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                format!(
-                    "acquisition_date「{}」を日付として読めません",
-                    row.acquisition_date
+                理由!(
+                    "import_detail.common.not_a_date",
+                    field = "acquisition_date",
+                    value = &row.acquisition_date
                 ),
             ));
             continue;
@@ -289,9 +294,9 @@ pub async fn 固定資産を取り込む(
                 report.push(Entry::new(
                     Outcome::Error,
                     target,
-                    format!(
-                        "useful_life_years「{}」は1以上で書いてください。0以下では按分できません",
-                        row.useful_life_years
+                    理由!(
+                        "import_detail.costs.useful_life_invalid",
+                        value = &row.useful_life_years
                     ),
                 ));
                 continue;
@@ -303,9 +308,14 @@ pub async fn 固定資産を取り込む(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                format!(
-                    "depreciation_method「{method}」は使えません（{}）",
-                    DEPRECIATION_METHODS.join(" / ")
+                理由!(
+                    "import_detail.common.field_prefixed",
+                    field = "depreciation_method",
+                    reason = 理由!(
+                        "import_detail.common.not_in_vocabulary",
+                        value = method,
+                        allowed = DEPRECIATION_METHODS.join(" / ")
+                    )
                 ),
             ));
             continue;
@@ -339,7 +349,7 @@ pub async fn 固定資産を取り込む(
                     && a.useful_life_years == useful_life_years
                     && a.acquisition_date == acquisition_date =>
             {
-                report.push(Entry::new(Outcome::Unchanged, target, ""));
+                report.push(Entry::new(Outcome::Unchanged, target, Message::default()));
             }
             Some(a) => {
                 let mut active: fixed_asset::ActiveModel = a.clone().into();
@@ -349,7 +359,7 @@ pub async fn 固定資産を取り込む(
                 active.acquisition_date = Set(acquisition_date);
                 active.updated_at = Set(now);
                 tx.update(&a, active).await?;
-                report.push(Entry::new(Outcome::Updated, target, ""));
+                report.push(Entry::new(Outcome::Updated, target, Message::default()));
             }
             None => {
                 tx.insert(fixed_asset::ActiveModel {
@@ -364,7 +374,7 @@ pub async fn 固定資産を取り込む(
                     ..Default::default()
                 })
                 .await?;
-                report.push(Entry::new(Outcome::Created, target, ""));
+                report.push(Entry::new(Outcome::Created, target, Message::default()));
             }
         }
     }
@@ -396,7 +406,7 @@ pub async fn 保守契約を取り込む(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                "contract_number が空です",
+                理由!("import_detail.common.empty", field = "contract_number"),
             ));
             continue;
         }
@@ -406,7 +416,7 @@ pub async fn 保守契約を取り込む(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                "start_date / end_date を日付として読めません",
+                理由!("import_detail.costs.period_not_dates"),
             ));
             continue;
         };
@@ -415,7 +425,11 @@ pub async fn 保守契約を取り込む(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                format!("end_date（{end_date}）が start_date（{start_date}）より前です"),
+                理由!(
+                    "import_detail.costs.end_before_start",
+                    end_date = end_date.to_string(),
+                    start_date = start_date.to_string()
+                ),
             ));
             continue;
         }
@@ -435,7 +449,7 @@ pub async fn 保守契約を取り込む(
                 report.push(Entry::new(
                     Outcome::Error,
                     target,
-                    "同じ contract_number の行で、期間か金額が食い違っています",
+                    理由!("import_detail.costs.contract_mismatch"),
                 ));
                 continue;
             }
@@ -489,7 +503,11 @@ pub async fn 保守契約を取り込む(
                     active.failure_contact = Set(row.failure_contact.trim().to_owned());
                     active.updated_at = Set(now);
                     tx.update(&c, active).await?;
-                    report.push(Entry::new(Outcome::Updated, target.clone(), ""));
+                    report.push(Entry::new(
+                        Outcome::Updated,
+                        target.clone(),
+                        Message::default(),
+                    ));
                 }
                 c
             }
@@ -509,7 +527,11 @@ pub async fn 保守契約を取り込む(
                         ..Default::default()
                     })
                     .await?;
-                report.push(Entry::new(Outcome::Created, target.clone(), ""));
+                report.push(Entry::new(
+                    Outcome::Created,
+                    target.clone(),
+                    Message::default(),
+                ));
                 c
             }
         };
@@ -524,7 +546,11 @@ pub async fn 保守契約を取り込む(
 
         let 明細の表示 = format!("{target} {item_type} {}", 契約の品目名(row));
         if 明細.is_some() {
-            report.push(Entry::new(Outcome::Unchanged, 明細の表示, ""));
+            report.push(Entry::new(
+                Outcome::Unchanged,
+                明細の表示,
+                Message::default(),
+            ));
             continue;
         }
         tx.insert(maintenance_contract_item::ActiveModel {
@@ -536,7 +562,7 @@ pub async fn 保守契約を取り込む(
             ..Default::default()
         })
         .await?;
-        report.push(Entry::new(Outcome::Created, 明細の表示, ""));
+        report.push(Entry::new(Outcome::Created, 明細の表示, Message::default()));
     }
 
     Ok(report)
@@ -595,19 +621,20 @@ fn 品目を引く(
     serial: &str,
     // `None` なら設備・什器を指せない（保守契約）
     container: Option<&str>,
-) -> Result<(String, i32), String> {
+) -> Result<(String, i32), Message> {
     match item_type.trim() {
         MOUNT_CONTAINER => {
             let Some(container) = container else {
-                return Err("保守契約の対象に設備・什器は指せません".to_owned());
+                return Err(理由!("import_detail.costs.contract_container"));
             };
             let Some(name) = 空ならnone(container) else {
-                return Err("item_type=MountContainer には item_container が要ります".to_owned());
+                return Err(理由!("import_detail.costs.container_required"));
             };
             match 対象.設備.get(&crate::container::名前の鍵(name)) {
                 Some(id) => Ok((MOUNT_CONTAINER.to_owned(), *id)),
-                None => Err(format!(
-                    "設備・什器「{name}」がこのプロジェクトにありません（撤去済みのものは指せません）"
+                None => Err(理由!(
+                    "import_detail.placement.container_not_found",
+                    name = name
                 )),
             }
         }
@@ -619,29 +646,33 @@ fn 品目を引く(
             };
             match 対象.機器.引く(&key) {
                 Ok(d) => Ok((DEVICE.to_owned(), d.id)),
-                Err(理由) => Err(crate::import::詳細を訳す::文言(&理由, "ja")),
+                Err(理由) => Err(理由),
             }
         }
         PART_INSTANCE => {
             let Some(serial) = 空ならnone(serial) else {
-                return Err("item_type=PartInstance には item_serial_number が要ります".to_owned());
+                return Err(理由!("import_detail.costs.serial_required"));
             };
             let 空: Vec<part_instance::Model> = Vec::new();
             let 一致 = 対象.部品.get(serial).unwrap_or(&空);
             match 一致.len() {
                 1 => Ok((PART_INSTANCE.to_owned(), 一致[0].id)),
-                0 => Err(format!(
-                    "シリアル「{serial}」の部品が、このプロジェクトにあったことがありません"
+                0 => Err(理由!(
+                    "import_detail.costs.part_never_in_project",
+                    serial = serial
                 )),
-                n => Err(format!(
-                    "シリアル「{serial}」の部品が{n}件あります。突合できません"
+                n => Err(理由!(
+                    "import_detail.costs.part_ambiguous",
+                    serial = serial,
+                    count = n
                 )),
             }
         }
         // **ソフトウェアは対象外。**`SOFTWARE_INSTANCE` を指す発注もありうるが、
         // 9章の取込はv1のスコープ外であり、指す先が入っていない
-        other => Err(format!(
-            "item_type「{other}」は扱えません。Device / PartInstance / MountContainer のいずれかです"
+        other => Err(理由!(
+            "import_detail.costs.item_type_invalid",
+            value = other
         )),
     }
 }
@@ -649,14 +680,17 @@ fn 品目を引く(
 async fn ベンダーを引く(
     tx: &AuditedTx,
     name: &str,
-) -> Result<Result<i32, String>, ImportError> {
+) -> Result<Result<i32, Message>, ImportError> {
     let name = name.trim();
     let Some(v) = vendor::Entity::find()
         .filter(vendor::Column::Name.eq(name))
         .one(tx.reader())
         .await?
     else {
-        return Ok(Err(format!("ベンダー「{name}」が見つかりません")));
+        return Ok(Err(理由!(
+            "import_detail.common.vendor_not_found",
+            vendor = name
+        )));
     };
     // **統合で吸収されたベンダーは統合先へ寄せる**（23.9.4）
     Ok(Ok(v.merged_into_vendor_id.unwrap_or(v.id)))
@@ -667,14 +701,18 @@ fn 日付(value: &str) -> Option<NaiveDate> {
 }
 
 /// 金額が読めなかった理由。**桁数は通貨から決まる**（24.2.1）ので、それを示す。
-fn 金額の誤り(列: &str, value: &str, code: &str) -> String {
-    format!(
-        "{列}「{value}」を金額として読めません。{code} は小数点以下{}桁です",
-        currency::SUPPORTED
+fn 金額の誤り(列: &str, value: &str, code: &str) -> Message {
+    理由!(
+        "import_detail.costs.not_an_amount",
+        field = 列,
+        value = value,
+        currency = code,
+        digits = currency::SUPPORTED
             .iter()
             .find(|c| c.code == code)
             .map(|c| c.minor_digits)
             .unwrap_or(0)
+            .to_string()
     )
 }
 
@@ -698,6 +736,7 @@ fn 表示する品目(hostname: &str, serial: &str) -> String {
     match (空ならnone(hostname), 空ならnone(serial)) {
         (Some(h), _) => h.to_owned(),
         (None, Some(s)) => s.to_owned(),
-        (None, None) => "(品目なし)".to_owned(),
+        // 対象の欄は訳さない（#214）。記号で示す
+        (None, None) => "(—)".to_owned(),
     }
 }

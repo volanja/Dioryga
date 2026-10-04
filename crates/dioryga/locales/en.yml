@@ -1175,6 +1175,7 @@ import_detail:
     verbatim: "%{text}"
     not_a_number: "%{field} \"%{value}\" cannot be read as a number"
     warehouse_removed: "location_type \"Warehouse\" can no longer be used. The warehouse is the warehouse project. To move something there, use a change ticket (Transfer)"
+    not_a_date: "%{field} \"%{value}\" cannot be read as a date"
   instances:
     uid_not_found: "No device with uid \"%{uid}\" was found"
     match_on_unknown: "The match_on column \"%{key}\" cannot be interpreted"
@@ -1220,3 +1221,15 @@ import_detail:
     never_in_project: "The part with serial \"%{serial}\" has never been in this project. Move parts from other projects or the warehouse with a change ticket"
     in_other_project: "The part with serial \"%{serial}\" is now in another project. Move parts between projects with a change ticket (Transfer)"
     ambiguous: "The same vendor has %{count} parts with serial \"%{serial}\". Cannot match the row"
+  costs:
+    useful_life_invalid: "useful_life_years \"%{value}\" must be 1 or more. It cannot be spread over 0 years or less"
+    period_not_dates: "start_date / end_date cannot be read as dates"
+    end_before_start: "end_date (%{end_date}) is before start_date (%{start_date})"
+    contract_mismatch: "Rows with the same contract_number differ in period or amount"
+    contract_container: "A maintenance contract cannot cover a rack or furniture"
+    container_required: "item_type=MountContainer needs item_container"
+    serial_required: "item_type=PartInstance needs item_serial_number"
+    part_never_in_project: "The part with serial \"%{serial}\" has never been in this project"
+    part_ambiguous: "%{count} parts have serial \"%{serial}\". Cannot match the row"
+    item_type_invalid: "item_type \"%{value}\" is not supported. Use Device, PartInstance or MountContainer"
+    not_an_amount: "%{field} \"%{value}\" cannot be read as an amount. %{currency} has %{digits} decimal places"

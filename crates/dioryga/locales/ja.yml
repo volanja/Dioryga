@@ -1178,6 +1178,7 @@ import_detail:
     verbatim: "%{text}"
     not_a_number: "%{field}「%{value}」を数値として読めません"
     warehouse_removed: "location_type「Warehouse」は使えなくなりました。倉庫は倉庫用のプロジェクトです。倉庫へ移すには変更管理チケット（Transfer）を使ってください"
+    not_a_date: "%{field}「%{value}」を日付として読めません"
   instances:
     uid_not_found: "uid「%{uid}」の機器が見つかりません"
     match_on_unknown: "match_on の列「%{key}」を解釈できません"
@@ -1223,3 +1224,15 @@ import_detail:
     never_in_project: "シリアル「%{serial}」の部品は、このプロジェクトにあったことがありません。他のプロジェクトや倉庫からの移動は変更管理チケットで行ってください"
     in_other_project: "シリアル「%{serial}」の部品は今、他のプロジェクトにあります。プロジェクト間の移動は変更管理チケット（Transfer）で行ってください"
     ambiguous: "シリアル「%{serial}」の部品が同じベンダーに%{count}件あります。突合できません"
+  costs:
+    useful_life_invalid: "useful_life_years「%{value}」は1以上で書いてください。0以下では按分できません"
+    period_not_dates: "start_date / end_date を日付として読めません"
+    end_before_start: "end_date（%{end_date}）が start_date（%{start_date}）より前です"
+    contract_mismatch: "同じ contract_number の行で、期間か金額が食い違っています"
+    contract_container: "保守契約の対象に設備・什器は指せません"
+    container_required: "item_type=MountContainer には item_container が要ります"
+    serial_required: "item_type=PartInstance には item_serial_number が要ります"
+    part_never_in_project: "シリアル「%{serial}」の部品が、このプロジェクトにあったことがありません"
+    part_ambiguous: "シリアル「%{serial}」の部品が%{count}件あります。突合できません"
+    item_type_invalid: "item_type「%{value}」は扱えません。Device / PartInstance / MountContainer のいずれかです"
+    not_an_amount: "%{field}「%{value}」を金額として読めません。%{currency} は小数点以下%{digits}桁です"

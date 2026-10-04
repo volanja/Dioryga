@@ -47,7 +47,7 @@ use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, Que
 use serde::Deserialize;
 
 use super::placement::機器の索引;
-use super::{Entry, ImportError, Outcome, Report};
+use super::{理由, Entry, ImportError, Message, Outcome, Report};
 use crate::repository::{Actor, AuditedTx};
 
 const FORMAT_VERSION: u32 = 1;
@@ -196,7 +196,7 @@ async fn 突合<C: ConnectionTrait>(
     索引: &機器の索引,
     row: &DeviceRow,
     match_on: &[String],
-) -> Result<Result<Matched, String>, sea_orm::DbErr> {
+) -> Result<Result<Matched, Message>, sea_orm::DbErr> {
     // ① uid
     //
     // **ここだけはプロジェクトの外も探す。**書き出したファイルを編集して戻す
@@ -211,7 +211,7 @@ async fn 突合<C: ConnectionTrait>(
         return Ok(match found {
             // **統合先を辿る**（23.9.4）
             Some(d) => Ok(Matched::Existing(Box::new(統合先を辿る(db, d).await?))),
-            None => Err(format!("uid「{uid}」の機器が見つかりません")),
+            None => Err(理由!("import_detail.instances.uid_not_found", uid = uid)),
         });
     }
 
@@ -228,7 +228,10 @@ async fn 突合<C: ConnectionTrait>(
     // ③ match_on
     for key in match_on {
         let Some(value) = 行の値(row, key) else {
-            return Ok(Err(format!("match_on の列「{key}」を解釈できません")));
+            return Ok(Err(理由!(
+                "import_detail.instances.match_on_unknown",
+                key = key
+            )));
         };
         let Some(value) = DeviceRow::空ならnone(&value) else {
             continue;
@@ -240,12 +243,19 @@ async fn 突合<C: ConnectionTrait>(
             1 => {
                 return Ok(match 索引.機器(一致[0]) {
                     Some(d) => Ok(Matched::Existing(Box::new(d))),
-                    None => Err(format!("{key}「{value}」の機器を読み出せません")),
+                    None => Err(理由!(
+                        "import_detail.instances.cannot_read",
+                        key = key,
+                        value = value
+                    )),
                 })
             }
             n => {
-                return Ok(Err(format!(
-                    "{key}「{value}」に{n}台が該当します。突合できません"
+                return Ok(Err(理由!(
+                    "import_detail.instances.ambiguous",
+                    key = key,
+                    value = value,
+                    count = n
                 )))
             }
         }
@@ -264,7 +274,7 @@ async fn 突合<C: ConnectionTrait>(
 /// 突合できなかったのに、識別子のいずれかが既存機器と一致する場合はエラーとする。
 /// 利用者はドライランの指摘を見て、`uid` を書く／`external_id` を設定する／
 /// 別機器であることを確認する、のいずれかを選べる。
-fn 重複の疑い(索引: &機器の索引, row: &DeviceRow) -> Option<String> {
+fn 重複の疑い(索引: &機器の索引, row: &DeviceRow) -> Option<Message> {
     let 検査 = [
         ("serial_number", DeviceRow::空ならnone(&row.serial_number)),
         ("asset_number", DeviceRow::空ならnone(&row.asset_number)),
@@ -278,10 +288,11 @@ fn 重複の疑い(索引: &機器の索引, row: &DeviceRow) -> Option<String> 
             continue;
         };
         let 既存 = 索引.機器(id)?;
-        return Some(format!(
-            "{label}「{value}」が既存の機器（{}）と一致しますが、突合できませんでした。\
-             同一の機器なら uid か external_id を指定してください",
-            既存.hostname
+        return Some(理由!(
+            "import_detail.instances.suspected_duplicate",
+            key = label,
+            value = value,
+            hostname = 既存.hostname
         ));
     }
     None
@@ -328,7 +339,7 @@ fn 行の値(row: &DeviceRow, key: &str) -> Option<String> {
 pub async fn 解決するプロジェクト<C: ConnectionTrait>(
     db: &C,
     key: &str,
-) -> Result<Result<project::Model, String>, sea_orm::DbErr> {
+) -> Result<Result<project::Model, Message>, sea_orm::DbErr> {
     if let Some(p) = project::Entity::find()
         .filter(project::Column::Uid.eq(key))
         .one(db)
@@ -351,9 +362,14 @@ pub async fn 解決するプロジェクト<C: ConnectionTrait>(
 
     Ok(match 同名.len() {
         1 => Ok(同名.into_iter().next().expect("1件あることを確認済み")),
-        0 => Err(format!("プロジェクト「{key}」が見つかりません")),
-        n => Err(format!(
-            "プロジェクト名「{key}」に{n}件が該当します。uid か code で指定してください"
+        0 => Err(理由!(
+            "import_detail.instances.project_not_found",
+            key = key
+        )),
+        n => Err(理由!(
+            "import_detail.instances.project_ambiguous",
+            key = key,
+            count = n
         )),
     })
 }
@@ -365,7 +381,7 @@ pub async fn 解決するプロジェクト<C: ConnectionTrait>(
 async fn 解決する構成<C: ConnectionTrait>(
     db: &C,
     row: &DeviceRow,
-) -> Result<Result<Option<i32>, String>, sea_orm::DbErr> {
+) -> Result<Result<Option<i32>, Message>, sea_orm::DbErr> {
     let (Some(vendor_name), Some(config_name)) = (
         DeviceRow::空ならnone(&row.configuration_vendor),
         DeviceRow::空ならnone(&row.configuration_name),
@@ -379,7 +395,10 @@ async fn 解決する構成<C: ConnectionTrait>(
         .one(db)
         .await?
     else {
-        return Ok(Err(format!("ベンダー「{vendor_name}」が見つかりません")));
+        return Ok(Err(理由!(
+            "import_detail.common.vendor_not_found",
+            vendor = vendor_name
+        )));
     };
 
     let mut models = chassis_model::Entity::find().filter(chassis_model::Column::VendorId.eq(v.id));
@@ -389,8 +408,9 @@ async fn 解決する構成<C: ConnectionTrait>(
     let model_ids: Vec<i32> = models.all(db).await?.into_iter().map(|m| m.id).collect();
 
     if model_ids.is_empty() {
-        return Ok(Err(format!(
-            "ベンダー「{vendor_name}」の筐体モデルが見つかりません"
+        return Ok(Err(理由!(
+            "import_detail.instances.chassis_model_not_found",
+            vendor = vendor_name
         )));
     }
 
@@ -402,12 +422,16 @@ async fn 解決する構成<C: ConnectionTrait>(
 
     Ok(match 該当.len() {
         1 => Ok(Some(該当[0].id)),
-        0 => Err(format!(
-            "構成「{vendor_name} / {config_name}」が見つかりません"
+        0 => Err(理由!(
+            "import_detail.instances.configuration_not_found",
+            vendor = vendor_name,
+            name = config_name
         )),
-        n => Err(format!(
-            "構成「{vendor_name} / {config_name}」に{n}件が該当します。\
-             configuration_model を指定してください"
+        n => Err(理由!(
+            "import_detail.instances.configuration_ambiguous",
+            vendor = vendor_name,
+            name = config_name,
+            count = n
         )),
     })
 }
@@ -441,7 +465,7 @@ pub(super) fn 語彙(
     value: &str,
     allowed: &[&'static str],
     default: &'static str,
-) -> Result<String, String> {
+) -> Result<String, Message> {
     let value = value.trim();
     if value.is_empty() {
         return Ok(default.to_owned());
@@ -450,7 +474,13 @@ pub(super) fn 語彙(
         .iter()
         .find(|v| **v == value)
         .map(|v| (*v).to_owned())
-        .ok_or_else(|| format!("「{value}」は使えません（{})", allowed.join(" / ")))
+        .ok_or_else(|| {
+            理由!(
+                "import_detail.common.not_in_vocabulary",
+                value = value,
+                allowed = allowed.join(" / ")
+            )
+        })
 }
 
 /// 現在の事実と突き合わせ、差分レポートと反映計画を作る。
@@ -477,7 +507,11 @@ async fn 計画する<C: ConnectionTrait>(
         let target = row.表示名();
 
         if row.hostname.trim().is_empty() {
-            report.push(Entry::new(Outcome::Error, target, "hostname が空です"));
+            report.push(Entry::new(
+                Outcome::Error,
+                target,
+                理由!("import_detail.common.empty", field = "hostname"),
+            ));
             continue;
         }
 
@@ -496,14 +530,19 @@ async fn 計画する<C: ConnectionTrait>(
                 continue;
             }
             if let Some(前) = 出現済み.insert(format!("{key}={value}"), i) {
-                重複.push(format!("{key}「{value}」が{}行目", 前 + 2));
+                重複.push(理由!(
+                    "import_detail.common.duplicate_item",
+                    key = key,
+                    value = value,
+                    row = 前 + 2
+                ));
             }
         }
         if !重複.is_empty() {
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                format!("{}と重複しています", 重複.join("、")),
+                理由!("import_detail.common.duplicate_in_file", items = 重複),
             ));
             continue;
         }
@@ -514,7 +553,11 @@ async fn 計画する<C: ConnectionTrait>(
                 report.push(Entry::new(
                     Outcome::Error,
                     target,
-                    format!("device_type: {e}"),
+                    理由!(
+                        "import_detail.common.field_prefixed",
+                        field = "device_type",
+                        reason = e
+                    ),
                 ));
                 continue;
             }
@@ -522,14 +565,30 @@ async fn 計画する<C: ConnectionTrait>(
         let status = match 語彙(&row.status, STATUSES, "provisioning") {
             Ok(v) => v,
             Err(e) => {
-                report.push(Entry::new(Outcome::Error, target, format!("status: {e}")));
+                report.push(Entry::new(
+                    Outcome::Error,
+                    target,
+                    理由!(
+                        "import_detail.common.field_prefixed",
+                        field = "status",
+                        reason = e
+                    ),
+                ));
                 continue;
             }
         };
         let health = match 語彙(&row.health, HEALTHS, crate::device_state::OK) {
             Ok(v) => v,
             Err(e) => {
-                report.push(Entry::new(Outcome::Error, target, format!("health: {e}")));
+                report.push(Entry::new(
+                    Outcome::Error,
+                    target,
+                    理由!(
+                        "import_detail.common.field_prefixed",
+                        field = "health",
+                        reason = e
+                    ),
+                ));
                 continue;
             }
         };
@@ -548,7 +607,11 @@ async fn 計画する<C: ConnectionTrait>(
                     report.push(Entry::new(
                         Outcome::Error,
                         target,
-                        format!("power_watt「{v}」は0以上の整数ではありません"),
+                        理由!(
+                            "import_detail.common.not_non_negative",
+                            field = "power_watt",
+                            value = v
+                        ),
                     ));
                     continue;
                 }
@@ -590,8 +653,7 @@ async fn 計画する<C: ConnectionTrait>(
                 report.push(Entry::new(
                     Outcome::Error,
                     target,
-                    "この機器は今、他のプロジェクトにあります。\
-                     プロジェクト間の移動は変更管理チケット（Transfer）で行ってください",
+                    理由!("import_detail.instances.in_other_project"),
                 ));
                 continue;
             }
@@ -605,7 +667,7 @@ async fn 計画する<C: ConnectionTrait>(
         let status = match &existing {
             Some(d) if 倉庫プロジェクト && d.status != status => {
                 if !row.status.trim().is_empty() {
-                    説明 = Some("倉庫プロジェクトでは status を反映しません（保管中の機器・部品の status は動かさない）");
+                    説明 = Some(理由!("import_detail.common.warehouse_status_ignored"));
                 }
                 d.status.clone()
             }
@@ -639,12 +701,16 @@ async fn 計画する<C: ConnectionTrait>(
             outcome,
             target,
             match (&existing, 説明) {
-                (Some(d), Some(説明)) if outcome != Outcome::Unchanged => {
-                    format!("既存 uid={}。{説明}", d.uid)
+                (Some(d), Some(説明)) if outcome != Outcome::Unchanged => 理由!(
+                    "import_detail.instances.existing_uid_with_note",
+                    uid = &d.uid,
+                    note = 説明
+                ),
+                (_, Some(説明)) => 説明,
+                (Some(d), None) if outcome != Outcome::Unchanged => {
+                    理由!("import_detail.instances.existing_uid", uid = &d.uid)
                 }
-                (_, Some(説明)) => 説明.to_owned(),
-                (Some(d), None) if outcome != Outcome::Unchanged => format!("既存 uid={}", d.uid),
-                _ => String::new(),
+                _ => Message::default(),
             },
         ));
 

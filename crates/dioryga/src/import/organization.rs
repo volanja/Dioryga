@@ -605,7 +605,7 @@ async fn メンバーを取り込む(
             {
                 Ok(p) => p,
                 Err(message) => {
-                    判定[i] = 誤り(message);
+                    判定[i] = Some(Entry::new(Outcome::Error, target.clone(), message));
                     continue;
                 }
             };

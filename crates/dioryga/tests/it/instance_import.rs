@@ -5,7 +5,7 @@
 //! 解決順序の各段と重複検出をここで固定する。
 
 use chrono::{Duration, Utc};
-use dioryga::import::{instances, Outcome};
+use dioryga::import::{instances, 詳細を訳す, Outcome};
 use entity::{device, device_assignment, project};
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 
@@ -588,7 +588,7 @@ async fn プロジェクトの解決順序(db: &DatabaseConnection) {
         .await
         .unwrap();
     assert!(結果.is_err());
-    assert!(結果.unwrap_err().contains("uid か code で指定"));
+    assert!(結果.unwrap_err().文言("ja").contains("uid か code で指定"));
 }
 
 // ---------------------------------------------------------------------------

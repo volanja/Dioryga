@@ -118,6 +118,16 @@ impl 詳細を訳す for Message {
                 .map(|(_, v)| match v {
                     Arg::Text(t) => t.clone(),
                     Arg::Message(m) => m.文言(l),
+                    // **区切りも言語で変える**（「、」と「, 」）
+                    Arg::List(ms) => {
+                        ms.iter()
+                            .map(|m| m.文言(l))
+                            .collect::<Vec<_>>()
+                            .join(&rust_i18n::t!(
+                                "import_detail.common.list_separator",
+                                locale = l
+                            ))
+                    }
                 })
         };
         // 移行中だけの口（#214）。訳されていない文言をそのまま出す

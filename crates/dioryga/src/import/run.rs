@@ -47,9 +47,10 @@ pub enum RunError {
     #[error("{}", t!("errors.run_not_system_admin", locale = 言語()))]
     NotSystemAdmin,
 
-    /// 差分レポートの詳細と同じく、まだ訳していない（#191の範囲外）
-    #[error("{0}")]
-    Unresolved(String),
+    /// 参照を解決できない（マニフェストのプロジェクト等）。差分レポートの理由と
+    /// 同じくキーと値で持ち、OSの言語で訳す（#214）
+    #[error("{}", .0.文言(言語()))]
+    Unresolved(super::Message),
 
     #[error("{}", t!("errors.run_unsupported_entity", locale = 言語(), entity = .0))]
     UnsupportedEntity(String),

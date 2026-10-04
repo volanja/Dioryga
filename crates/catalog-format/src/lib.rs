@@ -73,6 +73,8 @@ pub enum Arg {
     Text(String),
     /// 入れ子の理由。表示する側が同じ言語で訳す。
     Message(Message),
+    /// 入れ子の理由の並び。表示する側が訳し、言語の区切りでつなぐ。
+    List(Vec<Message>),
 }
 
 impl Message {
@@ -103,6 +105,16 @@ impl std::fmt::Display for Message {
             match value {
                 Arg::Text(v) => write!(f, " {name}={v}")?,
                 Arg::Message(m) => write!(f, " {name}=({m})")?,
+                Arg::List(ms) => {
+                    write!(f, " {name}=[")?;
+                    for (i, m) in ms.iter().enumerate() {
+                        if i > 0 {
+                            f.write_str(", ")?;
+                        }
+                        write!(f, "({m})")?;
+                    }
+                    f.write_str("]")?;
+                }
             }
         }
         Ok(())
@@ -112,6 +124,12 @@ impl std::fmt::Display for Message {
 impl From<Message> for Arg {
     fn from(v: Message) -> Self {
         Self::Message(v)
+    }
+}
+
+impl From<Vec<Message>> for Arg {
+    fn from(v: Vec<Message>) -> Self {
+        Self::List(v)
     }
 }
 

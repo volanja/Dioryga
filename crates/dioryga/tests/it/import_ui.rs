@@ -230,6 +230,33 @@ async fn エラーがあれば反映できない(db: &DatabaseConnection) {
     );
 }
 
+/// **差分の理由は利用者の言語で出すこと**（#214）。
+///
+/// 英語の利用者が日本語の理由を見ても、どこを直せばよいか分からない。
+async fn 理由は利用者の言語で出す(db: &DatabaseConnection) {
+    let (user, p) = 準備(db, "reason-en@example.com", "Operator").await;
+    let mut active: app_user::ActiveModel = user.clone().into();
+    active.locale = Set("en".to_owned());
+    let user = active.update(db).await.unwrap();
+    let 壊れたcsv = "uid,hostname,device_type\n,web01,でたらめ\n";
+
+    let (状態, token) = 認証済み(db, &user).await;
+    let (status, body) = 送信(
+        状態,
+        &format!("/projects/{}/import", p.id),
+        &token,
+        multipart("devices.csv", 壊れたcsv, &[]),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains("device_type: &#34;でたらめ&#34; cannot be used"),
+        "{body}"
+    );
+    assert!(!body.contains("は使えません"), "{body}");
+}
+
 /// **他人の預かりは反映できないこと。**
 ///
 /// トークンが漏れても、別の利用者の取込を実行させない。
@@ -586,6 +613,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 読めない基準日は預からない);
         全検証!(@one $用意, $属性, 同じ預かりで二度は反映できない);
         全検証!(@one $用意, $属性, エラーがあれば反映できない);
+        全検証!(@one $用意, $属性, 理由は利用者の言語で出す);
         全検証!(@one $用意, $属性, 他人の預かりは反映できない);
         全検証!(@one $用意, $属性, 閲覧のみのロールは取り込めない);
         全検証!(@one $用意, $属性, 非メンバーは取り込めない);

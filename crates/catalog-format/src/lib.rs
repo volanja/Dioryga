@@ -45,6 +45,132 @@
 
 use serde::Deserialize;
 
+// ---------------------------------------------------------------------------
+// 理由（#214）
+// ---------------------------------------------------------------------------
+
+/// 利用者に見せる理由。**文言ではなく、キーと差し込む値で持つ**（#214）。
+///
+/// 同じ理由を、画面は利用者の言語で、コンソールはOSの言語で出す。理由を作る
+/// 時点ではどちらの言語で出すかが決まらないため、**言語は表示する側が渡す。**
+/// このcrateは言語に依存しない。キーの文言は Dioryga 本体の locales
+/// （`import_detail.*`）にある。
+///
+/// 差し込む値には、別の理由を入れ子にできる（[`Arg::Message`]）。「`status`: 語彙外」
+/// のように、理由に項目名を前置する場合に使う。
+///
+/// キーが空の `Message`（[`Message::default`]）は「理由なし」を表す。
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Message {
+    pub key: &'static str,
+    pub args: Vec<(&'static str, Arg)>,
+}
+
+/// [`Message`] に差し込む値。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Arg {
+    /// そのまま差し込む値（利用者が書いた値、件数など）。訳さない。
+    Text(String),
+    /// 入れ子の理由。表示する側が同じ言語で訳す。
+    Message(Message),
+    /// 入れ子の理由の並び。表示する側が訳し、言語の区切りでつなぐ。
+    List(Vec<Message>),
+}
+
+impl Message {
+    pub fn new(key: &'static str) -> Self {
+        Self {
+            key,
+            args: Vec::new(),
+        }
+    }
+
+    /// 差し込む値を足す。`name` は文言の `%{name}` に当たる。
+    pub fn with(mut self, name: &'static str, value: impl Into<Arg>) -> Self {
+        self.args.push((name, value.into()));
+        self
+    }
+
+    /// 理由が無いか。
+    pub fn is_empty(&self) -> bool {
+        self.key.is_empty()
+    }
+}
+
+/// 訳さずにキーと値を並べる。**利用者に見せる文言ではない**（ログ・デバッグ用）。
+impl std::fmt::Display for Message {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.key)?;
+        for (name, value) in &self.args {
+            match value {
+                Arg::Text(v) => write!(f, " {name}={v}")?,
+                Arg::Message(m) => write!(f, " {name}=({m})")?,
+                Arg::List(ms) => {
+                    write!(f, " {name}=[")?;
+                    for (i, m) in ms.iter().enumerate() {
+                        if i > 0 {
+                            f.write_str(", ")?;
+                        }
+                        write!(f, "({m})")?;
+                    }
+                    f.write_str("]")?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl From<Message> for Arg {
+    fn from(v: Message) -> Self {
+        Self::Message(v)
+    }
+}
+
+impl From<Vec<Message>> for Arg {
+    fn from(v: Vec<Message>) -> Self {
+        Self::List(v)
+    }
+}
+
+impl From<String> for Arg {
+    fn from(v: String) -> Self {
+        Self::Text(v)
+    }
+}
+
+impl From<&String> for Arg {
+    fn from(v: &String) -> Self {
+        Self::Text(v.clone())
+    }
+}
+
+impl From<&str> for Arg {
+    fn from(v: &str) -> Self {
+        Self::Text(v.to_owned())
+    }
+}
+
+macro_rules! 数を差し込む {
+    ($($t:ty),*) => {
+        $(impl From<$t> for Arg {
+            fn from(v: $t) -> Self {
+                Self::Text(v.to_string())
+            }
+        })*
+    };
+}
+数を差し込む!(i32, i64, u32, u64, usize);
+
+/// [`Message`] を組み立てる。`理由!("import_detail.format.count_zero")`、
+/// `理由!("import_detail.format.not_in_vocabulary", field = "slot_type", value = v)`。
+#[macro_export]
+macro_rules! 理由 {
+    ($key:literal $(, $name:ident = $value:expr)* $(,)?) => {
+        $crate::Message::new($key)$(.with(stringify!($name), $value))*
+    };
+}
+
 /// 対応するフォーマットの版。
 pub const FORMAT_VERSION: u32 = 1;
 pub const KIND: &str = "catalog";
@@ -248,7 +374,7 @@ impl SlotInput {
     /// ラベルの一覧へ展開する。**`slot_type` の語彙もここで確かめる**（8.6、#148）。
     ///
     /// ドライランと反映の両方がここを通るため、検証を外に置くと片方で漏れる。
-    pub fn expand(&self) -> Result<Vec<String>, String> {
+    pub fn expand(&self) -> Result<Vec<String>, Message> {
         閉じた語彙("slot_type", &self.slot_type, SLOT_TYPES)?;
         展開(
             self.labels.as_deref(),
@@ -261,7 +387,7 @@ impl SlotInput {
 
 impl PortInput {
     /// ラベルの一覧へ展開する。**スロットと同じ記法**（23.4）。
-    pub fn expand(&self) -> Result<Vec<String>, String> {
+    pub fn expand(&self) -> Result<Vec<String>, Message> {
         展開(
             self.labels.as_deref(),
             self.count,
@@ -280,21 +406,24 @@ fn 展開(
     count: Option<u32>,
     label_format: Option<&str>,
     既定の接頭辞: &str,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, Message> {
     match (labels, count) {
         (Some(labels), None) => {
             if labels.is_empty() {
-                return Err("labels が空です".to_owned());
+                return Err(理由!("import_detail.format.labels_empty"));
             }
             Ok(labels.to_vec())
         }
         (None, Some(count)) => {
             if count == 0 {
-                return Err("count が 0 です".to_owned());
+                return Err(理由!("import_detail.format.count_zero"));
             }
             // 実機のスロット数として現実的な範囲を超えたら、記述の誤りを疑う
             if count > 1024 {
-                return Err(format!("count が大きすぎます（{count}）"));
+                return Err(理由!(
+                    "import_detail.format.count_too_large",
+                    count = count
+                ));
             }
             let format = label_format
                 .map(str::to_owned)
@@ -303,8 +432,8 @@ fn 展開(
                 .map(|n| format.replace("{n}", &n.to_string()))
                 .collect())
         }
-        (Some(_), Some(_)) => Err("labels と count は同時に指定できません".to_owned()),
-        (None, None) => Err("labels か count のどちらかが要ります".to_owned()),
+        (Some(_), Some(_)) => Err(理由!("import_detail.format.labels_and_count")),
+        (None, None) => Err(理由!("import_detail.format.labels_or_count")),
     }
 }
 // ---------------------------------------------------------------------------
@@ -354,13 +483,15 @@ pub const PART_CATEGORIES: &[&str] = &["CPU", "Memory", "NIC", "Storage", "PSU",
 pub const CONTAINER_TYPES: &[&str] = &["Rack", "Desk", "Shelving"];
 
 /// 閉じた語彙で検証する。**大文字・小文字を寄せず、既定へも倒さない**（Q-21）。
-fn 閉じた語彙(項目: &str, value: &str, allowed: &[&str]) -> Result<(), String> {
+fn 閉じた語彙(項目: &str, value: &str, allowed: &[&str]) -> Result<(), Message> {
     if allowed.contains(&value) {
         Ok(())
     } else {
-        Err(format!(
-            "{項目}「{value}」は語彙にありません（{}）",
-            allowed.join(" / ")
+        Err(理由!(
+            "import_detail.format.not_in_vocabulary",
+            field = 項目,
+            value = value,
+            allowed = allowed.join(" / ")
         ))
     }
 }
@@ -373,20 +504,22 @@ fn 閉じた語彙(項目: &str, value: &str, allowed: &[&str]) -> Result<(), St
 pub fn 搭載を検証する(
     mount_form: &str,
     rack_width: Option<&str>,
-) -> Result<Option<String>, String> {
+) -> Result<Option<String>, Message> {
     閉じた語彙("mount_form", mount_form, MOUNT_FORMS)?;
     match (mount_form, rack_width.map(str::trim).unwrap_or("")) {
         ("RackU", "") => Ok(Some("Full".to_owned())),
         ("RackU", w) => 閉じた語彙("rack_width", w, RACK_WIDTHS).map(|_| Some(w.to_owned())),
         (_, "") => Ok(None),
-        (m, w) => Err(format!(
-            "rack_width「{w}」は mount_form が RackU のときだけ指定できます（{m}）"
+        (m, w) => Err(理由!(
+            "import_detail.format.rack_width_only_racku",
+            width = w,
+            mount_form = m
         )),
     }
 }
 
 /// 部品のカテゴリを検証する（6.4、#148）。
-pub fn 部品カテゴリを検証する(value: &str) -> Result<(), String> {
+pub fn 部品カテゴリを検証する(value: &str) -> Result<(), Message> {
     閉じた語彙("category", value, PART_CATEGORIES)
 }
 
@@ -394,14 +527,18 @@ pub fn 部品カテゴリを検証する(value: &str) -> Result<(), String> {
 ///
 /// 旧表記の `Vpn` 等を黙って `VPN` に直すと、語彙が経路ごとに2通りになる。
 /// 語彙外の値は既定へ倒さず拒否する（Q-21）のと同じ扱いにする。
-pub fn 種別を検証する(value: &str) -> Result<(), String> {
+pub fn 種別を検証する(value: &str) -> Result<(), Message> {
     閉じた語彙("device_category", value, DEVICE_CATEGORIES)
 }
 
 /// 重量を検証する。**正の整数か未指定**（24.2.1）。
-pub fn 重量を検証する(項目: &str, value: Option<i32>) -> Result<(), String> {
+pub fn 重量を検証する(項目: &str, value: Option<i32>) -> Result<(), Message> {
     match value {
-        Some(v) if v <= 0 => Err(format!("{項目}「{v}」は正の整数で書いてください")),
+        Some(v) if v <= 0 => Err(理由!(
+            "import_detail.format.not_positive",
+            field = 項目,
+            value = v
+        )),
         _ => Ok(()),
     }
 }
@@ -410,29 +547,29 @@ pub fn 重量を検証する(項目: &str, value: Option<i32>) -> Result<(), Str
 ///
 /// **種別に合わない収容能力は拒否し、合う収容能力が無くても拒否する。**
 /// 画面と同じ規則にする（8.6「手入力の画面と取込で扱いを揃える」）。
-pub fn 設備の型番を検証する(m: &ContainerModelInput) -> Result<(), String> {
+pub fn 設備の型番を検証する(m: &ContainerModelInput) -> Result<(), Message> {
     閉じた語彙("container_type", &m.container_type, CONTAINER_TYPES)?;
     if 正規化(&m.model_name).is_empty() {
-        return Err("model_name が空です".to_owned());
+        return Err(理由!("import_detail.format.model_name_empty"));
     }
     let is_rack = m.container_type == "Rack";
     let is_shelving = m.container_type == "Shelving";
     match (is_rack, m.height_u) {
-        (true, None) => return Err("Rack には height_u が要ります".to_owned()),
+        (true, None) => return Err(理由!("import_detail.format.rack_needs_height")),
         (false, Some(_)) => {
-            return Err(format!(
-                "height_u は Rack のときだけ書けます（{}）",
-                m.container_type
+            return Err(理由!(
+                "import_detail.format.height_only_rack",
+                container_type = &m.container_type
             ))
         }
         _ => {}
     }
     match (is_shelving, m.shelf_count) {
-        (true, None) => return Err("Shelving には shelf_count が要ります".to_owned()),
+        (true, None) => return Err(理由!("import_detail.format.shelving_needs_shelf_count")),
         (false, Some(_)) => {
-            return Err(format!(
-                "shelf_count は Shelving のときだけ書けます（{}）",
-                m.container_type
+            return Err(理由!(
+                "import_detail.format.shelf_count_only_shelving",
+                container_type = &m.container_type
             ))
         }
         _ => {}
@@ -470,30 +607,43 @@ pub struct 展開後のポート {
 /// **語彙外の値（拒否）とは別の話である。**
 pub fn ポートを検証する(
     ports: &[PortInput],
-) -> Result<(Vec<展開後のポート>, Vec<String>), String> {
+) -> Result<(Vec<展開後のポート>, Vec<Message>), Message> {
     let mut 出力 = Vec::new();
     let mut 警告 = Vec::new();
 
     for p in ports {
         // **閉じた語彙は既定へ寄せず拒否する**（8.6、Q-21）
         if !PORT_KINDS.contains(&p.port_kind.as_str()) {
-            return Err(format!("port_kind「{}」は語彙にありません", p.port_kind));
+            return Err(理由!(
+                "import_detail.format.port_kind_not_in_vocabulary",
+                value = &p.port_kind
+            ));
         }
         let connector = 正規化(&p.connector_type);
         if connector.is_empty() {
-            return Err(format!("{}: connector_type が空です", p.port_kind));
+            return Err(理由!(
+                "import_detail.format.connector_empty",
+                port_kind = &p.port_kind
+            ));
         }
 
-        let labels = p.expand().map_err(|e| format!("{}: {e}", p.port_kind))?;
+        let labels = p.expand().map_err(|e| {
+            理由!(
+                "import_detail.format.port_prefixed",
+                port_kind = &p.port_kind,
+                reason = e
+            )
+        })?;
 
         // **意味を持たない列は捨てるが、黙って捨てない**（23.6、12.7）
         let port_speed = match p.port_speed.as_deref().map(正規化) {
             Some(s) if s.is_empty() => None,
             Some(s) if p.port_kind == NETWORK => Some(s),
             Some(s) => {
-                警告.push(format!(
-                    "port_speed「{s}」は port_kind={} では意味を持たないため無視しました",
-                    p.port_kind
+                警告.push(理由!(
+                    "import_detail.format.port_speed_ignored",
+                    value = s,
+                    port_kind = &p.port_kind
                 ));
                 None
             }
@@ -503,9 +653,9 @@ pub fn ポートを検証する(
         let ratings = if p.power_ratings.is_empty() {
             Vec::new()
         } else if p.port_kind != POWER {
-            警告.push(format!(
-                "power_ratings は port_kind={} では意味を持たないため無視しました",
-                p.port_kind
+            警告.push(理由!(
+                "import_detail.format.power_ratings_ignored",
+                port_kind = &p.port_kind
             ));
             Vec::new()
         } else {
@@ -527,28 +677,30 @@ pub fn ポートを検証する(
     Ok((出力, 警告))
 }
 
-fn 定格を検証する(ratings: &[PowerRatingInput]) -> Result<Vec<(String, i32, i32)>, String> {
+fn 定格を検証する(ratings: &[PowerRatingInput]) -> Result<Vec<(String, i32, i32)>, Message> {
     let mut 出力: Vec<(String, i32, i32)> = Vec::new();
 
     for r in ratings {
         if !CURRENT_TYPES.contains(&r.current_type.as_str()) {
-            return Err(format!(
-                "current_type「{}」は語彙にありません",
-                r.current_type
+            return Err(理由!(
+                "import_detail.format.current_type_not_in_vocabulary",
+                value = &r.current_type
             ));
         }
         // **絶対値ではなく符号を含めた大小で見る**（12.7）。DCは -72 が下限
         if r.voltage_min > r.voltage_max {
-            return Err(format!(
-                "{}: 電圧の下限（{}）が上限（{}）を超えています",
-                r.current_type, r.voltage_min, r.voltage_max
+            return Err(理由!(
+                "import_detail.format.voltage_range",
+                current_type = &r.current_type,
+                min = r.voltage_min,
+                max = r.voltage_max
             ));
         }
         // **方式ごとに1行**（12.7）。DBのUNIQUEに任せず、ここで理由を返す
         if 出力.iter().any(|(k, _, _)| *k == r.current_type) {
-            return Err(format!(
-                "current_type「{}」が重複しています",
-                r.current_type
+            return Err(理由!(
+                "import_detail.format.current_type_duplicate",
+                value = &r.current_type
             ));
         }
         出力.push((r.current_type.clone(), r.voltage_min, r.voltage_max));
@@ -568,21 +720,27 @@ fn 定格を検証する(ratings: &[PowerRatingInput]) -> Result<Vec<(String, i3
 /// 独立しており、**拠点が違えば同じ `VLAN 100` が別物として存在する。**
 /// 一意にすると複数拠点を1つの台帳で扱えなくなる。取り違えの警告は
 /// DBを見る側（本体）が出す。
-pub fn vlanを検証する(v: &VlanInput) -> Result<Option<String>, String> {
+pub fn vlanを検証する(v: &VlanInput) -> Result<Option<String>, Message> {
     if !(VLANタグの下限..=VLANタグの上限).contains(&v.vlan_tag) {
-        return Err(format!(
-            "vlan_tag「{}」は{VLANタグの下限}〜{VLANタグの上限}の範囲外です",
-            v.vlan_tag
+        return Err(理由!(
+            "import_detail.format.vlan_tag_range",
+            value = v.vlan_tag,
+            min = VLANタグの下限,
+            max = VLANタグの上限
         ));
     }
     if 正規化(&v.name).is_empty() {
-        return Err("name が空です".to_owned());
+        return Err(理由!("import_detail.format.name_empty"));
     }
     match v.zone.trim() {
         "" => Ok(None),
         z if ZONES.contains(&z) => Ok(Some(z.to_owned())),
         // **閉じた語彙は既定へ寄せず拒否する**（8.6）
-        z => Err(format!("zone「{z}」は使えません（{}）", ZONES.join(" / "))),
+        z => Err(理由!(
+            "import_detail.format.zone_invalid",
+            value = z,
+            allowed = ZONES.join(" / ")
+        )),
     }
 }
 

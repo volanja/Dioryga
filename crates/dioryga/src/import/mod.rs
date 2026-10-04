@@ -32,6 +32,8 @@ pub mod workflow;
 
 use std::fmt;
 
+pub use dioryga_catalog_format::{理由, Arg, Message};
+
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine as _;
 use sha2::{Digest, Sha256};
@@ -71,19 +73,67 @@ impl Outcome {
 #[derive(Debug, Clone)]
 pub struct Entry {
     pub outcome: Outcome,
-    /// 対象を人が読める形で示す。自然キーをそのまま使う（23.2）。
+    /// 対象を人が読める形で示す。自然キーをそのまま使う（23.2）。**訳さない**——
+    /// ファイルに書かれた値であり、利用者が行を探す手がかりになる。
     pub target: String,
     /// 警告・エラーの理由。利用者が直せる言葉で書く。
-    pub detail: String,
+    ///
+    /// **キーと差し込む値で持つ**（#214）。画面は利用者の言語、コンソールはOSの
+    /// 言語で [`詳細を訳す::文言`] を呼ぶ。取込の時点では言語が決まらない。
+    pub detail: Message,
 }
 
 impl Entry {
-    pub fn new(outcome: Outcome, target: impl Into<String>, detail: impl Into<String>) -> Self {
+    pub fn new(outcome: Outcome, target: impl Into<String>, detail: Message) -> Self {
         Self {
             outcome,
             target: target.into(),
-            detail: detail.into(),
+            detail,
         }
+    }
+
+    /// 理由を `l` の言語で訳す（#214）。
+    pub fn 詳細(&self, l: &str) -> String {
+        self.detail.文言(l)
+    }
+}
+
+/// 理由（[`Message`]）を言語に合わせて訳す（#214）。
+///
+/// 文言は `locales/*.yml` の `import_detail.*` にある。差し込む値の `%{name}` を
+/// 置き換え、入れ子の理由は同じ言語で訳してから差し込む。
+pub trait 詳細を訳す {
+    fn 文言(&self, l: &str) -> String;
+}
+
+impl 詳細を訳す for Message {
+    fn 文言(&self, l: &str) -> String {
+        if self.is_empty() {
+            return String::new();
+        }
+        let 値 = |name: &str| {
+            self.args
+                .iter()
+                .find(|(n, _)| *n == name)
+                .map(|(_, v)| match v {
+                    Arg::Text(t) => t.clone(),
+                    Arg::Message(m) => m.文言(l),
+                    // **区切りも言語で変える**（「、」と「, 」）
+                    Arg::List(ms) => {
+                        ms.iter()
+                            .map(|m| m.文言(l))
+                            .collect::<Vec<_>>()
+                            .join(&rust_i18n::t!(
+                                "import_detail.common.list_separator",
+                                locale = l
+                            ))
+                    }
+                })
+        };
+        let names: Vec<&str> = self.args.iter().map(|(n, _)| *n).collect();
+        let values: Vec<String> = names.iter().map(|n| 値(n).unwrap_or_default()).collect();
+        let 型 = rust_i18n::t!(self.key, locale = l);
+        rust_i18n::replace_patterns(&型, &names, &values)
     }
 }
 
@@ -174,6 +224,10 @@ pub enum ImportError {
     #[error("{}", self.文言(crate::console::言語()))]
     HasErrors(usize),
 
+    /// 利用者のCSVに書かせない列（パスワード・System Admin、設計書23.8）。
+    #[error("{}", self.文言(crate::console::言語()))]
+    ForbiddenColumn(String),
+
     #[error(transparent)]
     Db(#[from] sea_orm::DbErr),
 }
@@ -198,6 +252,13 @@ impl ImportError {
                 expected = expected
             ),
             Self::HasErrors(count) => t!("errors.import_has_errors", locale = l, count = count),
+            Self::ForbiddenColumn(column) => {
+                t!(
+                    "errors.import_forbidden_column",
+                    locale = l,
+                    column = column
+                )
+            }
             Self::Db(e) => return e.to_string(),
         }
         .into_owned()
@@ -234,22 +295,81 @@ mod tests {
     #[test]
     fn エラーが1件でもあれば取り込まない() {
         let mut report = Report::default();
-        report.push(Entry::new(Outcome::Created, "a", ""));
+        report.push(Entry::new(Outcome::Created, "a", Message::default()));
         assert!(!report.has_error());
 
-        report.push(Entry::new(Outcome::Warning, "b", "スロット超過"));
+        report.push(Entry::new(
+            Outcome::Warning,
+            "b",
+            理由!("import_detail.catalog.add_weight"),
+        ));
         assert!(!report.has_error(), "警告で止めてはならない");
 
-        report.push(Entry::new(Outcome::Error, "c", "参照先が無い"));
+        report.push(Entry::new(
+            Outcome::Error,
+            "c",
+            理由!("import_detail.catalog.chassis_model_not_found"),
+        ));
         assert!(report.has_error());
+    }
+
+    /// **理由は表示する側の言語で訳すこと**（#214）。入れ子の理由と並びも同じ言語にする。
+    #[test]
+    fn 理由を言語ごとに訳す() {
+        let 理由 = 理由!(
+            "import_detail.common.field_prefixed",
+            field = "status",
+            reason = 理由!(
+                "import_detail.common.not_in_vocabulary",
+                value = "failed",
+                allowed = "planned / running"
+            )
+        );
+        assert_eq!(
+            理由.文言("ja"),
+            "status: 「failed」は使えません（planned / running）"
+        );
+        assert_eq!(
+            理由.文言("en"),
+            "status: \"failed\" cannot be used (planned / running)"
+        );
+
+        let 並び = 理由!(
+            "import_detail.common.duplicate_in_file",
+            items = vec![
+                理由!(
+                    "import_detail.common.duplicate_item",
+                    key = "uid",
+                    value = "U1",
+                    row = 2
+                ),
+                理由!(
+                    "import_detail.common.duplicate_item",
+                    key = "external_id",
+                    value = "E1",
+                    row = 3
+                ),
+            ]
+        );
+        assert_eq!(
+            並び.文言("ja"),
+            "uid「U1」が2行目、external_id「E1」が3行目と重複しています"
+        );
+        assert_eq!(
+            並び.文言("en"),
+            "Duplicates uid \"U1\" in row 2, external_id \"E1\" in row 3"
+        );
+
+        // 理由なしは空
+        assert_eq!(Message::default().文言("ja"), "");
     }
 
     #[test]
     fn 集計が判定ごとに分かれる() {
         let mut report = Report::default();
-        report.push(Entry::new(Outcome::Created, "a", ""));
-        report.push(Entry::new(Outcome::Created, "b", ""));
-        report.push(Entry::new(Outcome::Unchanged, "c", ""));
+        report.push(Entry::new(Outcome::Created, "a", Message::default()));
+        report.push(Entry::new(Outcome::Created, "b", Message::default()));
+        report.push(Entry::new(Outcome::Unchanged, "c", Message::default()));
 
         assert_eq!(report.count(Outcome::Created), 2);
         assert_eq!(report.count(Outcome::Unchanged), 1);

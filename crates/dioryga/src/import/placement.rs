@@ -58,7 +58,7 @@ use entity::{container_model, device, device_assignment, device_mount, mount_con
 use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
 
-use super::{Entry, ImportError, Outcome, Report};
+use super::{理由, Entry, ImportError, Message, Outcome, Report};
 use crate::repository::{Actor, AuditedTx};
 
 const PROJECT: &str = "Project";
@@ -99,7 +99,8 @@ impl 機器キー {
                 return v.to_owned();
             }
         }
-        "(識別子なし)".to_owned()
+        // 対象の欄は訳さない（#214）。記号で示す
+        "(—)".to_owned()
     }
 }
 
@@ -148,10 +149,14 @@ pub async fn 什器を取り込む(
 
     for row in rows {
         let name = row.name.trim().to_owned();
-        let target = format!("設備・什器 {name}");
+        let target = format!("MOUNT_CONTAINER {name}");
 
         if name.is_empty() {
-            report.push(Entry::new(Outcome::Error, target, "name が空です"));
+            report.push(Entry::new(
+                Outcome::Error,
+                target,
+                理由!("import_detail.common.empty", field = "name"),
+            ));
             continue;
         }
         // **同じファイルに同じ名前を2回書かない。**後の行が前の行を黙って
@@ -161,7 +166,7 @@ pub async fn 什器を取り込む(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                "同じ name の行がファイルの中に複数あります",
+                理由!("import_detail.placement.container_duplicate_in_file"),
             ));
             continue;
         }
@@ -188,7 +193,10 @@ pub async fn 什器を取り込む(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                format!("型番「{}」は廃番です", model.model_name),
+                理由!(
+                    "import_detail.placement.model_retired",
+                    model = &model.model_name
+                ),
             ));
             continue;
         }
@@ -210,11 +218,11 @@ pub async fn 什器を取り込む(
                     ..Default::default()
                 })
                 .await?;
-                report.push(Entry::new(Outcome::Created, target, ""));
+                report.push(Entry::new(Outcome::Created, target, Message::default()));
             }
             Some(c) => {
                 if 同じ型番 && c.installation_site == site {
-                    report.push(Entry::new(Outcome::Unchanged, target, ""));
+                    report.push(Entry::new(Outcome::Unchanged, target, Message::default()));
                     continue;
                 }
                 let mut active: mount_container::ActiveModel = c.clone().into();
@@ -222,7 +230,7 @@ pub async fn 什器を取り込む(
                 active.installation_site = Set(site);
                 active.updated_at = Set(now);
                 tx.update(&c, active).await?;
-                report.push(Entry::new(Outcome::Updated, target, ""));
+                report.push(Entry::new(Outcome::Updated, target, Message::default()));
             }
         }
     }
@@ -269,15 +277,19 @@ pub async fn 回路を取り込む(
     let mut 書いた: Vec<(i32, String)> = Vec::new();
 
     for row in rows {
-        let target = format!("回路 {} {}", row.container.trim(), row.circuit_label.trim());
+        let target = format!(
+            "POWER_CIRCUIT {} {}",
+            row.container.trim(),
+            row.circuit_label.trim()
+        );
         let Some(&container_id) = 什器.get(&crate::container::名前の鍵(&row.container))
         else {
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                format!(
-                    "設備・什器「{}」がこのプロジェクトにありません（撤去済みのものは指せません）",
-                    row.container.trim()
+                理由!(
+                    "import_detail.placement.container_not_found",
+                    name = row.container.trim()
                 ),
             ));
             continue;
@@ -290,12 +302,9 @@ pub async fn 回路を取り込む(
             &row.connector_type,
         ) {
             Ok(v) => v,
+            // **画面と同じ規則の、画面と同じ文言**（containers.error_*）を使う
             Err(key) => {
-                report.push(Entry::new(
-                    Outcome::Error,
-                    target,
-                    rust_i18n::t!(key, locale = "ja").to_string(),
-                ));
+                report.push(Entry::new(Outcome::Error, target, Message::new(key)));
                 continue;
             }
         };
@@ -305,7 +314,7 @@ pub async fn 回路を取り込む(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                "同じ設備・什器と系統名の行がファイルの中に複数あります",
+                理由!("import_detail.placement.circuit_duplicate_in_file"),
             ));
             continue;
         }
@@ -326,7 +335,7 @@ pub async fn 回路を取り込む(
         } else {
             Outcome::Unchanged
         };
-        report.push(Entry::new(outcome, target, ""));
+        report.push(Entry::new(outcome, target, Message::default()));
     }
     Ok(report)
 }
@@ -335,28 +344,35 @@ pub async fn 回路を取り込む(
 async fn 型番を解決する<C: ConnectionTrait>(
     db: &C,
     row: &ContainerRow,
-) -> Result<Result<container_model::Model, String>, sea_orm::DbErr> {
+) -> Result<Result<container_model::Model, Message>, sea_orm::DbErr> {
     let (Some(vendor_name), Some(model_name)) = (
         空ならnone(&row.container_vendor),
         空ならnone(&row.container_model),
     ) else {
-        return Ok(Err(
-            "container_vendor と container_model が要ります".to_owned()
-        ));
+        return Ok(Err(理由!("import_detail.placement.model_required")));
     };
     let Some(v) = vendor::Entity::find()
         .filter(vendor::Column::Name.eq(vendor_name))
         .one(db)
         .await?
     else {
-        return Ok(Err(format!("ベンダー「{vendor_name}」が見つかりません")));
+        return Ok(Err(理由!(
+            "import_detail.common.vendor_not_found",
+            vendor = vendor_name
+        )));
     };
     Ok(container_model::Entity::find()
         .filter(container_model::Column::VendorId.eq(v.id))
         .filter(container_model::Column::ModelName.eq(model_name))
         .one(db)
         .await?
-        .ok_or_else(|| format!("型番「{vendor_name} / {model_name}」が見つかりません")))
+        .ok_or_else(|| {
+            理由!(
+                "import_detail.placement.model_not_found",
+                vendor = vendor_name,
+                model = model_name
+            )
+        }))
 }
 
 // ---------------------------------------------------------------------------
@@ -584,7 +600,7 @@ impl 機器の索引 {
     /// 機器を指すだけ**であり、新規作成しないため突合キーを選ぶ必要がない。
     ///
     /// **統合先を辿る**（23.9.4）。吸収された側の識別子で書かれていても着地する。
-    pub(super) fn 引く(&self, key: &機器キー) -> Result<device::Model, String> {
+    pub(super) fn 引く(&self, key: &機器キー) -> Result<device::Model, Message> {
         let 順序 = [
             ("uid", 空ならnone(&key.uid)),
             ("external_id", 空ならnone(&key.external_id)),
@@ -596,20 +612,29 @@ impl 機器の索引 {
             let Some(value) = value else { continue };
             let 一致 = self.該当(列, value);
             return match 一致.len() {
-                1 => self
-                    .機器(一致[0])
-                    .ok_or_else(|| format!("{列}「{value}」の機器を読み出せません")),
-                0 => Err(format!(
-                    "{列}「{value}」の機器がこのプロジェクトにありません"
+                1 => self.機器(一致[0]).ok_or_else(|| {
+                    理由!(
+                        "import_detail.instances.cannot_read",
+                        key = 列,
+                        value = value
+                    )
+                }),
+                0 => Err(理由!(
+                    "import_detail.placement.device_not_in_project",
+                    key = 列,
+                    value = value
                 )),
                 // **黙って1台目を選ばない。**どれを指しているか決められない
-                n => Err(format!(
-                    "{列}「{value}」に{n}台が該当します。uid で指定してください"
+                n => Err(理由!(
+                    "import_detail.placement.device_ambiguous",
+                    key = 列,
+                    value = value,
+                    count = n
                 )),
             };
         }
 
-        Err("機器を特定する列が空です".to_owned())
+        Err(理由!("import_detail.placement.device_key_empty"))
     }
 }
 
@@ -693,8 +718,7 @@ async fn 所属を計画する<C: ConnectionTrait>(
                 report.push(Entry::new(
                     Outcome::Error,
                     表示,
-                    "location_type「Warehouse」は使えなくなりました。\
-                     倉庫は倉庫用のプロジェクトです。倉庫へ移すには変更管理チケット（Transfer）を使ってください",
+                    理由!("import_detail.common.warehouse_removed"),
                 ));
                 continue;
             }
@@ -704,8 +728,9 @@ async fn 所属を計画する<C: ConnectionTrait>(
                 report.push(Entry::new(
                     Outcome::Error,
                     表示,
-                    format!(
-                        "location_type「{other}」は扱えません。Project / Disposed のいずれかです"
+                    理由!(
+                        "import_detail.placement.location_type_invalid",
+                        value = other
                     ),
                 ));
                 continue;
@@ -722,8 +747,7 @@ async fn 所属を計画する<C: ConnectionTrait>(
                 report.push(Entry::new(
                     Outcome::Error,
                     表示,
-                    "この機器は今、他のプロジェクトにあります。\
-                     プロジェクト間の移動は変更管理チケット（Transfer）で行ってください",
+                    理由!("import_detail.instances.in_other_project"),
                 ));
                 continue;
             }
@@ -732,7 +756,7 @@ async fn 所属を計画する<C: ConnectionTrait>(
         // **一致していれば履歴行を作らない**（23.1）
         if let Some(現在) = &現在 {
             if 現在.location_type == location_type && 現在.location_id == location_id {
-                report.push(Entry::new(Outcome::Unchanged, 表示, String::new()));
+                report.push(Entry::new(Outcome::Unchanged, 表示, Message::default()));
                 continue;
             }
         }
@@ -742,10 +766,14 @@ async fn 所属を計画する<C: ConnectionTrait>(
         } else {
             Outcome::Created
         };
-        let detail = match &現在 {
-            Some(a) => format!("{} → {location_type}", a.location_type),
-            None => location_type.clone(),
-        };
+        // 語彙の値だけなので訳さない
+        let detail = 理由!(
+            "import_detail.common.verbatim",
+            text = match &現在 {
+                Some(a) => format!("{} → {location_type}", a.location_type),
+                None => location_type.clone(),
+            }
+        );
         report.push(Entry::new(outcome, 表示, detail));
 
         planned.push(所属の計画 {
@@ -872,62 +900,58 @@ async fn 搭載を計画する<C: ConnectionTrait>(
         };
 
         // 什器に載るか、他の機器の上に載るか（12.3）
-        let (container_id, host_device_id) = match (
-            空ならnone(&row.container),
-            空ならnone(&row.host_hostname),
-        ) {
-            (Some(_), Some(_)) => {
-                report.push(Entry::new(
-                    Outcome::Error,
-                    表示,
-                    "container と host_hostname は同時に指定できません",
-                ));
-                continue;
-            }
-            (Some(name), None) => match 什器.get(&crate::container::名前の鍵(name)) {
-                Some(id) => (Some(*id), None),
-                None => {
+        let (container_id, host_device_id) =
+            match (空ならnone(&row.container), 空ならnone(&row.host_hostname)) {
+                (Some(_), Some(_)) => {
                     report.push(Entry::new(
-                            Outcome::Error,
-                            表示,
-                            format!(
-                                "設備・什器「{name}」がこのプロジェクトにありません（撤去済みのものは指せません）"
-                            ),
-                        ));
+                        Outcome::Error,
+                        表示,
+                        理由!("import_detail.placement.container_and_host"),
+                    ));
                     continue;
                 }
-            },
-            (None, Some(host)) => {
-                let key = 機器キー {
-                    hostname: host.to_owned(),
-                    ..Default::default()
-                };
-                match 索引.引く(&key) {
-                    Ok(h) if h.id == d.id => {
-                        // **自分の上には載れない。**辿ると止まらなくなる
+                (Some(name), None) => match 什器.get(&crate::container::名前の鍵(name)) {
+                    Some(id) => (Some(*id), None),
+                    None => {
                         report.push(Entry::new(
                             Outcome::Error,
                             表示,
-                            "host_hostname が自分自身を指しています",
+                            理由!("import_detail.placement.container_not_found", name = name),
                         ));
                         continue;
                     }
-                    Ok(h) => (None, Some(h.id)),
-                    Err(理由) => {
-                        report.push(Entry::new(Outcome::Error, 表示, 理由));
-                        continue;
+                },
+                (None, Some(host)) => {
+                    let key = 機器キー {
+                        hostname: host.to_owned(),
+                        ..Default::default()
+                    };
+                    match 索引.引く(&key) {
+                        Ok(h) if h.id == d.id => {
+                            // **自分の上には載れない。**辿ると止まらなくなる
+                            report.push(Entry::new(
+                                Outcome::Error,
+                                表示,
+                                理由!("import_detail.placement.host_is_self"),
+                            ));
+                            continue;
+                        }
+                        Ok(h) => (None, Some(h.id)),
+                        Err(理由) => {
+                            report.push(Entry::new(Outcome::Error, 表示, 理由));
+                            continue;
+                        }
                     }
                 }
-            }
-            (None, None) => {
-                report.push(Entry::new(
-                    Outcome::Error,
-                    表示,
-                    "container か host_hostname のどちらかが要ります",
-                ));
-                continue;
-            }
-        };
+                (None, None) => {
+                    report.push(Entry::new(
+                        Outcome::Error,
+                        表示,
+                        理由!("import_detail.placement.container_or_host"),
+                    ));
+                    continue;
+                }
+            };
 
         let position = match 空ならnone(&row.position) {
             None => None,
@@ -937,7 +961,11 @@ async fn 搭載を計画する<C: ConnectionTrait>(
                     report.push(Entry::new(
                         Outcome::Error,
                         表示,
-                        format!("position「{v}」を数値として読めません"),
+                        理由!(
+                            "import_detail.common.not_a_number",
+                            field = "position",
+                            value = v
+                        ),
                     ));
                     continue;
                 }
@@ -957,7 +985,7 @@ async fn 搭載を計画する<C: ConnectionTrait>(
                 && 現在.depth_position == depth_position
                 && 現在.host_device_id == host_device_id
             {
-                report.push(Entry::new(Outcome::Unchanged, 表示, String::new()));
+                report.push(Entry::new(Outcome::Unchanged, 表示, Message::default()));
                 continue;
             }
         }
@@ -968,7 +996,7 @@ async fn 搭載を計画する<C: ConnectionTrait>(
         } else {
             Outcome::Created
         };
-        let mut detail = String::new();
+        let mut detail = Message::default();
 
         if let (Some(cid), Some(pos)) = (container_id, position) {
             if let Some(理由) = 重複を調べる(
@@ -1018,7 +1046,7 @@ async fn 重複を調べる<C: ConnectionTrait>(
     device_id: i32,
     horizontal: Option<&str>,
     depth: Option<&str>,
-) -> Result<Option<String>, sea_orm::DbErr> {
+) -> Result<Option<Message>, sea_orm::DbErr> {
     let 現行 = device_mount::Entity::find()
         .filter(device_mount::Column::ContainerId.eq(container_id))
         .filter(device_mount::Column::ToDate.is_null())
@@ -1047,12 +1075,16 @@ async fn 重複を調べる<C: ConnectionTrait>(
             (Some(FRONT), Some(REAR)) | (Some(REAR), Some(FRONT))
         );
         if 前後で分かれている {
-            return Ok(Some(format!(
-                "{position}U に前後で同居します。排熱上は推奨されません"
+            return Ok(Some(理由!(
+                "import_detail.placement.front_rear_shared",
+                position = position
             )));
         }
 
-        return Ok(Some(format!("{position}U に既に別の機器があります")));
+        return Ok(Some(理由!(
+            "import_detail.placement.position_taken",
+            position = position
+        )));
     }
 
     Ok(None)
@@ -1192,6 +1224,6 @@ mod tests {
     #[test]
     fn 識別子が無ければそう示す() {
         let key = 機器キー::default();
-        assert_eq!(key.表示名(), "(識別子なし)");
+        assert_eq!(key.表示名(), "(—)");
     }
 }

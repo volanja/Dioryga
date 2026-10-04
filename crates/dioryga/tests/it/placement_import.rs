@@ -53,7 +53,8 @@ async fn 倉庫は書けない(db: &DatabaseConnection) {
     assert!(
         report
             .errors()
-            .any(|e| e.detail.contains("倉庫用のプロジェクト") && e.detail.contains("Transfer")),
+            .any(|e| e.詳細("ja").contains("倉庫用のプロジェクト")
+                && e.詳細("ja").contains("Transfer")),
         "{report}"
     );
     assert_eq!(所属の履歴(db, d.id).await.len(), 1);
@@ -89,7 +90,9 @@ async fn 他プロジェクトへは移せない(db: &DatabaseConnection) {
         .unwrap();
     assert_eq!(report.count(Outcome::Error), 1, "{report}");
     assert!(
-        report.errors().any(|e| e.detail.contains("location_type")),
+        report
+            .errors()
+            .any(|e| e.詳細("ja").contains("location_type")),
         "理由が location_type に触れていません"
     );
 }
@@ -111,7 +114,7 @@ async fn 他プロジェクトにある機器は引き戻せない(db: &Database
             .unwrap();
         assert_eq!(report.count(Outcome::Error), 1, "{行}: {report}");
         assert!(
-            report.errors().any(|e| e.detail.contains("Transfer")),
+            report.errors().any(|e| e.詳細("ja").contains("Transfer")),
             "{行}: 移譲の案内がありません"
         );
 

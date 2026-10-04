@@ -104,7 +104,7 @@ fn 詳細(report: &Report) -> String {
         .entries
         .iter()
         .filter(|e| e.outcome != Outcome::Unchanged)
-        .map(|e| format!("{:?} {} {}", e.outcome, e.target, e.detail))
+        .map(|e| format!("{:?} {} {}", e.outcome, e.target, e.詳細("ja")))
         .collect::<Vec<_>>()
         .join("\n")
 }

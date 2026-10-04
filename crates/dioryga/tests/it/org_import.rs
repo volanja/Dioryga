@@ -223,9 +223,9 @@ async fn 取り込んだ利用者は倉庫プロジェクトのviewerになる(
         .find(|e| e.target == "hotaka")
         .unwrap();
     assert!(
-        hotaka.detail.contains("Viewer として加えました"),
+        hotaka.詳細("ja").contains("Viewer として加えました"),
         "{}",
-        hotaka.detail
+        hotaka.詳細("ja")
     );
     let メンバーの行 = 一回目
         .report
@@ -266,7 +266,10 @@ async fn パスワードの列があれば拒否する(db: &DatabaseConnection) 
 
     let 結果 = run::run(db, &dir.join("manifest.yaml"), "admin", false).await;
     assert!(
-        matches!(結果, Err(RunError::Import(ImportError::Csv(_)))),
+        matches!(
+            &結果,
+            Err(RunError::Import(ImportError::ForbiddenColumn(c))) if c == "password"
+        ),
         "{:?}",
         結果.err()
     );
@@ -465,7 +468,10 @@ async fn 正管理者が2人になる取込は拒否する(db: &DatabaseConnecti
         .await
         .unwrap();
     assert!(
-        下見.report.errors().any(|e| e.detail.contains("正管理者")),
+        下見
+            .report
+            .errors()
+            .any(|e| e.詳細("ja").contains("正管理者")),
         "{}",
         詳細(&下見.report)
     );
@@ -575,7 +581,7 @@ fn 詳細(report: &dioryga::import::Report) -> String {
     report
         .entries
         .iter()
-        .map(|e| format!("{:?} {} {}", e.outcome, e.target, e.detail))
+        .map(|e| format!("{:?} {} {}", e.outcome, e.target, e.詳細("ja")))
         .collect::<Vec<_>>()
         .join("\n")
 }

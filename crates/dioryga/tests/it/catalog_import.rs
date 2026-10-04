@@ -79,7 +79,7 @@ chassis_models:
     assert!(report.has_error());
     assert!(report
         .errors()
-        .any(|e| e.detail.contains("存在しないベンダー")));
+        .any(|e| e.詳細("ja").contains("存在しないベンダー")));
 }
 
 /// スロットの記述が曖昧ならエラーになること（設計書23.4）。
@@ -101,7 +101,49 @@ chassis_models:
     let report = catalog::dry_run(db, &file).await.unwrap();
 
     assert!(report.has_error());
-    assert!(report.errors().any(|e| e.detail.contains("同時に指定")));
+    assert!(report.errors().any(|e| e.詳細("ja").contains("同時に指定")));
+}
+
+/// **理由は表示する側の言語で出ること**（#214）。
+///
+/// 画面は利用者の言語、コンソールはOSの言語で出す。入れ子の理由（スロットの
+/// 種類を前置した展開の誤り）も同じ言語で訳す。
+async fn 理由は言語ごとに訳す(db: &DatabaseConnection) {
+    let yaml = r#"
+format_version: 1
+kind: catalog
+vendors:
+  - name: V
+chassis_models:
+  - vendor: V
+    model_name: M1
+    device_category: Server
+    mount_form: RackU
+    slots:
+      - { slot_type: DIMM, count: 4, labels: [A, B] }
+  - vendor: 無いベンダー
+    model_name: M2
+    device_category: Server
+    mount_form: RackU
+"#;
+    let file = catalog::parse(yaml).unwrap();
+    let report = catalog::dry_run(db, &file).await.unwrap();
+    let 理由: Vec<_> = report.errors().collect();
+    assert_eq!(理由.len(), 2, "{report}");
+
+    assert_eq!(
+        理由[0].詳細("ja"),
+        "DIMM: labels と count は同時に指定できません"
+    );
+    assert_eq!(
+        理由[0].詳細("en"),
+        "DIMM: labels and count cannot both be given"
+    );
+    assert_eq!(
+        理由[1].詳細("ja"),
+        "ベンダー「無いベンダー」が見つかりません"
+    );
+    assert_eq!(理由[1].詳細("en"), "Vendor \"無いベンダー\" was not found");
 }
 
 /// **種別の略語は大文字だけを受けること**（設計書8.6、#125）。
@@ -128,7 +170,7 @@ chassis_models:
     let file = catalog::parse(&yaml("Vpn")).unwrap();
     let report = catalog::dry_run(db, &file).await.unwrap();
     assert!(
-        report.errors().any(|e| e.detail.contains("「Vpn」")),
+        report.errors().any(|e| e.詳細("ja").contains("「Vpn」")),
         "{report}"
     );
 
@@ -177,7 +219,7 @@ chassis_models:
             .await
             .unwrap();
         assert!(
-            report.errors().any(|e| e.detail.contains(語)),
+            report.errors().any(|e| e.詳細("ja").contains(語)),
             "{語}: {report}"
         );
     }
@@ -198,7 +240,7 @@ part_catalogs:
     assert!(
         report
             .errors()
-            .any(|e| e.detail.contains("category「Psu」")),
+            .any(|e| e.詳細("ja").contains("category「Psu」")),
         "{report}"
     );
 }
@@ -472,7 +514,7 @@ async fn 語彙外のポート種別はエラー(db: &DatabaseConnection) {
     assert_eq!(report.count(Outcome::Error), 1);
     assert!(report
         .errors()
-        .any(|e| e.detail.contains("語彙にありません")));
+        .any(|e| e.詳細("ja").contains("語彙にありません")));
 
     // 反映は全体が止まる
     let user = 利用者(db, "badkind@example.com").await;
@@ -520,7 +562,7 @@ async fn 意味を持たない列は警告して捨てる(db: &DatabaseConnectio
     assert_eq!(report.count(Outcome::Warning), 1);
     assert!(report
         .warnings()
-        .any(|w| w.detail.contains("意味を持たない")));
+        .any(|w| w.詳細("ja").contains("意味を持たない")));
 
     catalog::apply(db, &file, user.id, 1).await.unwrap();
     let ports = ポート一覧(db, 部品を引く(db, "PYBPS1600").await.id).await;
@@ -564,7 +606,7 @@ async fn 逆転した電圧範囲はエラー(db: &DatabaseConnection) {
     let report = catalog::dry_run(db, &file).await.unwrap();
 
     assert_eq!(report.count(Outcome::Error), 1);
-    assert!(report.errors().any(|e| e.detail.contains("上限")));
+    assert!(report.errors().any(|e| e.詳細("ja").contains("上限")));
 }
 
 /// **同じポートに同じ方式を2行書けないこと**（設計書12.7）。
@@ -577,7 +619,7 @@ async fn 方式の重複はエラー(db: &DatabaseConnection) {
     let report = catalog::dry_run(db, &file).await.unwrap();
 
     assert_eq!(report.count(Outcome::Error), 1);
-    assert!(report.errors().any(|e| e.detail.contains("重複")));
+    assert!(report.errors().any(|e| e.詳細("ja").contains("重複")));
 }
 
 /// 上の `ポートつき` から `ports` を落としたもの。
@@ -881,6 +923,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, ドライランは書き換えない);
         全検証!(@one $用意, $属性, 解決できない参照はエラー);
         全検証!(@one $用意, $属性, 曖昧なスロット記述はエラー);
+        全検証!(@one $用意, $属性, 理由は言語ごとに訳す);
         全検証!(@one $用意, $属性, 種別の旧表記はエラー);
         全検証!(@one $用意, $属性, 語彙外の搭載形態やスロットや部品カテゴリはエラー);
         全検証!(@one $用意, $属性, rackuの幅は省くとfullになる);

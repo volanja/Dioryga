@@ -18,7 +18,7 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, Qu
 
 use super::{
     catalog, costs, file_hash, instances, network, organization, parts, placement, workflow,
-    ImportError, Outcome, Report,
+    詳細を訳す, ImportError, Outcome, Report,
 };
 use crate::auth::authorization;
 use crate::console::言語;
@@ -47,9 +47,10 @@ pub enum RunError {
     #[error("{}", t!("errors.run_not_system_admin", locale = 言語()))]
     NotSystemAdmin,
 
-    /// 差分レポートの詳細と同じく、まだ訳していない（#191の範囲外）
-    #[error("{0}")]
-    Unresolved(String),
+    /// 参照を解決できない（マニフェストのプロジェクト等）。差分レポートの理由と
+    /// 同じくキーと値で持ち、OSの言語で訳す（#214）
+    #[error("{}", .0.文言(言語()))]
+    Unresolved(super::Message),
 
     #[error("{}", t!("errors.run_unsupported_entity", locale = 言語(), entity = .0))]
     UnsupportedEntity(String),
@@ -559,10 +560,15 @@ fn 報告の文面(executed: &Executed, apply: bool, l: &str) -> String {
     let エラー = Outcome::Error.文言(l);
     let 警告 = Outcome::Warning.文言(l);
     for entry in executed.report.errors() {
-        let _ = writeln!(out, "  {エラー}  {} — {}", entry.target, entry.detail);
+        let _ = writeln!(
+            out,
+            "  {エラー}  {} — {}",
+            entry.target,
+            entry.detail.文言(l)
+        );
     }
     for entry in executed.report.warnings() {
-        let _ = writeln!(out, "  {警告}  {} — {}", entry.target, entry.detail);
+        let _ = writeln!(out, "  {警告}  {} — {}", entry.target, entry.detail.文言(l));
     }
 
     if executed.report.errors().count() > 0 || executed.report.warnings().count() > 0 {

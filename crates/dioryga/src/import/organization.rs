@@ -51,7 +51,7 @@ use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
 
 use super::instances::FileRef;
-use super::{Entry, ImportError, Outcome, Report};
+use super::{理由, Entry, ImportError, Message, Outcome, Report};
 use crate::auth::authorization::{ADMINISTRATOR, APPROVER, OPERATOR, VIEWER};
 use crate::auth::{session, username};
 use crate::currency;
@@ -170,9 +170,7 @@ pub fn parse_users(source: &str) -> Result<Vec<UserRow>, ImportError> {
     for header in headers {
         let header = header.trim().to_ascii_lowercase();
         if 書かせない列.contains(&header.as_str()) {
-            return Err(ImportError::Csv(format!(
-                "利用者のCSVに「{header}」の列は書けません。パスワードとSystem Adminは取込で扱いません（設計書23.8）"
-            )));
+            return Err(ImportError::ForbiddenColumn(header));
         }
     }
     super::placement::読み取る(source)
@@ -217,28 +215,30 @@ async fn 利用者を取り込む(
 
     for (i, row) in rows.iter().enumerate() {
         let target = row.username.trim().to_owned();
-        let 誤り = |detail: String| Entry::new(Outcome::Error, target.clone(), detail);
+        let 誤り = |detail: Message| Entry::new(Outcome::Error, target.clone(), detail);
 
         let username = match username::検証する(&row.username) {
             Ok(v) => v,
             Err(e) => {
-                report.push(誤り(e.to_string()));
+                report.push(誤り(ユーザー名の理由(&e)));
                 continue;
             }
         };
         if let Some(前) = ユーザー名.insert(username.clone(), i) {
-            report.push(誤り(
-                format!("ユーザー名が{}行目と重複しています", 前 + 2),
-            ));
+            report.push(誤り(理由!(
+                "import_detail.organization.username_duplicate",
+                row = 前 + 2
+            )));
             continue;
         }
 
         let email = username::任意のメールアドレス(&row.email);
         if let Some(e) = &email {
             if let Some(前) = メール.insert(e.clone(), i) {
-                report.push(誤り(format!(
-                    "メールアドレス「{e}」が{}行目と重複しています",
-                    前 + 2
+                report.push(誤り(理由!(
+                    "import_detail.organization.email_duplicate",
+                    email = e,
+                    row = 前 + 2
                 )));
                 continue;
             }
@@ -248,7 +248,15 @@ async fn 利用者を取り込む(
             "" => None,
             v @ ("ja" | "en") => Some(v.to_owned()),
             other => {
-                report.push(誤り(format!("locale「{other}」は使えません（ja / en）")));
+                report.push(誤り(理由!(
+                    "import_detail.common.field_prefixed",
+                    field = "locale",
+                    reason = 理由!(
+                        "import_detail.common.not_in_vocabulary",
+                        value = other,
+                        allowed = "ja / en"
+                    )
+                )));
                 continue;
             }
         };
@@ -258,8 +266,14 @@ async fn 利用者を取り込む(
             "active" => Some(false),
             "disabled" => Some(true),
             other => {
-                report.push(誤り(format!(
-                    "status「{other}」は使えません（active / disabled）"
+                report.push(誤り(理由!(
+                    "import_detail.common.field_prefixed",
+                    field = "status",
+                    reason = 理由!(
+                        "import_detail.common.not_in_vocabulary",
+                        value = other,
+                        allowed = "active / disabled"
+                    )
                 )));
                 continue;
             }
@@ -279,8 +293,9 @@ async fn 利用者を取り込む(
                 .await?
             {
                 if 既存.as_ref().map(|u| u.id) != Some(他.id) {
-                    report.push(誤り(format!(
-                        "メールアドレス「{e}」は他の利用者が使っています"
+                    report.push(誤り(理由!(
+                        "import_detail.organization.email_taken",
+                        email = e
                     )));
                     continue;
                 }
@@ -291,7 +306,7 @@ async fn 利用者を取り込む(
         let Some(user) = 既存 else {
             if name.is_empty() {
                 report.push(誤り(
-                    "新しい利用者には表示名（name）が要ります".to_owned(),
+                    理由!("import_detail.organization.user_name_required"),
                 ));
                 continue;
             }
@@ -324,19 +339,20 @@ async fn 利用者を取り込む(
             // 加える**（#218）。無効で作った利用者も加える——有効に戻したときに
             // 在庫が見えないままにならないよう、作ったときに加えておく
             let 加えた先 = crate::setting::既定の参加先に加える(tx, &created, by).await?;
-            let mut detail =
-                "パスワード未設定。管理者がリセットするまでログインできません".to_owned();
-            if let Some(p) = 加えた先 {
-                detail.push_str(&format!("。「{}」に Viewer として加えました", p.name));
-            }
+            let detail = match 加えた先 {
+                Some(p) => 理由!(
+                    "import_detail.organization.user_created_joined",
+                    project = p.name
+                ),
+                None => 理由!("import_detail.organization.user_created"),
+            };
             report.push(Entry::new(Outcome::Created, username, detail));
             continue;
         };
 
         if user.is_system_admin {
             report.push(誤り(
-                "System Adminは取込で変更できません（初回セットアップ・admin create の経路に限る）"
-                    .to_owned(),
+                理由!("import_detail.organization.system_admin_user"),
             ));
             continue;
         }
@@ -374,7 +390,7 @@ async fn 利用者を取り込む(
         }
 
         if !変更 {
-            report.push(Entry::new(Outcome::Unchanged, username, ""));
+            report.push(Entry::new(Outcome::Unchanged, username, Message::default()));
             continue;
         }
         active.updated_at = Set(now);
@@ -391,9 +407,9 @@ async fn 利用者を取り込む(
             Outcome::Updated,
             username,
             if 無効にした {
-                "無効化しました"
+                理由!("import_detail.organization.user_disabled")
             } else {
-                ""
+                Message::default()
             },
         ));
     }
@@ -416,16 +432,20 @@ async fn プロジェクトを取り込む(
         let target = [code, name, uid]
             .into_iter()
             .find(|v| !v.is_empty())
-            .unwrap_or("(プロジェクト)")
+            // 対象の欄は訳さない（#214）。記号で示す
+            .unwrap_or("(—)")
             .to_owned();
-        let 誤り = |detail: String| Entry::new(Outcome::Error, target.clone(), detail);
+        let 誤り = |detail: Message| Entry::new(Outcome::Error, target.clone(), detail);
 
         let currency = match row.currency.trim() {
             "" => None,
             v => {
                 let upper = v.to_uppercase();
                 if !currency::is_supported(&upper) {
-                    report.push(誤り(format!("通貨「{v}」には対応していません")));
+                    report.push(誤り(理由!(
+                        "import_detail.organization.currency_unsupported",
+                        currency = v
+                    )));
                     continue;
                 }
                 Some(upper)
@@ -441,9 +461,10 @@ async fn プロジェクトを取り込む(
             {
                 Some(p) => Some(p),
                 None => {
-                    report.push(誤り(
-                        format!("uid「{uid}」のプロジェクトが見つかりません"),
-                    ));
+                    report.push(誤り(理由!(
+                        "import_detail.organization.project_uid_not_found",
+                        uid = uid
+                    )));
                     continue;
                 }
             }
@@ -461,28 +482,35 @@ async fn プロジェクトを取り込む(
                 0 => None,
                 1 => 同名.into_iter().next(),
                 n => {
-                    report.push(誤り(format!(
-                        "名前「{name}」のプロジェクトが{n}件あります。code か uid を書いてください"
+                    report.push(誤り(理由!(
+                        "import_detail.organization.project_name_ambiguous",
+                        name = name,
+                        count = n
                     )));
                     continue;
                 }
             }
         } else {
-            report.push(誤り("uid・code・name のいずれかが要ります".to_owned()));
+            report.push(誤り(理由!(
+                "import_detail.organization.project_key_required"
+            )));
             continue;
         };
 
         let now = Utc::now();
         let Some(p) = 既存 else {
             if name.is_empty() {
-                report.push(誤り("新しいプロジェクトには name が要ります".to_owned()));
+                report.push(誤り(理由!(
+                    "import_detail.organization.project_name_required"
+                )));
                 continue;
             }
             if !code.is_empty() {
                 if let Some(前) = 新規のcode.insert(code.to_owned(), i) {
-                    report.push(誤り(format!(
-                        "code「{code}」が{}行目と重複しています",
-                        前 + 2
+                    report.push(誤り(理由!(
+                        "import_detail.organization.code_duplicate",
+                        code = code,
+                        row = 前 + 2
                     )));
                     continue;
                 }
@@ -501,14 +529,14 @@ async fn プロジェクトを取り込む(
                 ..Default::default()
             })
             .await?;
-            report.push(Entry::new(Outcome::Created, target, ""));
+            report.push(Entry::new(Outcome::Created, target, Message::default()));
             continue;
         };
 
         if let Some(前) = 出現.insert(p.id, i) {
-            report.push(誤り(format!(
-                "{}行目と同じプロジェクトを指しています",
-                前 + 2
+            report.push(誤り(理由!(
+                "import_detail.organization.project_same_row",
+                row = 前 + 2
             )));
             continue;
         }
@@ -528,8 +556,9 @@ async fn プロジェクトを取り込む(
                 .await?
             {
                 if 他.id != p.id {
-                    report.push(誤り(format!(
-                        "code「{code}」は他のプロジェクトが使っています"
+                    report.push(誤り(理由!(
+                        "import_detail.organization.code_taken",
+                        code = code
                     )));
                     continue;
                 }
@@ -547,22 +576,23 @@ async fn プロジェクトを取り込む(
                 active.currency = Set(c.clone());
                 変更 = true;
                 // 画面と同じく変えられるが、既存の金額の読み方が変わる（24.2.1）
-                警告 = Some(format!(
-                    "集計通貨を {} から {c} に変えます。既存の金額の解釈が変わります",
-                    p.currency
+                警告 = Some(理由!(
+                    "import_detail.organization.currency_changed",
+                    from = &p.currency,
+                    to = c
                 ));
             }
         }
 
         if !変更 {
-            report.push(Entry::new(Outcome::Unchanged, target, ""));
+            report.push(Entry::new(Outcome::Unchanged, target, Message::default()));
             continue;
         }
         active.updated_at = Set(now);
         tx.update(&p, active).await?;
         match 警告 {
             Some(detail) => report.push(Entry::new(Outcome::Warning, target, detail)),
-            None => report.push(Entry::new(Outcome::Updated, target, "")),
+            None => report.push(Entry::new(Outcome::Updated, target, Message::default())),
         }
     }
 
@@ -598,7 +628,7 @@ async fn メンバーを取り込む(
             row.username.trim(),
             row.role.trim()
         );
-        let 誤り = |detail: String| Some(Entry::new(Outcome::Error, target.clone(), detail));
+        let 誤り = |detail: Message| Some(Entry::new(Outcome::Error, target.clone(), detail));
 
         let project =
             match super::instances::解決するプロジェクト(tx.reader(), row.project.trim()).await?
@@ -616,19 +646,27 @@ async fn メンバーを取り込む(
             .one(tx.reader())
             .await?
         else {
-            判定[i] = 誤り(format!("利用者「{key}」が見つかりません"));
+            判定[i] = 誤り(理由!(
+                "import_detail.organization.user_not_found",
+                username = key
+            ));
             continue;
         };
         if user.is_system_admin {
-            判定[i] = 誤り("System Adminはプロジェクトのメンバーにできません（3章）".to_owned());
+            判定[i] = 誤り(理由!("import_detail.organization.system_admin_member"));
             continue;
         }
 
         let role = row.role.trim();
         if !ROLES.contains(&role) {
-            判定[i] = 誤り(format!(
-                "role「{role}」は使えません（{}）",
-                ROLES.join(" / ")
+            判定[i] = 誤り(理由!(
+                "import_detail.common.field_prefixed",
+                field = "role",
+                reason = 理由!(
+                    "import_detail.common.not_in_vocabulary",
+                    value = role,
+                    allowed = ROLES.join(" / ")
+                )
             ));
             continue;
         }
@@ -638,16 +676,14 @@ async fn メンバーを取り込む(
             match rank {
                 PRIMARY | SECONDARY => Some(rank.to_owned()),
                 _ => {
-                    判定[i] = 誤り(
-                        "Administrator には admin_rank（Primary / Secondary）が要ります".to_owned(),
-                    );
+                    判定[i] = 誤り(理由!("import_detail.organization.rank_required"));
                     continue;
                 }
             }
         } else if rank.is_empty() {
             None
         } else {
-            判定[i] = 誤り("admin_rank は Administrator のときだけ書けます".to_owned());
+            判定[i] = 誤り(理由!("import_detail.organization.rank_only_administrator"));
             continue;
         };
 
@@ -655,18 +691,29 @@ async fn メンバーを取り込む(
             "" | "false" => false,
             "true" => true,
             other => {
-                判定[i] = 誤り(format!("remove「{other}」は使えません（true / false）"));
+                判定[i] = 誤り(理由!(
+                    "import_detail.common.field_prefixed",
+                    field = "remove",
+                    reason = 理由!(
+                        "import_detail.common.not_in_vocabulary",
+                        value = other,
+                        allowed = "true / false"
+                    )
+                ));
                 continue;
             }
         };
 
         if !remove && user.disabled_at.is_some() {
-            判定[i] = 誤り("無効化された利用者はメンバーに加えられません".to_owned());
+            判定[i] = 誤り(理由!("import_detail.organization.disabled_user"));
             continue;
         }
 
         if let Some(前) = 出現.insert((project.id, user.id, role.to_owned()), i) {
-            判定[i] = 誤り(format!("{}行目と同じ所属を指しています", 前 + 2));
+            判定[i] = 誤り(理由!(
+                "import_detail.organization.member_same_row",
+                row = 前 + 2
+            ));
             continue;
         }
 
@@ -714,10 +761,14 @@ async fn メンバーを取り込む(
                 Entry::new(
                     Outcome::Updated,
                     r.target.clone(),
-                    "プロジェクトから外しました",
+                    理由!("import_detail.organization.member_removed"),
                 )
             }
-            (true, None) => Entry::new(Outcome::Unchanged, r.target.clone(), "所属していません"),
+            (true, None) => Entry::new(
+                Outcome::Unchanged,
+                r.target.clone(),
+                理由!("import_detail.organization.not_a_member"),
+            ),
             (false, None) => {
                 tx.insert_recorded(
                     project_member::ActiveModel {
@@ -732,16 +783,18 @@ async fn メンバーを取り込む(
                     by,
                 )
                 .await?;
-                Entry::new(Outcome::Created, r.target.clone(), "")
+                Entry::new(Outcome::Created, r.target.clone(), Message::default())
             }
             (false, Some(m)) if m.admin_rank != r.rank => {
                 let mut active: project_member::ActiveModel = m.clone().into();
                 active.admin_rank = Set(r.rank.clone());
                 active.updated_at = Set(now);
                 tx.update_recorded(&m, active, by).await?;
-                Entry::new(Outcome::Updated, r.target.clone(), "")
+                Entry::new(Outcome::Updated, r.target.clone(), Message::default())
             }
-            (false, Some(_)) => Entry::new(Outcome::Unchanged, r.target.clone(), ""),
+            (false, Some(_)) => {
+                Entry::new(Outcome::Unchanged, r.target.clone(), Message::default())
+            }
         };
         判定[r.index] = Some(entry);
     }
@@ -766,13 +819,15 @@ async fn メンバーを取り込む(
             .collect();
 
         let 違反 = if 正.len() > 1 {
-            Some("正管理者（Primary）が2人以上になります")
+            Some(理由!("import_detail.organization.primary_many"))
         } else if 副.len() > 1 {
-            Some("副管理者（Secondary）が2人以上になります")
+            Some(理由!("import_detail.organization.secondary_many"))
         } else if 正.is_empty() && !副.is_empty() {
-            Some("正管理者（Primary）がいないまま副管理者（Secondary）が残ります")
+            Some(理由!(
+                "import_detail.organization.secondary_without_primary"
+            ))
         } else if 正.iter().any(|u| 副.contains(u)) {
-            Some("同じ利用者を正管理者と副管理者の両方にはできません")
+            Some(理由!("import_detail.organization.primary_and_secondary"))
         } else {
             None
         };
@@ -789,6 +844,17 @@ async fn メンバーを取り込む(
     Ok(Report {
         entries: 判定.into_iter().flatten().collect(),
     })
+}
+
+/// ユーザー名の誤り（#191）を、画面と同じキーで指す（#214）。
+fn ユーザー名の理由(e: &username::UsernameError) -> Message {
+    use username::UsernameError as E;
+    match e {
+        E::Empty => 理由!("errors.username_empty"),
+        E::Length { min, max } => 理由!("errors.username_length", min = *min, max = *max),
+        E::InvalidChar => 理由!("errors.username_char"),
+        E::InvalidStart => 理由!("errors.username_start"),
+    }
 }
 
 #[cfg(test)]

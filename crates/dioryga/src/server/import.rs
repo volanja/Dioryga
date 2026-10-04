@@ -33,7 +33,7 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, QueryOrde
 use crate::auth::authorization;
 use crate::auth::middleware::CurrentUser;
 use crate::error::{AppError, AppResult};
-use crate::import::{catalog, file_hash, instances, Outcome, Report};
+use crate::import::{catalog, file_hash, instances, 詳細を訳す, Outcome, Report};
 use crate::server::view::{render, Chrome, Locale};
 use crate::server::AppState;
 
@@ -445,7 +445,8 @@ fn レポート画面(
         .map(|e| ReportRow {
             outcome: e.outcome.文言(l),
             target: e.target.clone(),
-            detail: e.detail.clone(),
+            // **利用者の言語で訳す**（#214）
+            detail: e.detail.文言(l),
             is_error: e.outcome == Outcome::Error,
         })
         .collect();

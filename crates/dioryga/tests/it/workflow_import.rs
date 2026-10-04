@@ -127,7 +127,7 @@ async fn 識別子の無い行はエラー(db: &DatabaseConnection) {
     assert_eq!(r.count(Outcome::Error), 1, "{r}");
     assert!(
         r.errors()
-            .any(|e| e.detail.contains("突き合わせられません")),
+            .any(|e| e.詳細("ja").contains("突き合わせられません")),
         "{r}"
     );
 }
@@ -271,7 +271,8 @@ async fn 承認が揃わない完了は警告(db: &DatabaseConnection) {
 
     assert_eq!(r.count(Outcome::Warning), 1, "{r}");
     assert!(
-        r.warnings().any(|e| e.detail.contains("揃っていない承認")),
+        r.warnings()
+            .any(|e| e.詳細("ja").contains("揃っていない承認")),
         "{r}"
     );
     // **止めない。**チケットは入っている

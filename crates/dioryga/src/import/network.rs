@@ -41,7 +41,7 @@ use serde::Deserialize;
 
 use super::instances::語彙;
 use super::placement::{機器の索引, 機器キー, 空ならnone, 読み取る};
-use super::{Entry, ImportError, Outcome, Report};
+use super::{理由, Entry, ImportError, Message, Outcome, Report};
 use crate::repository::AuditedTx;
 use crate::server::network::cidrとして読める;
 
@@ -150,7 +150,7 @@ pub async fn サブネットを取り込む(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                format!("cidr「{cidr}」の形が正しくありません"),
+                理由!("import_detail.network.cidr_invalid", value = cidr),
             ));
             continue;
         }
@@ -158,7 +158,15 @@ pub async fn サブネットを取り込む(
         let zone = match 語彙(&row.zone, ZONES, "") {
             Ok(z) => 空ならnone(&z).map(str::to_owned),
             Err(理由) => {
-                report.push(Entry::new(Outcome::Error, target, format!("zone: {理由}")));
+                report.push(Entry::new(
+                    Outcome::Error,
+                    target,
+                    理由!(
+                        "import_detail.common.field_prefixed",
+                        field = "zone",
+                        reason = 理由
+                    ),
+                ));
                 continue;
             }
         };
@@ -183,7 +191,7 @@ pub async fn サブネットを取り込む(
                     && s.zone == zone
                     && s.description == row.description.trim();
                 if 同じ {
-                    report.push(Entry::new(Outcome::Unchanged, target, ""));
+                    report.push(Entry::new(Outcome::Unchanged, target, Message::default()));
                     continue;
                 }
                 let mut active: subnet::ActiveModel = s.clone().into();
@@ -192,7 +200,7 @@ pub async fn サブネットを取り込む(
                 active.description = Set(row.description.trim().to_owned());
                 active.updated_at = Set(now);
                 tx.update(&s, active).await?;
-                report.push(Entry::new(Outcome::Updated, target, ""));
+                report.push(Entry::new(Outcome::Updated, target, Message::default()));
             }
             None => {
                 tx.insert(subnet::ActiveModel {
@@ -207,7 +215,7 @@ pub async fn サブネットを取り込む(
                     ..Default::default()
                 })
                 .await?;
-                report.push(Entry::new(Outcome::Created, target, ""));
+                report.push(Entry::new(Outcome::Created, target, Message::default()));
             }
         }
     }
@@ -236,7 +244,7 @@ pub async fn インタフェースを取り込む(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                "os_interface_name が空です",
+                理由!("import_detail.common.empty", field = "os_interface_name"),
             ));
             continue;
         }
@@ -255,7 +263,7 @@ pub async fn インタフェースを取り込む(
                 report.push(Entry::new(
                     Outcome::Error,
                     target,
-                    "interface_type が空です",
+                    理由!("import_detail.common.empty", field = "interface_type"),
                 ));
                 continue;
             }
@@ -263,7 +271,11 @@ pub async fn インタフェースを取り込む(
                 report.push(Entry::new(
                     Outcome::Error,
                     target,
-                    format!("interface_type: {理由}"),
+                    理由!(
+                        "import_detail.common.field_prefixed",
+                        field = "interface_type",
+                        reason = 理由
+                    ),
                 ));
                 continue;
             }
@@ -279,7 +291,11 @@ pub async fn インタフェースを取り込む(
                     report.push(Entry::new(
                         Outcome::Error,
                         target,
-                        format!("aggregation_mode: {理由}"),
+                        理由!(
+                            "import_detail.common.field_prefixed",
+                            field = "aggregation_mode",
+                            reason = 理由
+                        ),
                     ));
                     continue;
                 }
@@ -289,7 +305,7 @@ pub async fn インタフェースを取り込む(
                 report.push(Entry::new(
                     Outcome::Error,
                     target,
-                    "aggregation_mode は interface_type=Bond のときだけ指定できます",
+                    理由!("import_detail.network.aggregation_only_bond"),
                 ));
                 continue;
             }
@@ -301,7 +317,7 @@ pub async fn インタフェースを取り込む(
             Some(i)
                 if i.interface_type == interface_type && i.aggregation_mode == aggregation_mode =>
             {
-                report.push(Entry::new(Outcome::Unchanged, target, ""));
+                report.push(Entry::new(Outcome::Unchanged, target, Message::default()));
             }
             Some(i) => {
                 // **閉じるときは乗っているものも閉じる**（8.5）
@@ -323,12 +339,10 @@ pub async fn インタフェースを取り込む(
                     report.push(Entry::new(
                         Outcome::Warning,
                         target,
-                        format!(
-                            "種別が変わったため開き直しました。乗っていた{閉じた}件（束ね・VLAN・IP・役割）も閉じています"
-                        ),
+                        理由!("import_detail.network.reopened", count = 閉じた),
                     ));
                 } else {
-                    report.push(Entry::new(Outcome::Updated, target, ""));
+                    report.push(Entry::new(Outcome::Updated, target, Message::default()));
                 }
             }
             None => {
@@ -341,7 +355,7 @@ pub async fn インタフェースを取り込む(
                     as_of,
                 )
                 .await?;
-                report.push(Entry::new(Outcome::Created, target, ""));
+                report.push(Entry::new(Outcome::Created, target, Message::default()));
             }
         }
     }
@@ -486,7 +500,7 @@ pub async fn 束ねを取り込む(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                "upper_interface と lower_interface が同じです",
+                理由!("import_detail.network.same_interface"),
             ));
             continue;
         }
@@ -495,7 +509,7 @@ pub async fn 束ねを取り込む(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                "この組み合わせは束ねる関係の循環になります",
+                理由!("import_detail.network.cycle"),
             ));
             continue;
         }
@@ -507,7 +521,7 @@ pub async fn 束ねを取り込む(
             .one(tx.reader())
             .await?;
         if 既存.is_some() {
-            report.push(Entry::new(Outcome::Unchanged, target, ""));
+            report.push(Entry::new(Outcome::Unchanged, target, Message::default()));
             continue;
         }
 
@@ -519,7 +533,7 @@ pub async fn 束ねを取り込む(
             ..Default::default()
         })
         .await?;
-        report.push(Entry::new(Outcome::Created, target, ""));
+        report.push(Entry::new(Outcome::Created, target, Message::default()));
     }
 
     Ok(report)
@@ -593,7 +607,11 @@ pub async fn インタフェースのvlanを取り込む(
         let vlan_id = match 解決するvlan(tx, &row.vlan_tag, &row.vlan_name).await? {
             Ok(Some(id)) => id,
             Ok(None) => {
-                report.push(Entry::new(Outcome::Error, target, "vlan_tag が空です"));
+                report.push(Entry::new(
+                    Outcome::Error,
+                    target,
+                    理由!("import_detail.common.empty", field = "vlan_tag"),
+                ));
                 continue;
             }
             Err(理由) => {
@@ -605,14 +623,22 @@ pub async fn インタフェースのvlanを取り込む(
         let tagging_mode = match 語彙(&row.tagging_mode, TAGGING_MODES, "") {
             Ok(v) if !v.is_empty() => v,
             Ok(_) => {
-                report.push(Entry::new(Outcome::Error, target, "tagging_mode が空です"));
+                report.push(Entry::new(
+                    Outcome::Error,
+                    target,
+                    理由!("import_detail.common.empty", field = "tagging_mode"),
+                ));
                 continue;
             }
             Err(理由) => {
                 report.push(Entry::new(
                     Outcome::Error,
                     target,
-                    format!("tagging_mode: {理由}"),
+                    理由!(
+                        "import_detail.common.field_prefixed",
+                        field = "tagging_mode",
+                        reason = 理由
+                    ),
                 ));
                 continue;
             }
@@ -627,7 +653,7 @@ pub async fn インタフェースのvlanを取り込む(
 
         match 現在 {
             Some(v) if v.tagging_mode == tagging_mode => {
-                report.push(Entry::new(Outcome::Unchanged, target, ""));
+                report.push(Entry::new(Outcome::Unchanged, target, Message::default()));
                 continue;
             }
             Some(v) => {
@@ -635,9 +661,9 @@ pub async fn インタフェースのvlanを取り込む(
                 let mut active: interface_vlan::ActiveModel = v.clone().into();
                 active.to_date = Set(Some(as_of));
                 tx.update(&v, active).await?;
-                report.push(Entry::new(Outcome::Updated, target, ""));
+                report.push(Entry::new(Outcome::Updated, target, Message::default()));
             }
-            None => report.push(Entry::new(Outcome::Created, target, "")),
+            None => report.push(Entry::new(Outcome::Created, target, Message::default())),
         }
 
         tx.insert(interface_vlan::ActiveModel {
@@ -700,7 +726,10 @@ pub async fn ipアドレスを取り込む(
                 report.push(Entry::new(
                     Outcome::Error,
                     target,
-                    format!("prefix_length「{}」が正しくありません", row.prefix_length),
+                    理由!(
+                        "import_detail.network.prefix_invalid",
+                        value = &row.prefix_length
+                    ),
                 ));
                 continue;
             }
@@ -720,7 +749,7 @@ pub async fn ipアドレスを取り込む(
                         report.push(Entry::new(
                             Outcome::Error,
                             target,
-                            format!("サブネット「{cidr}」がこのプロジェクトにありません"),
+                            理由!("import_detail.network.subnet_not_found", cidr = cidr),
                         ));
                         continue;
                     }
@@ -733,7 +762,7 @@ pub async fn ipアドレスを取り込む(
                 report.push(Entry::new(
                     Outcome::Error,
                     target,
-                    format!("同じサブネットの同じIPが{}行目にもあります", 前 + 2),
+                    理由!("import_detail.network.ip_duplicate_in_file", row = 前 + 2),
                 ));
                 continue;
             }
@@ -759,7 +788,7 @@ pub async fn ipアドレスを取り込む(
                 report.push(Entry::new(
                     Outcome::Error,
                     target,
-                    format!("{address} は同じサブネットの別のインタフェースで使われています"),
+                    理由!("import_detail.network.ip_in_use", address = address),
                 ));
                 continue;
             }
@@ -767,16 +796,16 @@ pub async fn ipアドレスを取り込む(
 
         match 現在 {
             Some(x) if x.prefix_length == prefix && x.subnet_id == subnet_id => {
-                report.push(Entry::new(Outcome::Unchanged, target, ""));
+                report.push(Entry::new(Outcome::Unchanged, target, Message::default()));
                 continue;
             }
             Some(x) => {
                 let mut active: ip_address::ActiveModel = x.clone().into();
                 active.to_date = Set(Some(as_of));
                 tx.update(&x, active).await?;
-                report.push(Entry::new(Outcome::Updated, target, ""));
+                report.push(Entry::new(Outcome::Updated, target, Message::default()));
             }
-            None => report.push(Entry::new(Outcome::Created, target, "")),
+            None => report.push(Entry::new(Outcome::Created, target, Message::default())),
         }
 
         tx.insert(ip_address::ActiveModel {
@@ -799,7 +828,7 @@ pub async fn ipアドレスを取り込む(
 // 参照の解決
 // ---------------------------------------------------------------------------
 
-fn 機器を引く(索引: &機器の索引, hostname: &str) -> Result<device::Model, String> {
+fn 機器を引く(索引: &機器の索引, hostname: &str) -> Result<device::Model, Message> {
     let key = 機器キー {
         hostname: hostname.to_owned(),
         ..Default::default()
@@ -825,10 +854,13 @@ async fn 要るインタフェース(
     tx: &AuditedTx,
     device_id: i32,
     name: &str,
-) -> Result<Result<os_interface::Model, String>, ImportError> {
+) -> Result<Result<os_interface::Model, Message>, ImportError> {
     Ok(match 現在のインタフェース(tx, device_id, name).await? {
         Some(i) => Ok(i),
-        None => Err(format!("インタフェース「{}」がありません", name.trim())),
+        None => Err(理由!(
+            "import_detail.network.interface_not_found",
+            name = name.trim()
+        )),
     })
 }
 
@@ -840,12 +872,16 @@ async fn 解決するvlan(
     tx: &AuditedTx,
     tag: &str,
     name: &str,
-) -> Result<Result<Option<i32>, String>, ImportError> {
+) -> Result<Result<Option<i32>, Message>, ImportError> {
     let Some(tag) = 空ならnone(tag) else {
         return Ok(Ok(None));
     };
     let Ok(tag) = tag.parse::<i32>() else {
-        return Ok(Err(format!("vlan_tag「{tag}」を数値として読めません")));
+        return Ok(Err(理由!(
+            "import_detail.common.not_a_number",
+            field = "vlan_tag",
+            value = tag
+        )));
     };
 
     let mut q = vlan::Entity::find().filter(vlan::Column::VlanTag.eq(tag));
@@ -856,9 +892,11 @@ async fn 解決するvlan(
 
     Ok(match 候補.len() {
         1 => Ok(Some(候補[0].id)),
-        0 => Err(format!("VLAN {tag} が見つかりません")),
-        n => Err(format!(
-            "VLAN {tag} に{n}件が該当します。vlan_name で指定してください"
+        0 => Err(理由!("import_detail.network.vlan_not_found", tag = tag)),
+        n => Err(理由!(
+            "import_detail.network.vlan_ambiguous",
+            tag = tag,
+            count = n
         )),
     })
 }

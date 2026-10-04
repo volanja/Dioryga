@@ -469,6 +469,8 @@ struct InterfaceRow {
     interface_type: String,
     /// `Physical` のときだけ。`Broadcom P210P Port1` のような表示。
     port: String,
+    /// 物理ポートに挿さっているケーブルの相手（ポート接続、8.4）。
+    peer: String,
     /// `Bond` のときだけ。
     aggregation_mode: String,
     /// 束ねている下位のインターフェース（8.5）。
@@ -492,6 +494,7 @@ struct InterfacesPage {
     t_name_hint: String,
     t_type: String,
     t_port: String,
+    t_peer: String,
     t_port_hint: String,
     t_aggregation: String,
     t_aggregation_hint: String,
@@ -567,6 +570,20 @@ async fn インターフェースを描く(
                 PHYSICAL => ポートの表示(&state.db, i).await?,
                 _ => String::new(),
             },
+            peer: match i.part_instance_id.zip(i.port_slot_id) {
+                Some((part, slot)) => {
+                    super::connection::ポートの接続先(
+                        &state.db,
+                        &current.user,
+                        project_id,
+                        part,
+                        slot,
+                        l,
+                    )
+                    .await?
+                }
+                None => String::new(),
+            },
             aggregation_mode: match i.interface_type.as_str() {
                 BOND => i.aggregation_mode.clone().unwrap_or_default(),
                 _ => String::new(),
@@ -609,6 +626,7 @@ async fn インターフェースを描く(
         t_name_hint: rust_i18n::t!("network.interface_hint", locale = l).to_string(),
         t_type: rust_i18n::t!("network.interface_type", locale = l).to_string(),
         t_port: rust_i18n::t!("network.port", locale = l).to_string(),
+        t_peer: rust_i18n::t!("connections.peer", locale = l).to_string(),
         t_port_hint: rust_i18n::t!("network.port_hint", locale = l).to_string(),
         t_aggregation: rust_i18n::t!("network.aggregation", locale = l).to_string(),
         t_aggregation_hint: rust_i18n::t!("network.aggregation_hint", locale = l).to_string(),

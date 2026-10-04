@@ -13,8 +13,8 @@ use dioryga::config::Config;
 use dioryga::server::{router, AppState};
 use entity::{
     app_user, cable_catalog, cable_connection, cable_end_slot, cable_instance, device,
-    device_assignment, part_catalog, part_instance, part_instance_location, part_port_slot,
-    project, project_member, vendor,
+    device_assignment, os_interface, part_catalog, part_instance, part_instance_location,
+    part_port_slot, project, project_member, vendor,
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
@@ -283,6 +283,178 @@ async fn ブレイクアウトの端を別々に挿せる(db: &DatabaseConnectio
     assert!(body.contains("Branch2: bo-s2"), "{body}");
 }
 
+/// **プロジェクトをまたぐ接続は、両方で編集できる人だけが挿せること。**
+///
+/// 相手の機器は、そのプロジェクトのメンバーにだけ見せる。メンバーでない人には
+/// 「別のプロジェクトの機器」とだけ出す。
+async fn またぐ接続は両方の権限が要る(db: &DatabaseConnection) {
+    let 共用 = 舞台(db, "conn-shared@example.com", "Operator").await;
+    let 場 = 舞台(db, "conn-cross@example.com", "Operator").await;
+    let sw = 機器(db, &共用, "cross-sw", "Network", "LC").await;
+    let srv = 機器(db, &場, "cross-srv", "Network", "LC").await;
+    let 型 = ケーブルの型(db, &共用, "Network", &[("A", "LC"), ("B", "LC")]).await;
+    挿す(db, &共用, &sw, &format!("new:{}", 型.ends[0].id), &[]).await;
+    let 実物 = cable_instance::Entity::find()
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    let 空いた端 = format!("open:{}:{}", 実物.id, 型.ends[1].id);
+
+    // 相手のプロジェクトでは閲覧だけ → 候補に出ず、送っても挿せない
+    メンバー(db, 場.user.id, 共用.project.id, "Viewer").await;
+    let (_, body) = 画面(db, &場, &srv).await;
+    assert!(!body.contains(&空いた端), "{body}");
+    let (status, _) = 挿す(db, &場, &srv, &空いた端, &[]).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(現行の接続(db).await.len(), 1);
+
+    // 両方で編集できる → 候補に出て、挿せる
+    メンバー(db, 場.user.id, 共用.project.id, "Operator").await;
+    let (_, body) = 画面(db, &場, &srv).await;
+    assert!(body.contains(&空いた端), "{body}");
+    let (status, body) = 挿す(db, &場, &srv, &空いた端, &[]).await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    assert_eq!(現行の接続(db).await.len(), 2);
+
+    // 相手のプロジェクトのメンバーには、機器名とプロジェクト名が出る
+    let (_, body) = 画面(db, &場, &srv).await;
+    assert!(body.contains("A: cross-sw"), "{body}");
+    assert!(body.contains(&共用.project.name), "{body}");
+
+    // メンバーでない人には、「別のプロジェクトの機器」とだけ出る
+    let 閲覧者 = 利用者(db, "conn-cross-viewer@example.com").await;
+    メンバー(db, 閲覧者.id, 場.project.id, "Viewer").await;
+    let (状態, token) = 認証済み(db, &閲覧者).await;
+    let (_, body) = 取得(状態, &経路(&場, &srv), &token).await;
+    assert!(body.contains("別のプロジェクトの機器"), "{body}");
+    assert!(!body.contains("cross-sw"), "機器名が見えています: {body}");
+    assert!(!body.contains(&共用.project.name), "{body}");
+
+    // 共用の側だけの担当者も、自分の側の端は外せる
+    let c = 現行の接続(db)
+        .await
+        .into_iter()
+        .find(|c| c.part_instance_id == sw.part_instance_id)
+        .unwrap();
+    let (status, _) = 外す(db, &共用, &sw, c.id).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(現行の接続(db).await.len(), 1);
+}
+
+/// **同じ型番の部品が複数載っていれば、シリアル番号で見分けられること。**
+/// シリアル番号が無ければ、載せた順の番号を添える。
+async fn 同じ型番はシリアル番号で見分ける(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "conn-serial@example.com", "Operator").await;
+    let 一枚 = 機器(db, &場, "serial-one", "Network", "LC").await;
+    let 二枚 = 機器(db, &場, "serial-two", "Network", "LC").await;
+    同じ型の部品を足す(db, &二枚, Some("SN-B")).await;
+
+    // 1枚だけなら型番のまま
+    let (_, body) = 画面(db, &場, &一枚).await;
+    assert!(!body.contains("PN-serial-one #"), "{body}");
+    assert!(!body.contains("PN-serial-one ["), "{body}");
+
+    // 2枚なら、シリアル番号（無ければ番号）を添える
+    let (_, body) = 画面(db, &場, &二枚).await;
+    assert!(body.contains("PN-serial-two #1"), "{body}");
+    assert!(body.contains("PN-serial-two [SN-B]"), "{body}");
+
+    // 接続先にも同じ見分けが出る
+    let 型 = ケーブルの型(db, &場, "Network", &[("A", "LC"), ("B", "LC")]).await;
+    挿す(db, &場, &二枚, &format!("new:{}", 型.ends[0].id), &[]).await;
+    let 実物 = cable_instance::Entity::find()
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    挿す(
+        db,
+        &場,
+        &一枚,
+        &format!("open:{}:{}", 実物.id, 型.ends[1].id),
+        &[],
+    )
+    .await;
+    let (_, body) = 画面(db, &場, &一枚).await;
+    assert!(
+        body.contains("A: serial-two PN-serial-two #1 Port1"),
+        "{body}"
+    );
+}
+
+/// **インターフェース一覧に、物理ポートの接続先が出ること。**
+async fn インターフェース一覧に接続先が出る(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "conn-if@example.com", "Operator").await;
+    let a = 機器(db, &場, "if-a", "Network", "LC").await;
+    let b = 機器(db, &場, "if-b", "Network", "LC").await;
+    os_interface::ActiveModel {
+        device_id: Set(a.device.id),
+        interface_type: Set("Physical".to_owned()),
+        part_instance_id: Set(Some(a.part_instance_id)),
+        port_slot_id: Set(Some(a.port_slot_id)),
+        os_interface_name: Set("eth0".to_owned()),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let 一覧 = format!(
+        "/projects/{}/devices/{}/interfaces",
+        場.project.id, a.device.id
+    );
+
+    let 型 = ケーブルの型(db, &場, "Network", &[("A", "LC"), ("B", "LC")]).await;
+    挿す(db, &場, &a, &format!("new:{}", 型.ends[0].id), &[]).await;
+    // 反対の端を挿す前は、ケーブルの名前と「未接続」
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &一覧, &token).await;
+    assert!(body.contains("（未接続）"), "{body}");
+
+    let 実物 = cable_instance::Entity::find()
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    挿す(
+        db,
+        &場,
+        &b,
+        &format!("open:{}:{}", 実物.id, 型.ends[1].id),
+        &[],
+    )
+    .await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &一覧, &token).await;
+    assert!(body.contains("if-b PN-if-b Port1"), "{body}");
+}
+
+/// **機器の詳細に、給電経路の本数が出ること**（設計書12.6）。電源ポートを持つ
+/// 部品が載っていない機器には出さない。
+async fn 給電経路の本数が出る(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "conn-feed@example.com", "Operator").await;
+    let 電源つき = 機器(db, &場, "feed-a", "Power", "IEC C14").await;
+    同じ型の部品を足す(db, &電源つき, None).await;
+    let 電源なし = 機器(db, &場, "feed-b", "Network", "LC").await;
+    let 詳細 = |d: &機器情報| format!("/projects/{}/devices/{}", 場.project.id, d.device.id);
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &詳細(&電源つき), &token).await;
+    assert!(body.contains("0本（電源ポート 2口のうち）"), "{body}");
+
+    let 型 = ケーブルの型(db, &場, "Power", &[("A", "IEC C13"), ("B", "IEC C14")]).await;
+    挿す(db, &場, &電源つき, &format!("new:{}", 型.ends[0].id), &[]).await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &詳細(&電源つき), &token).await;
+    assert!(body.contains("1本（電源ポート 2口のうち）"), "{body}");
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &詳細(&電源なし), &token).await;
+    assert!(!body.contains("給電経路"), "{body}");
+}
+
 // ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
@@ -419,6 +591,41 @@ async fn 機器(
         part_instance_id: instance.id,
         port_slot_id: slot.id,
     }
+}
+
+/// 機器に、同じ型の部品をもう1つ載せる。
+async fn 同じ型の部品を足す(
+    db: &DatabaseConnection, d: &機器情報, serial: Option<&str>
+) {
+    let 元 = part_instance::Entity::find_by_id(d.part_instance_id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    let instance = part_instance::ActiveModel {
+        part_catalog_id: Set(元.part_catalog_id),
+        serial_number: Set(serial.map(str::to_owned)),
+        status: Set("running".to_owned()),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    part_instance_location::ActiveModel {
+        part_instance_id: Set(instance.id),
+        location_type: Set("Device".to_owned()),
+        location_id: Set(Some(d.device.id)),
+        chassis_slot_id: Set(None),
+        work_order_id: Set(None),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
 }
 
 async fn ケーブルの型(
@@ -665,6 +872,10 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 他のプロジェクトのケーブルは挿せない);
         全検証!(@one $用意, $属性, 閲覧者は挿せない);
         全検証!(@one $用意, $属性, ブレイクアウトの端を別々に挿せる);
+        全検証!(@one $用意, $属性, またぐ接続は両方の権限が要る);
+        全検証!(@one $用意, $属性, 同じ型番はシリアル番号で見分ける);
+        全検証!(@one $用意, $属性, インターフェース一覧に接続先が出る);
+        全検証!(@one $用意, $属性, 給電経路の本数が出る);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

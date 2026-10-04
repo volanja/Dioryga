@@ -163,6 +163,8 @@ workspace:
   empty: 所属しているプロジェクトがありません。System Adminに割り当てを依頼してください
 
 devices:
+  power_feeds: 給電経路
+  power_feeds_value: "%{connected}本（電源ポート %{total}口のうち）"
   title: 機器一覧
   lead: このプロジェクトの機器を管理します
   new: 機器を登録
@@ -1315,7 +1317,7 @@ connections:
   no_ports: ポートを持つ部品が、この機器に載っていません
   disconnect: 外す
   connect: 接続する
-  connect_hint: 新しいケーブルか、このプロジェクトの機器に挿さっているケーブルの空いた端を選びます。反対の端を挿すときは、相手の機器の画面を開いて空いた端を選びます
+  connect_hint: 新しいケーブルか、自分が編集できるプロジェクトの機器に挿さっているケーブルの空いた端を選びます。反対の端を挿すときは、相手の機器の画面を開いて空いた端を選びます
   new_cable: 新しいケーブル
   open_end: 挿さっているケーブルの空いた端
   serial_number: シリアル番号（任意）

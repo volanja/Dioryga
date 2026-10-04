@@ -804,7 +804,9 @@ fn 機器を引く(索引: &機器の索引, hostname: &str) -> Result<device::M
         hostname: hostname.to_owned(),
         ..Default::default()
     };
-    索引.引く(&key)
+    索引
+        .引く(&key)
+        .map_err(|e| crate::import::詳細を訳す::文言(&e, "ja"))
 }
 
 async fn 現在のインタフェース(

@@ -619,7 +619,7 @@ fn 品目を引く(
             };
             match 対象.機器.引く(&key) {
                 Ok(d) => Ok((DEVICE.to_owned(), d.id)),
-                Err(理由) => Err(理由),
+                Err(理由) => Err(crate::import::詳細を訳す::文言(&理由, "ja")),
             }
         }
         PART_INSTANCE => {

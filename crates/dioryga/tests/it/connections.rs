@@ -14,7 +14,7 @@ use dioryga::server::{router, AppState};
 use entity::{
     app_user, cable_catalog, cable_connection, cable_end_slot, cable_instance, device,
     device_assignment, os_interface, part_catalog, part_instance, part_instance_location,
-    part_port_slot, project, project_member, vendor,
+    part_port_slot, project, project_member, vendor, work_order,
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
@@ -455,6 +455,202 @@ async fn 給電経路の本数が出る(db: &DatabaseConnection) {
     assert!(!body.contains("給電経路"), "{body}");
 }
 
+/// **増設チケットを選んで挿すと予約になり、実行で実際の接続になること**（11.6）。
+///
+/// 予約したポートと端は埋まる。チケットが実行されるまで「予約中」と出る。
+async fn 予約は実行で実際の接続になる(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "conn-rsv@example.com", "Operator").await;
+    let 新 = 機器(db, &場, "rsv-new", "Network", "LC").await;
+    let sw = 機器(db, &場, "rsv-sw", "Network", "LC").await;
+    let 型 = ケーブルの型(db, &場, "Network", &[("A", "LC"), ("B", "LC")]).await;
+    let w = チケット(db, &場, "Addition", "planned").await;
+    let 票 = w.id.to_string();
+
+    // 候補に出る
+    let (_, body) = 画面(db, &場, &新).await;
+    assert!(body.contains("name=\"work_order_id\""), "{body}");
+    assert!(body.contains(&w.title), "{body}");
+
+    // 両端を、同じチケットの予約として挿す
+    let (status, body) = 挿す(
+        db,
+        &場,
+        &新,
+        &format!("new:{}", 型.ends[0].id),
+        &[("work_order_id", &票)],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    let 実物 = cable_instance::Entity::find()
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    挿す(
+        db,
+        &場,
+        &sw,
+        &format!("open:{}:{}", 実物.id, 型.ends[1].id),
+        &[("work_order_id", &票)],
+    )
+    .await;
+    let 接続 = 現行の接続(db).await;
+    assert_eq!(接続.len(), 2);
+    assert!(接続.iter().all(|c| c.work_order_id == Some(w.id)));
+
+    // 予約中と出る。相手側にも出る
+    let (_, body) = 画面(db, &場, &新).await;
+    assert!(body.contains("badge plan"), "{body}");
+    assert!(
+        body.contains("B: rsv-sw PN-rsv-sw Port1（予約中）"),
+        "{body}"
+    );
+
+    // 予約したポートには、別の接続を登録できない
+    let (status, body) = 挿す(db, &場, &sw, &format!("new:{}", 型.ends[0].id), &[]).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("すでにケーブルが挿さっています"), "{body}");
+
+    // チケットの詳細に出る
+    let 詳細 = format!("/projects/{}/work-orders/{}", 場.project.id, w.id);
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &詳細, &token).await;
+    assert!(body.contains("rsv-new PN-rsv-new Port1"), "{body}");
+    assert!(body.contains("rsv-sw PN-rsv-sw Port1"), "{body}");
+
+    // 実行されると、予約ではなくなる。行は書き換えない
+    チケットの状態(db, w.id, "in_progress").await;
+    let (_, body) = 画面(db, &場, &新).await;
+    assert!(!body.contains("badge plan"), "{body}");
+    assert!(!body.contains("（予約中）"), "{body}");
+    assert_eq!(現行の接続(db).await.len(), 2);
+}
+
+/// **中断すると、予約した接続が解放されること**（11.6）。行は消さず閉じる。
+async fn 中断すると予約が解放される(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "conn-abort@example.com", "Operator").await;
+    let a = 機器(db, &場, "abort-a", "Network", "LC").await;
+    let b = 機器(db, &場, "abort-b", "Network", "LC").await;
+    let 型 = ケーブルの型(db, &場, "Network", &[("A", "LC"), ("B", "LC")]).await;
+    let w = チケット(db, &場, "Addition", "planned").await;
+    let 票 = w.id.to_string();
+
+    挿す(
+        db,
+        &場,
+        &a,
+        &format!("new:{}", 型.ends[0].id),
+        &[("work_order_id", &票)],
+    )
+    .await;
+    // チケットを選ばずに挿した接続は、予約ではない
+    挿す(db, &場, &b, &format!("new:{}", 型.ends[0].id), &[]).await;
+    assert_eq!(現行の接続(db).await.len(), 2);
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (status, body) = 送信(
+        状態,
+        &format!(
+            "/projects/{}/work-orders/{}/transition",
+            場.project.id, w.id
+        ),
+        &token,
+        &[("to", "abort"), ("cancelled_reason", "計画を取りやめた")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+
+    // 予約だけが閉じる
+    let 残り = 現行の接続(db).await;
+    assert_eq!(残り.len(), 1);
+    assert_eq!(残り[0].part_instance_id, b.part_instance_id);
+    assert_eq!(
+        cable_connection::Entity::find()
+            .all(db)
+            .await
+            .unwrap()
+            .len(),
+        2
+    );
+
+    // ポートは空き、チケットの詳細には解放済みとして残る
+    let (_, body) = 画面(db, &場, &a).await;
+    assert!(body.contains("つながっていません"), "{body}");
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(
+        状態,
+        &format!("/projects/{}/work-orders/{}", 場.project.id, w.id),
+        &token,
+    )
+    .await;
+    assert!(body.contains("abort-a PN-abort-a Port1"), "{body}");
+    assert!(body.contains("解放済み"), "{body}");
+}
+
+/// **予約に使えるのは、このプロジェクトの計画中の増設チケットだけ**（11.6）。
+async fn 予約は計画中の増設にしか作れない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "conn-rsv-ng@example.com", "Operator").await;
+    let 他 = 舞台(db, "conn-rsv-other@example.com", "Operator").await;
+    let a = 機器(db, &場, "rsv-ng-a", "Network", "LC").await;
+    let 型 = ケーブルの型(db, &場, "Network", &[("A", "LC"), ("B", "LC")]).await;
+
+    for w in [
+        チケット(db, &場, "Addition", "approved").await,
+        チケット(db, &場, "Relocation", "planned").await,
+        チケット(db, &他, "Addition", "planned").await,
+    ] {
+        let (_, body) = 画面(db, &場, &a).await;
+        assert!(
+            !body.contains(&format!("<option value=\"{}\">{}", w.id, w.title)),
+            "候補に出ています: {} {}",
+            w.work_type,
+            w.status
+        );
+        let (status, body) = 挿す(
+            db,
+            &場,
+            &a,
+            &format!("new:{}", 型.ends[0].id),
+            &[("work_order_id", &w.id.to_string())],
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{} {}", w.work_type, w.status);
+        assert!(body.contains("計画中の増設チケットだけ"), "{body}");
+    }
+    assert!(現行の接続(db).await.is_empty());
+    assert!(cable_instance::Entity::find()
+        .all(db)
+        .await
+        .unwrap()
+        .is_empty());
+}
+
+/// **予約は給電経路の本数に数えないこと。**まだ挿していない。
+async fn 予約は給電経路に数えない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "conn-rsv-feed@example.com", "Operator").await;
+    let a = 機器(db, &場, "rsv-feed", "Power", "IEC C14").await;
+    let 型 = ケーブルの型(db, &場, "Power", &[("A", "IEC C13"), ("B", "IEC C14")]).await;
+    let w = チケット(db, &場, "Addition", "planned").await;
+    挿す(
+        db,
+        &場,
+        &a,
+        &format!("new:{}", 型.ends[0].id),
+        &[("work_order_id", &w.id.to_string())],
+    )
+    .await;
+    let 詳細 = format!("/projects/{}/devices/{}", 場.project.id, a.device.id);
+
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &詳細, &token).await;
+    assert!(body.contains("0本（電源ポート 1口のうち）"), "{body}");
+
+    チケットの状態(db, w.id, "in_progress").await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let (_, body) = 取得(状態, &詳細, &token).await;
+    assert!(body.contains("1本（電源ポート 1口のうち）"), "{body}");
+}
+
 // ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
@@ -626,6 +822,42 @@ async fn 同じ型の部品を足す(
     .insert(db)
     .await
     .unwrap();
+}
+
+async fn チケット(
+    db: &DatabaseConnection,
+    場: &舞台情報,
+    work_type: &str,
+    status: &str,
+) -> work_order::Model {
+    work_order::ActiveModel {
+        uid: Set(uuid::Uuid::new_v4().to_string()),
+        project_id: Set(場.project.id),
+        target_project_id: Set(None),
+        work_type: Set(work_type.to_owned()),
+        title: Set(format!("{work_type}-{status}のチケット")),
+        description: Set(String::new()),
+        primary_assignee_id: Set(None),
+        status: Set(status.to_owned()),
+        planned_at: Set(Some(Utc::now())),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap()
+}
+
+async fn チケットの状態(db: &DatabaseConnection, id: i32, status: &str) {
+    let w = work_order::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    let mut active: work_order::ActiveModel = w.into();
+    active.status = Set(status.to_owned());
+    active.update(db).await.unwrap();
 }
 
 async fn ケーブルの型(
@@ -876,6 +1108,10 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 同じ型番はシリアル番号で見分ける);
         全検証!(@one $用意, $属性, インターフェース一覧に接続先が出る);
         全検証!(@one $用意, $属性, 給電経路の本数が出る);
+        全検証!(@one $用意, $属性, 予約は実行で実際の接続になる);
+        全検証!(@one $用意, $属性, 中断すると予約が解放される);
+        全検証!(@one $用意, $属性, 予約は計画中の増設にしか作れない);
+        全検証!(@one $用意, $属性, 予約は給電経路に数えない);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

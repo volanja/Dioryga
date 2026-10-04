@@ -383,6 +383,13 @@ struct WorkOrderDetailPage {
     relocation_unsupported: bool,
     containers: Vec<Labeled>,
     reservations: Vec<ReservationRow>,
+    /// 予約している接続（ポート接続の画面で作る）
+    reserved_connections: Vec<super::connection::予約した接続>,
+    t_reserved_connections: String,
+    t_reserved_connections_hint: String,
+    t_port: String,
+    t_cable: String,
+    t_end: String,
     horizontals: Vec<&'static str>,
     depths: Vec<&'static str>,
     error: Option<String>,
@@ -693,6 +700,24 @@ async fn 詳細を描く(
         relocation_unsupported: w.work_type == "Relocation",
         containers: 什器の候補(&state.db, project_id).await?,
         reservations: 予約一覧(&state.db, w.id).await?,
+        reserved_connections: super::connection::チケットの接続(
+            &state.db,
+            &current.user,
+            project_id,
+            w.id,
+            l,
+        )
+        .await?,
+        t_reserved_connections: rust_i18n::t!("work_orders.reserved_connections", locale = l)
+            .to_string(),
+        t_reserved_connections_hint: rust_i18n::t!(
+            "work_orders.reserved_connections_hint",
+            locale = l
+        )
+        .to_string(),
+        t_port: rust_i18n::t!("connections.port", locale = l).to_string(),
+        t_cable: rust_i18n::t!("connections.cable", locale = l).to_string(),
+        t_end: rust_i18n::t!("connections.end", locale = l).to_string(),
         horizontals: vec!["Left", "Right", "Full"],
         depths: vec!["Front", "Rear", "Full"],
         error,
@@ -1345,7 +1370,10 @@ pub async fn transition(
     match t {
         // **中断したら予約を解放する**（設計書11.6）。閉じ忘れるとラックが
         // 埋まったまま残り、予約という仕組みそのものが信用されなくなる
-        Transition::Abort => 予約を解放する(&tx, w.id, now).await?,
+        Transition::Abort => {
+            予約を解放する(&tx, w.id, now).await?;
+            super::connection::予約を解放する(&tx, w.id, now).await?;
+        }
         // **実行したら予約が実機になる**（16.2のフロー）。status=planned のまま
         // だとラック図に予約中として描かれ続ける。進めるのは増設だけ（6.3）
         Transition::Execute => {

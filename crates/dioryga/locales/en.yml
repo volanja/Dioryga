@@ -409,6 +409,8 @@ work_orders:
   reserve: Reserve a rack position
   container: Rack or furniture
   released: Released
+  reserved_connections: Reserved connections
+  reserved_connections_hint: While an addition ticket is planned, you can reserve connections on the port connections page of a device. Choose this ticket when connecting
   relocation_hint: Reservations are not supported for relocations. A running device must stay running at its origin, so the addition scheme does not apply
   error_reserve_not_planned: Only a planned work order can hold a reservation
   error_reserve_work_type: Only an Addition work order can hold a reservation
@@ -1299,6 +1301,11 @@ import_detail:
     vocabulary_empty: "Empty (%{allowed})"
     assignee_not_member: "Assignee \"%{username}\" is not a member of this project"
 connections:
+  reserved: Reserved
+  ticket: Register as a reservation of an addition ticket
+  ticket_none: No (register as a connection that exists now)
+  ticket_hint: Choose a planned addition ticket to register the connection as a reservation. The port and the cable end are held and shown as reserved until the ticket is executed. Cancelling the ticket releases them
+  error_ticket: Only planned addition tickets of this project can be used for a reservation
   title: Port connections
   lead: Record which cable is plugged into each port of the parts mounted on this device
   part: Part

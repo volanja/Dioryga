@@ -46,6 +46,10 @@
       <td>
         {{ link.cable }}
         {# コネクタ形状が同じ値でない。対になる組（C13とC14）もここに出る #}
+        {# 増設チケットの予約（設計書11.6）。実行されるまで出る #}
+        {% if let Some(t) = link.reserved %}
+        <a class="badge plan" href="/projects/{{ project_id }}/work-orders/{{ t.id }}" title="{{ t.title }}">{{ t_reserved }}</a>
+        {% endif %}
         {% if let Some(w) = link.warning %}<span class="cell-warn">{{ w }}</span>{% endif %}
       </td>
       <td>{{ link.end }}</td>
@@ -110,6 +114,18 @@
     <label for="asset_number">{{ t_asset_number }}</label>
     <input type="text" id="asset_number" name="asset_number">
     <p class="hint">{{ t_new_only_hint }}</p>
+
+    {# 計画中の増設チケットを選ぶと、予約として登録する（設計書11.6） #}
+    {% if !tickets.is_empty() %}
+    <label for="work_order_id">{{ t_ticket }}</label>
+    <select id="work_order_id" name="work_order_id">
+      <option value="">{{ t_ticket_none }}</option>
+      {% for t in tickets %}
+      <option value="{{ t.value }}">{{ t.label }}</option>
+      {% endfor %}
+    </select>
+    <p class="hint">{{ t_ticket_hint }}</p>
+    {% endif %}
 
     <button type="submit">{{ t_connect }}</button>
   </form>

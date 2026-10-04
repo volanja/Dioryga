@@ -116,6 +116,36 @@
 </div>
 {% endif %}
 
+{# 予約している接続。作るのは機器のポート接続の画面（設計書11.6） #}
+{% if !reserved_connections.is_empty() || can_reserve %}
+<h2 class="section">{{ t_reserved_connections }}</h2>
+<p class="hint">{{ t_reserved_connections_hint }}</p>
+{% endif %}
+{% if !reserved_connections.is_empty() %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_port }}</th>
+      <th>{{ t_cable }}</th>
+      <th>{{ t_end }}</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in reserved_connections %}
+    <tr class="{% if r.released %}is-disabled{% endif %}">
+      <td>{{ r.port }}</td>
+      <td>{{ r.cable }}</td>
+      <td>{{ r.end }}</td>
+      <td>{% if r.released %}<span class="badge">{{ t_released }}</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
 {% if relocation_unsupported %}
 {# 移設への適用は未検討（設計書11.6の末尾、17章の課題） #}
 <p class="hint">{{ t_relocation_hint }}</p>

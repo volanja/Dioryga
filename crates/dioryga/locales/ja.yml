@@ -409,6 +409,8 @@ work_orders:
   reserve: ラック位置を予約する
   container: 設備・什器
   released: 解放済み
+  reserved_connections: 予約している接続
+  reserved_connections_hint: 計画中の増設チケットは、機器のポート接続の画面で接続を予約できます。接続するときに、このチケットを選びます
   relocation_hint: 移設での予約は未対応です。稼働中の機器は移設元で動いたままである必要があり、増設と同じ方式を当てられません
   error_reserve_not_planned: 予約を作れるのは計画中のチケットだけです
   error_reserve_work_type: 予約を作れるのは増設（Addition）のチケットだけです
@@ -1302,6 +1304,11 @@ import_detail:
     vocabulary_empty: "空です（%{allowed}）"
     assignee_not_member: "担当者「%{username}」はこのプロジェクトのメンバーではありません"
 connections:
+  reserved: 予約中
+  ticket: 増設チケットの予約にする
+  ticket_none: しない（今つながっている接続として登録する）
+  ticket_hint: 計画中の増設チケットを選ぶと、予約として登録します。ポートと端は確保され、チケットが実行されるまで「予約中」と出ます。中断すると解放されます
+  error_ticket: 予約に使えるのは、このプロジェクトの計画中の増設チケットだけです
   title: ポート接続
   lead: この機器に載っている部品のポートごとに、挿さっているケーブルを記録します
   part: 部品

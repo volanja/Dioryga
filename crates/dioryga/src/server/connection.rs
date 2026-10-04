@@ -23,6 +23,17 @@
 //! 「別のプロジェクトの機器」とだけ出す。外すのは、外す端の側の権限だけでよい
 //! ——両方を求めると、移譲・廃棄の前にケーブルを外せない側が出る。
 //!
+//! # 増設チケットの予約（11.6）
+//!
+//! 接続するときに計画中の増設チケットを選ぶと、その接続は予約になる。**搭載の
+//! 予約と同じく、Executeまで待たずに現行の行を作る**（`work_order_id` つき）。
+//! 予約したポートと端は埋まるので、二重予約は使用中の検査がそのまま止める。
+//! チケットが実行されるまでは「予約中」と出し、中断で閉じる。
+//!
+//! 予約は、機器のポート接続の画面で作る。チケットの画面に置くと、相手側
+//! （スイッチ）のポートを選ぶために、プロジェクトの全機器のポートを並べることに
+//! なる。
+//!
 //! # 検査
 //!
 //! ケーブルの種別（`cable_kind`）とポートの種別（`port_kind`）が違えば拒否
@@ -37,7 +48,7 @@ use axum::{Extension, Form};
 use chrono::Utc;
 use entity::{
     cable_catalog, cable_connection, cable_end_slot, cable_instance, device, device_assignment,
-    part_catalog, part_instance, part_instance_location, part_port_slot, project,
+    part_catalog, part_instance, part_instance_location, part_port_slot, project, work_order,
 };
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder, Set};
 use serde::Deserialize;
@@ -73,6 +84,14 @@ struct LinkRow {
     peers: Vec<String>,
     /// コネクタ形状が同じ値でないときの警告
     warning: Option<String>,
+    /// 増設チケットの予約（11.6）。実行されるまでの間だけ入る
+    reserved: Option<TicketLink>,
+}
+
+/// 予約しているチケットへの導線。
+struct TicketLink {
+    id: i32,
+    title: String,
 }
 
 #[derive(askama::Template)]
@@ -104,6 +123,12 @@ struct ConnectionsPage {
     t_asset_number: String,
     t_new_only_hint: String,
     t_no_free_port: String,
+    t_reserved: String,
+    t_ticket: String,
+    t_ticket_none: String,
+    t_ticket_hint: String,
+    /// 予約に使える増設チケット（計画中のもの）
+    tickets: Vec<Labeled>,
     rows: Vec<PortRow>,
     free_ports: Vec<Labeled>,
     new_cables: Vec<Labeled>,
@@ -157,7 +182,7 @@ async fn 描く(
                         continue;
                     }
                     let 相手 = match ケーブル.接続.get(&e.id) {
-                        Some(other) => 接続先の表示(db, &視野, other).await?,
+                        Some(other) => 予約つきの接続先(db, &視野, other, l).await?,
                         None => 未接続.clone(),
                     };
                     peers.push(format!("{}: {相手}", e.end_label));
@@ -182,6 +207,10 @@ async fn 描く(
                     end: 端.map(|e| e.end_label.clone()).unwrap_or_default(),
                     peers,
                     warning,
+                    reserved: 予約中のチケット(db, &c).await?.map(|w| TicketLink {
+                        id: w.id,
+                        title: w.title,
+                    }),
                 })
             }
             None => {
@@ -247,6 +276,15 @@ async fn 描く(
         t_asset_number: rust_i18n::t!("connections.asset_number", locale = l).to_string(),
         t_new_only_hint: rust_i18n::t!("connections.new_only_hint", locale = l).to_string(),
         t_no_free_port: rust_i18n::t!("connections.no_free_port", locale = l).to_string(),
+        t_reserved: rust_i18n::t!("connections.reserved", locale = l).to_string(),
+        t_ticket: rust_i18n::t!("connections.ticket", locale = l).to_string(),
+        t_ticket_none: rust_i18n::t!("connections.ticket_none", locale = l).to_string(),
+        t_ticket_hint: rust_i18n::t!("connections.ticket_hint", locale = l).to_string(),
+        tickets: if can_edit {
+            予約できるチケット(db, project_id).await?
+        } else {
+            Vec::new()
+        },
         rows,
         free_ports,
         new_cables,
@@ -272,6 +310,9 @@ pub struct ConnectForm {
     pub serial_number: String,
     #[serde(default)]
     pub asset_number: String,
+    /// 予約として登録するときの、増設チケット（11.6）。空なら直接の登録
+    #[serde(default)]
+    pub work_order_id: String,
 }
 
 /// どのケーブルのどの端を挿すか。
@@ -302,6 +343,20 @@ pub async fn connect(
     };
     let (part_instance_id, port_slot_id, 端) = 入力;
 
+    // **予約は計画中の増設にしか作れない**（11.6）。承認後に配線が変わっては、
+    // 承認した内容と実施する内容がずれる。候補に無い値を送られても通さない
+    let work_order_id = match form.work_order_id.trim() {
+        "" => None,
+        id => {
+            let 候補 = 予約できるチケット(db, project_id).await?;
+            if !候補.iter().any(|t| t.value == id) {
+                let message = rust_i18n::t!("connections.error_ticket", locale = l).to_string();
+                return 描く(&state, &current, project_id, device_id, Some(message)).await;
+            }
+            id.parse::<i32>().ok()
+        }
+    };
+
     let now = Utc::now();
     let tx = AuditedTx::begin(db, Actor::User(current.user.id))
         .await
@@ -328,14 +383,14 @@ pub async fn connect(
         }
         挿す端::既存(cable, end) => (cable.id, end.id),
     };
-    // この画面が書く接続は、変更管理チケットを持たない（搭載やIPアドレスを
-    // 直接登録するのと同じ扱い）
+    // チケットを選ばなければ、変更管理チケットを持たない接続になる（搭載やIP
+    // アドレスを直接登録するのと同じ扱い）。選べば予約になる（11.6）
     tx.insert(cable_connection::ActiveModel {
         cable_instance_id: Set(cable_instance_id),
         cable_end_slot_id: Set(cable_end_slot_id),
         part_instance_id: Set(part_instance_id),
         port_slot_id: Set(port_slot_id),
-        work_order_id: Set(None),
+        work_order_id: Set(work_order_id),
         from_date: Set(now),
         to_date: Set(None),
         ..Default::default()
@@ -568,7 +623,7 @@ pub async fn ポートの接続先<C: ConnectionTrait>(
             continue;
         }
         if let Some(other) = k.接続.get(&e.id) {
-            相手.push(接続先の表示(db, &視野, other).await?);
+            相手.push(予約つきの接続先(db, &視野, other, l).await?);
         }
     }
     if 相手.is_empty() {
@@ -592,14 +647,150 @@ pub async fn 給電経路<C: ConnectionTrait>(
             continue;
         }
         総数 += 1;
-        if 現行の接続(db, p.part_instance_id, p.slot.id)
-            .await?
-            .is_some()
-        {
-            接続 += 1;
+        // 予約はまだ挿していないので数えない（11.6）
+        if let Some(c) = 現行の接続(db, p.part_instance_id, p.slot.id).await? {
+            if 予約中のチケット(db, &c).await?.is_none() {
+                接続 += 1;
+            }
         }
     }
     Ok((総数 > 0).then_some((接続, 総数)))
+}
+
+// ---------------------------------------------------------------------------
+// 増設チケットの予約（設計書11.6）
+// ---------------------------------------------------------------------------
+
+/// 接続が予約なら、そのチケットを返す。
+///
+/// **予約なのは、チケットが実行されるまで**（`planned` / `approved`）。実行で
+/// 予約は実際の接続になる。行は書き換えない——搭載の予約が、機器の `status` で
+/// 予約中かどうかを見分けるのと同じく、ここではチケットの状態で見分ける。
+async fn 予約中のチケット<C: ConnectionTrait>(
+    db: &C,
+    c: &cable_connection::Model,
+) -> AppResult<Option<work_order::Model>> {
+    let Some(id) = c.work_order_id else {
+        return Ok(None);
+    };
+    Ok(work_order::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .filter(|w| ["planned", "approved"].contains(&w.status.as_str())))
+}
+
+/// 接続先の表示に、予約なら「予約中」を添える。
+async fn 予約つきの接続先<C: ConnectionTrait>(
+    db: &C,
+    視野: &視野<'_>,
+    c: &cable_connection::Model,
+    l: &str,
+) -> AppResult<String> {
+    let mut s = 接続先の表示(db, 視野, c).await?;
+    if 予約中のチケット(db, c).await?.is_some() {
+        s.push_str(&format!(
+            "（{}）",
+            rust_i18n::t!("connections.reserved", locale = l)
+        ));
+    }
+    Ok(s)
+}
+
+/// 予約に使えるチケット。**このプロジェクトの、計画中の増設だけ**（11.6）。
+async fn 予約できるチケット<C: ConnectionTrait>(
+    db: &C,
+    project_id: i32,
+) -> AppResult<Vec<Labeled>> {
+    Ok(work_order::Entity::find()
+        .filter(work_order::Column::ProjectId.eq(project_id))
+        .filter(work_order::Column::WorkType.eq("Addition"))
+        .filter(work_order::Column::Status.eq("planned"))
+        .order_by_asc(work_order::Column::Id)
+        .all(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
+        .into_iter()
+        .map(|w| Labeled {
+            label: w.title,
+            value: w.id.to_string(),
+        })
+        .collect())
+}
+
+/// チケットが予約した接続の1行（チケットの詳細に出す）。
+pub struct 予約した接続 {
+    /// 機器・部品・ポート
+    pub port: String,
+    pub cable: String,
+    pub end: String,
+    /// 中断などで閉じた。**行は消さず閉じる**ため、閉じたものも見える
+    pub released: bool,
+}
+
+/// チケットが予約した接続。**閉じたものも出す**（搭載の予約と同じ）。
+pub async fn チケットの接続<C: ConnectionTrait>(
+    db: &C,
+    user: &entity::app_user::Model,
+    project_id: i32,
+    work_order_id: i32,
+    l: &str,
+) -> AppResult<Vec<予約した接続>> {
+    let rows = cable_connection::Entity::find()
+        .filter(cable_connection::Column::WorkOrderId.eq(work_order_id))
+        .order_by_asc(cable_connection::Column::Id)
+        .all(db)
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let 別のプロジェクト = rust_i18n::t!("connections.other_project", locale = l).to_string();
+    let (見える, _) = 利用者のプロジェクト(db, user).await?;
+    let 視野 = 視野 {
+        project_id,
+        見える: &見える,
+        別のプロジェクト: &別のプロジェクト,
+    };
+    let mut out = Vec::new();
+    for c in rows {
+        let k = ケーブルを引く(db, c.cable_instance_id).await?;
+        out.push(予約した接続 {
+            port: 接続先の表示(db, &視野, &c).await?,
+            cable: k.名前(),
+            end: k
+                .端(c.cable_end_slot_id)
+                .map(|e| e.end_label.clone())
+                .unwrap_or_default(),
+            released: c.to_date.is_some(),
+        });
+    }
+    Ok(out)
+}
+
+/// 中断時に、チケットが予約した接続を解放する（11.6）。**行は消さず閉じる。**
+pub async fn 予約を解放する(
+    tx: &AuditedTx,
+    work_order_id: i32,
+    at: chrono::DateTime<Utc>,
+) -> AppResult<()> {
+    let 内部 = |e: sea_orm::DbErr| AppError::Internal(anyhow::anyhow!(e));
+    let 予約 = cable_connection::Entity::find()
+        .filter(cable_connection::Column::WorkOrderId.eq(work_order_id))
+        .filter(cable_connection::Column::ToDate.is_null())
+        .all(tx.reader())
+        .await
+        .map_err(内部)?;
+    for row in 予約 {
+        tx.update(
+            &row,
+            cable_connection::ActiveModel {
+                id: Set(row.id),
+                to_date: Set(Some(at)),
+                ..Default::default()
+            },
+        )
+        .await
+        .map_err(内部)?;
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------

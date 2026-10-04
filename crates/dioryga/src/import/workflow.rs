@@ -45,7 +45,7 @@ use serde::Deserialize;
 
 use super::instances::{解決するプロジェクト, 語彙};
 use super::placement::{機器の索引, 機器キー, 空ならnone, 読み取る};
-use super::{Entry, ImportError, Outcome, Report};
+use super::{理由, Entry, ImportError, Message, Outcome, Report};
 use crate::repository::AuditedTx;
 
 /// 語彙（`vocabularies.md`、設計書10.4）。
@@ -214,27 +214,26 @@ impl<M> 索引<M> {
     }
 
     /// 突合する。`Ok(None)` は新規、`Err` は解決できない指定。
-    fn 引く(&self, uid: &str, external_id: &str) -> Result<Option<&M>, String> {
+    fn 引く(&self, uid: &str, external_id: &str) -> Result<Option<&M>, Message> {
         if let Some(uid) = 空ならnone(uid) {
             return match self.uid.get(uid) {
                 Some(i) => Ok(Some(&self.行[*i])),
                 // **uid はDioryga側で採番する。**書いて見つからないのは誤り（23.2）
-                None => Err(format!("uid「{uid}」の行が見つかりません")),
+                None => Err(理由!("import_detail.workflow.uid_not_found", uid = uid)),
             };
         }
         let Some(external_id) = 空ならnone(external_id) else {
             // **毎回新規になる行を作らない**（23.5の部品と同じ）
-            return Err(
-                "uid と external_id がどちらも空です。再取込で突き合わせられません".to_owned(),
-            );
+            return Err(理由!("import_detail.workflow.key_required"));
         };
         match self.external_id.get(external_id).map(|v| v.as_slice()) {
             None | Some([]) => Ok(None),
             Some([i]) => Ok(Some(&self.行[*i])),
             // **黙って1件目を選ばない**（23.2）
-            Some(v) => Err(format!(
-                "external_id「{external_id}」に{}件が該当します。uid で指定してください",
-                v.len()
+            Some(v) => Err(理由!(
+                "import_detail.workflow.external_id_ambiguous",
+                external_id = external_id,
+                count = v.len()
             )),
         }
     }
@@ -269,7 +268,15 @@ pub async fn マイルストーンを取り込む(
         let milestone_type = match 必須の語彙(&row.milestone_type, MILESTONE_TYPES) {
             Ok(v) => v,
             Err(e) => {
-                report.push(Entry::new(Outcome::Error, target, format!("種別: {e}")));
+                report.push(Entry::new(
+                    Outcome::Error,
+                    target,
+                    理由!(
+                        "import_detail.common.field_prefixed",
+                        field = "milestone_type",
+                        reason = e
+                    ),
+                ));
                 continue;
             }
         };
@@ -277,7 +284,7 @@ pub async fn マイルストーンを取り込む(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                "planned_date を日付として読めません",
+                理由!("import_detail.workflow.not_a_date", field = "planned_date"),
             ));
             continue;
         };
@@ -289,7 +296,7 @@ pub async fn マイルストーンを取り込む(
                     report.push(Entry::new(
                         Outcome::Error,
                         target,
-                        "actual_date を日付として読めません",
+                        理由!("import_detail.workflow.not_a_date", field = "actual_date"),
                     ));
                     continue;
                 }
@@ -298,7 +305,15 @@ pub async fn マイルストーンを取り込む(
         let status = match 語彙(&row.status, MILESTONE_STATUSES, PLANNED) {
             Ok(v) => v,
             Err(e) => {
-                report.push(Entry::new(Outcome::Error, target, format!("状態: {e}")));
+                report.push(Entry::new(
+                    Outcome::Error,
+                    target,
+                    理由!(
+                        "import_detail.common.field_prefixed",
+                        field = "status",
+                        reason = e
+                    ),
+                ));
                 continue;
             }
         };
@@ -320,7 +335,7 @@ pub async fn マイルストーンを取り込む(
                     && m.status == status
                     && m.description == description
                 {
-                    report.push(Entry::new(Outcome::Unchanged, target, ""));
+                    report.push(Entry::new(Outcome::Unchanged, target, Message::default()));
                     continue;
                 }
                 tx.update(
@@ -337,7 +352,7 @@ pub async fn マイルストーンを取り込む(
                     },
                 )
                 .await?;
-                report.push(Entry::new(Outcome::Updated, target, ""));
+                report.push(Entry::new(Outcome::Updated, target, Message::default()));
             }
             None => {
                 tx.insert(milestone::ActiveModel {
@@ -354,7 +369,7 @@ pub async fn マイルストーンを取り込む(
                     ..Default::default()
                 })
                 .await?;
-                report.push(Entry::new(Outcome::Created, target, ""));
+                report.push(Entry::new(Outcome::Created, target, Message::default()));
             }
         }
     }
@@ -394,20 +409,40 @@ pub async fn チケットを取り込む(
 
         let title = row.title.trim().to_owned();
         if title.is_empty() {
-            report.push(Entry::new(Outcome::Error, target, "title が空です"));
+            report.push(Entry::new(
+                Outcome::Error,
+                target,
+                理由!("import_detail.common.empty", field = "title"),
+            ));
             continue;
         }
         let work_type = match 必須の語彙(&row.work_type, WORK_TYPES) {
             Ok(v) => v,
             Err(e) => {
-                report.push(Entry::new(Outcome::Error, target, format!("種別: {e}")));
+                report.push(Entry::new(
+                    Outcome::Error,
+                    target,
+                    理由!(
+                        "import_detail.common.field_prefixed",
+                        field = "work_type",
+                        reason = e
+                    ),
+                ));
                 continue;
             }
         };
         let status = match 語彙(&row.status, WORK_ORDER_STATUSES, PLANNED) {
             Ok(v) => v,
             Err(e) => {
-                report.push(Entry::new(Outcome::Error, target, format!("状態: {e}")));
+                report.push(Entry::new(
+                    Outcome::Error,
+                    target,
+                    理由!(
+                        "import_detail.common.field_prefixed",
+                        field = "status",
+                        reason = e
+                    ),
+                ));
                 continue;
             }
         };
@@ -418,7 +453,7 @@ pub async fn チケットを取り込む(
                 report.push(Entry::new(
                     Outcome::Error,
                     target,
-                    "Transfer には target_project が要ります",
+                    理由!("import_detail.workflow.target_project_required"),
                 ));
                 continue;
             }
@@ -427,7 +462,7 @@ pub async fn チケットを取り込む(
                     report.push(Entry::new(
                         Outcome::Error,
                         target,
-                        "target_project が起票元と同じです",
+                        理由!("import_detail.workflow.target_project_same"),
                     ));
                     continue;
                 }
@@ -441,7 +476,7 @@ pub async fn チケットを取り込む(
                 report.push(Entry::new(
                     Outcome::Error,
                     target,
-                    "target_project を書けるのは Transfer だけです",
+                    理由!("import_detail.workflow.target_project_only_transfer"),
                 ));
                 continue;
             }
@@ -464,7 +499,15 @@ pub async fn チケットを取り込む(
             match 担当者(&row.primary_assignee, &利用者, &メンバー) {
                 Ok(v) => v,
                 Err(e) => {
-                    report.push(Entry::new(Outcome::Error, target, format!("主担当: {e}")));
+                    report.push(Entry::new(
+                        Outcome::Error,
+                        target,
+                        理由!(
+                            "import_detail.common.field_prefixed",
+                            field = "primary_assignee",
+                            reason = e
+                        ),
+                    ));
                     continue;
                 }
             };
@@ -472,7 +515,15 @@ pub async fn チケットを取り込む(
             match 担当者(&row.secondary_assignee, &利用者, &メンバー) {
                 Ok(v) => v,
                 Err(e) => {
-                    report.push(Entry::new(Outcome::Error, target, format!("副担当: {e}")));
+                    report.push(Entry::new(
+                        Outcome::Error,
+                        target,
+                        理由!(
+                            "import_detail.common.field_prefixed",
+                            field = "secondary_assignee",
+                            reason = e
+                        ),
+                    ));
                     continue;
                 }
             };
@@ -485,7 +536,7 @@ pub async fn チケットを取り込む(
                     report.push(Entry::new(
                         Outcome::Error,
                         target,
-                        "due_date を日付として読めません",
+                        理由!("import_detail.workflow.not_a_date", field = "due_date"),
                     ));
                     continue;
                 }
@@ -497,7 +548,7 @@ pub async fn チケットを取り込む(
             report.push(Entry::new(
                 Outcome::Error,
                 target,
-                "cancelled_reason を書けるのは status=cancelled のときだけです",
+                理由!("import_detail.workflow.cancelled_reason_only_cancelled"),
             ));
             continue;
         }
@@ -606,11 +657,15 @@ pub async fn チケットを取り込む(
 
         // **担当者がメンバーでないことは止めない**（不変条件6）。移行元の
         // 担当者が今もメンバーとは限らず、拒否すると事実を記録できなくなる
-        let 指摘: Vec<&str> = [主の指摘, 副の指摘].into_iter().flatten().collect();
+        let 指摘: Vec<Message> = [主の指摘, 副の指摘].into_iter().flatten().collect();
         if 指摘.is_empty() {
-            report.push(Entry::new(outcome, target, ""));
+            report.push(Entry::new(outcome, target, Message::default()));
         } else {
-            report.push(Entry::new(Outcome::Warning, target, 指摘.join(" / ")));
+            report.push(Entry::new(
+                Outcome::Warning,
+                target,
+                理由!("import_detail.common.list", items = 指摘),
+            ));
         }
     }
 
@@ -668,14 +723,17 @@ pub async fn 承認を取り込む(
         // 利用者に意識させない
         let key = row.work_order.trim();
         let 対象 = if key.is_empty() {
-            Err("work_order が空です".to_owned())
+            Err(理由!("import_detail.common.empty", field = "work_order"))
         } else {
             match 索引.引く(key, "") {
                 Ok(Some(w)) => Ok(w),
                 Ok(None) => unreachable!("uid を渡した引くは None を返さない"),
                 Err(_) => match 索引.引く("", key) {
                     Ok(Some(w)) => Ok(w),
-                    Ok(None) => Err(format!("チケット「{key}」がこのプロジェクトにありません")),
+                    Ok(None) => Err(理由!(
+                        "import_detail.workflow.work_order_not_found",
+                        key = key
+                    )),
                     Err(e) => Err(e),
                 },
             }
@@ -699,7 +757,15 @@ pub async fn 承認を取り込む(
         let status = match 語彙(&row.status, APPROVAL_STATUSES, PENDING) {
             Ok(v) => v,
             Err(e) => {
-                report.push(Entry::new(Outcome::Error, target, format!("状態: {e}")));
+                report.push(Entry::new(
+                    Outcome::Error,
+                    target,
+                    理由!(
+                        "import_detail.common.field_prefixed",
+                        field = "status",
+                        reason = e
+                    ),
+                ));
                 continue;
             }
         };
@@ -711,7 +777,7 @@ pub async fn 承認を取り込む(
                     report.push(Entry::new(
                         Outcome::Error,
                         target,
-                        format!("承認者「{name}」が見つかりません"),
+                        理由!("import_detail.workflow.approver_not_found", username = name),
                     ));
                     continue;
                 }
@@ -763,9 +829,9 @@ pub async fn 承認を取り込む(
             }
         };
 
-        let mut 指摘 = String::new();
+        let mut 指摘 = Message::default();
         if status == APPROVED && approver_id.is_none() {
-            指摘 = "承認済みですが承認者が書かれていません".to_owned();
+            指摘 = 理由!("import_detail.workflow.approver_missing");
             outcome = Outcome::Warning;
         }
         report.push(Entry::new(outcome, target, 指摘));
@@ -810,9 +876,10 @@ async fn 承認の整合(tx: &AuditedTx, project_id: i32) -> Result<Report, Impo
                     "WORK_ORDER {}",
                     表示名(&w.uid, w.external_id.as_deref().unwrap_or(""))
                 ),
-                format!(
-                    "状態が {} ですが、揃っていない承認が{未了}件あります",
-                    w.status
+                理由!(
+                    "import_detail.workflow.approvals_pending",
+                    status = &w.status,
+                    count = 未了
                 ),
             ));
         }
@@ -837,7 +904,8 @@ fn 表示名(uid: &str, external_id: &str) -> String {
             return v.to_owned();
         }
     }
-    "(識別子なし)".to_owned()
+    // 対象の欄は訳さない（#214）。記号で示す
+    "(—)".to_owned()
 }
 
 /// 書かれていれば使い、無ければ採番する（23.2）。
@@ -848,16 +916,25 @@ fn 採番(uid: &str) -> String {
 }
 
 /// 空を許さない語彙。**既定へ寄せない**——種別は行の意味そのものである。
-fn 必須の語彙(value: &str, allowed: &[&'static str]) -> Result<String, String> {
+fn 必須の語彙(value: &str, allowed: &[&'static str]) -> Result<String, Message> {
     let value = value.trim();
     if value.is_empty() {
-        return Err(format!("空です（{}）", allowed.join(" / ")));
+        return Err(理由!(
+            "import_detail.workflow.vocabulary_empty",
+            allowed = allowed.join(" / ")
+        ));
     }
     allowed
         .iter()
         .find(|v| **v == value)
         .map(|v| (*v).to_owned())
-        .ok_or_else(|| format!("「{value}」は使えません（{}）", allowed.join(" / ")))
+        .ok_or_else(|| {
+            理由!(
+                "import_detail.common.not_in_vocabulary",
+                value = value,
+                allowed = allowed.join(" / ")
+            )
+        })
 }
 
 fn 日付(value: &str) -> Option<NaiveDate> {
@@ -893,15 +970,22 @@ fn 担当者(
     username: &str,
     利用者: &HashMap<String, i32>,
     メンバー: &[i32],
-) -> Result<(Option<i32>, Option<&'static str>), String> {
+) -> Result<(Option<i32>, Option<Message>), Message> {
     let Some(name) = 空ならnone(username) else {
         return Ok((None, None));
     };
     let Some(id) = 利用者.get(name).copied() else {
-        return Err(format!("利用者「{name}」が見つかりません"));
+        return Err(理由!(
+            "import_detail.organization.user_not_found",
+            username = name
+        ));
     };
-    let 指摘 =
-        (!メンバー.contains(&id)).then_some("担当者がこのプロジェクトのメンバーではありません");
+    let 指摘 = (!メンバー.contains(&id)).then(|| {
+        理由!(
+            "import_detail.workflow.assignee_not_member",
+            username = name
+        )
+    });
     Ok((Some(id), 指摘))
 }
 
@@ -913,7 +997,10 @@ mod tests {
     fn 識別子が空なら突合できないと分かる() {
         let 索引: 索引<milestone::Model> = 索引::作る(Vec::new(), |m| (m.uid.clone(), None));
         let e = 索引.引く("", "").unwrap_err();
-        assert!(e.contains("突き合わせられません"), "{e}");
+        assert!(
+            crate::import::詳細を訳す::文言(&e, "ja").contains("突き合わせられません"),
+            "{e}"
+        );
     }
 
     #[test]

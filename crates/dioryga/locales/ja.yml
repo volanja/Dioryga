@@ -37,6 +37,7 @@ nav:
   dashboard: ダッシュボード
   devices: 機器
   containers: 設備・什器
+  parts: 部品
   ip_addresses: IPアドレス
   components: コンポーネント
   work_orders: 変更管理チケット
@@ -1232,6 +1233,7 @@ import_detail:
     slot_not_found: "%{hostname} の筐体にスロット「%{label}」がありません"
     never_in_project: "シリアル「%{serial}」の部品は、このプロジェクトにあったことがありません。他のプロジェクトや倉庫からの移動は変更管理チケットで行ってください"
     in_other_project: "シリアル「%{serial}」の部品は今、他のプロジェクトにあります。プロジェクト間の移動は変更管理チケット（Transfer）で行ってください"
+    has_cable: "シリアル「%{serial}」の部品にはケーブルが挿さっています。ポート接続の画面で外してから置き場所を変えてください"
     ambiguous: "シリアル「%{serial}」の部品が同じベンダーに%{count}件あります。突合できません"
   costs:
     useful_life_invalid: "useful_life_years「%{value}」は1以上で書いてください。0以下では按分できません"
@@ -1303,6 +1305,47 @@ import_detail:
     approvals_pending: "状態が %{status} ですが、揃っていない承認が%{count}件あります"
     vocabulary_empty: "空です（%{allowed}）"
     assignee_not_member: "担当者「%{username}」はこのプロジェクトのメンバーではありません"
+part_instances:
+  title: 部品
+  lead: このプロジェクトにある部品の実物を登録し、置き場所を移します。機器に載っている部品も、棚やプロジェクトに置いてある予備もここに並びます
+  category: 分類
+  model: 型番
+  serial_number: シリアル番号
+  status: 状態
+  health: 故障の有無
+  place: 置き場所
+  open: 開く
+  empty: 部品がありません
+  cable: ケーブルあり
+  at_all: すべての置き場所
+  at_device: 機器に載っている
+  at_container: 設備・什器に置いてある
+  at_project: プロジェクトに置いてある
+  new: 部品を登録
+  serial_hint: 空でも登録できます。入れる場合は、同じベンダーの中で重ならない番号にしてください
+  submit: 登録する
+  devices: 機器
+  containers: 設備・什器
+  here: このプロジェクト（どこにも載せない）
+  other_project: 別のプロジェクト
+  disposed: 廃棄
+  basic: 基本情報
+  history: 置き場所の履歴
+  period: 期間
+  ticket: チケット
+  current: 現在
+  move: 置き場所を移す
+  move_to: 移す先
+  move_hint: 移せるのは、このプロジェクトの機器・設備・什器と、このプロジェクトだけです。他のプロジェクトへの移動と廃棄は、変更管理チケットで行ってください
+  has_cable: この部品にはケーブルが挿さっています。ポート接続の画面で外してから移してください
+  error_catalog: 型番を選んでください。廃番の型番は選べません
+  error_status: 状態を選んでください
+  error_health: 故障の有無を選んでください
+  error_place: 置き場所を選んでください。置けるのは、このプロジェクトに今ある機器・撤去していない設備・什器・このプロジェクトだけです
+  error_serial_taken: 同じベンダーで同じシリアル番号の部品が、既に登録されています
+  error_same_place: 部品は既にその場所にあります
+  error_has_cable: 部品にケーブルが挿さっています。ポート接続の画面で外してから移してください
+
 connections:
   reserved: 予約中
   ticket: 増設チケットの予約にする

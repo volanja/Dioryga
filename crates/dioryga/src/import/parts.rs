@@ -330,6 +330,21 @@ async fn 計画する<C: ConnectionTrait>(
                 && l.location_id == location_id
                 && l.chassis_slot_id == chassis_slot_id
         });
+        // **ケーブルが挿さったままの部品は、機器から外さない**（#229）。先にポート接続の
+        // 画面で外させる。スロットだけの変更は機器に載ったままなので通す
+        if let (Some(p), Some(l)) = (&既存, &現在) {
+            let 同じ場所 = l.location_type == location_type && l.location_id == location_id;
+            if !同じ場所 && crate::part_location::ケーブルが挿さっている(db, p.id).await?
+            {
+                report.push(Entry::new(
+                    Outcome::Error,
+                    表示,
+                    理由!("import_detail.parts.has_cable", serial = serial),
+                ));
+                continue;
+            }
+        }
+
         // 倉庫にある間の `status` には意味が無い。比べず、書き換えもしない。
         // **黙って捨てない**——書いてあれば行の説明に添える
         let mut 説明 = Message::default();

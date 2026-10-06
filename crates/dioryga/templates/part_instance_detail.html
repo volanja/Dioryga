@@ -1,0 +1,99 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb">
+      <a href="/projects">{{ chrome.t_nav_projects }}</a> / <a href="/projects/{{ project_id }}">{{ project_name }}</a> /
+      <a href="/projects/{{ project_id }}/parts">{{ t_parts }}</a>
+    </p>
+    <h1>{{ title }}</h1>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<div class="panels">
+  <section class="card">
+    <h2>{{ t_basic }}</h2>
+    <dl>
+      <dt>{{ t_category }}</dt><dd>{{ category }}</dd>
+      <dt>{{ t_model }}</dt><dd class="mono">{{ model }}</dd>
+      <dt>{{ t_serial_number }}</dt><dd class="mono">{{ serial_number }}</dd>
+      <dt>{{ t_status }}</dt>
+      <dd><span class="st"><span class="led sm {{ status }}"></span>{{ status_label }}</span></dd>
+      <dt>{{ t_health }}</dt>
+      <dd><span class="st"><span class="led sm {{ health }}"></span>{{ health_label }}</span></dd>
+      <dt>{{ t_place }}</dt>
+      <dd>{% if let Some(href) = place_href %}<a href="{{ href }}">{{ place }}</a>{% else %}{{ place }}{% endif %}</dd>
+    </dl>
+  </section>
+
+  {# 置き場所は履歴として持つ。移すと現行の行を閉じ、新しい行を開く #}
+  <section class="card">
+    <h2>{{ t_history }}</h2>
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>{{ t_place }}</th><th>{{ t_period }}</th><th>{{ t_ticket }}</th></tr>
+      </thead>
+      <tbody>
+        {% for h in history %}
+        <tr>
+          <td>{{ h.place }}{% if h.current %} <span class="badge">{{ t_current }}</span>{% endif %}</td>
+          <td>{{ h.period }}</td>
+          <td>{% if let Some(t) = h.ticket %}<a href="{{ t.value }}">{{ t.label }}</a>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+</div>
+
+{% if can_edit %}
+<h2 class="section">{{ t_move }}</h2>
+{% if let Some(href) = connections_href %}
+{# ケーブルが挿さったままでは移せない。自動では外さず、外す画面へ案内する #}
+<p class="warn">{{ t_has_cable }} <a href="{{ href }}">{{ t_connections }}</a></p>
+{% else %}
+<div class="card">
+  <form method="post" action="/projects/{{ project_id }}/parts/{{ part_id }}/move" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="place">{{ t_move_to }}</label>
+    <select id="place" name="place" required>
+      {% if current_place != "Project" %}
+      <option value="Project">{{ t_here }}</option>
+      {% endif %}
+      {% if !places.containers.is_empty() %}
+      <optgroup label="{{ t_containers }}">
+        {% for c in places.containers %}
+        {% if current_place != c.value %}
+        <option value="{{ c.value }}">{{ c.label }}</option>
+        {% endif %}
+        {% endfor %}
+      </optgroup>
+      {% endif %}
+      {% if !places.devices.is_empty() %}
+      <optgroup label="{{ t_devices }}">
+        {% for d in places.devices %}
+        {% if current_place != d.value %}
+        <option value="{{ d.value }}">{{ d.label }}</option>
+        {% endif %}
+        {% endfor %}
+      </optgroup>
+      {% endif %}
+    </select>
+    <p class="hint">{{ t_move_hint }}</p>
+
+    <button type="submit">{{ t_move }}</button>
+  </form>
+</div>
+{% endif %}
+{% endif %}
+
+{% endblock %}

@@ -580,18 +580,14 @@ pub async fn 機器にケーブルがある<C: ConnectionTrait>(
     Ok(false)
 }
 
-/// 部品に、ケーブルが挿さっているか（部品の廃棄の判定、#225）。
+/// 部品に、ケーブルが挿さっているか（部品の廃棄・置き場所の移動の判定、#225、#229）。
 pub async fn 部品にケーブルがある<C: ConnectionTrait>(
     db: &C,
     part_instance_id: i32,
 ) -> AppResult<bool> {
-    Ok(cable_connection::Entity::find()
-        .filter(cable_connection::Column::PartInstanceId.eq(part_instance_id))
-        .filter(cable_connection::Column::ToDate.is_null())
-        .one(db)
+    crate::part_location::ケーブルが挿さっている(db, part_instance_id)
         .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-        .is_some())
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))
 }
 
 /// ポートにつながっている相手（インターフェース一覧の「接続先」）。

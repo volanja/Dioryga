@@ -77,7 +77,8 @@
       <tbody>
         {% for item in parts %}
         <tr>
-          <td>{{ item.label }}</td>
+          {# 外す・棚へ移すのは部品の画面で行う。今この機器がプロジェクトにあるときだけ開ける #}
+          <td>{% if parts_here %}<a href="/projects/{{ project_id }}/parts/{{ item.id }}">{{ item.label }}</a>{% else %}{{ item.label }}{% endif %}</td>
           <td class="mono">{{ item.serial_number }}</td>
           <td>
             {% if can_edit %}

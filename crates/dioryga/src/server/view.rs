@@ -178,6 +178,7 @@ const プロジェクトの画面: &[(&str, &str, &str)] = &[
     ("dashboard", "", "nav.dashboard"),
     ("devices", "/devices", "nav.devices"),
     ("containers", "/containers", "nav.containers"),
+    ("parts", "/parts", "nav.parts"),
     ("ip_addresses", "/network/ip-addresses", "nav.ip_addresses"),
     ("components", "/software/components", "nav.components"),
     ("work_orders", "/work-orders", "nav.work_orders"),
@@ -264,7 +265,7 @@ impl Chrome {
 
     /// プロジェクトの中の画面（#122、#123）。
     ///
-    /// `sub` は `dashboard` / `devices` / `containers` / `ip_addresses` /
+    /// `sub` は `dashboard` / `devices` / `containers` / `parts` / `ip_addresses` /
     /// `components` / `work_orders` / `milestones` / `costs` / `power` /
     /// `members` / `import`。**取込は編集権のある利用者にだけ出す**——
     /// 押しても入れない項目を並べない。

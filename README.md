@@ -16,6 +16,7 @@ The name comes from διώρυγα, Greek for "canal", and is pronounced *dee-OH
 
 - Device register: record physical machines, virtual machines and containers. Changes to a device's project, mounting position, IP addresses and similar attributes do not overwrite earlier values; they are kept as history
 - Racks and furniture: record where devices are mounted, the power circuits supplied to each rack and where it is installed, show them as rack diagrams, and compare the mounted weight with the static load
+- Parts: register the physical parts in a project (memory, NICs, power supplies and so on), whether mounted in a device or kept as spares on a shelf, and move them between places with the history kept
 - Network: manage subnets, IP addresses and device interfaces (VLANs, IP addresses, bonding), and record which cable is plugged into each port (network, power and stacking cables)
 - Software: import an SBOM for each device and search its components across devices
 - Costs and contracts: manage purchase records, fixed assets, maintenance contracts and recurring costs for devices and racks

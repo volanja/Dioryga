@@ -18,6 +18,7 @@ pub mod merge;
 pub mod milestone;
 pub mod network;
 pub mod part;
+pub mod part_instance;
 pub mod power;
 pub mod project;
 pub mod rack;
@@ -163,6 +164,15 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/projects/{id}/containers/{container_id}/purchase",
             post(rack::save_purchase),
+        )
+        .route(
+            "/projects/{id}/parts",
+            get(part_instance::list).post(part_instance::create),
+        )
+        .route("/projects/{id}/parts/{part_id}", get(part_instance::detail))
+        .route(
+            "/projects/{id}/parts/{part_id}/move",
+            post(part_instance::relocate),
         )
         .route("/projects/{id}/devices/new", get(device::new_form))
         .route(

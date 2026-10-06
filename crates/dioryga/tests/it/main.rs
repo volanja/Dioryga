@@ -46,6 +46,7 @@ mod network;
 mod network_import;
 mod network_schema;
 mod org_import;
+mod part_instances;
 mod parts_import;
 mod placement_import;
 mod placement_schema;

@@ -144,6 +144,8 @@ struct DeviceDetailPage {
     locations: Vec<Labeled>,
     mount: Vec<Labeled>,
     parts: Vec<PartRow>,
+    /// 機器が今このプロジェクトにあるか。部品の画面へのリンクを出すかを決める。
+    parts_here: bool,
     healths: Vec<Choice>,
     t_health: String,
     t_serial_number: String,
@@ -776,7 +778,8 @@ pub async fn detail(
     let l = Locale::parse(&current.user.locale).as_str();
     let d = 対象(&state, project_id, device_id).await?;
     // 過去にあった機器は見せるだけで、書き換える導線を出さない
-    let can_edit = can_edit && 今ここにあるか(&state, project_id, device_id).await?;
+    let 今ここ = 今ここにあるか(&state, project_id, device_id).await?;
+    let can_edit = can_edit && 今ここ;
 
     let 未設定 = rust_i18n::t!("devices.none", locale = l).to_string();
     let 空欄 = |value: Option<String>| value.unwrap_or_else(|| 未設定.clone());
@@ -916,6 +919,7 @@ pub async fn detail(
         locations,
         mount: 搭載位置(&state, &d, l).await?,
         parts: 搭載部品(&state, &d, l).await?,
+        parts_here: 今ここ,
         healths: 容体の選択肢(device_state::HEALTHS, l),
         t_health: rust_i18n::t!("devices.health", locale = l).to_string(),
         t_serial_number: rust_i18n::t!("devices.serial_number", locale = l).to_string(),

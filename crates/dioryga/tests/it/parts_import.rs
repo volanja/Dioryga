@@ -14,8 +14,9 @@
 use chrono::{Duration, Utc};
 use dioryga::import::{parts, Outcome};
 use entity::{
-    app_user, chassis_model, chassis_slot, configuration, device, device_assignment,
-    mount_container, part_catalog, part_instance, part_instance_location, project, vendor,
+    app_user, cable_catalog, cable_connection, cable_end_slot, cable_instance, chassis_model,
+    chassis_slot, configuration, device, device_assignment, mount_container, part_catalog,
+    part_instance, part_instance_location, part_port_slot, project, vendor,
 };
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter,
@@ -581,6 +582,70 @@ async fn 今は他のプロジェクトにある部品は動かせない(db: &Da
     assert_eq!(part_instance::Entity::find().count(db).await.unwrap(), 1);
 }
 
+/// **ケーブルが挿さった部品は、取込で機器から外せないこと**（#229）。
+///
+/// 棚へ移す行も廃棄の行もエラーにする。スロットだけの変更は機器に載ったままなので
+/// 通す。ケーブルを外せば移せる。
+async fn ケーブルが挿さった部品は外せない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "ケーブルつき").await;
+    設備(db, 場.project.id, "Shelf-01", 場.user_id).await;
+
+    let 載せる =
+        parts::parse_parts(&csv(&["SN-1,Samsung,DIMM-32G,running,Device,web01,,"])).unwrap();
+    parts::apply(
+        db,
+        場.project.id,
+        &載せる,
+        Utc::now() - Duration::days(5),
+        1,
+    )
+    .await
+    .unwrap();
+    let p = 部品(db, "SN-1").await.unwrap();
+    let 接続 = ケーブルを挿す(db, &p, 場.user_id).await;
+
+    for 行 in [
+        "SN-1,Samsung,DIMM-32G,running,MountContainer,,Shelf-01,",
+        "SN-1,Samsung,DIMM-32G,running,Project,,,",
+        "SN-1,Samsung,DIMM-32G,running,Disposed,,,",
+    ] {
+        let rows = parts::parse_parts(&csv(&[行])).unwrap();
+        let report = parts::dry_run(db, 場.project.id, &rows).await.unwrap();
+        assert_eq!(report.count(Outcome::Error), 1, "{行}: {report}");
+        assert!(
+            parts::apply(db, 場.project.id, &rows, Utc::now(), 2)
+                .await
+                .is_err(),
+            "{行}"
+        );
+    }
+    assert_eq!(所在の履歴(db, p.id).await.len(), 1, "所在が動いています");
+
+    // スロットだけの変更は通る。機器に載ったまま
+    let スロット = parts::parse_parts(&csv(&[
+        "SN-1,Samsung,DIMM-32G,running,Device,web01,,DIMM_A1",
+    ]))
+    .unwrap();
+    let report = parts::dry_run(db, 場.project.id, &スロット).await.unwrap();
+    assert_eq!(report.count(Outcome::Updated), 1, "{report}");
+
+    // ケーブルを外すと移せる
+    let mut active: cable_connection::ActiveModel = 接続.into();
+    active.to_date = Set(Some(Utc::now()));
+    active.update(db).await.unwrap();
+    let 外す = parts::parse_parts(&csv(&[
+        "SN-1,Samsung,DIMM-32G,running,MountContainer,,Shelf-01,",
+    ]))
+    .unwrap();
+    parts::apply(db, 場.project.id, &外す, Utc::now(), 3)
+        .await
+        .unwrap();
+    assert_eq!(
+        現在の所在(db, p.id).await.unwrap().location_type,
+        "MountContainer"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // 用意
 // ---------------------------------------------------------------------------
@@ -707,6 +772,82 @@ async fn 設備(
         created_by: Set(user_id),
         created_at: Set(Utc::now()),
         updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap()
+}
+
+/// 部品の型にポートを足し、ケーブルの実物をそのポートに挿す。
+async fn ケーブルを挿す(
+    db: &DatabaseConnection,
+    p: &part_instance::Model,
+    user_id: i32,
+) -> cable_connection::Model {
+    let port = part_port_slot::ActiveModel {
+        part_catalog_id: Set(p.part_catalog_id),
+        port_kind: Set("Network".to_owned()),
+        port_label: Set("Port1".to_owned()),
+        connector_type: Set("LC".to_owned()),
+        port_speed: Set(None),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let 型 = cable_catalog::ActiveModel {
+        cable_kind: Set(Some("Network".to_owned())),
+        cable_type: Set("Networkケーブル".to_owned()),
+        length_mm: Set(Some(2000)),
+        color: Set(String::new()),
+        vendor_id: Set(None),
+        part_number: Set(None),
+        rated_voltage: Set(None),
+        rated_current_ma: Set(None),
+        retired_at: Set(None),
+        created_by: Set(user_id),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let 端 = cable_end_slot::ActiveModel {
+        cable_catalog_id: Set(型.id),
+        end_label: Set("A".to_owned()),
+        connector_type: Set("LC".to_owned()),
+        port_speed: Set(None),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    let 実物 = cable_instance::ActiveModel {
+        cable_catalog_id: Set(型.id),
+        serial_number: Set(None),
+        asset_number: Set(None),
+        retired_at: Set(None),
+        created_at: Set(Utc::now()),
+        updated_at: Set(Utc::now()),
+        ..Default::default()
+    }
+    .insert(db)
+    .await
+    .unwrap();
+    cable_connection::ActiveModel {
+        cable_instance_id: Set(実物.id),
+        cable_end_slot_id: Set(端.id),
+        part_instance_id: Set(p.id),
+        port_slot_id: Set(port.id),
+        work_order_id: Set(None),
+        from_date: Set(Utc::now()),
+        to_date: Set(None),
         ..Default::default()
     }
     .insert(db)
@@ -865,6 +1006,7 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, プロジェクトや棚に置いた部品は二度流しても変わらない);
         全検証!(@one $用意, $属性, 撤去した棚に置かれていた部品も候補に入る);
         全検証!(@one $用意, $属性, 今は他のプロジェクトにある部品は動かせない);
+        全検証!(@one $用意, $属性, ケーブルが挿さった部品は外せない);
     };
     (@one $用意:path, $属性:meta, $名前:ident) => {
         #[tokio::test]

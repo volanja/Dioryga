@@ -37,6 +37,7 @@ nav:
   dashboard: Dashboard
   devices: Devices
   containers: Racks and furniture
+  parts: Parts
   ip_addresses: IP addresses
   components: Components
   work_orders: Work orders
@@ -1229,6 +1230,7 @@ import_detail:
     slot_not_found: "The chassis of %{hostname} has no slot \"%{label}\""
     never_in_project: "The part with serial \"%{serial}\" has never been in this project. Move parts from other projects or the warehouse with a change ticket"
     in_other_project: "The part with serial \"%{serial}\" is now in another project. Move parts between projects with a change ticket (Transfer)"
+    has_cable: "A cable is plugged into the part with serial \"%{serial}\". Disconnect it on the port connections page before changing its place"
     ambiguous: "The same vendor has %{count} parts with serial \"%{serial}\". Cannot match the row"
   costs:
     useful_life_invalid: "useful_life_years \"%{value}\" must be 1 or more. It cannot be spread over 0 years or less"
@@ -1300,6 +1302,47 @@ import_detail:
     approvals_pending: "The status is %{status}, but %{count} approvals are still missing"
     vocabulary_empty: "Empty (%{allowed})"
     assignee_not_member: "Assignee \"%{username}\" is not a member of this project"
+part_instances:
+  title: Parts
+  lead: Register the physical parts in this project and move them between places. Parts mounted in devices and spares kept on shelves or in the project are all listed here
+  category: Category
+  model: Part number
+  serial_number: Serial number
+  status: Status
+  health: Health
+  place: Place
+  open: Open
+  empty: No parts
+  cable: Cabled
+  at_all: All places
+  at_device: Mounted in a device
+  at_container: Placed on a rack or furniture
+  at_project: Kept in the project
+  new: Register a part
+  serial_hint: Optional. If you enter one, it must be unique within the vendor
+  submit: Register
+  devices: Devices
+  containers: Racks and furniture
+  here: This project (not mounted anywhere)
+  other_project: Another project
+  disposed: Disposed
+  basic: Basic information
+  history: Place history
+  period: Period
+  ticket: Ticket
+  current: Current
+  move: Move
+  move_to: Move to
+  move_hint: A part can move only to devices, racks and furniture in this project, or to the project itself. Use a change ticket to move it to another project or to dispose of it
+  has_cable: A cable is plugged into this part. Disconnect it on the port connections page before moving
+  error_catalog: Select a part number. Retired part numbers cannot be selected
+  error_status: Select a status
+  error_health: Select a health value
+  error_place: Select a place. A part can be placed only in a device now in this project, a rack or furniture that is not retired, or the project itself
+  error_serial_taken: A part with the same vendor and serial number is already registered
+  error_same_place: The part is already in that place
+  error_has_cable: A cable is plugged into this part. Disconnect it on the port connections page before moving
+
 connections:
   reserved: Reserved
   ticket: Register as a reservation of an addition ticket

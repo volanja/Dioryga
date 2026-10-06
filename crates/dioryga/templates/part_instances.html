@@ -1,0 +1,122 @@
+{% extends "app_layout.html" %}
+{% block title %}{{ t_title }}{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/projects">{{ chrome.t_nav_projects }}</a> / <a href="/projects/{{ project_id }}">{{ project_name }}</a></p>
+    <h1>{{ t_title }}</h1>
+    <p class="lead">{{ t_lead }}</p>
+  </div>
+</div>
+
+{% if let Some(message) = error %}
+<p class="error">{{ message }}</p>
+{% endif %}
+
+<form class="filters" method="get" action="/projects/{{ project_id }}/parts">
+  <select name="at" aria-label="{{ t_place }}">
+    <option value="" {% if at == "" %}selected{% endif %}>{{ t_at_all }}</option>
+    <option value="device" {% if at == "device" %}selected{% endif %}>{{ t_at_device }}</option>
+    <option value="container" {% if at == "container" %}selected{% endif %}>{{ t_at_container }}</option>
+    <option value="project" {% if at == "project" %}selected{% endif %}>{{ t_at_project }}</option>
+  </select>
+  <button type="submit">{{ t_apply }}</button>
+</form>
+
+{% if rows.is_empty() %}
+<p class="empty">{{ t_empty }}</p>
+{% else %}
+<div class="table-scroll">
+<table>
+  <thead>
+    <tr>
+      <th>{{ t_category }}</th>
+      <th>{{ t_model }}</th>
+      <th>{{ t_serial_number }}</th>
+      <th>{{ t_status }}</th>
+      <th>{{ t_place }}</th>
+      <th>{{ t_actions }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.category }}</td>
+      <td class="mono">{{ row.model }}</td>
+      <td class="mono">{{ row.serial_number }}</td>
+      <td>
+        <span class="st"><span class="led sm {{ row.status }}"></span>{{ row.status_label }}</span>
+        {% if let Some(h) = row.attention %}<span class="badge danger">{{ h }}</span>{% endif %}
+      </td>
+      <td>
+        {% if let Some(href) = row.place_href %}<a href="{{ href }}">{{ row.place }}</a>{% else %}{{ row.place }}{% endif %}
+        {# ケーブルが挿さっている部品は、外すまで移せない #}
+        {% if row.has_cable %}<span class="badge">{{ t_cable }}</span>{% endif %}
+      </td>
+      <td class="actions"><a href="/projects/{{ project_id }}/parts/{{ row.id }}">{{ t_open }}</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if can_edit %}
+<h2 class="section">{{ t_new }}</h2>
+<div class="card">
+  <form method="post" action="/projects/{{ project_id }}/parts" class="form">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+
+    <label for="part_catalog_id">{{ t_model }}</label>
+    <select id="part_catalog_id" name="part_catalog_id" required>
+      <option value="">{{ t_unset }}</option>
+      {% for c in catalogs %}
+      <option value="{{ c.value }}" {% if form.part_catalog_id == c.value %}selected{% endif %}>{{ c.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="serial_number">{{ t_serial_number }}</label>
+    <input type="text" id="serial_number" name="serial_number" value="{{ form.serial_number }}">
+    <p class="hint">{{ t_serial_hint }}</p>
+
+    <label for="status">{{ t_status }}</label>
+    <select id="status" name="status" required>
+      {% for s in statuses %}
+      <option value="{{ s.value }}" {% if form.status == s.value %}selected{% endif %}>{{ s.label }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="health">{{ t_health }}</label>
+    <select id="health" name="health" required>
+      {% for h in healths %}
+      <option value="{{ h.value }}" {% if form.health == h.value %}selected{% endif %}>{{ h.label }}</option>
+      {% endfor %}
+    </select>
+
+    {# 種類と相手を1つの選択肢で選ぶ。素のHTMLフォームだけで動かすため #}
+    <label for="place">{{ t_place }}</label>
+    <select id="place" name="place" required>
+      <option value="Project" {% if form.place == "Project" %}selected{% endif %}>{{ t_here }}</option>
+      {% if !places.containers.is_empty() %}
+      <optgroup label="{{ t_containers }}">
+        {% for c in places.containers %}
+        <option value="{{ c.value }}" {% if form.place == c.value %}selected{% endif %}>{{ c.label }}</option>
+        {% endfor %}
+      </optgroup>
+      {% endif %}
+      {% if !places.devices.is_empty() %}
+      <optgroup label="{{ t_devices }}">
+        {% for d in places.devices %}
+        <option value="{{ d.value }}" {% if form.place == d.value %}selected{% endif %}>{{ d.label }}</option>
+        {% endfor %}
+      </optgroup>
+      {% endif %}
+    </select>
+
+    <button type="submit">{{ t_submit }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

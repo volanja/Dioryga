@@ -9,7 +9,8 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     pub part_instance_id: i32,
-    /// Device / MountContainer / Project / Disposed（#219、#220）
+    /// Device / MountContainer / Project / Disposed / Used（#219、#220、#255）。
+    /// `Used` は交換に使った予備品で、`location_id` は使った先の機器。
     pub location_type: String,
     pub location_id: Option<i32>,
     /// **任意項目。**どのスロットに挿さっているかまでは求めない（6.2）。

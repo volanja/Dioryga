@@ -545,8 +545,11 @@ async fn 突合<C: ConnectionTrait>(
         .all(db)
         .await?;
 
+    // **使用済み・廃棄済みの部品は数えない**（設計書6.3）
+    let 済 = crate::part_location::使い終えた部品(db, 同シリアル.iter().map(|p| p.id)).await?;
+
     let mut 同一 = Vec::new();
-    for p in 同シリアル {
+    for p in 同シリアル.into_iter().filter(|p| !済.contains(&p.id)) {
         let Some(c) = part_catalog::Entity::find_by_id(p.part_catalog_id)
             .one(db)
             .await?

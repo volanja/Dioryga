@@ -38,7 +38,7 @@ use crate::auth::authorization;
 use crate::auth::middleware::CurrentUser;
 use crate::device_state;
 use crate::error::{AppError, AppResult};
-use crate::part_location::{self, DEVICE, MOUNT_CONTAINER, PROJECT};
+use crate::part_location::{self, DEVICE, DISPOSED, MOUNT_CONTAINER, PROJECT, USED};
 use crate::repository::{Actor, AuditedTx};
 use crate::server::catalog::Labeled;
 use crate::server::view::{
@@ -46,8 +46,6 @@ use crate::server::view::{
     Chrome, Locale, STORED,
 };
 use crate::server::AppState;
-
-const DISPOSED: &str = "Disposed";
 
 /// 一度に `IN` へ渡す件数。
 const まとめて引く件数: usize = 500;
@@ -864,6 +862,11 @@ impl 場所 {
                 rust_i18n::t!("part_instances.disposed", locale = l).to_string(),
                 None,
             ),
+            // 交換に使った予備品。使った先の機器は、見える範囲でだけ出す（設計書6.3）
+            (USED, _) => (
+                rust_i18n::t!("part_instances.used", locale = l).to_string(),
+                None,
+            ),
             _ => 別(),
         }
     }
@@ -1013,7 +1016,15 @@ async fn 同じシリアルがある<C: ConnectionTrait>(
         .all(db)
         .await
         .map_err(内部)?;
-    let 型: Vec<i32> = 同シリアル.iter().map(|p| p.part_catalog_id).collect();
+    // **使用済み・廃棄済みの部品は数えない**（設計書6.3）
+    let 済 = part_location::使い終えた部品(db, 同シリアル.iter().map(|p| p.id))
+        .await
+        .map_err(内部)?;
+    let 型: Vec<i32> = 同シリアル
+        .iter()
+        .filter(|p| !済.contains(&p.id))
+        .map(|p| p.part_catalog_id)
+        .collect();
     if 型.is_empty() {
         return Ok(false);
     }

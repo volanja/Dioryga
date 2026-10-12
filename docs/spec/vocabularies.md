@@ -155,7 +155,7 @@ Planned / Approved / InProgress --> Cancelled : 中止
 | 対象 | 値 |
 |---|---|
 | `DEVICE_ASSIGNMENT.location_type` | `Project` / `Disposed` |
-| `PART_INSTANCE_LOCATION.location_type` | `Device` / `MountContainer` / `Project` / `Disposed`。`MountContainer`・`Project` は #219 で追加 |
+| `PART_INSTANCE_LOCATION.location_type` | `Device` / `MountContainer` / `Project` / `Disposed` / `Used`。`MountContainer`・`Project` は #219 で追加。`Used` は交換に使った予備品（#255）。`location_id` は使った先の機器。**`status` には持たない**（所在と二重に持つと食い違う） |
 | `MOUNT_CONTAINER.location_type` | `Project` |
 | `FIRMWARE_VERSION.item_type` | `Device` / `PartInstance` |
 | `PURCHASE.item_type` | `Device` / `PartInstance` / `SoftwareInstance` / `MountContainer` |

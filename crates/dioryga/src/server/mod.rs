@@ -10,6 +10,7 @@ pub mod container_model;
 pub mod cost;
 pub mod dashboard;
 pub mod device;
+pub mod device_sections;
 mod health;
 pub mod import;
 pub mod login;
@@ -188,10 +189,11 @@ pub fn router(state: AppState) -> Router {
             "/projects/{id}/devices/{device_id}/purchase",
             post(device::save_purchase),
         )
-        // 部品の故障の有無。チケットは使わず、機器の詳細の部品の欄で変える（設計書6.3）
+        // 部品の節。構成の部品を台帳に載せ、シリアル番号と故障の有無を変える。
+        // 故障にチケットは使わない（設計書6.3、16.1）
         .route(
-            "/projects/{id}/devices/{device_id}/parts/{part_id}/health",
-            post(device::set_part_health),
+            "/projects/{id}/devices/{device_id}/parts",
+            post(device_sections::save_parts),
         )
         .route(
             "/projects/{id}/devices/{device_id}/sbom",
@@ -239,29 +241,11 @@ pub fn router(state: AppState) -> Router {
             "/projects/{id}/network/ip-addresses",
             get(network::ip_addresses),
         )
+        // インターフェースは機器の詳細の「ポートとIP」の節で編集する（設計書8.5、16.1）。
+        // GETは以前の画面の場所で、節へ送る
         .route(
             "/projects/{id}/devices/{device_id}/interfaces",
-            get(network::interfaces).post(network::create_interface),
-        )
-        .route(
-            "/projects/{id}/devices/{device_id}/interfaces/vlans",
-            post(network::add_vlan),
-        )
-        .route(
-            "/projects/{id}/devices/{device_id}/interfaces/roles",
-            post(network::add_role),
-        )
-        .route(
-            "/projects/{id}/devices/{device_id}/interfaces/ips",
-            post(network::add_ip),
-        )
-        .route(
-            "/projects/{id}/devices/{device_id}/interfaces/members",
-            post(network::add_member),
-        )
-        .route(
-            "/projects/{id}/devices/{device_id}/interfaces/close",
-            post(network::close),
+            get(device_sections::interfaces).post(device_sections::save_ports),
         )
         // ポート接続（設計書16.1のB領域、8.4）。画面は機器の下に置く
         .route(

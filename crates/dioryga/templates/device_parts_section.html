@@ -1,0 +1,170 @@
+{#
+  部品の節（設計書6.3、16.1、#255）。構成が含む部品を並べ、「載せる」で台帳に載せる。
+
+  **その場で編集する。**「編集」はチェックボックスで、:has() で表示と入力欄を
+  切り替える（不変条件9）。:has() が使えないブラウザでは両方が出る。
+#}
+<section class="sec" id="parts">
+  {% if can_edit %}
+  <input type="checkbox" class="sec-edit" id="edit-parts" {% if parts.editing %}checked{% endif %}>
+  {% endif %}
+  <div class="sec-head">
+    <h2>{{ parts.t.title }}</h2>
+    <span class="sec-lead">{{ parts.t.lead }}</span>
+    {% if !parts.groups.is_empty() %}
+    <span class="sec-count">{{ parts.t.count }} {{ parts.registered }} / {{ parts.quantity }}</span>
+    {% endif %}
+    {% if can_edit && !parts.groups.is_empty() %}
+    <label for="edit-parts" class="button ghost v-view">{{ parts.t.edit }}</label>
+    <label for="edit-parts" class="button ghost v-edit">{{ parts.t.cancel }}</label>
+    {% endif %}
+  </div>
+
+  {% if let Some(message) = parts.error %}
+  <p class="error">{{ message }}</p>
+  {% endif %}
+
+  {% if parts.groups.is_empty() %}
+  <p class="empty">{{ parts.t.empty }}</p>
+  {% else %}
+  <div class="v-view table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ parts.t.category }}</th>
+          <th>{{ parts.t.part }}</th>
+          <th>{{ parts.t.ports }}</th>
+          <th class="num">{{ parts.t.quantity }}</th>
+          <th class="num">{{ parts.t.ledger }}</th>
+          <th>{{ parts.t.serial }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for g in parts.groups %}
+        <tr>
+          <td>{{ g.category }}</td>
+          <td>{{ g.model }}</td>
+          <td>{{ g.ports }}</td>
+          <td class="num">{{ g.quantity }}</td>
+          <td class="num">{{ g.registered }}</td>
+          <td class="mono serials">
+            {% if g.registered == 0 %}
+            <span class="muted">{{ parts.t.not_registered }}</span>
+            {% endif %}
+            {% for u in g.units %}
+            {% if let Some(part_id) = u.part_id %}
+            {# 外す・棚へ移すのは部品の画面で行う。今この機器がプロジェクトにあるときだけ開ける #}
+            {% if parts_here %}<a href="/projects/{{ project_id }}/parts/{{ part_id }}">{% endif %}{% if u.serial.is_empty() %}<span class="muted">{{ parts.t.no_serial }}</span>{% else %}{{ u.serial }}{% endif %}{% if parts_here %}</a>{% endif %}
+            {% if u.failed %}<span class="badge danger">{{ parts.t.failed }}</span>{% endif %}
+            {% endif %}
+            {% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if can_edit %}
+  <form class="v-edit" method="post" action="/projects/{{ project_id }}/devices/{{ device_id }}/parts">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+    <div class="table-scroll">
+    <table class="sec-table">
+      <thead>
+        <tr>
+          <th>{{ parts.t.category }}</th>
+          <th>{{ parts.t.part }}</th>
+          <th>{{ parts.t.ports }}</th>
+          <th class="num">#</th>
+          <th>{{ parts.t.ledger }}</th>
+          <th>{{ parts.t.serial }}</th>
+          <th>{{ parts.t.health }}</th>
+        </tr>
+      </thead>
+      {% for g in parts.groups %}
+      {% if g.folded %}
+      {# 数が多い部品は畳む。「全部」でまとめて載せる #}
+      <tbody>
+        <tr>
+          <td>{{ g.category }}</td>
+          <td>{{ g.model }}</td>
+          <td>{{ g.ports }}</td>
+          <td class="num">{{ g.quantity }}</td>
+          <td>
+            {% if g.registered < g.quantity %}
+            <label class="check"><input type="checkbox" name="register_all_{{ g.catalog_id }}" value="1" {% if g.all_checked %}checked{% endif %}>{{ parts.t.register_all }}</label>
+            {% else %}
+            {{ parts.t.registered }}
+            {% endif %}
+          </td>
+          <td colspan="2">
+            <details {% if parts.editing %}open{% endif %}>
+              <summary>{{ parts.t.count }} {{ g.registered }} / {{ g.quantity }}</summary>
+              <table class="sec-table inner">
+                {% for u in g.units %}
+                <tr>
+                  <td class="num">{{ u.no }}</td>
+                  <td>
+                    {% if u.part_id.is_some() %}{{ parts.t.registered }}{% else %}
+                    <label class="check"><input type="checkbox" name="register_{{ u.key }}" value="1" {% if u.checked %}checked{% endif %}>{{ parts.t.register }}</label>
+                    {% endif %}
+                  </td>
+                  <td><input type="text" class="mono" name="serial_{{ u.key }}" value="{{ u.serial }}" placeholder="{{ parts.t.no_serial }}" aria-label="{{ parts.t.serial }} {{ u.no }}"></td>
+                  <td>
+                    {% if u.part_id.is_some() %}
+                    <select name="health_{{ u.key }}" aria-label="{{ parts.t.health }} {{ u.no }}">
+                      {% for h in parts.healths %}
+                      <option value="{{ h.value }}" {% if u.health == h.value %}selected{% endif %}>{{ h.label }}</option>
+                      {% endfor %}
+                    </select>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </table>
+            </details>
+          </td>
+        </tr>
+      </tbody>
+      {% else %}
+      <tbody>
+        {% for u in g.units %}
+        <tr>
+          {% if loop.first %}
+          <td rowspan="{{ g.units.len() }}">{{ g.category }}</td>
+          <td rowspan="{{ g.units.len() }}">{{ g.model }}</td>
+          <td rowspan="{{ g.units.len() }}">{{ g.ports }}</td>
+          {% endif %}
+          <td class="num">{{ u.no }}</td>
+          <td>
+            {% if u.part_id.is_some() %}{{ parts.t.registered }}{% else %}
+            <label class="check"><input type="checkbox" name="register_{{ u.key }}" value="1" {% if u.checked %}checked{% endif %}>{{ parts.t.register }}</label>
+            {% endif %}
+          </td>
+          <td><input type="text" class="mono" name="serial_{{ u.key }}" value="{{ u.serial }}" placeholder="{{ parts.t.no_serial }}" aria-label="{{ g.model }} {{ parts.t.serial }} {{ u.no }}"></td>
+          <td>
+            {% if u.part_id.is_some() %}
+            <select name="health_{{ u.key }}" aria-label="{{ g.model }} {{ parts.t.health }} {{ u.no }}">
+              {% for h in parts.healths %}
+              <option value="{{ h.value }}" {% if u.health == h.value %}selected{% endif %}>{{ h.label }}</option>
+              {% endfor %}
+            </select>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% endif %}
+      {% endfor %}
+    </table>
+    </div>
+    <p class="hint">{{ parts.t.hint_register }}</p>
+    <p class="hint">{{ parts.t.hint_replace }}</p>
+    <div class="sec-actions">
+      <button type="submit">{{ parts.t.save }}</button>
+      <label for="edit-parts" class="button ghost">{{ parts.t.cancel }}</label>
+    </div>
+  </form>
+  {% endif %}
+  {% endif %}
+</section>

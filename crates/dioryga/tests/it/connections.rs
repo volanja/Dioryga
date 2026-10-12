@@ -401,10 +401,8 @@ async fn インターフェース一覧に接続先が出る(db: &DatabaseConnec
     .insert(db)
     .await
     .unwrap();
-    let 一覧 = format!(
-        "/projects/{}/devices/{}/interfaces",
-        場.project.id, a.device.id
-    );
+    // インターフェースは機器の詳細の「ポートとIP」の節に出る（#255）
+    let 一覧 = format!("/projects/{}/devices/{}", 場.project.id, a.device.id);
 
     let 型 = ケーブルの型(db, &場, "Network", &[("A", "LC"), ("B", "LC")]).await;
     挿す(db, &場, &a, &format!("new:{}", 型.ends[0].id), &[]).await;

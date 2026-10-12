@@ -10,11 +10,55 @@
 
 use entity::{cable_connection, device_assignment, mount_container, part_instance_location};
 use sea_orm::{ColumnTrait, Condition, ConnectionTrait, DbErr, EntityTrait, QueryFilter};
+use std::collections::{HashMap, HashSet};
 
 /// `PART_INSTANCE_LOCATION.location_type`（6.2、#219）。
 pub const DEVICE: &str = "Device";
 pub const MOUNT_CONTAINER: &str = "MountContainer";
 pub const PROJECT: &str = "Project";
+pub const DISPOSED: &str = "Disposed";
+/// 交換に使った予備品（設計書6.3、#255）。`location_id` は使った先の機器。
+/// **`status` には持たない。**使った日はこの行の `from_date` である。
+pub const USED: &str = "Used";
+
+/// 使用済み・廃棄済みか。**部品の識別（ベンダー＋シリアル番号）の対象から外す**
+/// （設計書6.3）。番号を持ったまま残る行が、今ある部品と当たらないようにする。
+pub fn 使い終えた(location_type: &str) -> bool {
+    location_type == USED || location_type == DISPOSED
+}
+
+/// 部品の現行の所在の行。
+pub async fn 現行の所在<C: ConnectionTrait>(
+    db: &C,
+    part_instance_ids: impl Iterator<Item = i32>,
+) -> Result<HashMap<i32, part_instance_location::Model>, DbErr> {
+    let ids: Vec<i32> = part_instance_ids.collect();
+    let mut out = HashMap::new();
+    for 組 in ids.chunks(まとめて引く件数) {
+        for s in part_instance_location::Entity::find()
+            .filter(part_instance_location::Column::PartInstanceId.is_in(組.to_vec()))
+            .filter(part_instance_location::Column::ToDate.is_null())
+            .all(db)
+            .await?
+        {
+            out.insert(s.part_instance_id, s);
+        }
+    }
+    Ok(out)
+}
+
+/// 使用済み・廃棄済みの部品。
+pub async fn 使い終えた部品<C: ConnectionTrait>(
+    db: &C,
+    part_instance_ids: impl Iterator<Item = i32>,
+) -> Result<HashSet<i32>, DbErr> {
+    Ok(現行の所在(db, part_instance_ids)
+        .await?
+        .into_iter()
+        .filter(|(_, s)| 使い終えた(&s.location_type))
+        .map(|(id, _)| id)
+        .collect())
+}
 
 /// 部品がいまあるプロジェクト。プロジェクトに無ければ `None`。
 pub async fn 部品の現在のプロジェクト<C: ConnectionTrait>(

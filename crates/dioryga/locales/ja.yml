@@ -178,7 +178,6 @@ devices:
   status: 状態
   health: 故障の有無
   health_hint: 故障に気付いたら「故障」にします。修理の変更管理チケットが完了すると「正常」に戻ります。誤って故障にしたときは、ここで戻せます
-  part_health_save: 変更
   part_health_invalid: 部品の故障の有無の値が不正です
   location: 所在
   detail: 詳細
@@ -190,7 +189,6 @@ devices:
   basic: 基本情報
   location_history: 所在の履歴
   mount: 搭載位置
-  parts: 搭載部品
   firmware: ファームウェア
   stack: スタック構成
   container: 設備・什器
@@ -273,10 +271,10 @@ devices:
   next_steps_lead: ネットワークとソフトウェアは、この画面では設定しません。登録すると機器の詳細へ移ります。そこから順に進めてください
   step_register: 機器を登録する
   step_register_where: この画面
-  step_parts: 部品を登録する
-  step_parts_where: 機器の詳細 ／ シリアルが分かったとき。予約なら先に作れます
+  step_parts: 部品を台帳に載せる
+  step_parts_where: 機器の詳細の「部品」 ／ シリアル番号は後からでも入れられます
   step_interfaces: インターフェースとIPアドレスを設定する
-  step_interfaces_where: 機器の詳細のインターフェース画面 ／ 物理ポートはここで紐づけます
+  step_interfaces_where: 機器の詳細の「ポートとIP」 ／ 台帳に載せたNICのポートが並びます
   step_sbom: SBOMを取り込む
   step_sbom_where: 構築が済んでから
 import:
@@ -805,51 +803,28 @@ network:
   ip_addresses: IPアドレス
   ip_addresses_lead: このプロジェクトの機器に現在付いているIPアドレスの一覧です
   address: アドレス
-  prefix: プレフィックス長
   subnet: サブネット
   no_ip: IPアドレスが登録されていません
   interfaces: インターフェース
   interfaces_lead: 各ポートがOSからどう見えていて、何のネットワークに繋がっていて、何の仕事をしているかを記録します
   interface: インターフェース
-  interface_hint: ens1f0 / bond0 / bond0.100 / Eth1/1/1 / Vlan100 など、OSやスイッチ上での名前です
   interface_type: 種別
   port: 物理ポート
-  port_hint: Physical のときだけ指定できます。この機器に載っているNICのポートから選びます
-  aggregation: 束ね方
-  aggregation_hint: Bond のときだけ指定できます
-  members: 束ねる下位
-  member_hint: ボンドは複数の物理ポートを束ね、VLANサブインターフェースはボンドの上に載ります。どちらも同じ仕組みで表します
-  tagging: タグ
-  vlan_hint: アクセスポートは Untagged が1行、トランクポートはネイティブVLANの Untagged とタグVLANの Tagged が並びます。VLANはカタログで登録します
   roles: 役割
-  role_hint: そのインターフェースが担う仕事です。ゾーン（ネットワーク側）とは別軸で、両者の食い違いの検出に使います
   target: 対象
-  no_interface: インターフェースが登録されていません
-  add_interface: インターフェースを追加
-  add_vlan: VLANを載せる
-  add_role: 役割を付ける
-  add_ip: IPアドレスを付ける
-  add_member: 束ねる
-  close: 閉じる
   error_cidr: CIDRは 192.168.1.0/24 の形で入力してください
   error_subnet_duplicate: そのCIDRはこのプロジェクトに既に登録されています
   error_name: インターフェース名を入力してください
   error_type: 種別の値が不正です
   error_port: 物理ポートの指定が不正です
-  error_port_unused: 物理ポートを指定できるのは Physical のインターフェースだけです
   error_aggregation: 束ね方の値が不正です
-  error_aggregation_unused: 束ね方を指定できるのは Bond のインターフェースだけです
   error_interface_duplicate: その名前のインターフェースはこの機器に既にあります
-  error_tagging: タグの値が不正です
   error_vlan_duplicate: そのVLANは既に載っています
-  error_role: 役割を入力してください
-  error_role_duplicate: その役割は既に付いています
   error_ip: IPアドレスの指定が不正です
   error_prefix: プレフィックス長は0〜128で入力してください
   error_ip_duplicate: そのサブネットに同じIPアドレスが既にあります
   error_member_self: 自分自身を束ねることはできません
   error_member_cycle: 束ねる関係が循環します
-  error_member_duplicate: そのインターフェースは既に束ねられています
 
 costs:
   title: 年間コスト
@@ -1329,6 +1304,7 @@ part_instances:
   here: このプロジェクト（どこにも載せない）
   other_project: 別のプロジェクト
   disposed: 廃棄
+  used: 使用済み
   basic: 基本情報
   history: 置き場所の履歴
   period: 期間
@@ -1380,3 +1356,45 @@ connections:
   error_cable: ケーブルを選んでください
   error_end_in_use: このケーブルの端は、すでに挿さっています
   error_kind: ケーブルの種別とポートの種別が違います（Network / Power / Stack）
+
+device_sections:
+  edit: 編集
+  parts_title: 部品
+  cancel: 編集をやめる
+  save: 保存
+  parts_lead: 構成に含まれる部品です。台帳に載せた部品だけが、ポートの割り当てに使えます
+  parts_empty: この機器には構成がなく、載っている部品もありません
+  category: 区分
+  part: 部品
+  port_count: ポート
+  quantity: 構成
+  ledger: 台帳
+  count: 台帳
+  no_serial: 未入力
+  not_registered: 台帳に載せていません
+  registered: 載せた
+  register: 載せる
+  register_all: 全部
+  hint_register: 「載せる」に印を付けて保存すると、台帳に載ります。シリアル番号は無くても載せられます。分かったら、この画面をもう一度開いて入れてください。シリアル番号を入れた行は、印が無くても載せます
+  hint_replace: 部品を交換したら、シリアル番号を書き換えて保存します。ポートの割り当てやIPアドレスはそのまま残ります。オンボードのNICにはマザーボードのシリアル番号を入れます。構成に無い部品を足すときは、変更管理チケット（増設）で行います
+  error_serial_repeated: 同じ部品に同じシリアル番号が2つあります
+  ports_title: ポートとIP
+  ports_count: インターフェース
+  ports_empty: インターフェースが登録されていません
+  stack: 束ね先 / 下位
+  remove: 外す
+  physical: 物理
+  logical: 論理
+  add: 追加
+  unused: 未使用
+  hint_ports: "物理ポートには、台帳に載せたNICのポートだけが並びます。#1 #2 は同じ部品が2枚あるときの区別で、台帳の行ごとに付きます。シリアル番号が未入力でも割り当てられます。使わないポートは、インターフェース名を空のままにします"
+  hint_stack: 物理ポートの「束ね先」には、束ねるBondなどの名前を入れます。論理インターフェースの欄には、下に置くインターフェースの名前を入れます（bond1.200 なら bond1）。新しいBondは「追加」の行に名前と種別を入れ、同じ保存で束ね先に指定できます
+  hint_vlan_ip: VLANは番号で入れます。100 はUntagged、200T はTagged。同じ番号のVLANが複数あるときは 100:名前 と書きます。IPアドレスは 192.0.2.10/24 のようにプレフィックスまで続けて書き、サブネットはアドレスから決まります。複数あるときはカンマで区切ります
+  hint_remove: 「外す」に印を付けて保存すると、そのインターフェースを使わなくなったものとして外します。上に載っているIPアドレス・VLAN・役割・束ねも一緒に外れます。行は消えず、履歴に残ります。名前や種別を変えたときも、前の行を外して新しい行を作ります
+  error_vlan: VLANは 100 または 200T の形で入力してください
+  error_vlan_unknown: その番号のVLANがありません。VLANはカタログで登録します
+  error_vlan_ambiguous: 同じ番号のVLANが複数あります。100:名前 の形で名前を添えてください
+  error_ip_form: IPアドレスは 192.0.2.10/24 のようにプレフィックスまで入力してください
+  error_port_in_use: その物理ポートには、既にインターフェースがあります
+  error_stack_unknown: 束ね先・下位に書いた名前のインターフェースがありません
+  error_stack_port: 物理ポートを束ねるときは、物理ポートの行の束ね先に書いてください

@@ -178,7 +178,6 @@ devices:
   status: Status
   health: Health
   health_hint: Set to “Failed” when you notice a failure. It returns to “OK” when a repair work order is completed. If you set it by mistake, change it back here
-  part_health_save: Change
   part_health_invalid: The part health value is not valid
   location: Location
   detail: Details
@@ -190,7 +189,6 @@ devices:
   basic: Basic information
   location_history: Location history
   mount: Mounted at
-  parts: Installed parts
   firmware: Firmware
   stack: Stack members
   container: Rack or furniture
@@ -273,10 +271,10 @@ devices:
   next_steps_lead: Network and software are not set on this screen. After registering you move to the device details; continue from there in order
   step_register: Register the device
   step_register_where: This screen
-  step_parts: Register the parts
-  step_parts_where: Device details / when the serial numbers are known. Planned parts can be created first
+  step_parts: Put the parts on the ledger
+  step_parts_where: Parts section of the device details / serial numbers can be entered later
   step_interfaces: Set interfaces and IP addresses
-  step_interfaces_where: The interfaces screen of the device / physical ports are linked here
+  step_interfaces_where: Ports and IP section of the device details / ports of NICs on the ledger are listed
   step_sbom: Import the SBOM
   step_sbom_where: After the build is done
 import:
@@ -805,51 +803,28 @@ network:
   ip_addresses: IP addresses
   ip_addresses_lead: Every IP address currently assigned to a device in this project
   address: Address
-  prefix: Prefix length
   subnet: Subnet
   no_ip: No IP addresses registered
   interfaces: Interfaces
   interfaces_lead: Records how each port appears to the OS, what network it reaches, and what job it does
   interface: Interface
-  interface_hint: The name as it appears on the OS or switch, e.g. ens1f0 / bond0 / bond0.100 / Eth1/1/1 / Vlan100
   interface_type: Type
   port: Physical port
-  port_hint: Only for Physical interfaces. Choose from the NIC ports fitted to this device
-  aggregation: Aggregation
-  aggregation_hint: Only for Bond interfaces
-  members: Lower interfaces
-  member_hint: A bond groups several physical ports; a VLAN subinterface sits on top of a bond. Both are expressed the same way
-  tagging: Tagging
-  vlan_hint: An access port has a single Untagged row; a trunk port has an Untagged native VLAN alongside Tagged VLANs. VLANs are registered in the catalog
   roles: Roles
-  role_hint: The job this interface does. It is a separate axis from the zone (network side), and the two are compared to spot inconsistencies
   target: Target
-  no_interface: No interfaces registered
-  add_interface: Add interface
-  add_vlan: Add VLAN
-  add_role: Add role
-  add_ip: Add IP address
-  add_member: Group
-  close: Close
   error_cidr: Enter the CIDR as 192.168.1.0/24
   error_subnet_duplicate: That CIDR is already registered in this project
   error_name: Enter an interface name
   error_type: Invalid interface type
   error_port: Invalid physical port
-  error_port_unused: A physical port can only be set on a Physical interface
   error_aggregation: Invalid aggregation mode
-  error_aggregation_unused: An aggregation mode can only be set on a Bond interface
   error_interface_duplicate: An interface with that name already exists on this device
-  error_tagging: Invalid tagging mode
   error_vlan_duplicate: That VLAN is already on this interface
-  error_role: Enter a role
-  error_role_duplicate: That role is already assigned
   error_ip: Invalid IP address
   error_prefix: The prefix length must be between 0 and 128
   error_ip_duplicate: That IP address already exists in the subnet
   error_member_self: An interface cannot group itself
   error_member_cycle: That would create a cycle
-  error_member_duplicate: That interface is already grouped
 
 costs:
   title: Annual cost
@@ -1326,6 +1301,7 @@ part_instances:
   here: This project (not mounted anywhere)
   other_project: Another project
   disposed: Disposed
+  used: Used
   basic: Basic information
   history: Place history
   period: Period
@@ -1377,3 +1353,45 @@ connections:
   error_cable: Choose a cable
   error_end_in_use: This end of the cable is already plugged in
   error_kind: The cable kind and the port kind differ (Network / Power / Stack)
+
+device_sections:
+  edit: Edit
+  parts_title: Parts
+  cancel: Stop editing
+  save: Save
+  parts_lead: Parts in the configuration. Only parts on the ledger can have their ports assigned
+  parts_empty: This device has no configuration and no installed parts
+  category: Category
+  part: Part
+  port_count: Ports
+  quantity: Configured
+  ledger: Ledger
+  count: On ledger
+  no_serial: Not entered
+  not_registered: Not on the ledger
+  registered: On ledger
+  register: Add
+  register_all: All
+  hint_register: "Tick \"Add\" and save to put a part on the ledger. A serial number is not required. Reopen this screen to enter it once you know it. A row with a serial number is added even without the tick"
+  hint_replace: After replacing a part, overwrite its serial number and save. Port assignments and IP addresses stay as they are. For an onboard NIC, enter the motherboard serial number. To add a part that is not in the configuration, use a change ticket (Addition)
+  error_serial_repeated: The same part has the same serial number twice
+  ports_title: Ports and IP
+  ports_count: Interfaces
+  ports_empty: No interfaces are registered
+  stack: Bundled into / Lower
+  remove: Remove
+  physical: Physical
+  logical: Logical
+  add: Add
+  unused: Unused
+  hint_ports: "Physical ports are the ports of NICs on the ledger. \"#1\" and \"#2\" tell apart two cards of the same part, one per ledger row. Ports can be assigned even without a serial number. Leave the interface name empty for a port you do not use"
+  hint_stack: "For a physical port, enter the name of the Bond (or other interface) it is bundled into. For a logical interface, enter the name of the interface below it (bond1 for bond1.200). A new Bond can be named in an \"Add\" row and used as a bundle target in the same save"
+  hint_vlan_ip: Enter VLANs by number. 100 is Untagged and 200T is Tagged. When several VLANs share a number, write 100:name. Enter IP addresses with the prefix, such as 192.0.2.10/24; the subnet is chosen from the address. Separate several values with commas
+  hint_remove: "Tick \"Remove\" and save to stop using an interface. IP addresses, VLANs, roles and bundles on it are removed with it. The row is kept in the history. Changing a name or type also removes the old row and creates a new one"
+  error_vlan: Enter a VLAN as 100 or 200T
+  error_vlan_unknown: No VLAN has that number. Register VLANs in the catalog
+  error_vlan_ambiguous: Several VLANs share that number. Add the name, as in 100:name
+  error_ip_form: Enter an IP address with its prefix, such as 192.0.2.10/24
+  error_port_in_use: That physical port already has an interface
+  error_stack_unknown: No interface has the name written in the bundle column
+  error_stack_port: To bundle a physical port, write the bundle target on the physical port's row

@@ -32,6 +32,7 @@ mod dashboard;
 mod db;
 mod dev_autologin;
 mod device_schema;
+mod device_sections;
 mod devices;
 mod examples;
 mod import_ui;

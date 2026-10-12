@@ -1,0 +1,157 @@
+{#
+  ポートとIPの節（設計書8.5、16.1、#255）。物理ポートを軸に並べ、その下に論理
+  インターフェースを置く。**節全体を1回で保存する。**
+
+  物理ポートの行は、台帳に載せたNICのポートである。行は番号で送り、サーバーは
+  送られてきた行だけを「あるべき状態」として現在と合わせる。
+#}
+<section class="sec" id="ports">
+  {% if can_edit %}
+  <input type="checkbox" class="sec-edit" id="edit-ports" {% if ports.editing %}checked{% endif %}>
+  {% endif %}
+  <div class="sec-head">
+    <h2>{{ ports.t.title }}</h2>
+    <span class="sec-lead">{{ ports.t.lead }}</span>
+    <span class="sec-count">{{ ports.t.count }} {{ ports.interfaces }} / IP {{ ports.ips }}</span>
+    {% if can_edit %}
+    <label for="edit-ports" class="button ghost v-view">{{ ports.t.edit }}</label>
+    <label for="edit-ports" class="button ghost v-edit">{{ ports.t.cancel }}</label>
+    {% endif %}
+  </div>
+
+  {% if let Some(message) = ports.error %}
+  <p class="error">{{ message }}</p>
+  {% endif %}
+
+  {% if ports.interfaces == 0 && ports.physical == 0 %}
+  <p class="empty v-view">{{ ports.t.empty }}</p>
+  {% else %}
+  <div class="v-view table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ ports.t.port }}</th>
+          <th>{{ ports.t.serial }}</th>
+          <th>{{ ports.t.interface }}</th>
+          <th>{{ ports.t.kind }}</th>
+          <th>{{ ports.t.stack }}</th>
+          <th>{{ ports.t.vlan }}</th>
+          <th>{{ ports.t.ip }}</th>
+          <th>{{ ports.t.role }}</th>
+          <th>{{ ports.t.peer }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in ports.rows %}
+        {% if !r.is_new %}
+        {% if r.i == 0 && r.is_port %}
+        <tr class="sec-group"><td colspan="9">{{ ports.t.physical }}</td></tr>
+        {% endif %}
+        {% if r.i == ports.physical %}
+        <tr class="sec-group"><td colspan="9">{{ ports.t.logical }}</td></tr>
+        {% endif %}
+        <tr>
+          <td>{% if r.port_label.is_empty() %}—{% else %}{{ r.port_label }}{% endif %}</td>
+          <td class="mono">{% if r.is_port && r.serial.is_empty() %}<span class="muted">{{ ports.t.no_serial }}</span>{% else %}{{ r.serial }}{% endif %}</td>
+          {% if r.id.is_empty() %}
+          <td colspan="6"><span class="muted">{{ ports.t.unused }}</span></td>
+          {% else %}
+          <td class="mono">{{ r.name }}</td>
+          <td>{{ r.kind }}</td>
+          <td class="mono">{% if r.is_port %}{% if !r.stack.is_empty() %}→ {{ r.stack }}{% endif %}{% else %}{{ r.members }}{% if !r.stack.is_empty() %} ↑ {{ r.stack }}{% endif %}{% endif %}</td>
+          <td class="mono">{{ r.vlan }}</td>
+          <td class="mono">{{ r.ip }}</td>
+          <td>{{ r.role }}</td>
+          {% endif %}
+          <td>{{ r.peer }}</td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if can_edit %}
+  <form class="v-edit" method="post" action="/projects/{{ project_id }}/devices/{{ device_id }}/interfaces">
+    <input type="hidden" name="csrf_token" value="{{ chrome.csrf_token }}">
+    <div class="table-scroll">
+    <table class="sec-table">
+      <thead>
+        <tr>
+          <th>{{ ports.t.port }}</th>
+          <th>{{ ports.t.serial }}</th>
+          <th>{{ ports.t.interface }}</th>
+          <th>{{ ports.t.kind }}</th>
+          <th>{{ ports.t.stack }}</th>
+          <th>{{ ports.t.vlan }}</th>
+          <th>{{ ports.t.ip }}</th>
+          <th>{{ ports.t.role }}</th>
+          <th>{{ ports.t.remove }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in ports.rows %}
+        {% if r.i == 0 && r.is_port %}
+        <tr class="sec-group"><td colspan="9">{{ ports.t.physical }}</td></tr>
+        {% endif %}
+        {% if r.i == ports.physical %}
+        <tr class="sec-group"><td colspan="9">{{ ports.t.logical }}</td></tr>
+        {% endif %}
+        <tr>
+          <td>
+            {% if r.is_new %}{{ ports.t.add }}{% else if r.port_label.is_empty() %}—{% else %}{{ r.port_label }}{% endif %}
+            <input type="hidden" name="id_{{ r.i }}" value="{{ r.id }}">
+            {% if r.is_port %}<input type="hidden" name="port_{{ r.i }}" value="{{ r.port }}">{% endif %}
+          </td>
+          <td class="mono">{% if r.is_port && r.serial.is_empty() %}<span class="muted">{{ ports.t.no_serial }}</span>{% else %}{{ r.serial }}{% endif %}</td>
+          <td><input type="text" class="mono" name="name_{{ r.i }}" value="{{ r.name }}" aria-label="{{ ports.t.interface }} {{ r.i }}"></td>
+          <td>
+            {% if r.is_port %}
+            {{ r.kind }}
+            {% else %}
+            <select name="kind_{{ r.i }}" aria-label="{{ ports.t.kind }} {{ r.i }}">
+              {% if r.is_new %}<option value=""></option>{% endif %}
+              {% for k in ports.kinds %}
+              <option value="{{ k }}" {% if r.kind == k.as_str() %}selected{% endif %}>{{ k }}</option>
+              {% endfor %}
+            </select>
+            {% endif %}
+          </td>
+          <td>
+            <input type="text" class="mono" name="stack_{{ r.i }}" value="{{ r.stack }}" list="port-names" aria-label="{{ ports.t.stack }} {{ r.i }}">
+            {% if !r.members.is_empty() %}<span class="mono muted">{{ r.members }}</span>{% endif %}
+          </td>
+          <td><input type="text" class="mono narrow" name="vlan_{{ r.i }}" value="{{ r.vlan }}" list="port-vlans" aria-label="{{ ports.t.vlan }} {{ r.i }}"></td>
+          <td><input type="text" class="mono" name="ip_{{ r.i }}" value="{{ r.ip }}" aria-label="{{ ports.t.ip }} {{ r.i }}"></td>
+          <td><input type="text" name="role_{{ r.i }}" value="{{ r.role }}" list="port-roles" aria-label="{{ ports.t.role }} {{ r.i }}"></td>
+          <td>
+            {% if !r.id.is_empty() %}
+            <input type="checkbox" name="remove_{{ r.i }}" value="1" {% if r.remove %}checked{% endif %} aria-label="{{ ports.t.remove }} {{ r.name }}">
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <datalist id="port-names">
+      {% for n in ports.names %}<option value="{{ n }}"></option>{% endfor %}
+    </datalist>
+    <datalist id="port-vlans">
+      {% for v in ports.vlans %}<option value="{{ v }}"></option>{% endfor %}
+    </datalist>
+    <datalist id="port-roles">
+      {% for v in ports.roles %}<option value="{{ v }}"></option>{% endfor %}
+    </datalist>
+    <p class="hint">{{ ports.t.hint_ports }}</p>
+    <p class="hint">{{ ports.t.hint_stack }}</p>
+    <p class="hint">{{ ports.t.hint_vlan_ip }}</p>
+    <p class="hint">{{ ports.t.hint_remove }}</p>
+    <div class="sec-actions">
+      <button type="submit">{{ ports.t.save }}</button>
+      <label for="edit-ports" class="button ghost">{{ ports.t.cancel }}</label>
+    </div>
+  </form>
+  {% endif %}
+</section>

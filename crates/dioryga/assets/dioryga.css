@@ -756,10 +756,6 @@ textarea {
     inset 1px 1px 0 rgba(255, 255, 255, 0.35);
 }
 
-/* 部品の故障の有無を表の中で変える（設計書6.3）。選択とボタンを1行に並べる */
-form.inline-health { display: flex; gap: 6px; align-items: center; margin: 0; }
-form.inline-health select { width: auto; margin: 0; }
-form.inline-health button { width: auto; padding: 4px 10px; }
 
 /* 状態の欄。ランプと文字を並べる */
 .st { display: inline-flex; align-items: center; gap: 8px; }
@@ -1053,3 +1049,67 @@ input.switch:focus-visible { outline: 2px solid var(--accent-ink); outline-offse
 
 /* 入力後に空のままなら、ブラウザが自分で赤くする（JavaScriptは要らない） */
 .device-form input:user-invalid { border-color: var(--danger); }
+
+/*
+ * 機器の詳細の節（設計書16.1、#255）。**その場で編集する。**
+ *
+ * 「編集」はチェックボックスで、:has() で表示と入力欄を切り替える。JavaScriptを
+ * 使わない（不変条件9）。状態がフォームの値そのものなので、検証エラーで
+ * 描き直すときはサーバーが checked を出せば、編集のまま戻る。
+ */
+.sec {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-top: var(--gap);
+  scroll-margin-top: 16px;
+}
+.sec-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; margin-bottom: 12px; }
+.sec-head h2 { font-size: 14px; margin: 0; }
+.sec-lead { color: var(--muted); font-size: 12px; flex: 1 1 240px; }
+.sec-count { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+/* 「編集」「やめる」は印のラベルなので、a.button.ghost と同じ見た目を当てる */
+.sec label.button {
+  display: inline-flex;
+  align-items: center;
+  width: auto;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-edge);
+  color: var(--text);
+  box-shadow: inset 0 1px 0 var(--btn-top), 0 2px 0 var(--btn-edge);
+}
+.sec label.button:hover { background: var(--btn-hover); }
+/* 印そのものは隠すが、フォーカスは届く。見た目は「編集」のラベルが担う */
+.sec-edit { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.sec-edit:focus-visible ~ .sec-head label.button { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+.sec-actions { display: flex; gap: 8px; align-items: center; margin-top: var(--gap); }
+.sec-actions button { width: auto; }
+.sec .hint { margin: 8px 0 0; }
+.sec .muted { color: var(--muted); }
+.sec td.serials a, .sec td.serials > span { margin-right: 10px; }
+.sec-table input[type="text"], .sec-table select { width: 100%; min-width: 96px; margin: 0; height: 26px; }
+.sec-table input.narrow { min-width: 64px; }
+.sec-table td { vertical-align: middle; }
+.sec td:first-child { white-space: nowrap; }
+.sec-table label.check { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+.sec-table.inner { margin-top: 6px; }
+.sec-table.inner td { border-bottom: 0; padding-left: 0; }
+.sec tr.sec-group td { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; background: transparent; }
+
+/* **:has() が使えるときだけ隠す。**使えないブラウザでは表示と入力欄の両方が出る */
+@supports selector(:has(a)) {
+  .sec .v-edit,
+  .sec label.button.v-edit { display: none; }
+  .sec:has(> .sec-edit:checked) .v-view,
+  .sec:has(> .sec-edit:checked) label.button.v-view { display: none; }
+  .sec:has(> .sec-edit:checked) form.v-edit { display: block; }
+  .sec:has(> .sec-edit:checked) label.button.v-edit { display: inline-flex; }
+}

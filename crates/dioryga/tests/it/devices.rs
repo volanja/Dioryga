@@ -123,14 +123,18 @@ async fn 過去に所属した機器は書き換えられない(db: &DatabaseCon
     assert_eq!(後.hostname, "moved-ro");
     assert_eq!(後.health, "ok");
 
-    // 機器の下の書き込みも同じ。インターフェースの画面は開けるが、足せない
+    // 機器の下の書き込みも同じ。詳細は開けるが、節の編集の導線は出ず、足せない
     let (状態, token) = 認証済み(db, &user).await;
-    let (status, _) = 取得(状態, &format!("{uri}/interfaces"), &token).await;
+    let (status, body) = 取得(状態, &uri, &token).await;
     assert_eq!(status, StatusCode::OK);
+    assert!(!body.contains(r#"id="edit-ports""#));
     for (path, fields) in [
-        ("interfaces", vec![("os_interface_name", "eth0")]),
+        (
+            "interfaces",
+            vec![("name_0", "eth0"), ("kind_0", "Virtual")],
+        ),
+        ("parts", vec![("register_all_1", "1")]),
         ("purchase", vec![("purchase_price", "1000")]),
-        ("parts/1/health", vec![("health", "failed")]),
     ] {
         let (状態, token) = 認証済み(db, &user).await;
         let (status, _) = 送信(状態, &format!("{uri}/{path}"), &token, &fields).await;
@@ -1010,8 +1014,8 @@ async fn 倉庫では状態を保管中と出す(db: &DatabaseConnection) {
 
 /// **部品の故障の有無を機器の詳細で変えられること**（設計書6.3）。
 ///
-/// 機器の `health` は書き換えない（独立に持ち、表示で合わせる）。対象は
-/// この機器に今載っている部品だけ。
+/// 部品の節の保存で変える（#255）。機器の `health` は書き換えない（独立に持ち、
+/// 表示で合わせる）。対象はこの機器に今載っている部品だけ。
 async fn 部品の故障を詳細で変える(db: &DatabaseConnection) {
     let user = 利用者(db, "part-health@example.com").await;
     let p = プロジェクト(db, "部品の故障").await;
@@ -1029,19 +1033,17 @@ async fn 部品の故障を詳細で変える(db: &DatabaseConnection) {
     )
     .await;
     assert!(
-        body.contains(&format!("/parts/{載っている}/health")),
+        body.contains(&format!(r#"name="health_p{載っている}""#)),
         "{body}"
     );
+    let 送り先 = format!("/projects/{}/devices/{}/parts", p.id, d.id);
 
     let (状態, token) = 認証済み(db, &user).await;
     let (status, _) = 送信(
         状態,
-        &format!(
-            "/projects/{}/devices/{}/parts/{載っている}/health",
-            p.id, d.id
-        ),
+        &送り先,
         &token,
-        &[("health", "failed")],
+        &[(&format!("health_p{載っている}"), "failed")],
     )
     .await;
     assert_eq!(status, StatusCode::SEE_OTHER);
@@ -1066,19 +1068,22 @@ async fn 部品の故障を詳細で変える(db: &DatabaseConnection) {
         "{body}"
     );
 
-    // この機器に載っていない部品は変えられない
+    // この機器に載っていない部品は変えられない。欄の名前を直接送っても読まない
     let (状態, token) = 認証済み(db, &user).await;
     let (status, _) = 送信(
         状態,
-        &format!(
-            "/projects/{}/devices/{}/parts/{載っていない}/health",
-            p.id, d.id
-        ),
+        &送り先,
         &token,
-        &[("health", "failed")],
+        &[(&format!("health_p{載っていない}"), "failed")],
     )
     .await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    let 外の部品 = part_instance::Entity::find_by_id(載っていない)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(外の部品.health, "ok");
 
     // 閲覧者は変えられない
     let viewer = 利用者(db, "part-health-viewer@example.com").await;
@@ -1086,12 +1091,9 @@ async fn 部品の故障を詳細で変える(db: &DatabaseConnection) {
     let (状態, token) = 認証済み(db, &viewer).await;
     let (status, _) = 送信(
         状態,
-        &format!(
-            "/projects/{}/devices/{}/parts/{載っている}/health",
-            p.id, d.id
-        ),
+        &送り先,
         &token,
-        &[("health", "ok")],
+        &[(&format!("health_p{載っている}"), "ok")],
     )
     .await;
     assert_eq!(status, StatusCode::FORBIDDEN);

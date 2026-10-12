@@ -20,8 +20,8 @@ use axum::{Extension, Form};
 use chrono::{NaiveDate, Utc};
 use entity::{
     chassis_model, configuration, device, device_assignment, device_mount, device_stack,
-    firmware_version, fixed_asset, maintenance_contract, maintenance_contract_item, part_catalog,
-    part_instance, part_instance_location, project, purchase, vendor,
+    firmware_version, fixed_asset, maintenance_contract, maintenance_contract_item, project,
+    purchase, vendor,
 };
 use sea_orm::sea_query::{Expr, Func, LikeExpr, Query as SeaQuery};
 use sea_orm::{
@@ -37,6 +37,7 @@ use crate::auth::middleware::CurrentUser;
 use crate::device_state;
 use crate::error::{AppError, AppResult};
 use crate::repository::{Actor, AuditedTx};
+use crate::server::device_sections::{self, 描き直し, PartsView, PortsView};
 use crate::server::view::{
     render, 保管中の表示, 容体の表示, 容体の選択肢, 状態の表示, 状態の選択肢, 種別の表示,
     種別の選択肢, Choice, Chrome, Locale, STORED,
@@ -103,15 +104,6 @@ struct Labeled {
     value: String,
 }
 
-/// 機器に載っている部品の1行。故障の有無をここで変える（設計書6.3）。
-struct PartRow {
-    id: i32,
-    label: String,
-    serial_number: String,
-    health: String,
-    health_label: String,
-}
-
 #[derive(askama::Template)]
 #[template(path = "device_detail.html")]
 struct DeviceDetailPage {
@@ -124,14 +116,12 @@ struct DeviceDetailPage {
     t_basic: String,
     t_location_history: String,
     t_mount: String,
-    t_parts: String,
     t_firmware: String,
     t_stack: String,
     t_none: String,
     t_planned: String,
     t_not_implemented: String,
     t_sbom: String,
-    t_interfaces: String,
     t_connections: String,
     hostname: String,
     planned: bool,
@@ -143,13 +133,11 @@ struct DeviceDetailPage {
     basic: Vec<Labeled>,
     locations: Vec<Labeled>,
     mount: Vec<Labeled>,
-    parts: Vec<PartRow>,
+    /// 部品の節と、ポートとIPの節。その場で編集する（設計書16.1、#255）
+    parts: PartsView,
+    ports: PortsView,
     /// 機器が今このプロジェクトにあるか。部品の画面へのリンクを出すかを決める。
     parts_here: bool,
-    healths: Vec<Choice>,
-    t_health: String,
-    t_serial_number: String,
-    t_part_health_save: String,
     firmware: Vec<Labeled>,
     stack: Vec<Labeled>,
     /// 購入の記録（10.2）。**機器1台につき1行。専用の一覧画面を持たず、ここに出す。**
@@ -774,16 +762,27 @@ pub async fn detail(
     Extension(current): Extension<CurrentUser>,
     Path((project_id, device_id)): Path<(i32, i32)>,
 ) -> AppResult<Response> {
-    let (project, can_edit) = 入場(&state, &current, project_id).await?;
+    詳細を描く(&state, &current, project_id, device_id, None).await
+}
+
+/// 機器の詳細を描く。`再` があれば、その節を編集のまま、送られてきた値で返す。
+pub(super) async fn 詳細を描く(
+    state: &AppState,
+    current: &CurrentUser,
+    project_id: i32,
+    device_id: i32,
+    再: Option<描き直し>,
+) -> AppResult<Response> {
+    let (project, can_edit) = 入場(state, current, project_id).await?;
     let l = Locale::parse(&current.user.locale).as_str();
-    let d = 対象(&state, project_id, device_id).await?;
+    let d = 対象(state, project_id, device_id).await?;
     // 過去にあった機器は見せるだけで、書き換える導線を出さない
-    let 今ここ = 今ここにあるか(&state, project_id, device_id).await?;
+    let 今ここ = 今ここにあるか(state, project_id, device_id).await?;
     let can_edit = can_edit && 今ここ;
 
     let 未設定 = rust_i18n::t!("devices.none", locale = l).to_string();
     let 空欄 = |value: Option<String>| value.unwrap_or_else(|| 未設定.clone());
-    let 保管中 = 倉庫にあるか(&state, d.id).await?;
+    let 保管中 = 倉庫にあるか(state, d.id).await?;
 
     let mut basic = vec![
         Labeled {
@@ -871,7 +870,7 @@ pub async fn detail(
         };
         locations.push(Labeled {
             label: 期間,
-            value: 所在の表示(&state, &a, l).await?,
+            value: 所在の表示(state, &a, l).await?,
         });
     }
 
@@ -894,14 +893,12 @@ pub async fn detail(
         t_basic: rust_i18n::t!("devices.basic", locale = l).to_string(),
         t_location_history: rust_i18n::t!("devices.location_history", locale = l).to_string(),
         t_mount: rust_i18n::t!("devices.mount", locale = l).to_string(),
-        t_parts: rust_i18n::t!("devices.parts", locale = l).to_string(),
         t_firmware: rust_i18n::t!("devices.firmware", locale = l).to_string(),
         t_stack: rust_i18n::t!("devices.stack", locale = l).to_string(),
         t_none: 未設定,
         t_planned: rust_i18n::t!("devices.planned", locale = l).to_string(),
         t_not_implemented: rust_i18n::t!("devices.section_pending", locale = l).to_string(),
         t_sbom: rust_i18n::t!("sbom.title", locale = l).to_string(),
-        t_interfaces: rust_i18n::t!("network.interfaces", locale = l).to_string(),
         t_connections: rust_i18n::t!("connections.title", locale = l).to_string(),
         t_merged: rust_i18n::t!("devices.merged", locale = l).to_string(),
         hostname: d.hostname.clone(),
@@ -917,15 +914,12 @@ pub async fn detail(
         merged_into: d.merged_into_device_id,
         basic,
         locations,
-        mount: 搭載位置(&state, &d, l).await?,
-        parts: 搭載部品(&state, &d, l).await?,
+        mount: 搭載位置(state, &d, l).await?,
+        parts: device_sections::部品の節(state, &d, l, 再.as_ref()).await?,
+        ports: device_sections::ポートの節(state, current, project_id, &d, l, 再.as_ref()).await?,
         parts_here: 今ここ,
-        healths: 容体の選択肢(device_state::HEALTHS, l),
-        t_health: rust_i18n::t!("devices.health", locale = l).to_string(),
-        t_serial_number: rust_i18n::t!("devices.serial_number", locale = l).to_string(),
-        t_part_health_save: rust_i18n::t!("devices.part_health_save", locale = l).to_string(),
-        firmware: ファームウェア(&state, &d).await?,
-        stack: スタック構成(&state, &d).await?,
+        firmware: ファームウェア(state, &d).await?,
+        stack: スタック構成(state, &d).await?,
         purchase: 購入の表示(&購入, &project.currency),
         purchase_form: 購入の入力欄(&購入, &project.currency, l),
         purchase_action: format!("/projects/{project_id}/devices/{}/purchase", d.id),
@@ -1181,119 +1175,6 @@ async fn 搭載位置(
     }
 
     Ok(rows)
-}
-
-/// 現在搭載されている部品。
-async fn 搭載部品(
-    state: &AppState,
-    d: &device::Model,
-    locale: &str,
-) -> AppResult<Vec<PartRow>> {
-    let locations = 載っている部品の所在(&state.db, d.id).await?;
-
-    let mut rows = Vec::new();
-    for l in locations {
-        let Some(instance) = part_instance::Entity::find_by_id(l.part_instance_id)
-            .one(&state.db)
-            .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-        else {
-            continue;
-        };
-        let catalog = part_catalog::Entity::find_by_id(instance.part_catalog_id)
-            .one(&state.db)
-            .await
-            .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
-
-        rows.push(PartRow {
-            id: instance.id,
-            label: catalog
-                .as_ref()
-                .map(|c| format!("{} {}", c.category, c.part_number))
-                .unwrap_or_default(),
-            serial_number: instance.serial_number.unwrap_or_default(),
-            health_label: 容体の表示(&instance.health, locale),
-            health: instance.health,
-        });
-    }
-    Ok(rows)
-}
-
-/// 機器に今載っている部品の所在の行。
-async fn 載っている部品の所在<C: ConnectionTrait>(
-    db: &C,
-    device_id: i32,
-) -> AppResult<Vec<part_instance_location::Model>> {
-    part_instance_location::Entity::find()
-        .filter(part_instance_location::Column::LocationType.eq("Device"))
-        .filter(part_instance_location::Column::LocationId.eq(device_id))
-        .filter(part_instance_location::Column::ToDate.is_null())
-        .all(db)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))
-}
-
-#[derive(Debug, Deserialize)]
-pub struct PartHealthForm {
-    #[serde(default)]
-    pub health: String,
-}
-
-/// 部品の故障の有無を変える（設計書6.3）。
-///
-/// **変更管理チケットは使わない。**故障は起きた事実であり、承認を待てない。
-/// 誰がいつ変えたかは監査ログで追う。**機器の `health` は書き換えない**——
-/// 機器と部品は独立に持ち、表示で合わせる。
-///
-/// 対象は**この機器に今載っている部品**に限る。
-pub async fn set_part_health(
-    State(state): State<AppState>,
-    Extension(current): Extension<CurrentUser>,
-    Path((project_id, device_id, part_id)): Path<(i32, i32, i32)>,
-    Form(form): Form<PartHealthForm>,
-) -> AppResult<Response> {
-    let _project = 編集入場(&state, &current, project_id).await?;
-    let l = Locale::parse(&current.user.locale).as_str();
-    let d = 書き換える対象(&state, project_id, device_id).await?;
-
-    let Some(health) = DeviceForm::語彙(&form.health, device_state::HEALTHS) else {
-        return Err(AppError::Validation(
-            rust_i18n::t!("devices.part_health_invalid", locale = l).to_string(),
-        ));
-    };
-    // **読み取りはトランザクションを開く前に済ませる**（SQLiteで自分の書き込みロックを待つ）
-    if !載っている部品の所在(&state.db, d.id)
-        .await?
-        .iter()
-        .any(|p| p.part_instance_id == part_id)
-    {
-        return Err(AppError::NotFound);
-    }
-    let part = part_instance::Entity::find_by_id(part_id)
-        .one(&state.db)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
-        .ok_or(AppError::NotFound)?;
-
-    let 戻り先 = Redirect::to(&format!("/projects/{project_id}/devices/{device_id}"));
-    if part.health == health {
-        return Ok(戻り先.into_response());
-    }
-
-    let tx = AuditedTx::begin(&state.db, Actor::User(current.user.id))
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
-    let mut active: part_instance::ActiveModel = part.clone().into();
-    active.health = Set(health);
-    active.updated_at = Set(Utc::now());
-    tx.update(&part, active)
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
-    tx.commit()
-        .await
-        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
-
-    Ok(戻り先.into_response())
 }
 
 /// 現在有効なファームウェアの版。
@@ -2314,6 +2195,17 @@ pub(super) async fn 今ここにあるか(
         .await
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?
         .is_some())
+}
+
+/// 節の保存の入口。編集の可否と、機器が今このプロジェクトにあることを確かめる。
+pub(super) async fn 編集する機器(
+    state: &AppState,
+    current: &CurrentUser,
+    project_id: i32,
+    device_id: i32,
+) -> AppResult<device::Model> {
+    編集入場(state, current, project_id).await?;
+    書き換える対象(state, project_id, device_id).await
 }
 
 /// 書き換える対象の機器。**今このプロジェクトにある機器に限る。**

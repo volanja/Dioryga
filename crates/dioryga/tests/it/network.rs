@@ -29,137 +29,120 @@ use std::sync::Arc;
 use tower::ServiceExt;
 
 // ---------------------------------------------------------------------------
-// インターフェース（設計書8.5）
+// インターフェース（設計書8.5）。機器の詳細の「ポートとIP」の節で保存する（16.1）
 // ---------------------------------------------------------------------------
 
 /// **IPアドレスはボンドに付き、物理ポートには付かないこと**（設計書8.5）。
 ///
 /// 8ポートのNICが4本のbondに束ねられる構成が実務では普通で、旧設計は
 /// **IPをどれか1本の物理ポートに恣意的に紐づけるしかなかった。**
+///
+/// **物理ポート・Bond・束ね・IPを、1回の保存で設定できること**（16.1）。
 async fn ipはボンドに付く(db: &DatabaseConnection) {
     let 場 = 舞台(db, "bond@example.com").await;
+    let port = 空きポートの値(&場);
 
-    // 物理2本
-    for name in ["ens1f0", "ens2f0"] {
-        let (状態, token) = 認証済み(db, &場.user).await;
-        let (status, body) = インターフェースを送る(
-            状態,
-            &token,
-            &場,
-            &[("os_interface_name", name), ("interface_type", "Physical")],
-        )
-        .await;
-        assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
-    }
-    // ボンド1本
-    let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, _) = インターフェースを送る(
-        状態,
-        &token,
+    let (status, body) = 節を送る(
+        db,
         &場,
         &[
-            ("os_interface_name", "bond0"),
-            ("interface_type", "Bond"),
-            ("aggregation_mode", "LACP"),
+            // 台帳に載せたNICのポート。束ね先に、同じ保存で作るBondを書く
+            ("port_0", &port),
+            ("name_0", "ens1f0"),
+            ("stack_0", "bond0"),
+            // ポートの分からない物理インターフェース
+            ("name_1", "ens2f0"),
+            ("kind_1", "Physical"),
+            ("name_2", "bond0"),
+            ("kind_2", "Bond:LACP"),
+            ("stack_2", "ens2f0"),
+            ("ip_2", "10.0.0.10/24"),
         ],
     )
     .await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
 
     let bond = インターフェース(db, 場.device.id, "bond0").await;
-    for lower in ["ens1f0", "ens2f0"] {
-        let l = インターフェース(db, 場.device.id, lower).await;
-        let (状態, token) = 認証済み(db, &場.user).await;
-        let (status, body) = 送信(
-            状態,
-            &経路(&場, "members"),
-            &token,
-            &[
-                ("os_interface_id", &bond.id.to_string()),
-                ("lower_interface_id", &l.id.to_string()),
-            ],
-        )
-        .await;
-        assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
-    }
+    assert_eq!(bond.aggregation_mode.as_deref(), Some("LACP"));
+    let 物理 = インターフェース(db, 場.device.id, "ens1f0").await;
+    assert_eq!(物理.part_instance_id, Some(場.part_instance_id));
+    assert_eq!(物理.port_slot_id, Some(場.port_slot_id));
 
-    // **IPはボンドに付ける**
-    let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, _) = ipを送る(状態, &token, &場, bond.id, "10.0.0.10", "24", None).await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
-
+    // **IPはボンドに付く**
     let ips = 現在のip(db, bond.id).await;
     assert_eq!(ips.len(), 1);
     assert_eq!(ips[0].ip_address, "10.0.0.10");
+    assert!(現在のip(db, 物理.id).await.is_empty());
 
-    // 画面に構成が出る
+    let 束ね = 現在の束ね(db).await;
+    assert_eq!(束ね.len(), 2);
+    assert!(束ね.iter().all(|s| s.upper_interface_id == bond.id));
+
+    // 機器の詳細に構成が出る
     let (状態, token) = 認証済み(db, &場.user).await;
-    let (_, body) = 取得(状態, &経路(&場, ""), &token).await;
+    let (_, body) = 取得(状態, &詳細(&場), &token).await;
     assert!(body.contains("bond0"));
-    assert!(body.contains("ens1f0, ens2f0"), "束ねた下位が出ていない");
+    assert!(body.contains("→ bond0"), "束ね先が出ていない");
     assert!(body.contains("10.0.0.10/24"));
 }
 
-/// **物理ポートを持てるのは Physical だけであること**（設計書8.5）。
+/// **物理ポートを持つ行は、必ず Physical になること**（設計書8.5）。
 ///
 /// VMには `PART_INSTANCE` が無く、bondも物理ポートに1対1で対応しない。
 async fn 物理ポートはphysicalだけ(db: &DatabaseConnection) {
     let 場 = 舞台(db, "port-kind@example.com").await;
     let port = 空きポートの値(&場);
 
-    let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, body) = インターフェースを送る(
-        状態,
-        &token,
+    // 種別を送っても、物理ポートの行は Physical で作る
+    let (status, body) = 節を送る(
+        db,
         &場,
         &[
-            ("os_interface_name", "bond0"),
-            ("interface_type", "Bond"),
-            ("port", &port),
+            ("port_0", &port),
+            ("name_0", "ens1f0"),
+            ("kind_0", "Bond:LACP"),
         ],
     )
     .await;
-    assert_eq!(status, StatusCode::OK);
-    assert!(body.contains("Physical のインターフェースだけ"));
-
-    // Physical なら通る
-    let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, _) = インターフェースを送る(
-        状態,
-        &token,
-        &場,
-        &[
-            ("os_interface_name", "ens1f0"),
-            ("interface_type", "Physical"),
-            ("port", &port),
-        ],
-    )
-    .await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
-
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
     let i = インターフェース(db, 場.device.id, "ens1f0").await;
+    assert_eq!(i.interface_type, "Physical");
+    assert_eq!(i.aggregation_mode, None);
     assert_eq!(i.part_instance_id, Some(場.part_instance_id));
     assert_eq!(i.port_slot_id, Some(場.port_slot_id));
+
+    // 同じポートに2本目は作れない
+    let (status, body) = 節を送る(db, &場, &[("port_0", &port), ("name_0", "ens1f9")]).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("既にインターフェースがあります"), "{body}");
+
+    // この機器のものでないポートは受け付けない
+    let (status, body) =
+        節を送る(db, &場, &[("port_0", "999999:999999"), ("name_0", "ens9")]).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("物理ポートの指定が不正"), "{body}");
 }
 
-/// **`aggregation_mode` を持てるのは Bond だけであること**（設計書8.5）。
+/// **束ね方を持てるのは Bond だけであること**（設計書8.5）。閉じた語彙は既定へ寄せない。
 async fn 束ね方はbondだけ(db: &DatabaseConnection) {
     let 場 = 舞台(db, "agg@example.com").await;
 
-    let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, body) = インターフェースを送る(
-        状態,
-        &token,
-        &場,
-        &[
-            ("os_interface_name", "ens1f0"),
-            ("interface_type", "Physical"),
-            ("aggregation_mode", "LACP"),
-        ],
-    )
-    .await;
+    for kind in ["Physical:LACP", "Bond:Unknown"] {
+        let (status, body) = 節を送る(db, &場, &[("name_0", "x0"), ("kind_0", kind)]).await;
+        assert_eq!(status, StatusCode::OK, "{kind}");
+        assert!(body.contains("束ね方の値が不正"), "{kind}");
+    }
+    let (status, body) = 節を送る(db, &場, &[("name_0", "x0"), ("kind_0", "Tunnel")]).await;
     assert_eq!(status, StatusCode::OK);
-    assert!(body.contains("Bond のインターフェースだけ"));
+    assert!(body.contains("種別の値が不正"));
+    assert!(現在のインターフェース(db, 場.device.id).await.is_empty());
+
+    // **検証エラーでは、節を編集のまま、送った値を残して返す**（16.1）
+    assert!(
+        body.contains(r#"id="edit-ports" checked"#),
+        "編集のまま戻っていない"
+    );
+    assert!(body.contains(r#"value="x0""#), "送った値が残っていない");
 }
 
 /// **VMには物理ポートが無くてもIPを持てること**（設計書8.5(2)）。
@@ -169,23 +152,28 @@ async fn 束ね方はbondだけ(db: &DatabaseConnection) {
 async fn 仮想インターフェースにもipを付けられる(db: &DatabaseConnection) {
     let 場 = 舞台(db, "virtual@example.com").await;
 
-    let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, _) = インターフェースを送る(
-        状態,
-        &token,
+    let (status, body) = 節を送る(
+        db,
         &場,
-        &[("os_interface_name", "eth0"), ("interface_type", "Virtual")],
+        &[
+            ("name_0", "eth0"),
+            ("kind_0", "Virtual"),
+            ("ip_0", "192.168.1.20/24"),
+            ("role_0", "Service, Backup"),
+        ],
     )
     .await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
 
     let i = インターフェース(db, 場.device.id, "eth0").await;
     assert!(i.part_instance_id.is_none());
-
-    let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, _) = ipを送る(状態, &token, &場, i.id, "192.168.1.20", "24", None).await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
     assert_eq!(現在のip(db, i.id).await.len(), 1);
+    assert_eq!(現在の役割(db, i.id).await.len(), 2);
+
+    // プレフィックスの無いIPは受け付けない
+    let (status, body) = 行を送る(db, &場, i.id, &[("ip", "192.168.1.21")]).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("プレフィックスまで"), "{body}");
 }
 
 /// **束ねる関係が循環しないこと。**
@@ -194,25 +182,42 @@ async fn 仮想インターフェースにもipを付けられる(db: &DatabaseC
 /// 形の上では書けてしまう。上下を辿る表示が終わらなくなる。
 async fn 循環する束ねは拒否される(db: &DatabaseConnection) {
     let 場 = 舞台(db, "cycle@example.com").await;
-    let a = 作る(db, &場, "bond0", "Bond").await;
-    let b = 作る(db, &場, "bond0.100", "Vlan").await;
 
     // bond0.100 の下に bond0
-    let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, _) = 束ねる(状態, &token, &場, b.id, a.id).await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
+    let (status, body) = 節を送る(
+        db,
+        &場,
+        &[
+            ("name_0", "bond0"),
+            ("kind_0", "Bond"),
+            ("name_1", "bond0.100"),
+            ("kind_1", "Vlan"),
+            ("stack_1", "bond0"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    let a = インターフェース(db, 場.device.id, "bond0").await;
+    assert_eq!(現在の束ね(db).await.len(), 1);
 
     // その逆は循環になる
-    let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, body) = 束ねる(状態, &token, &場, a.id, b.id).await;
+    let (status, body) = 行を送る(db, &場, a.id, &[("stack", "bond0.100")]).await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("循環"));
 
     // 自分自身も拒否する
-    let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, body) = 束ねる(状態, &token, &場, a.id, a.id).await;
+    let (status, body) = 行を送る(db, &場, a.id, &[("stack", "bond0")]).await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("自分自身"));
+
+    // 無い名前も拒否する
+    let (status, body) = 行を送る(db, &場, a.id, &[("stack", "bond9")]).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        body.contains("名前のインターフェースがありません"),
+        "{body}"
+    );
+    assert_eq!(現在の束ね(db).await.len(), 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -222,20 +227,26 @@ async fn 循環する束ねは拒否される(db: &DatabaseConnection) {
 /// **ポートVLANとタグVLANを同じ形で扱えること**（設計書8.6）。
 ///
 /// トランクポートは**ネイティブVLANの Untagged と、タグVLANの Tagged が並ぶ。**
-/// 単一のFKでは表せないのがこの表を作った理由である。
+/// 単一のFKでは表せないのがこの表を作った理由である。画面では番号で入れ、
+/// タグ付きは末尾に `T` を付ける（16.1）。
 async fn トランクは複数のvlanを載せられる(db: &DatabaseConnection) {
     let 場 = 舞台(db, "trunk@example.com").await;
-    let i = 作る(db, &場, "Eth1/1/1", "Physical").await;
-
-    let native = vlanを作る(db, &場, 1, "native").await;
+    vlanを作る(db, &場, 1, "native").await;
     let a = vlanを作る(db, &場, 100, "業務").await;
-    let b = vlanを作る(db, &場, 200, "管理").await;
+    vlanを作る(db, &場, 200, "管理").await;
 
-    for (v, mode) in [(native, "Untagged"), (a, "Tagged"), (b, "Tagged")] {
-        let (状態, token) = 認証済み(db, &場.user).await;
-        let (status, body) = vlanを載せる(状態, &token, &場, i.id, v, mode).await;
-        assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
-    }
+    let (status, body) = 節を送る(
+        db,
+        &場,
+        &[
+            ("name_0", "Eth1/1/1"),
+            ("kind_0", "Physical"),
+            ("vlan_0", "1, 100T, 200T"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    let i = インターフェース(db, 場.device.id, "Eth1/1/1").await;
 
     let 載っている = 現在のvlan(db, i.id).await;
     assert_eq!(載っている.len(), 3);
@@ -248,10 +259,37 @@ async fn トランクは複数のvlanを載せられる(db: &DatabaseConnection)
     );
 
     // **同じVLANは2行載せない**
-    let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, body) = vlanを載せる(状態, &token, &場, i.id, a, "Untagged").await;
+    let (status, body) = 行を送る(db, &場, i.id, &[("vlan", "100, 100T")]).await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("既に載っています"));
+
+    // 無い番号は受け付けない
+    let (status, body) = 行を送る(db, &場, i.id, &[("vlan", "1, 999")]).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("その番号のVLANがありません"), "{body}");
+    assert_eq!(現在のvlan(db, i.id).await.len(), 3);
+
+    // **減らした分だけを閉じ、タグの付け方が変わった行は閉じて開く。行は消さない**
+    let (status, body) = 行を送る(db, &場, i.id, &[("vlan", "1, 100")]).await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    let 載っている = 現在のvlan(db, i.id).await;
+    assert_eq!(載っている.len(), 2);
+    assert!(載っている
+        .iter()
+        .any(|l| l.vlan_id == a && l.tagging_mode == "Untagged"));
+    assert_eq!(
+        interface_vlan::Entity::find().all(db).await.unwrap().len(),
+        4,
+        "閉じた行が消えている"
+    );
+
+    // **同じ番号のVLANが複数あれば、黙って選ばない**（VLANタグは一意でない。8.3）
+    vlanを作る(db, &場, 100, "別拠点").await;
+    let (status, body) = 行を送る(db, &場, i.id, &[("vlan", "1, 100")]).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("同じ番号のVLANが複数"), "{body}");
+    let (status, body) = 行を送る(db, &場, i.id, &[("vlan", "1, 100:業務")]).await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
 }
 
 // ---------------------------------------------------------------------------
@@ -334,9 +372,10 @@ async fn 別プロジェクトなら同じcidrを持てる(db: &DatabaseConnecti
 }
 
 /// **同一サブネット内でIPを重複させないこと**（設計書14.2）。
+///
+/// **サブネットはアドレスから決まること**（16.1）。画面は選ばせない。
 async fn 同じサブネットのipは重複できない(db: &DatabaseConnection) {
     let 場 = 舞台(db, "ipdup@example.com").await;
-    let i = 作る(db, &場, "eth0", "Virtual").await;
 
     let (状態, token) = 認証済み(db, &場.user).await;
     サブネットを送る(状態, &token, &場, &[("cidr", "10.0.0.0/24")]).await;
@@ -347,19 +386,59 @@ async fn 同じサブネットのipは重複できない(db: &DatabaseConnection
         .unwrap()
         .unwrap();
 
-    let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, _) = ipを送る(状態, &token, &場, i.id, "10.0.0.10", "24", Some(s.id)).await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
+    let (status, body) = 節を送る(
+        db,
+        &場,
+        &[
+            ("name_0", "eth0"),
+            ("kind_0", "Virtual"),
+            ("ip_0", "10.0.0.10/24, 172.16.0.1/24"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    let i = インターフェース(db, 場.device.id, "eth0").await;
+    let ips = 現在のip(db, i.id).await;
+    assert_eq!(ips[0].subnet_id, Some(s.id), "サブネットが決まっていない");
+    // 含むサブネットが無いアドレスは、サブネット無しで記録する
+    assert_eq!(ips[1].subnet_id, None);
 
-    let j = 作る(db, &場, "eth1", "Virtual").await;
-    let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, body) = ipを送る(状態, &token, &場, j.id, "10.0.0.10", "24", Some(s.id)).await;
+    let (status, body) = 節を送る(
+        db,
+        &場,
+        &[
+            ("name_0", "eth1"),
+            ("kind_0", "Virtual"),
+            ("ip_0", "10.0.0.10/24"),
+        ],
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("既にあります"));
+
+    // **同じ保存で外すなら、付け替えられる**
+    let (status, body) = 節を送る(
+        db,
+        &場,
+        &[
+            ("id_0", &i.id.to_string()),
+            ("name_0", "eth0"),
+            ("kind_0", "Virtual"),
+            ("ip_0", "172.16.0.1/24"),
+            ("name_1", "eth1"),
+            ("kind_1", "Virtual"),
+            ("ip_1", "10.0.0.10/24"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    let j = インターフェース(db, 場.device.id, "eth1").await;
+    assert_eq!(現在のip(db, j.id).await.len(), 1);
+    assert_eq!(現在のip(db, i.id).await.len(), 1);
 }
 
 // ---------------------------------------------------------------------------
-// 閉じる（設計書4章）
+// 外す（設計書4章、8.5）
 // ---------------------------------------------------------------------------
 
 /// **消さずに閉じること。上に載っているものも一緒に閉じること。**
@@ -368,22 +447,29 @@ async fn 同じサブネットのipは重複できない(db: &DatabaseConnection
 /// ときに存在しないインターフェースのIPが出る。
 async fn インターフェースを閉じると上も閉じる(db: &DatabaseConnection) {
     let 場 = 舞台(db, "close@example.com").await;
-    let bond = 作る(db, &場, "bond0", "Bond").await;
-    let lower = 作る(db, &場, "ens1f0", "Physical").await;
-    let v = vlanを作る(db, &場, 100, "業務").await;
+    vlanを作る(db, &場, 100, "業務").await;
 
-    let (状態, token) = 認証済み(db, &場.user).await;
-    束ねる(状態, &token, &場, bond.id, lower.id).await;
-    let (状態, token) = 認証済み(db, &場.user).await;
-    vlanを載せる(状態, &token, &場, bond.id, v, "Tagged").await;
-    let (状態, token) = 認証済み(db, &場.user).await;
-    ipを送る(状態, &token, &場, bond.id, "10.0.0.10", "24", None).await;
-    let (状態, token) = 認証済み(db, &場.user).await;
-    役割を送る(状態, &token, &場, bond.id, "Backup").await;
+    let (status, body) = 節を送る(
+        db,
+        &場,
+        &[
+            ("name_0", "ens1f0"),
+            ("kind_0", "Physical"),
+            ("name_1", "bond0"),
+            ("kind_1", "Bond"),
+            ("stack_1", "ens1f0"),
+            ("vlan_1", "100T"),
+            ("ip_1", "10.0.0.10/24"),
+            ("role_1", "Backup"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    let bond = インターフェース(db, 場.device.id, "bond0").await;
+    assert_eq!(現在の束ね(db).await.len(), 1);
 
-    let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, _) = 閉じる(状態, &token, &場, "interface", bond.id).await;
-    assert_eq!(status, StatusCode::SEE_OTHER);
+    let (status, body) = 行を送る(db, &場, bond.id, &[("remove", "1")]).await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
 
     // **行は消えていない**（4章）
     assert_eq!(
@@ -391,6 +477,7 @@ async fn インターフェースを閉じると上も閉じる(db: &DatabaseCon
         1,
         "IPの行が消えている"
     );
+    assert_eq!(os_interface::Entity::find().all(db).await.unwrap().len(), 2);
     // すべて閉じている
     assert!(現在のip(db, bond.id).await.is_empty());
     assert!(現在のvlan(db, bond.id).await.is_empty());
@@ -398,10 +485,89 @@ async fn インターフェースを閉じると上も閉じる(db: &DatabaseCon
     assert!(現在の束ね(db).await.is_empty(), "束ねが残っている");
 
     // 下位は生きている
-    assert!(現在のインターフェース(db, 場.device.id)
-        .await
+    let 残り = 現在のインターフェース(db, 場.device.id).await;
+    assert_eq!(残り.len(), 1);
+    assert_eq!(残り[0].os_interface_name, "ens1f0");
+}
+
+/// **名前や種別を変えたら、書き換えずに閉じて開き直すこと**（不変条件1、設計書23.5）。
+///
+/// 載っていたものは、新しい行に付け直す。
+async fn 名前を変えると閉じて開き直す(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "rename@example.com").await;
+    節を送る(
+        db,
+        &場,
+        &[
+            ("name_0", "eth0"),
+            ("kind_0", "Virtual"),
+            ("ip_0", "10.0.0.10/24"),
+        ],
+    )
+    .await;
+    let 前 = インターフェース(db, 場.device.id, "eth0").await;
+
+    let (status, body) = 行を送る(db, &場, 前.id, &[("name", "eth9")]).await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+
+    let 後 = インターフェース(db, 場.device.id, "eth9").await;
+    assert_ne!(前.id, 後.id, "行を書き換えている");
+    let 全部 = os_interface::Entity::find().all(db).await.unwrap();
+    assert_eq!(全部.len(), 2);
+    assert!(全部
         .iter()
-        .any(|i| i.os_interface_name == "ens1f0"));
+        .any(|i| i.id == 前.id && i.os_interface_name == "eth0" && i.to_date.is_some()));
+    assert!(現在のip(db, 前.id).await.is_empty());
+    assert_eq!(現在のip(db, 後.id).await[0].ip_address, "10.0.0.10");
+}
+
+/// **変わらない保存は何も書かず、送らなかった行には触れないこと。**
+///
+/// 画面を開いて何も変えずに保存しただけで、履歴に行が増えてはならない。
+async fn 変わらない行には触れない(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "noop@example.com").await;
+    節を送る(
+        db,
+        &場,
+        &[
+            ("name_0", "eth0"),
+            ("kind_0", "Virtual"),
+            ("ip_0", "10.0.0.10/24"),
+            ("role_0", "Service"),
+            ("name_1", "eth1"),
+            ("kind_1", "Virtual"),
+            ("ip_1", "10.0.0.11/24"),
+        ],
+    )
+    .await;
+    let a = インターフェース(db, 場.device.id, "eth0").await;
+    let b = インターフェース(db, 場.device.id, "eth1").await;
+    let 監査 = entity::audit_log::Entity::find()
+        .all(db)
+        .await
+        .unwrap()
+        .len();
+
+    // 同じ内容をもう一度送る
+    let (status, body) = 行を送る(db, &場, a.id, &[]).await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    assert_eq!(
+        entity::audit_log::Entity::find()
+            .all(db)
+            .await
+            .unwrap()
+            .len(),
+        監査,
+        "変わらない保存で書き込んでいる"
+    );
+
+    // eth0 の行だけを送って役割を外す。eth1 は残る
+    let (status, body) = 行を送る(db, &場, a.id, &[("role", "")]).await;
+    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
+    assert!(現在の役割(db, a.id).await.is_empty());
+    assert_eq!(現在のip(db, a.id).await.len(), 1);
+    assert_eq!(現在のip(db, b.id).await.len(), 1);
+    assert_eq!(現在のインターフェース(db, 場.device.id).await.len(), 2);
 }
 
 // ---------------------------------------------------------------------------
@@ -412,56 +578,98 @@ async fn インターフェースを閉じると上も閉じる(db: &DatabaseCon
 async fn 閲覧者はネットワークを編集できない(db: &DatabaseConnection) {
     let 場 = 舞台の役つき(db, "net-viewer@example.com", "Viewer").await;
 
-    let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, _) = インターフェースを送る(
-        状態,
-        &token,
-        &場,
-        &[("os_interface_name", "eth0"), ("interface_type", "Virtual")],
-    )
-    .await;
+    let (status, _) = 節を送る(db, &場, &[("name_0", "eth0"), ("kind_0", "Virtual")]).await;
     assert_eq!(status, StatusCode::FORBIDDEN);
 
     let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, _) = 取得(状態, &経路(&場, ""), &token).await;
+    let (status, body) = 取得(状態, &詳細(&場), &token).await;
     assert_eq!(status, StatusCode::OK);
+    // 編集の導線を出さない
+    assert!(!body.contains(r#"id="edit-ports""#));
+    assert!(!body.contains(r#"id="edit-parts""#));
 }
 
-/// **他プロジェクトの機器のインターフェースは開けないこと**（A-6）。
+/// **他プロジェクトの機器のインターフェースは開けず、書けないこと**（A-6）。
 async fn 部外者は機器のインターフェースを開けない(db: &DatabaseConnection) {
     let 場 = 舞台(db, "net-owner@example.com").await;
     let 他人 = 舞台(db, "net-outsider@example.com").await;
+    let 経路 = format!("/projects/{}/devices/{}", 他人.project.id, 場.device.id);
 
     let (状態, token) = 認証済み(db, &他人.user).await;
-    let (status, _) = 取得(
+    let (status, _) = 取得(状態, &経路, &token).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    let (状態, token) = 認証済み(db, &他人.user).await;
+    let (status, _) = 送信(
         状態,
-        &format!(
-            "/projects/{}/devices/{}/interfaces",
-            他人.project.id, 場.device.id
-        ),
+        &format!("{経路}/interfaces"),
         &token,
+        &[("name_0", "eth0"), ("kind_0", "Virtual")],
     )
     .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(現在のインターフェース(db, 場.device.id).await.is_empty());
+
+    // 自分の機器でも、別の機器のインターフェースのIDは受け付けない
+    節を送る(db, &場, &[("name_0", "eth0"), ("kind_0", "Virtual")]).await;
+    let 他の = インターフェース(db, 場.device.id, "eth0").await;
+    let (status, _) = 節を送る(
+        db,
+        &他人,
+        &[
+            ("id_0", &他の.id.to_string()),
+            ("name_0", "eth0"),
+            ("remove_0", "1"),
+        ],
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(現在のインターフェース(db, 場.device.id).await.len(), 1);
+}
+
+/// 以前のインターフェースの画面の場所は、機器の詳細の節へ送る。
+async fn 以前の画面の場所は節へ送る(db: &DatabaseConnection) {
+    let 場 = 舞台(db, "old-url@example.com").await;
+    let (状態, token) = 認証済み(db, &場.user).await;
+    let res = router(状態)
+        .oneshot(
+            Request::builder()
+                .uri(経路(&場))
+                .header(header::COOKIE, cookie_header(&token))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::SEE_OTHER);
+    assert_eq!(
+        res.headers().get(header::LOCATION).unwrap(),
+        &format!("{}#ports", 詳細(&場))
+    );
 }
 
 // ---------------------------------------------------------------------------
 // 補助
 // ---------------------------------------------------------------------------
 
-struct 舞台情報 {
-    user: app_user::Model,
-    project: project::Model,
-    device: device::Model,
-    part_instance_id: i32,
-    port_slot_id: i32,
+/// NICを1枚載せた機器と、その持ち主。`device_sections.rs` も使う。
+pub(super) struct 舞台情報 {
+    pub user: app_user::Model,
+    pub project: project::Model,
+    pub device: device::Model,
+    pub part_instance_id: i32,
+    pub port_slot_id: i32,
 }
 
-async fn 舞台(db: &DatabaseConnection, email: &str) -> 舞台情報 {
+pub(super) async fn 舞台(db: &DatabaseConnection, email: &str) -> 舞台情報 {
     舞台の役つき(db, email, "Operator").await
 }
 
-async fn 舞台の役つき(db: &DatabaseConnection, email: &str, role: &str) -> 舞台情報 {
+pub(super) async fn 舞台の役つき(
+    db: &DatabaseConnection,
+    email: &str,
+    role: &str,
+) -> 舞台情報 {
     let user = 利用者(db, email).await;
     let p = プロジェクト(db, &format!("{email}のプロジェクト")).await;
     メンバー(db, user.id, p.id, role).await;
@@ -599,16 +807,13 @@ async fn 舞台の役つき(db: &DatabaseConnection, email: &str, role: &str) ->
     }
 }
 
-fn 経路(場: &舞台情報, sub: &str) -> String {
-    let base = format!(
-        "/projects/{}/devices/{}/interfaces",
-        場.project.id, 場.device.id
-    );
-    if sub.is_empty() {
-        base
-    } else {
-        format!("{base}/{sub}")
-    }
+/// ポートとIPの節の送り先。
+fn 経路(場: &舞台情報) -> String {
+    format!("{}/interfaces", 詳細(場))
+}
+
+pub(super) fn 詳細(場: &舞台情報) -> String {
+    format!("/projects/{}/devices/{}", 場.project.id, 場.device.id)
 }
 
 fn サブネット経路(場: &舞台情報) -> String {
@@ -619,132 +824,99 @@ fn 空きポートの値(場: &舞台情報) -> String {
     format!("{}:{}", 場.part_instance_id, 場.port_slot_id)
 }
 
-async fn インターフェースを送る(
-    state: AppState,
-    token: &str,
+/// ポートとIPの節を送る。`name_0` のように、行の番号つきの名前で渡す。
+pub(super) async fn 節を送る(
+    db: &DatabaseConnection,
     場: &舞台情報,
     fields: &[(&str, &str)],
 ) -> (StatusCode, String) {
-    送信(state, &経路(場, ""), token, fields).await
+    let (状態, token) = 認証済み(db, &場.user).await;
+    送信(状態, &経路(場), &token, fields).await
 }
 
-async fn 作る(
+/// 既存の1行だけを送る。**今の状態をそのまま入力欄の値にし、`変更` で上書きする。**
+/// 画面が今の値を入れて出すのと同じ形である。
+async fn 行を送る(
     db: &DatabaseConnection,
     場: &舞台情報,
-    name: &str,
-    kind: &str,
-) -> os_interface::Model {
-    let (状態, token) = 認証済み(db, &場.user).await;
-    let (status, body) = インターフェースを送る(
-        状態,
-        &token,
-        場,
-        &[("os_interface_name", name), ("interface_type", kind)],
-    )
-    .await;
-    assert_eq!(status, StatusCode::SEE_OTHER, "{body}");
-    インターフェース(db, 場.device.id, name).await
-}
-
-async fn 束ねる(
-    state: AppState,
-    token: &str,
-    場: &舞台情報,
-    upper: i32,
-    lower: i32,
-) -> (StatusCode, String) {
-    送信(
-        state,
-        &経路(場, "members"),
-        token,
-        &[
-            ("os_interface_id", &upper.to_string()),
-            ("lower_interface_id", &lower.to_string()),
-        ],
-    )
-    .await
-}
-
-async fn vlanを載せる(
-    state: AppState,
-    token: &str,
-    場: &舞台情報,
     interface_id: i32,
-    vlan_id: i32,
-    mode: &str,
+    変更: &[(&str, &str)],
 ) -> (StatusCode, String) {
-    送信(
-        state,
-        &経路(場, "vlans"),
-        token,
-        &[
-            ("os_interface_id", &interface_id.to_string()),
-            ("vlan_id", &vlan_id.to_string()),
-            ("tagging_mode", mode),
-        ],
-    )
-    .await
-}
-
-async fn 役割を送る(
-    state: AppState,
-    token: &str,
-    場: &舞台情報,
-    interface_id: i32,
-    role: &str,
-) -> (StatusCode, String) {
-    送信(
-        state,
-        &経路(場, "roles"),
-        token,
-        &[
-            ("os_interface_id", &interface_id.to_string()),
-            ("role", role),
-        ],
-    )
-    .await
-}
-
-async fn ipを送る(
-    state: AppState,
-    token: &str,
-    場: &舞台情報,
-    interface_id: i32,
-    address: &str,
-    prefix: &str,
-    subnet_id: Option<i32>,
-) -> (StatusCode, String) {
-    送信(
-        state,
-        &経路(場, "ips"),
-        token,
-        &[
-            ("os_interface_id", &interface_id.to_string()),
-            ("ip_address", address),
-            ("prefix_length", prefix),
-            (
-                "subnet_id",
-                &subnet_id.map(|i| i.to_string()).unwrap_or_default(),
-            ),
-        ],
-    )
-    .await
-}
-
-async fn 閉じる(
-    state: AppState,
-    token: &str,
-    場: &舞台情報,
-    target: &str,
-    id: i32,
-) -> (StatusCode, String) {
-    送信(
-        state,
-        &経路(場, "close"),
-        token,
-        &[("target", target), ("id", &id.to_string())],
-    )
-    .await
+    let i = os_interface::Entity::find_by_id(interface_id)
+        .one(db)
+        .await
+        .unwrap()
+        .unwrap();
+    let 名前 = |id: i32| async move {
+        os_interface::Entity::find_by_id(id)
+            .one(db)
+            .await
+            .unwrap()
+            .unwrap()
+            .os_interface_name
+    };
+    let ポート行 = i.port_slot_id.is_some();
+    let mut 束ね = Vec::new();
+    for s in 現在の束ね(db).await {
+        // 物理ポートの行は束ね先（上位）を、それ以外は下位を持つ
+        if ポート行 && s.lower_interface_id == i.id {
+            束ね.push(名前(s.upper_interface_id).await);
+        } else if !ポート行 && s.upper_interface_id == i.id {
+            束ね.push(名前(s.lower_interface_id).await);
+        }
+    }
+    let mut vlans = Vec::new();
+    for link in 現在のvlan(db, i.id).await {
+        let v = vlan::Entity::find_by_id(link.vlan_id)
+            .one(db)
+            .await
+            .unwrap()
+            .unwrap();
+        vlans.push(match link.tagging_mode.as_str() {
+            "Tagged" => format!("{}T", v.vlan_tag),
+            _ => v.vlan_tag.to_string(),
+        });
+    }
+    let mut 値: Vec<(String, String)> = vec![
+        ("id".to_owned(), i.id.to_string()),
+        ("name".to_owned(), i.os_interface_name.clone()),
+        (
+            "kind".to_owned(),
+            match &i.aggregation_mode {
+                Some(m) => format!("{}:{m}", i.interface_type),
+                None => i.interface_type.clone(),
+            },
+        ),
+        ("stack".to_owned(), 束ね.join(", ")),
+        ("vlan".to_owned(), vlans.join(", ")),
+        (
+            "ip".to_owned(),
+            現在のip(db, i.id)
+                .await
+                .iter()
+                .map(|ip| format!("{}/{}", ip.ip_address, ip.prefix_length))
+                .collect::<Vec<_>>()
+                .join(", "),
+        ),
+        (
+            "role".to_owned(),
+            現在の役割(db, i.id)
+                .await
+                .iter()
+                .map(|r| r.role.clone())
+                .collect::<Vec<_>>()
+                .join(", "),
+        ),
+    ];
+    for (key, value) in 変更 {
+        match 値.iter_mut().find(|(k, _)| k == key) {
+            Some(組) => 組.1 = (*value).to_owned(),
+            None => 値.push(((*key).to_owned(), (*value).to_owned())),
+        }
+    }
+    let 値: Vec<(String, String)> = 値.into_iter().map(|(k, v)| (format!("{k}_0"), v)).collect();
+    let fields: Vec<(&str, &str)> = 値.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+    節を送る(db, 場, &fields).await
 }
 
 async fn サブネットを送る(
@@ -784,7 +956,7 @@ async fn vlanを作る一式(
     .id
 }
 
-async fn インターフェース(
+pub(super) async fn インターフェース(
     db: &DatabaseConnection,
     device_id: i32,
     name: &str,
@@ -811,7 +983,10 @@ async fn 現在のインターフェース(
         .unwrap()
 }
 
-async fn 現在のip(db: &DatabaseConnection, interface_id: i32) -> Vec<ip_address::Model> {
+pub(super) async fn 現在のip(
+    db: &DatabaseConnection,
+    interface_id: i32,
+) -> Vec<ip_address::Model> {
     ip_address::Entity::find()
         .filter(ip_address::Column::OsInterfaceId.eq(interface_id))
         .filter(ip_address::Column::ToDate.is_null())
@@ -867,7 +1042,7 @@ async fn 利用者(db: &DatabaseConnection, email: &str) -> app_user::Model {
     .unwrap()
 }
 
-async fn プロジェクト(db: &DatabaseConnection, name: &str) -> project::Model {
+pub(super) async fn プロジェクト(db: &DatabaseConnection, name: &str) -> project::Model {
     project::ActiveModel {
         uid: Set(uuid::Uuid::new_v4().to_string()),
         code: Set(None),
@@ -899,7 +1074,10 @@ async fn メンバー(db: &DatabaseConnection, user_id: i32, project_id: i32, ro
     .unwrap();
 }
 
-async fn 認証済み(db: &DatabaseConnection, user: &app_user::Model) -> (AppState, String) {
+pub(super) async fn 認証済み(
+    db: &DatabaseConnection,
+    user: &app_user::Model,
+) -> (AppState, String) {
     let config = 設定();
     let (setup, _) = SetupState::initialize(db).await.unwrap();
     let state = AppState {
@@ -933,7 +1111,7 @@ fn cookie_header(token: &str) -> String {
     format!("{}={token}", session::COOKIE_NAME)
 }
 
-async fn 取得(state: AppState, uri: &str, token: &str) -> (StatusCode, String) {
+pub(super) async fn 取得(state: AppState, uri: &str, token: &str) -> (StatusCode, String) {
     let res = router(state)
         .oneshot(
             Request::builder()
@@ -947,7 +1125,7 @@ async fn 取得(state: AppState, uri: &str, token: &str) -> (StatusCode, String)
     分解(res).await
 }
 
-async fn 送信(
+pub(super) async fn 送信(
     state: AppState,
     uri: &str,
     token: &str,
@@ -995,6 +1173,9 @@ macro_rules! 全検証 {
         全検証!(@one $用意, $属性, 別プロジェクトなら同じcidrを持てる);
         全検証!(@one $用意, $属性, 同じサブネットのipは重複できない);
         全検証!(@one $用意, $属性, インターフェースを閉じると上も閉じる);
+        全検証!(@one $用意, $属性, 名前を変えると閉じて開き直す);
+        全検証!(@one $用意, $属性, 変わらない行には触れない);
+        全検証!(@one $用意, $属性, 以前の画面の場所は節へ送る);
         全検証!(@one $用意, $属性, 閲覧者はネットワークを編集できない);
         全検証!(@one $用意, $属性, 部外者は機器のインターフェースを開けない);
     };
